@@ -1,0 +1,65 @@
+name: mandarin_academy
+description: Mandarin learning platform with video clips, AI dictionary, and gamification.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State Management
+  flutter_riverpod: ^2.5.1
+
+  # Firebase
+  firebase_core: ^3.3.0
+  cloud_firestore: ^5.3.0
+  firebase_auth: ^5.2.0
+  firebase_storage: ^12.2.0
+  firebase_messaging: ^15.1.0
+  firebase_analytics: ^11.2.0
+  firebase_crashlytics: ^4.1.0
+  firebase_remote_config: ^5.1.0
+  cloud_functions: ^5.1.0
+
+  # Ads
+  google_mobile_ads: ^5.1.0
+
+  # Video
+  youtube_player_iframe: ^4.0.3
+  video_player: ^2.9.1
+  chewie: ^1.8.3
+
+  # AI
+  google_generative_ai: ^0.4.6
+
+  # Local Cache
+  hive_flutter: ^1.1.0
+
+  # Data Models (manual implementation — no code generation needed)
+
+  # Navigation
+  go_router: ^14.2.7
+
+  # Utilities
+  cached_network_image: ^3.4.1
+  crypto: ^3.0.5
+  intl: ^0.19.0
+  connectivity_plus: ^6.0.3
+  shared_preferences: ^2.3.2
+  url_launcher: ^6.3.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
+    - assets/icons/
+    - assets/data/
+  # fonts:  # Add NotoSansSC font files to assets/fonts/ before uncommenting
