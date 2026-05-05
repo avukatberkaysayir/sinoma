@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
@@ -15,28 +17,33 @@ import 'presentation/providers/dictionary_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // Clean URLs on web (removes the # fragment from routes).
   usePathUrlStrategy();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // FCM background handler must be registered before runApp on mobile only.
-  // Web FCM is handled via firebase-messaging-sw.js service worker.
+  // Connect to Firebase Emulators in debug builds.
+  // In release builds (production), this block is skipped.
+  if (kDebugMode) {
+    const emulatorHost = 'localhost';
+    try {
+      await FirebaseAuth.instance.useAuthEmulator(emulatorHost, 9199);
+      FirebaseFirestore.instance.useFirestoreEmulator(emulatorHost, 9299);
+    } catch (_) {
+      // Emulator not running — fall through to production Firebase.
+    }
+  }
+
   if (!kIsWeb) {
     NotificationService.registerBackgroundHandler();
   }
 
-  // Hive local cache (works on web via IndexedDB).
   await CacheService.initialize();
   final cache = CacheService();
   await cache.openBoxes();
 
-  // Remote Config — fetches live values, falls back to defaults on failure.
   final remoteConfig = RemoteConfigService();
   await remoteConfig.initialize();
 
-  // Crashlytics error hooks (no-op on web for fatal errors, but non-fatal still works).
   if (!kIsWeb) {
     FlutterError.onError =
         FirebaseCrashlytics.instance.recordFlutterFatalError;
