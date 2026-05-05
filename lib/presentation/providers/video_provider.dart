@@ -11,9 +11,17 @@ final videoRepositoryProvider = Provider<VideoRepository>((ref) {
   return VideoRepository(cache: ref.read(cacheServiceProvider));
 });
 
+// null = show all categories
+final selectedCategoryProvider = StateProvider<String?>((ref) => null);
+
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   final hskLevel = ref.watch(currentHskLevelProvider);
-  return ref.read(videoRepositoryProvider).loadSegmentsForLevel(hskLevel);
+  final category = ref.watch(selectedCategoryProvider);
+  final repo = ref.read(videoRepositoryProvider);
+  if (category != null) {
+    return repo.loadSegmentsByCategory(hskLevel, category);
+  }
+  return repo.loadSegmentsForLevel(hskLevel);
 });
 
 // ---------------------------------------------------------------------------

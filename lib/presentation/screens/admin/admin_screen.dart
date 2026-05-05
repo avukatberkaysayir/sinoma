@@ -1,45 +1,56 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/video_segment_model.dart';
+import '../../../data/services/admin_service.dart';
 
-// Admin panel — only accessible in debug mode via /admin route.
-// Allows adding and toggling video segments for emulator testing.
+// Admin panel — debug mode only, accessible via /admin route.
+// Uses EmulatorAdminService to bypass Firestore security rules
+// (Authorization: Bearer owner — emulator only, never production).
 
-class AdminScreen extends ConsumerStatefulWidget {
+class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
   @override
-  ConsumerState<AdminScreen> createState() => _AdminScreenState();
+  State<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends ConsumerState<AdminScreen> {
-  final _firestore = FirebaseFirestore.instance;
+class _AdminScreenState extends State<AdminScreen> {
+  final _service = AdminService();
   List<Map<String, dynamic>> _videos = [];
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    if (!kDebugMode) return;
-    _loadVideos();
+    if (kDebugMode) _loadVideos();
   }
 
   Future<void> _loadVideos() async {
-    setState(() => _loading = true);
-    final snap = await _firestore.collection('videos').get();
-    setState(() {
-      _videos = snap.docs.map((d) => {'id': d.id, ...d.data()}).toList();
-      _loading = false;
-    });
+    setState(() { _loading = true; _error = null; });
+    try {
+      final videos = await _service.listVideos();
+      videos.sort((a, b) {
+        final ha = (a['hskLevel'] as int?) ?? 1;
+        final hb = (b['hskLevel'] as int?) ?? 1;
+        return ha.compareTo(hb);
+      });
+      setState(() { _videos = videos; _loading = false; });
+    } catch (e) {
+      setState(() { _error = e.toString(); _loading = false; });
+    }
   }
 
   Future<void> _toggleActive(String videoId, bool current) async {
-    await _firestore.collection('videos').doc(videoId).update({'isActive': !current});
-    await _loadVideos();
+    try {
+      await _service.updateField(videoId, 'isActive', !current);
+      await _loadVideos();
+    } catch (e) {
+      _showSnack('Error: $e');
+    }
   }
 
   Future<void> _deleteVideo(String videoId) async {
@@ -47,20 +58,35 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
-        title: const Text('Delete video?', style: TextStyle(color: AppColors.onSurface)),
+        title: const Text('Delete video?',
+            style: TextStyle(color: AppColors.onSurface)),
+        content: Text(videoId,
+            style: const TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete', style: TextStyle(color: AppColors.wrongAnswer)),
+            child: const Text('Delete',
+                style: TextStyle(color: AppColors.wrongAnswer)),
           ),
         ],
       ),
     );
     if (confirmed == true) {
-      await _firestore.collection('videos').doc(videoId).delete();
-      await _loadVideos();
+      try {
+        await _service.deleteVideo(videoId);
+        await _loadVideos();
+      } catch (e) {
+        _showSnack('Error: $e');
+      }
     }
+  }
+
+  void _showSnack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -68,19 +94,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
     if (!kDebugMode) {
       return Scaffold(
         appBar: AppBar(title: const Text('Admin')),
-        body: const Center(child: Text('Admin panel only available in debug mode.')),
+        body: const Center(
+            child: Text('Admin panel only available in debug mode.')),
       );
     }
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: const Text('Admin — Video Manager'),
+        title: Text('Admin — ${_videos.length} videos'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadVideos,
-          ),
+              icon: const Icon(Icons.refresh), onPressed: _loadVideos),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -94,79 +119,138 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : _videos.isEmpty
-              ? const Center(
-                  child: Text('No videos. Tap + to add one.',
-                      style: TextStyle(color: AppColors.onSurfaceMuted)),
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          color: AppColors.wrongAnswer, size: 40),
+                      const SizedBox(height: 12),
+                      Text(_error!,
+                          style: const TextStyle(
+                              color: AppColors.onSurfaceMuted),
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: _loadVideos,
+                        style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: _videos.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (context, i) {
-                    final v = _videos[i];
-                    final isActive = v['isActive'] as bool? ?? true;
-                    final hsk = v['hskLevel'] as int? ?? 1;
-                    return Container(
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: isActive
-                              ? AppColors.primary.withValues(alpha: 0.3)
-                              : Colors.grey.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: ListTile(
-                        leading: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              : _videos.isEmpty
+                  ? const Center(
+                      child: Text('No videos. Tap + to add one.',
+                          style:
+                              TextStyle(color: AppColors.onSurfaceMuted)))
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+                      itemCount: _videos.length,
+                      separatorBuilder: (_, __) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, i) {
+                        final v = _videos[i];
+                        final isActive =
+                            v['isActive'] as bool? ?? true;
+                        final hsk = (v['hskLevel'] as int?) ?? 1;
+                        final cat =
+                            v['quizCategory'] as String? ?? 'vocabulary';
+                        final qc = QuizCategory.fromString(cat);
+
+                        return Container(
                           decoration: BoxDecoration(
-                            color: AppColors.forHskLevel(hsk),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            'HSK $hsk',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
+                            color: AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: isActive
+                                  ? AppColors.primary
+                                      .withValues(alpha: 0.3)
+                                  : Colors.grey.withValues(alpha: 0.15),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          v['transcription'] as String? ?? v['id'] as String,
-                          style: TextStyle(
-                            color: isActive ? AppColors.onSurface : AppColors.onSurfaceMuted,
-                            fontSize: 14,
+                          child: ListTile(
+                            leading: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 6, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.forHskLevel(hsk),
+                                    borderRadius:
+                                        BorderRadius.circular(6),
+                                  ),
+                                  child: Text('HSK $hsk',
+                                      style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 10,
+                                          fontWeight:
+                                              FontWeight.bold)),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(qc.emoji,
+                                    style:
+                                        const TextStyle(fontSize: 14)),
+                              ],
+                            ),
+                            title: Text(
+                              v['transcription'] as String? ??
+                                  (v['id'] as String),
+                              style: TextStyle(
+                                color: isActive
+                                    ? AppColors.onSurface
+                                    : AppColors.onSurfaceMuted,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment:
+                                  CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  v['pinyin'] as String? ?? '',
+                                  style: const TextStyle(
+                                      color: AppColors.onSurfaceMuted,
+                                      fontSize: 12),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  'YouTube: ${v['youtubeId'] ?? '—'}',
+                                  style: const TextStyle(
+                                      color: AppColors.onSurfaceMuted,
+                                      fontSize: 11),
+                                ),
+                              ],
+                            ),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Switch(
+                                  value: isActive,
+                                  activeTrackColor: AppColors.primary,
+                                  onChanged: (_) => _toggleActive(
+                                      v['id'] as String, isActive),
+                                ),
+                                IconButton(
+                                  icon: const Icon(
+                                      Icons.delete_outline,
+                                      color: AppColors.wrongAnswer,
+                                      size: 20),
+                                  onPressed: () =>
+                                      _deleteVideo(v['id'] as String),
+                                ),
+                              ],
+                            ),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        subtitle: Text(
-                          v['pinyin'] as String? ?? '',
-                          style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Switch(
-                              value: isActive,
-                              activeTrackColor: AppColors.primary,
-                              onChanged: (_) => _toggleActive(v['id'] as String, isActive),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline,
-                                  color: AppColors.wrongAnswer, size: 20),
-                              onPressed: () => _deleteVideo(v['id'] as String),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
+                        );
+                      },
+                    ),
     );
   }
 }
@@ -182,7 +266,7 @@ class AddVideoScreen extends StatefulWidget {
 
 class _AddVideoScreenState extends State<AddVideoScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _firestore = FirebaseFirestore.instance;
+  final _service = AdminService();
 
   final _idCtrl = TextEditingController();
   final _youtubeIdCtrl = TextEditingController();
@@ -192,20 +276,30 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
   final _correctCtrl = TextEditingController();
   final _wrongCtrl = TextEditingController();
   final _targetWordsCtrl = TextEditingController();
+
   int _hskLevel = 1;
   double _startTime = 0;
   double _endTime = 8;
+  QuizCategory _category = QuizCategory.vocabulary;
   bool _saving = false;
 
   @override
   void dispose() {
     for (final c in [
       _idCtrl, _youtubeIdCtrl, _transcriptionCtrl, _pinyinCtrl,
-      _questionCtrl, _correctCtrl, _wrongCtrl, _targetWordsCtrl
+      _questionCtrl, _correctCtrl, _wrongCtrl, _targetWordsCtrl,
     ]) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  // Auto-fill video ID from YouTube ID
+  void _onYoutubeIdChanged(String ytId) {
+    if (_idCtrl.text.isEmpty && ytId.length >= 4) {
+      _idCtrl.text =
+          'video-hsk$_hskLevel-${ytId.substring(0, 4).toLowerCase()}';
+    }
   }
 
   Future<void> _save() async {
@@ -219,27 +313,36 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
         .where((w) => w.isNotEmpty)
         .toList();
 
-    await _firestore.collection('videos').doc(id).set({
-      'videoId': id,
-      'sourceType': 'youtube',
-      'youtubeId': _youtubeIdCtrl.text.trim(),
-      'startTime': _startTime,
-      'endTime': _endTime,
-      'hskLevel': _hskLevel,
-      'transcription': _transcriptionCtrl.text.trim(),
-      'pinyin': _pinyinCtrl.text.trim(),
-      'targetWords': targetWords,
-      'quizCategory': 'vocabulary',
-      'quiz': {
-        'question': _questionCtrl.text.trim(),
-        'correctAnswer': _correctCtrl.text.trim(),
-        'wrongAnswer': _wrongCtrl.text.trim(),
-      },
-      'isActive': true,
-      'createdAt': Timestamp.now(),
-    });
-
-    if (mounted) context.pop();
+    try {
+      await _service.setVideo(id, {
+        'videoId': id,
+        'sourceType': 'youtube',
+        'youtubeId': _youtubeIdCtrl.text.trim(),
+        'startTime': _startTime,
+        'endTime': _endTime,
+        'hskLevel': _hskLevel,
+        'transcription': _transcriptionCtrl.text.trim(),
+        'pinyin': _pinyinCtrl.text.trim(),
+        'targetWords': targetWords,
+        'quizCategory': _category.name,
+        'quiz': {
+          'question': _questionCtrl.text.trim(),
+          'correctAnswer': _correctCtrl.text.trim(),
+          'wrongAnswer': _wrongCtrl.text.trim(),
+        },
+        'isActive': true,
+        'createdAt': DateTime.now(),
+      });
+      if (mounted) context.pop();
+    } catch (e) {
+      setState(() => _saving = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'),
+              backgroundColor: AppColors.wrongAnswer),
+        );
+      }
+    }
   }
 
   @override
@@ -252,51 +355,99 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            _field(_idCtrl, 'Video ID (e.g. video-hsk1-04)', required: true),
-            _field(_youtubeIdCtrl, 'YouTube ID (11-char code)', required: true),
-            _field(_transcriptionCtrl, 'Chinese transcription', required: true),
-            _field(_pinyinCtrl, 'Pinyin', required: true),
-            _field(_targetWordsCtrl, 'Target word IDs (comma-separated)'),
-            const SizedBox(height: 12),
+            _field(_youtubeIdCtrl, 'YouTube ID (11-char)',
+                required: true,
+                onChanged: _onYoutubeIdChanged),
+            _field(_idCtrl, 'Video document ID (auto-filled)',
+                required: true),
+            _field(_transcriptionCtrl, 'Chinese transcription (汉字)',
+                required: true),
+            _field(_pinyinCtrl, 'Pinyin (tone marks)', required: true),
+            _field(_targetWordsCtrl,
+                'Target word IDs (comma-separated, e.g. ni-hao,shui)'),
+            const SizedBox(height: 16),
+            // HSK level slider
             Text('HSK Level: $_hskLevel',
-                style: const TextStyle(color: AppColors.onSurface)),
+                style: const TextStyle(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w600)),
             Slider(
               value: _hskLevel.toDouble(),
-              min: 1,
-              max: 6,
-              divisions: 5,
+              min: 1, max: 6, divisions: 5,
               activeColor: AppColors.forHskLevel(_hskLevel),
               label: 'HSK $_hskLevel',
               onChanged: (v) => setState(() => _hskLevel = v.round()),
             ),
+            // Time range slider
             Text(
-              'Segment: ${_startTime.toStringAsFixed(1)}s → ${_endTime.toStringAsFixed(1)}s',
-              style: const TextStyle(color: AppColors.onSurface),
+              'Segment: ${_startTime.toStringAsFixed(1)}s → ${_endTime.toStringAsFixed(1)}s  '
+              '(${(_endTime - _startTime).toStringAsFixed(1)}s)',
+              style: const TextStyle(
+                  color: AppColors.onSurface, fontWeight: FontWeight.w600),
             ),
             RangeSlider(
               values: RangeValues(_startTime, _endTime),
-              min: 0,
-              max: 600,
-              divisions: 600,
+              min: 0, max: 600, divisions: 600,
               activeColor: AppColors.primary,
-              onChanged: (r) =>
-                  setState(() { _startTime = r.start; _endTime = r.end; }),
+              labels: RangeLabels('${_startTime.toInt()}s',
+                  '${_endTime.toInt()}s'),
+              onChanged: (r) => setState(
+                  () { _startTime = r.start; _endTime = r.end; }),
             ),
-            const Divider(color: AppColors.surfaceVariant),
-            const Text('Quiz', style: TextStyle(color: AppColors.onSurface, fontWeight: FontWeight.bold)),
+            // Category picker
             const SizedBox(height: 8),
-            _field(_questionCtrl, 'Question', required: true),
+            const Text('Quiz Category',
+                style: TextStyle(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8, runSpacing: 8,
+              children: QuizCategory.values.map((cat) {
+                final selected = _category == cat;
+                return ChoiceChip(
+                  label:
+                      Text('${cat.emoji} ${cat.displayName}'),
+                  selected: selected,
+                  selectedColor:
+                      AppColors.primary.withValues(alpha: 0.2),
+                  labelStyle: TextStyle(
+                    color: selected
+                        ? AppColors.primary
+                        : AppColors.onSurfaceMuted,
+                    fontSize: 12,
+                  ),
+                  onSelected: (_) =>
+                      setState(() => _category = cat),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
+            const Divider(color: AppColors.surfaceVariant),
+            const Text('Quiz',
+                style: TextStyle(
+                    color: AppColors.onSurface,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16)),
+            const SizedBox(height: 8),
+            _field(_questionCtrl, 'Question (e.g. "水" means:)',
+                required: true),
             _field(_correctCtrl, 'Correct answer', required: true),
-            _field(_wrongCtrl, 'Wrong answer', required: true),
-            const SizedBox(height: 24),
+            _field(_wrongCtrl, 'Wrong answer (decoy)',
+                required: true),
+            const SizedBox(height: 28),
             FilledButton(
               onPressed: _saving ? null : _save,
-              style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(vertical: 16)),
               child: _saving
                   ? const SizedBox(
                       width: 20, height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Save Video'),
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Text('Save Video',
+                      style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -304,24 +455,37 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
     );
   }
 
-  Widget _field(TextEditingController ctrl, String label, {bool required = false}) {
+  Widget _field(
+    TextEditingController ctrl,
+    String label, {
+    bool required = false,
+    void Function(String)? onChanged,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: TextFormField(
         controller: ctrl,
+        onChanged: onChanged,
         style: const TextStyle(color: AppColors.onSurface),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+          labelStyle:
+              const TextStyle(color: AppColors.onSurfaceMuted),
           filled: true,
           fillColor: AppColors.surfaceVariant,
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: BorderSide.none,
           ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(10),
+            borderSide:
+                const BorderSide(color: AppColors.primary),
+          ),
         ),
         validator: required
-            ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
+            ? (v) =>
+                (v == null || v.trim().isEmpty) ? 'Required' : null
             : null,
       ),
     );

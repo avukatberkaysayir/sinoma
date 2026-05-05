@@ -41,6 +41,27 @@ class VideoRepository {
     }
   }
 
+  Future<List<VideoSegmentModel>> loadSegmentsByCategory(
+    int hskLevel,
+    String quizCategory,
+  ) async {
+    try {
+      final snap = await _firestore
+          .collection('videos')
+          .where('hskLevel', isLessThanOrEqualTo: hskLevel + 1)
+          .where('isActive', isEqualTo: true)
+          .where('quizCategory', isEqualTo: quizCategory)
+          .orderBy('createdAt', descending: true)
+          .limit(20)
+          .get();
+
+      return snap.docs.map(VideoSegmentModel.fromFirestore).toList();
+    } catch (_) {
+      final all = _cache.loadCachedVideoFeed(hskLevel) ?? [];
+      return all.where((v) => v.quizCategory.name == quizCategory).toList();
+    }
+  }
+
   Future<List<VideoSegmentModel>> loadSegmentsForGame(int hskLevel,
       {int limit = 10}) async {
     try {

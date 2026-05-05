@@ -58,12 +58,12 @@ dependencies:
   connectivity_plus: ^6.0.3
   shared_preferences: ^2.3.2
   url_launcher: ^6.3.0
+  http: ^1.2.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
-  http: ^1.2.0
 
 # Patches youtube_player_iframe_web to use dart:ui_web (platformViewRegistry
 # moved from dart:ui in Flutter 3.19+). Remove when pub.dev package is updated.

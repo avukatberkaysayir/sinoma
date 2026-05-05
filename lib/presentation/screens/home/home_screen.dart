@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -17,12 +18,11 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int _tab = 0; // 0=Feed 1=Games 2=Social
+  int _tab = 0; // 0=Feed, 1=Games, 2=Community
 
   @override
   void initState() {
     super.initState();
-    // Warm up AdService and FCM once user is signed in.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(adServiceProvider);
       ref.read(fcmInitProvider);
@@ -97,7 +97,70 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-// ── Tab: Video Feed ──────────────────────────────────────────────────────────
+// ── Category Filter Bar ───────────────────────────────────────────────────────
+
+// All categories + "All" sentinel.
+const _allCategories = <QuizCategory?>[
+  null, // "All"
+  QuizCategory.conversation,
+  QuizCategory.vocabulary,
+  QuizCategory.grammar,
+  QuizCategory.listening,
+  QuizCategory.culture,
+  QuizCategory.characters,
+];
+
+class _CategoryFilterBar extends ConsumerWidget {
+  const _CategoryFilterBar();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selected = ref.watch(selectedCategoryProvider);
+
+    return SizedBox(
+      height: 44,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        itemCount: _allCategories.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, i) {
+          final cat = _allCategories[i];
+          final isSelected = selected == (cat?.name);
+          final label = cat == null ? 'All' : '${cat.emoji} ${cat.displayName}';
+
+          return FilterChip(
+            label: Text(label),
+            selected: isSelected,
+            onSelected: (_) {
+              ref.read(selectedCategoryProvider.notifier).state =
+                  cat?.name;
+              ref.invalidate(videoFeedProvider);
+            },
+            selectedColor: AppColors.primary.withValues(alpha: 0.2),
+            checkmarkColor: AppColors.primary,
+            labelStyle: TextStyle(
+              color: isSelected ? AppColors.primary : AppColors.onSurfaceMuted,
+              fontSize: 13,
+              fontWeight:
+                  isSelected ? FontWeight.bold : FontWeight.normal,
+            ),
+            backgroundColor: AppColors.surfaceVariant,
+            side: BorderSide(
+              color: isSelected
+                  ? AppColors.primary
+                  : AppColors.surfaceVariant,
+            ),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 4, vertical: 0),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ── Tab: Video Feed ───────────────────────────────────────────────────────────
 
 class _VideoFeedTab extends ConsumerWidget {
   const _VideoFeedTab();
@@ -105,61 +168,370 @@ class _VideoFeedTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final feedAsync = ref.watch(videoFeedProvider);
+    final selectedCategory = ref.watch(selectedCategoryProvider);
 
-    return feedAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Text(
-          'Failed to load videos\n$e',
-          style: const TextStyle(color: AppColors.onSurface),
-          textAlign: TextAlign.center,
-        ),
-      ),
-      data: (segments) {
-        if (segments.isEmpty) {
-          return const Center(
-            child: Text(
-              'No videos available at your level.',
-              style: TextStyle(color: AppColors.onSurfaceMuted),
+    return Column(
+      children: [
+        const SizedBox(height: 8),
+        const _CategoryFilterBar(),
+        const SizedBox(height: 8),
+        Expanded(
+          child: feedAsync.when(
+            loading: () =>
+                const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: AppColors.wrongAnswer, size: 40),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Failed to load videos\n$e',
+                    style:
+                        const TextStyle(color: AppColors.onSurface),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: () => ref.invalidate(videoFeedProvider),
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
             ),
-          );
-        }
+            data: (segments) {
+              if (segments.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.video_library_outlined,
+                          size: 56,
+                          color: AppColors.primary
+                              .withValues(alpha: 0.4)),
+                      const SizedBox(height: 16),
+                      Text(
+                        selectedCategory != null
+                            ? 'No videos in this category yet.'
+                            : 'No videos available at your level.',
+                        style: const TextStyle(
+                            color: AppColors.onSurfaceMuted),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+                );
+              }
 
-        final columns = ResponsiveLayout.feedColumnCount(context);
-        final padding = ResponsiveLayout.pagePadding(context);
+              // Group by quiz category when showing all.
+              if (selectedCategory == null) {
+                return _GroupedFeed(segments: segments);
+              }
 
-        return ConstrainedPage(
-          child: columns == 1
-              ? ListView.separated(
-                  padding: EdgeInsets.all(padding),
-                  itemCount: segments.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 12),
-                  itemBuilder: (context, i) => _VideoCard(
-                    segment: segments[i],
-                    onTap: () => context.push('/video/${segments[i].videoId}'),
-                  ),
-                )
-              : GridView.builder(
-                  padding: EdgeInsets.all(padding),
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 3.2,
-                  ),
-                  itemCount: segments.length,
-                  itemBuilder: (context, i) => _VideoCard(
-                    segment: segments[i],
-                    onTap: () => context.push('/video/${segments[i].videoId}'),
-                  ),
-                ),
-        );
-      },
+              return _FlatFeed(segments: segments);
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ── Tab: Games ───────────────────────────────────────────────────────────────
+// ── Grouped feed (All categories) ────────────────────────────────────────────
+
+class _GroupedFeed extends StatelessWidget {
+  final List<VideoSegmentModel> segments;
+  const _GroupedFeed({required this.segments});
+
+  @override
+  Widget build(BuildContext context) {
+    // Group segments by quiz category, preserving category order.
+    final grouped = <QuizCategory, List<VideoSegmentModel>>{};
+    for (final s in segments) {
+      grouped.putIfAbsent(s.quizCategory, () => []).add(s);
+    }
+
+    final columns = ResponsiveLayout.feedColumnCount(context);
+    final padding = ResponsiveLayout.pagePadding(context);
+
+    final sections = <Widget>[];
+    for (final cat in QuizCategory.values) {
+      final list = grouped[cat];
+      if (list == null || list.isEmpty) continue;
+
+      sections.add(
+        Padding(
+          padding: EdgeInsets.fromLTRB(padding, 16, padding, 8),
+          child: Row(
+            children: [
+              Text(cat.emoji,
+                  style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Text(
+                cat.displayName,
+                style: const TextStyle(
+                  color: AppColors.onSurface,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceVariant,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '${list.length}',
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted,
+                      fontSize: 12),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      if (columns == 1) {
+        for (final seg in list) {
+          sections.add(
+            Padding(
+              padding: EdgeInsets.fromLTRB(padding, 0, padding, 10),
+              child: _VideoCard(segment: seg),
+            ),
+          );
+        }
+      } else {
+        sections.add(
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: padding),
+            child: GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.6,
+              ),
+              itemCount: list.length,
+              itemBuilder: (_, i) => _VideoCard(segment: list[i]),
+            ),
+          ),
+        );
+      }
+    }
+
+    return ConstrainedPage(
+      child: ListView(
+        padding: EdgeInsets.only(bottom: padding),
+        children: sections,
+      ),
+    );
+  }
+}
+
+// ── Flat feed (single category selected) ─────────────────────────────────────
+
+class _FlatFeed extends StatelessWidget {
+  final List<VideoSegmentModel> segments;
+  const _FlatFeed({required this.segments});
+
+  @override
+  Widget build(BuildContext context) {
+    final columns = ResponsiveLayout.feedColumnCount(context);
+    final padding = ResponsiveLayout.pagePadding(context);
+
+    return ConstrainedPage(
+      child: columns == 1
+          ? ListView.separated(
+              padding: EdgeInsets.all(padding),
+              itemCount: segments.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
+              itemBuilder: (_, i) => _VideoCard(segment: segments[i]),
+            )
+          : GridView.builder(
+              padding: EdgeInsets.all(padding),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 1.6,
+              ),
+              itemCount: segments.length,
+              itemBuilder: (_, i) => _VideoCard(segment: segments[i]),
+            ),
+    );
+  }
+}
+
+// ── Video Card ────────────────────────────────────────────────────────────────
+
+class _VideoCard extends StatelessWidget {
+  final VideoSegmentModel segment;
+
+  const _VideoCard({required this.segment});
+
+  @override
+  Widget build(BuildContext context) {
+    final thumbUrl = segment.isYouTube
+        ? 'https://img.youtube.com/vi/${segment.youtubeId}/mqdefault.jpg'
+        : null;
+
+    return InkWell(
+      onTap: () => context.push('/video/${segment.videoId}'),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Thumbnail
+            AspectRatio(
+              aspectRatio: 16 / 9,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  if (thumbUrl != null)
+                    CachedNetworkImage(
+                      imageUrl: thumbUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        color: const Color(0xFF0F0F0F),
+                        child: const Icon(Icons.play_circle_outline,
+                            color: Colors.white38, size: 40),
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: const Color(0xFF0F0F0F),
+                        child: const Icon(Icons.play_circle_outline,
+                            color: Colors.white38, size: 40),
+                      ),
+                    )
+                  else
+                    Container(
+                      color: const Color(0xFF0F0F0F),
+                      child: const Icon(Icons.play_circle_outline,
+                          color: Colors.white38, size: 40),
+                    ),
+                  // Play overlay
+                  Center(
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      decoration: const BoxDecoration(
+                        color: Colors.black54,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.play_arrow,
+                          color: Colors.white, size: 28),
+                    ),
+                  ),
+                  // Duration badge
+                  Positioned(
+                    bottom: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: Colors.black87,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        '${segment.durationSeconds.toInt()}s',
+                        style: const TextStyle(
+                            color: Colors.white, fontSize: 11),
+                      ),
+                    ),
+                  ),
+                  // HSK badge
+                  Positioned(
+                    top: 6,
+                    left: 6,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.forHskLevel(segment.hskLevel),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'HSK ${segment.hskLevel}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // Info row
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    segment.transcription,
+                    style: const TextStyle(
+                      color: AppColors.onSurface,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    segment.pinyin,
+                    style: const TextStyle(
+                      color: AppColors.onSurfaceMuted,
+                      fontSize: 12,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${segment.quizCategory.emoji} ${segment.quizCategory.displayName}',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Tab: Games ────────────────────────────────────────────────────────────────
 
 class _GamesTab extends StatelessWidget {
   const _GamesTab();
@@ -188,8 +560,10 @@ class _GamesTab extends StatelessWidget {
           _GameCard(
             icon: Icons.psychology,
             title: 'Mandarin Duel',
-            subtitle: 'Real-time 1v1 quiz battles',
+            subtitle:
+                'Real-time 1v1 quiz battles across 6 categories',
             color: const Color(0xFF6C63FF),
+            detail: '10 rounds • 10s timer • 3 lives',
             onTap: () => context.push('/games/duel'),
           ),
           const SizedBox(height: 16),
@@ -198,6 +572,7 @@ class _GamesTab extends StatelessWidget {
             title: 'Hanzi Build',
             subtitle: 'Reconstruct characters from radicals',
             color: const Color(0xFFFF6B6B),
+            detail: '10 words • 20s timer • hints available',
             onTap: () => context.push('/games/hanzi'),
           ),
         ],
@@ -210,6 +585,7 @@ class _GameCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
+  final String detail;
   final Color color;
   final VoidCallback onTap;
 
@@ -217,6 +593,7 @@ class _GameCard extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.subtitle,
+    required this.detail,
     required this.color,
     required this.onTap,
   });
@@ -236,13 +613,13 @@ class _GameCard extends StatelessWidget {
         child: Row(
           children: [
             Container(
-              width: 56,
-              height: 56,
+              width: 60,
+              height: 60,
               decoration: BoxDecoration(
                 color: color.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: Icon(icon, color: color, size: 28),
+              child: Icon(icon, color: color, size: 30),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -261,8 +638,15 @@ class _GameCard extends StatelessWidget {
                   Text(
                     subtitle,
                     style: const TextStyle(
-                      color: AppColors.onSurfaceMuted,
-                      fontSize: 13,
+                        color: AppColors.onSurfaceMuted, fontSize: 13),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    detail,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -276,7 +660,7 @@ class _GameCard extends StatelessWidget {
   }
 }
 
-// ── Tab: Social (inline preview) ─────────────────────────────────────────────
+// ── Tab: Social ───────────────────────────────────────────────────────────────
 
 class _SocialTab extends StatelessWidget {
   const _SocialTab();
@@ -304,8 +688,9 @@ class _SocialTab extends StatelessWidget {
                       ),
                       SizedBox(height: 4),
                       Text(
-                        'Friends, leaderboard & challenges',
-                        style: TextStyle(color: AppColors.onSurfaceMuted),
+                        'Posts • Leaderboard • Friends • Challenges',
+                        style:
+                            TextStyle(color: AppColors.onSurfaceMuted),
                       ),
                     ],
                   ),
@@ -326,90 +711,32 @@ class _SocialTab extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.group, size: 64, color: AppColors.primary.withValues(alpha: 0.4)),
+                  Icon(Icons.group,
+                      size: 64,
+                      color:
+                          AppColors.primary.withValues(alpha: 0.35)),
                   const SizedBox(height: 16),
                   const Text(
-                    'Tap Open to see your feed,\nleaderboard and challenges.',
+                    'Connect with other Mandarin learners.\nSee who is learning the same level.',
                     style: TextStyle(color: AppColors.onSurfaceMuted),
                     textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 24),
+                  OutlinedButton.icon(
+                    onPressed: () => context.push('/social'),
+                    icon: const Icon(Icons.leaderboard,
+                        color: AppColors.primary),
+                    label: const Text('View Leaderboard',
+                        style: TextStyle(color: AppColors.primary)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primary),
+                    ),
                   ),
                 ],
               ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _VideoCard extends StatelessWidget {
-  final VideoSegmentModel segment;
-  final VoidCallback onTap;
-
-  const _VideoCard({required this.segment, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.forHskLevel(segment.hskLevel),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.play_arrow, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    segment.transcription,
-                    style: const TextStyle(
-                      color: AppColors.onSurface,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    segment.pinyin,
-                    style: const TextStyle(
-                      color: AppColors.onSurfaceMuted,
-                      fontSize: 13,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              '${segment.durationSeconds.toInt()}s',
-              style: const TextStyle(
-                color: AppColors.onSurfaceMuted,
-                fontSize: 12,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
