@@ -8,12 +8,14 @@ import 'package:go_router/go_router.dart';
 import 'core/constants/app_colors.dart';
 import 'data/services/notification_service.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/screens/dictionary/dictionary_screen.dart';
 import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/legal/privacy_policy_screen.dart';
 import 'presentation/screens/legal/terms_screen.dart';
 import 'presentation/screens/onboarding/onboarding_screen.dart';
+import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/subscription/subscription_screen.dart';
 import 'presentation/screens/video_player/video_player_screen.dart';
@@ -60,7 +62,11 @@ final _router = GoRouter(
           VideoPlayerScreen(videoId: state.pathParameters['id']!),
     ),
     GoRoute(
-        path: '/dictionary/:wordId', builder: (_, __) => const Placeholder()),
+      path: '/dictionary/:wordId',
+      builder: (_, state) => DictionaryScreen(
+        initialWordId: state.pathParameters['wordId'],
+      ),
+    ),
     GoRoute(
         path: '/games/duel', builder: (_, __) => const MandarinDuelScreen()),
     GoRoute(
@@ -68,7 +74,7 @@ final _router = GoRouter(
     GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
     GoRoute(
         path: '/subscription', builder: (_, __) => const SubscriptionScreen()),
-    GoRoute(path: '/settings', builder: (_, __) => const Placeholder()),
+    GoRoute(path: '/settings', builder: (_, __) => const SettingsScreen()),
     GoRoute(path: '/legal/terms', builder: (_, __) => const TermsScreen()),
     GoRoute(
         path: '/legal/privacy', builder: (_, __) => const PrivacyPolicyScreen()),

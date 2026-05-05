@@ -27,7 +27,7 @@ class HomeScreen extends ConsumerWidget {
         title: const Text('Mandarin Academy'),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(right: 4),
             child: Center(
               child: Text(
                 'HSK $hskLevel',
@@ -37,6 +37,16 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.manage_search),
+            tooltip: 'Dictionary',
+            onPressed: () => context.push('/dictionary/search'),
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_outlined),
+            tooltip: 'Settings',
+            onPressed: () => context.push('/settings'),
           ),
         ],
       ),
