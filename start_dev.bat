@@ -33,11 +33,18 @@ echo  3.  Seeding demo data...
 dart run tool/seed_emulator.dart
 
 echo.
+echo  4.  Starting Pipeline dev server (port 9302)...
+echo      Admin panel "Process" button uses this server.
+start "Pipeline Server" cmd /k "cd /d %~dp0python && python pipeline/dev_server.py"
+timeout /t 2 /nobreak > nul
+
+echo.
 echo  ════════════════════════════════════════════
 echo  App is ready!
 echo.
-echo  Open in browser:  http://localhost:9300
-echo  Emulator UI:      http://localhost:4001
+echo  Open in browser:    http://localhost:9300
+echo  Emulator UI:        http://localhost:4001
+echo  Pipeline server:    http://localhost:9302
 echo  ════════════════════════════════════════════
 echo.
 pause

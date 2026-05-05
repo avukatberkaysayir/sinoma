@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../data/services/admin_service.dart';
 
+// ── Admin Screen ──────────────────────────────────────────────────────────────
+
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
 
@@ -14,40 +15,41 @@ class AdminScreen extends StatefulWidget {
   State<AdminScreen> createState() => _AdminScreenState();
 }
 
-class _AdminScreenState extends State<AdminScreen> {
+class _AdminScreenState extends State<AdminScreen>
+    with SingleTickerProviderStateMixin {
   final _service = AdminService();
-  final _urlCtrl = TextEditingController();
+  late final TabController _tabs;
+
   List<Map<String, dynamic>> _videos = [];
-  bool _loading = true;
-  String? _error;
+  bool _loadingVideos = true;
+  String? _videosError;
 
   @override
   void initState() {
     super.initState();
+    _tabs = TabController(length: 2, vsync: this);
     _loadVideos();
   }
 
   @override
   void dispose() {
-    _urlCtrl.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
   Future<void> _loadVideos() async {
     setState(() {
-      _loading = true;
-      _error = null;
+      _loadingVideos = true;
+      _videosError = null;
     });
     try {
       final videos = await _service.listVideos();
-      videos.sort((a, b) {
-        final ha = (a['hskLevel'] as int?) ?? 1;
-        final hb = (b['hskLevel'] as int?) ?? 1;
-        return ha.compareTo(hb);
-      });
-      setState(() { _videos = videos; _loading = false; });
+      videos.sort((a, b) =>
+          ((a['hskLevel'] as int?) ?? 1)
+              .compareTo((b['hskLevel'] as int?) ?? 1));
+      if (mounted) setState(() { _videos = videos; _loadingVideos = false; });
     } catch (e) {
-      setState(() { _error = e.toString(); _loading = false; });
+      if (mounted) setState(() { _videosError = e.toString(); _loadingVideos = false; });
     }
   }
 
@@ -56,12 +58,12 @@ class _AdminScreenState extends State<AdminScreen> {
       await _service.updateField(videoId, 'isActive', !current);
       await _loadVideos();
     } catch (e) {
-      _showSnack('Error: $e');
+      _snack('Error: $e');
     }
   }
 
   Future<void> _deleteVideo(String videoId) async {
-    final confirmed = await showDialog<bool>(
+    final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
@@ -81,25 +83,20 @@ class _AdminScreenState extends State<AdminScreen> {
         ],
       ),
     );
-    if (confirmed == true) {
+    if (ok == true) {
       try {
         await _service.deleteVideo(videoId);
         await _loadVideos();
       } catch (e) {
-        _showSnack('Error: $e');
+        _snack('Error: $e');
       }
     }
   }
 
-  void _showSnack(String msg) {
+  void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
-  }
-
-  String _buildPipelineCommand() {
-    final url = _urlCtrl.text.trim();
-    if (url.isEmpty) return 'python python/pipeline/seed_video.py --url <youtube_url>';
-    return 'python python/pipeline/seed_video.py --url "$url"';
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -109,286 +106,385 @@ class _AdminScreenState extends State<AdminScreen> {
       appBar: AppBar(
         title: Text('Admin — ${_videos.length} videos'),
         actions: [
-          IconButton(
-              icon: const Icon(Icons.refresh), onPressed: _loadVideos),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadVideos),
         ],
+        bottom: TabBar(
+          controller: _tabs,
+          indicatorColor: AppColors.primary,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.onSurfaceMuted,
+          tabs: const [
+            Tab(icon: Icon(Icons.smart_display_outlined, size: 18),
+                text: 'YouTube Import'),
+            Tab(icon: Icon(Icons.edit_outlined, size: 18),
+                text: 'Manual Add'),
+          ],
+        ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await context.push('/admin/add-video');
-          _loadVideos();
-        },
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Video'),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+      body: Column(
         children: [
-          // ── YouTube Processing Section ──────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceVariant,
-              borderRadius: BorderRadius.circular(14),
-              border:
-                  Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          // ── Tab content (fixed height, scrolls internally) ────────────
+          SizedBox(
+            height: 340,
+            child: TabBarView(
+              controller: _tabs,
               children: [
-                const Row(
-                  children: [
-                    Icon(Icons.smart_display_outlined,
-                        color: AppColors.primary, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Process YouTube Video',
-                      style: TextStyle(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 15),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Paste a YouTube URL. The pipeline fetches Chinese subtitles, '
-                  'segments by sentence, classifies by HSK level, and writes '
-                  'all clips to Firestore automatically.',
-                  style:
-                      TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _urlCtrl,
-                  style: const TextStyle(color: AppColors.onSurface),
-                  decoration: InputDecoration(
-                    hintText: 'https://youtu.be/...',
-                    hintStyle:
-                        const TextStyle(color: AppColors.onSurfaceMuted),
-                    filled: true,
-                    fillColor: AppColors.surface,
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8),
-                        borderSide: BorderSide.none),
-                    prefixIcon: const Icon(Icons.link,
-                        color: AppColors.onSurfaceMuted, size: 18),
-                  ),
-                  onChanged: (_) => setState(() {}),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Run this command in your terminal:',
-                  style:
-                      TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _buildPipelineCommand(),
-                          style: const TextStyle(
-                              color: Color(0xFF7CFC00),
-                              fontSize: 11,
-                              fontFamily: 'monospace'),
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.copy,
-                            color: Colors.white38, size: 16),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                        onPressed: () {
-                          Clipboard.setData(
-                              ClipboardData(text: _buildPipelineCommand()));
-                          _showSnack('Copied to clipboard');
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  kDebugMode
-                      ? '⚡ Emulator mode: writes to localhost:9299'
-                      : '⚠️ Production mode: will write to real Firestore',
-                  style: TextStyle(
-                      color: AppColors.correctAnswer,
-                      fontSize: 11),
+                _YouTubeImportTab(onVideosChanged: _loadVideos),
+                _ManualAddTab(
+                  service: _service,
+                  onSaved: () {
+                    _loadVideos();
+                    _tabs.animateTo(0);
+                  },
                 ),
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const Divider(height: 1, color: AppColors.surfaceVariant),
+          // ── Video list ────────────────────────────────────────────────
+          Expanded(child: _buildVideoList()),
+        ],
+      ),
+    );
+  }
 
-          // ── Video list ──────────────────────────────────────────────
-          if (_loading)
-            const Center(
-                child: Padding(
-                    padding: EdgeInsets.all(40),
-                    child: CircularProgressIndicator()))
-          else if (_error != null)
-            Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.error_outline,
-                      color: AppColors.wrongAnswer, size: 40),
-                  const SizedBox(height: 12),
-                  Text(_error!,
-                      style: const TextStyle(color: AppColors.onSurfaceMuted),
-                      textAlign: TextAlign.center),
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    onPressed: _loadVideos,
-                    style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary),
-                    child: const Text('Retry'),
-                  ),
-                ],
-              ),
-            )
-          else if (_videos.isEmpty)
-            const Center(
-              child: Padding(
-                padding: EdgeInsets.all(40),
-                child: Text('No videos yet. Use + to add one manually,\nor run the pipeline command above.',
-                    style: TextStyle(color: AppColors.onSurfaceMuted),
-                    textAlign: TextAlign.center),
-              ),
-            )
-          else
-            ...List.generate(
-              _videos.length,
-              (i) {
-                        final v = _videos[i];
-                        final isActive =
-                            v['isActive'] as bool? ?? true;
-                        final hsk = (v['hskLevel'] as int?) ?? 1;
-                        final cat =
-                            v['quizCategory'] as String? ?? 'vocabulary';
-                        final qc = QuizCategory.fromString(cat);
-
-                        return Container(
-                          decoration: BoxDecoration(
-                            color: AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(
-                              color: isActive
-                                  ? AppColors.primary
-                                      .withValues(alpha: 0.3)
-                                  : Colors.grey.withValues(alpha: 0.15),
-                            ),
-                          ),
-                          child: ListTile(
-                            leading: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 6, vertical: 3),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.forHskLevel(hsk),
-                                    borderRadius:
-                                        BorderRadius.circular(6),
-                                  ),
-                                  child: Text('HSK $hsk',
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 10,
-                                          fontWeight:
-                                              FontWeight.bold)),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(qc.emoji,
-                                    style:
-                                        const TextStyle(fontSize: 14)),
-                              ],
-                            ),
-                            title: Text(
-                              v['transcription'] as String? ??
-                                  (v['id'] as String),
-                              style: TextStyle(
-                                color: isActive
-                                    ? AppColors.onSurface
-                                    : AppColors.onSurfaceMuted,
-                                fontSize: 14,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            subtitle: Column(
-                              crossAxisAlignment:
-                                  CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  v['pinyin'] as String? ?? '',
-                                  style: const TextStyle(
-                                      color: AppColors.onSurfaceMuted,
-                                      fontSize: 12),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                Text(
-                                  'YouTube: ${v['youtubeId'] ?? '—'}',
-                                  style: const TextStyle(
-                                      color: AppColors.onSurfaceMuted,
-                                      fontSize: 11),
-                                ),
-                              ],
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Switch(
-                                  value: isActive,
-                                  activeTrackColor: AppColors.primary,
-                                  onChanged: (_) => _toggleActive(
-                                      v['id'] as String, isActive),
-                                ),
-                                IconButton(
-                                  icon: const Icon(
-                                      Icons.delete_outline,
-                                      color: AppColors.wrongAnswer,
-                                      size: 20),
-                                  onPressed: () =>
-                                      _deleteVideo(v['id'] as String),
-                                ),
-                              ],
-                            ),
-                          ),
-                        );
-              },
+  Widget _buildVideoList() {
+    if (_loadingVideos) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_videosError != null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.error_outline,
+              color: AppColors.wrongAnswer, size: 40),
+          const SizedBox(height: 12),
+          Text(_videosError!,
+              style: const TextStyle(color: AppColors.onSurfaceMuted),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(
+              onPressed: _loadVideos,
+              style:
+                  FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Retry')),
+        ]),
+      );
+    }
+    if (_videos.isEmpty) {
+      return const Center(
+        child: Text('No videos yet.',
+            style: TextStyle(color: AppColors.onSurfaceMuted)),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      itemCount: _videos.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final v = _videos[i];
+        final isActive = v['isActive'] as bool? ?? true;
+        final hsk = (v['hskLevel'] as int?) ?? 1;
+        final qc = QuizCategory.fromString(
+            v['quizCategory'] as String? ?? 'vocabulary');
+        return Container(
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isActive
+                  ? AppColors.primary.withValues(alpha: 0.3)
+                  : Colors.grey.withValues(alpha: 0.15),
             ),
+          ),
+          child: ListTile(
+            leading: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.forHskLevel(hsk),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('HSK $hsk',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 4),
+                Text(qc.emoji, style: const TextStyle(fontSize: 14)),
+              ],
+            ),
+            title: Text(
+              v['transcription'] as String? ?? (v['id'] as String),
+              style: TextStyle(
+                  color:
+                      isActive ? AppColors.onSurface : AppColors.onSurfaceMuted,
+                  fontSize: 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(v['pinyin'] as String? ?? '',
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 12),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis),
+                Text('YouTube: ${v['youtubeId'] ?? '—'}',
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+              ],
+            ),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              Switch(
+                value: isActive,
+                activeTrackColor: AppColors.primary,
+                onChanged: (_) =>
+                    _toggleActive(v['id'] as String, isActive),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline,
+                    color: AppColors.wrongAnswer, size: 20),
+                onPressed: () => _deleteVideo(v['id'] as String),
+              ),
+            ]),
+          ),
+        );
+      },
+    );
+  }
+}
+
+// ── Tab 1: YouTube Import ─────────────────────────────────────────────────────
+
+class _YouTubeImportTab extends StatefulWidget {
+  final VoidCallback onVideosChanged;
+  const _YouTubeImportTab({required this.onVideosChanged});
+
+  @override
+  State<_YouTubeImportTab> createState() => _YouTubeImportTabState();
+}
+
+class _YouTubeImportTabState extends State<_YouTubeImportTab> {
+  final _service = AdminService();
+  final _urlCtrl = TextEditingController();
+
+  bool _serverRunning = false;
+  bool _checking = true;
+  bool _processing = false;
+  String? _resultMsg;
+  bool _resultSuccess = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkServer();
+  }
+
+  @override
+  void dispose() {
+    _urlCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkServer() async {
+    setState(() => _checking = true);
+    final ok = await _service.isPipelineServerRunning();
+    if (mounted) setState(() { _serverRunning = ok; _checking = false; });
+  }
+
+  Future<void> _process() async {
+    final url = _urlCtrl.text.trim();
+    if (url.isEmpty) return;
+
+    setState(() {
+      _processing = true;
+      _resultMsg = null;
+    });
+    try {
+      final result = await _service.processYoutubeVideo(url, active: true);
+      final count = result['segmentsWritten'] as int? ?? 0;
+      if (mounted) {
+        setState(() {
+          _processing = false;
+          _resultSuccess = true;
+          _resultMsg = '✓ $count video clips imported and set to active.';
+        });
+        widget.onVideosChanged();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _processing = false;
+          _resultSuccess = false;
+          _resultMsg = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Server status
+          Row(
+            children: [
+              _checking
+                  ? const SizedBox(
+                      width: 10, height: 10,
+                      child: CircularProgressIndicator(strokeWidth: 1.5))
+                  : Icon(
+                      _serverRunning ? Icons.circle : Icons.circle_outlined,
+                      size: 10,
+                      color: _serverRunning
+                          ? AppColors.correctAnswer
+                          : AppColors.wrongAnswer),
+              const SizedBox(width: 6),
+              Text(
+                _checking
+                    ? 'Checking pipeline server…'
+                    : _serverRunning
+                        ? 'Pipeline server running (localhost:9302)'
+                        : 'Pipeline server offline — start with start_dev.bat',
+                style: TextStyle(
+                  color: _checking
+                      ? AppColors.onSurfaceMuted
+                      : _serverRunning
+                          ? AppColors.correctAnswer
+                          : AppColors.wrongAnswer,
+                  fontSize: 12,
+                ),
+              ),
+              if (!_checking && !_serverRunning) ...[
+                const Spacer(),
+                TextButton(
+                  onPressed: _checkServer,
+                  style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                  child: const Text('Retry', style: TextStyle(fontSize: 11)),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 12),
+          // URL field
+          TextFormField(
+            controller: _urlCtrl,
+            enabled: !_processing,
+            style: const TextStyle(color: AppColors.onSurface),
+            decoration: InputDecoration(
+              hintText: 'https://www.youtube.com/watch?v=...',
+              hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.link,
+                  color: AppColors.onSurfaceMuted, size: 18),
+            ),
+            onChanged: (_) => setState(() {}),
+          ),
+          const SizedBox(height: 12),
+          // Process button
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed: (_serverRunning &&
+                      _urlCtrl.text.trim().isNotEmpty &&
+                      !_processing)
+                  ? _process
+                  : null,
+              icon: _processing
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.auto_awesome, size: 18),
+              label: Text(_processing
+                  ? 'Processing… (may take 30–60s)'
+                  : 'Process Video — Import All Clips'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
+          // Result
+          if (_resultMsg != null) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 14, vertical: 10),
+              decoration: BoxDecoration(
+                color: (_resultSuccess
+                        ? AppColors.correctAnswer
+                        : AppColors.wrongAnswer)
+                    .withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: _resultSuccess
+                      ? AppColors.correctAnswer
+                      : AppColors.wrongAnswer,
+                  width: 0.5,
+                ),
+              ),
+              child: Text(
+                _resultMsg!,
+                style: TextStyle(
+                  color: _resultSuccess
+                      ? AppColors.correctAnswer
+                      : AppColors.wrongAnswer,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+          ],
+          // Debug: server not running fallback — show copy command
+          if (!_serverRunning && !_checking) ...[
+            const SizedBox(height: 12),
+            const Text('Or run manually:',
+                style: TextStyle(
+                    color: AppColors.onSurfaceMuted, fontSize: 11)),
+            const SizedBox(height: 4),
+            _CopyableCommand(
+              command: _urlCtrl.text.trim().isNotEmpty
+                  ? 'python python/pipeline/seed_video.py --url "${_urlCtrl.text.trim()}" --active'
+                  : 'python python/pipeline/seed_video.py --url "<youtube_url>" --active',
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-// ── Add Video Form ────────────────────────────────────────────────────────────
+// ── Tab 2: Manual Add ─────────────────────────────────────────────────────────
 
-class AddVideoScreen extends StatefulWidget {
-  const AddVideoScreen({super.key});
+class _ManualAddTab extends StatefulWidget {
+  final AdminService service;
+  final VoidCallback onSaved;
+  const _ManualAddTab({required this.service, required this.onSaved});
 
   @override
-  State<AddVideoScreen> createState() => _AddVideoScreenState();
+  State<_ManualAddTab> createState() => _ManualAddTabState();
 }
 
-class _AddVideoScreenState extends State<AddVideoScreen> {
+class _ManualAddTabState extends State<_ManualAddTab> {
   final _formKey = GlobalKey<FormState>();
-  final _service = AdminService();
-
   final _idCtrl = TextEditingController();
   final _youtubeIdCtrl = TextEditingController();
   final _transcriptionCtrl = TextEditingController();
@@ -415,7 +511,6 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
     super.dispose();
   }
 
-  // Auto-fill video ID from YouTube ID
   void _onYoutubeIdChanged(String ytId) {
     if (_idCtrl.text.isEmpty && ytId.length >= 4) {
       _idCtrl.text =
@@ -435,7 +530,7 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
         .toList();
 
     try {
-      await _service.setVideo(id, {
+      await widget.service.setVideo(id, {
         'videoId': id,
         'sourceType': 'youtube',
         'youtubeId': _youtubeIdCtrl.text.trim(),
@@ -454,124 +549,115 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
         'isActive': true,
         'createdAt': DateTime.now(),
       });
-      if (mounted) context.pop();
+      if (mounted) {
+        // Reset form
+        for (final c in [
+          _idCtrl, _youtubeIdCtrl, _transcriptionCtrl, _pinyinCtrl,
+          _questionCtrl, _correctCtrl, _wrongCtrl, _targetWordsCtrl,
+        ]) {
+          c.clear();
+        }
+        setState(() {
+          _hskLevel = 1;
+          _startTime = 0;
+          _endTime = 8;
+          _category = QuizCategory.vocabulary;
+          _saving = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Video saved!')));
+        widget.onSaved();
+      }
     } catch (e) {
       setState(() => _saving = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'),
-              backgroundColor: AppColors.wrongAnswer),
-        );
+          SnackBar(
+              content: Text('Error: $e'),
+              backgroundColor: AppColors.wrongAnswer));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('Add Video Segment')),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            _field(_youtubeIdCtrl, 'YouTube ID (11-char)',
-                required: true,
-                onChanged: _onYoutubeIdChanged),
-            _field(_idCtrl, 'Video document ID (auto-filled)',
-                required: true),
-            _field(_transcriptionCtrl, 'Chinese transcription (汉字)',
-                required: true),
-            _field(_pinyinCtrl, 'Pinyin (tone marks)', required: true),
-            _field(_targetWordsCtrl,
-                'Target word IDs (comma-separated, e.g. ni-hao,shui)'),
-            const SizedBox(height: 16),
-            // HSK level slider
-            Text('HSK Level: $_hskLevel',
-                style: const TextStyle(
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.w600)),
-            Slider(
-              value: _hskLevel.toDouble(),
-              min: 1, max: 6, divisions: 5,
-              activeColor: AppColors.forHskLevel(_hskLevel),
-              label: 'HSK $_hskLevel',
-              onChanged: (v) => setState(() => _hskLevel = v.round()),
-            ),
-            // Time range slider
-            Text(
-              'Segment: ${_startTime.toStringAsFixed(1)}s → ${_endTime.toStringAsFixed(1)}s  '
-              '(${(_endTime - _startTime).toStringAsFixed(1)}s)',
+    return Form(
+      key: _formKey,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+        children: [
+          _field(_youtubeIdCtrl, 'YouTube ID (11-char)',
+              required: true, onChanged: _onYoutubeIdChanged),
+          _field(_idCtrl, 'Document ID (auto-filled)', required: true),
+          _field(_transcriptionCtrl, 'Chinese transcription (汉字)',
+              required: true),
+          _field(_pinyinCtrl, 'Pinyin', required: true),
+          _field(_targetWordsCtrl, 'Target word IDs (comma-separated)'),
+          const SizedBox(height: 10),
+          Text('HSK Level: $_hskLevel',
               style: const TextStyle(
-                  color: AppColors.onSurface, fontWeight: FontWeight.w600),
-            ),
-            RangeSlider(
-              values: RangeValues(_startTime, _endTime),
-              min: 0, max: 600, divisions: 600,
-              activeColor: AppColors.primary,
-              labels: RangeLabels('${_startTime.toInt()}s',
-                  '${_endTime.toInt()}s'),
-              onChanged: (r) => setState(
-                  () { _startTime = r.start; _endTime = r.end; }),
-            ),
-            // Category picker
-            const SizedBox(height: 8),
-            const Text('Quiz Category',
-                style: TextStyle(
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.w600)),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8, runSpacing: 8,
-              children: QuizCategory.values.map((cat) {
-                final selected = _category == cat;
-                return ChoiceChip(
-                  label:
-                      Text('${cat.emoji} ${cat.displayName}'),
-                  selected: selected,
-                  selectedColor:
-                      AppColors.primary.withValues(alpha: 0.2),
-                  labelStyle: TextStyle(
-                    color: selected
-                        ? AppColors.primary
-                        : AppColors.onSurfaceMuted,
-                    fontSize: 12,
-                  ),
-                  onSelected: (_) =>
-                      setState(() => _category = cat),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: 20),
-            const Divider(color: AppColors.surfaceVariant),
-            const Text('Quiz',
-                style: TextStyle(
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16)),
-            const SizedBox(height: 8),
-            _field(_questionCtrl, 'Question (e.g. "水" means:)',
-                required: true),
-            _field(_correctCtrl, 'Correct answer', required: true),
-            _field(_wrongCtrl, 'Wrong answer (decoy)',
-                required: true),
-            const SizedBox(height: 28),
-            FilledButton(
-              onPressed: _saving ? null : _save,
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 16)),
-              child: _saving
-                  ? const SizedBox(
-                      width: 20, height: 20,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white))
-                  : const Text('Save Video',
-                      style: TextStyle(fontSize: 16)),
-            ),
-          ],
-        ),
+                  color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+          Slider(
+            value: _hskLevel.toDouble(),
+            min: 1, max: 6, divisions: 5,
+            activeColor: AppColors.forHskLevel(_hskLevel),
+            label: 'HSK $_hskLevel',
+            onChanged: (v) => setState(() => _hskLevel = v.round()),
+          ),
+          Text(
+            'Segment: ${_startTime.toStringAsFixed(1)}s → ${_endTime.toStringAsFixed(1)}s',
+            style: const TextStyle(
+                color: AppColors.onSurface, fontWeight: FontWeight.w600)),
+          RangeSlider(
+            values: RangeValues(_startTime, _endTime),
+            min: 0, max: 600, divisions: 600,
+            activeColor: AppColors.primary,
+            labels: RangeLabels(
+                '${_startTime.toInt()}s', '${_endTime.toInt()}s'),
+            onChanged: (r) =>
+                setState(() { _startTime = r.start; _endTime = r.end; }),
+          ),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 8, runSpacing: 6,
+            children: QuizCategory.values.map((cat) {
+              final sel = _category == cat;
+              return ChoiceChip(
+                label: Text('${cat.emoji} ${cat.displayName}'),
+                selected: sel,
+                selectedColor: AppColors.primary.withValues(alpha: 0.2),
+                labelStyle: TextStyle(
+                    color: sel ? AppColors.primary : AppColors.onSurfaceMuted,
+                    fontSize: 12),
+                onSelected: (_) => setState(() => _category = cat),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 14),
+          const Divider(color: AppColors.surfaceVariant),
+          const Text('Quiz',
+              style: TextStyle(
+                  color: AppColors.onSurface,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14)),
+          const SizedBox(height: 8),
+          _field(_questionCtrl, 'Question', required: true),
+          _field(_correctCtrl, 'Correct answer', required: true),
+          _field(_wrongCtrl, 'Wrong answer (decoy)', required: true),
+          const SizedBox(height: 20),
+          FilledButton(
+            onPressed: _saving ? null : _save,
+            style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14)),
+            child: _saving
+                ? const SizedBox(
+                    width: 18, height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white))
+                : const Text('Save Video'),
+          ),
+        ],
       ),
     );
   }
@@ -583,31 +669,81 @@ class _AddVideoScreenState extends State<AddVideoScreen> {
     void Function(String)? onChanged,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.only(bottom: 10),
       child: TextFormField(
         controller: ctrl,
         onChanged: onChanged,
-        style: const TextStyle(color: AppColors.onSurface),
+        style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
         decoration: InputDecoration(
           labelText: label,
           labelStyle:
-              const TextStyle(color: AppColors.onSurfaceMuted),
+              const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
           filled: true,
           fillColor: AppColors.surfaceVariant,
+          isDense: true,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide.none,
-          ),
+              borderRadius: BorderRadius.circular(8),
+              borderSide: BorderSide.none),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide:
-                const BorderSide(color: AppColors.primary),
-          ),
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.primary)),
         ),
         validator: required
-            ? (v) =>
-                (v == null || v.trim().isEmpty) ? 'Required' : null
+            ? (v) => (v == null || v.trim().isEmpty) ? 'Required' : null
             : null,
+      ),
+    );
+  }
+}
+
+// ── Copyable command box ──────────────────────────────────────────────────────
+
+class _CopyableCommand extends StatelessWidget {
+  final String command;
+  const _CopyableCommand({required this.command});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+          color: Colors.black,
+          borderRadius: BorderRadius.circular(6)),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(command,
+                style: const TextStyle(
+                    color: Color(0xFF7CFC00),
+                    fontSize: 10,
+                    fontFamily: 'monospace')),
+          ),
+          IconButton(
+            icon: const Icon(Icons.copy, color: Colors.white38, size: 14),
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () =>
+                Clipboard.setData(ClipboardData(text: command)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── AddVideoScreen (kept for /admin/add-video deep link compatibility) ────────
+
+class AddVideoScreen extends StatelessWidget {
+  const AddVideoScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: const Text('Add Video')),
+      body: _ManualAddTab(
+        service: AdminService(),
+        onSaved: () => context.pop(),
       ),
     );
   }

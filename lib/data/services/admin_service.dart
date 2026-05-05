@@ -3,22 +3,53 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
-// Admin service for emulator-only operations.
-// Uses the Firebase Emulator REST API with `Authorization: Bearer owner`
-// to bypass Firestore security rules (emulator-only feature).
-// In production this service does nothing — all video management is via
-// the Python pipeline + Firebase Admin SDK.
-
 class AdminService {
   static const _projectId = 'demo-mandarin-academy';
   static const _firestorePort = 9299;
   static const _base =
       'http://localhost:$_firestorePort/v1/projects/$_projectId/databases/(default)/documents';
+  static const _pipelineBase = 'http://localhost:9302';
 
   static const _headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer owner',
   };
+
+  // ── Pipeline server ─────────────────────────────────────────────────────────
+
+  Future<bool> isPipelineServerRunning() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$_pipelineBase/health'))
+          .timeout(const Duration(seconds: 2));
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Sends the YouTube URL to the local pipeline server (localhost:9302).
+  /// Returns a result map with {success, segmentsWritten, message/error}.
+  /// Throws if the server is unreachable or returns an error.
+  Future<Map<String, dynamic>> processYoutubeVideo(
+    String url, {
+    bool active = true,
+  }) async {
+    assert(kDebugMode, 'AdminService only works in debug mode');
+    final res = await http
+        .post(
+          Uri.parse('$_pipelineBase/process-video'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'url': url, 'active': active}),
+        )
+        .timeout(const Duration(minutes: 3));
+
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode >= 300) {
+      throw Exception(body['error'] ?? 'Processing failed (${res.statusCode})');
+    }
+    return body;
+  }
 
   Future<List<Map<String, dynamic>>> listVideos() async {
     assert(kDebugMode, 'AdminService only works in debug mode');
