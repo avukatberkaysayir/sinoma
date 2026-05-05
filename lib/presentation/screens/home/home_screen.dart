@@ -56,6 +56,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             onPressed: () => context.push('/dictionary/search'),
           ),
           IconButton(
+            icon: const Icon(Icons.admin_panel_settings_outlined),
+            tooltip: 'Admin Panel',
+            onPressed: () => context.push('/admin'),
+          ),
+          IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
             onPressed: () => context.push('/settings'),
@@ -303,7 +308,7 @@ class _GroupedFeed extends StatelessWidget {
           sections.add(
             Padding(
               padding: EdgeInsets.fromLTRB(padding, 0, padding, 10),
-              child: _VideoCard(segment: seg),
+              child: _VideoCard(segment: seg, feed: segments),
             ),
           );
         }
@@ -321,7 +326,7 @@ class _GroupedFeed extends StatelessWidget {
                 childAspectRatio: 1.6,
               ),
               itemCount: list.length,
-              itemBuilder: (_, i) => _VideoCard(segment: list[i]),
+              itemBuilder: (_, i) => _VideoCard(segment: list[i], feed: segments),
             ),
           ),
         );
@@ -354,7 +359,8 @@ class _FlatFeed extends StatelessWidget {
               padding: EdgeInsets.all(padding),
               itemCount: segments.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _VideoCard(segment: segments[i]),
+              itemBuilder: (_, i) =>
+                  _VideoCard(segment: segments[i], feed: segments),
             )
           : GridView.builder(
               padding: EdgeInsets.all(padding),
@@ -365,7 +371,8 @@ class _FlatFeed extends StatelessWidget {
                 childAspectRatio: 1.6,
               ),
               itemCount: segments.length,
-              itemBuilder: (_, i) => _VideoCard(segment: segments[i]),
+              itemBuilder: (_, i) =>
+                  _VideoCard(segment: segments[i], feed: segments),
             ),
     );
   }
@@ -373,19 +380,26 @@ class _FlatFeed extends StatelessWidget {
 
 // ── Video Card ────────────────────────────────────────────────────────────────
 
-class _VideoCard extends StatelessWidget {
+class _VideoCard extends ConsumerWidget {
   final VideoSegmentModel segment;
+  final List<VideoSegmentModel> feed;
 
-  const _VideoCard({required this.segment});
+  const _VideoCard({required this.segment, required this.feed});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final thumbUrl = segment.isYouTube
         ? 'https://img.youtube.com/vi/${segment.youtubeId}/mqdefault.jpg'
         : null;
 
     return InkWell(
-      onTap: () => context.push('/video/${segment.videoId}'),
+      onTap: () {
+        final index = feed.indexOf(segment);
+        ref
+            .read(feedProvider.notifier)
+            .loadFeed(feed, index < 0 ? 0 : index);
+        context.push('/play');
+      },
       borderRadius: BorderRadius.circular(14),
       child: Container(
         decoration: BoxDecoration(

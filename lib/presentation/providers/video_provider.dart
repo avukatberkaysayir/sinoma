@@ -136,3 +136,107 @@ final videoPlaybackProvider =
     StateNotifierProvider<VideoPlaybackNotifier, VideoPlaybackState>(
   (ref) => VideoPlaybackNotifier(ref.read(analyticsServiceProvider)),
 );
+
+// ---------------------------------------------------------------------------
+// Feed Playback — playlist-mode, drives VoscreenPlayerScreen
+// ---------------------------------------------------------------------------
+
+class FeedState {
+  final List<VideoSegmentModel> segments;
+  final int currentIndex;
+  final VideoPlaybackStatus clipStatus;
+  final bool wasCorrect;
+  final int score;
+  final int combo;
+  final int replayCounter;
+
+  const FeedState({
+    this.segments = const [],
+    this.currentIndex = 0,
+    this.clipStatus = VideoPlaybackStatus.loading,
+    this.wasCorrect = false,
+    this.score = 0,
+    this.combo = 0,
+    this.replayCounter = 0,
+  });
+
+  VideoSegmentModel? get current =>
+      segments.isEmpty ? null : segments[currentIndex];
+  int get total => segments.length;
+  bool get hasNext => currentIndex < segments.length - 1;
+  bool get hasPrev => currentIndex > 0;
+
+  FeedState copyWith({
+    List<VideoSegmentModel>? segments,
+    int? currentIndex,
+    VideoPlaybackStatus? clipStatus,
+    bool? wasCorrect,
+    int? score,
+    int? combo,
+    int? replayCounter,
+  }) =>
+      FeedState(
+        segments: segments ?? this.segments,
+        currentIndex: currentIndex ?? this.currentIndex,
+        clipStatus: clipStatus ?? this.clipStatus,
+        wasCorrect: wasCorrect ?? this.wasCorrect,
+        score: score ?? this.score,
+        combo: combo ?? this.combo,
+        replayCounter: replayCounter ?? this.replayCounter,
+      );
+}
+
+class FeedNotifier extends StateNotifier<FeedState> {
+  FeedNotifier() : super(const FeedState());
+
+  void loadFeed(List<VideoSegmentModel> segments, int startIndex) {
+    final clampedIndex =
+        segments.isEmpty ? 0 : startIndex.clamp(0, segments.length - 1);
+    state = FeedState(
+      segments: segments,
+      currentIndex: clampedIndex,
+      clipStatus: VideoPlaybackStatus.playing,
+    );
+  }
+
+  void activateQuiz() =>
+      state = state.copyWith(clipStatus: VideoPlaybackStatus.quizActive);
+
+  void recordAnswer(bool correct) {
+    final newCombo = correct ? state.combo + 1 : 0;
+    final points = correct ? 100 * (state.combo + 1).clamp(1, 3) : 0;
+    state = state.copyWith(
+      clipStatus: VideoPlaybackStatus.completed,
+      wasCorrect: correct,
+      combo: newCombo,
+      score: state.score + points,
+    );
+  }
+
+  void goNext() {
+    if (!state.hasNext) return;
+    state = state.copyWith(
+      currentIndex: state.currentIndex + 1,
+      clipStatus: VideoPlaybackStatus.playing,
+      replayCounter: 0,
+    );
+  }
+
+  void goPrev() {
+    if (!state.hasPrev) return;
+    state = state.copyWith(
+      currentIndex: state.currentIndex - 1,
+      clipStatus: VideoPlaybackStatus.playing,
+      replayCounter: 0,
+    );
+  }
+
+  void replay() => state = state.copyWith(
+        clipStatus: VideoPlaybackStatus.playing,
+        replayCounter: state.replayCounter + 1,
+      );
+}
+
+final feedProvider = StateNotifierProvider<FeedNotifier, FeedState>(
+  (ref) => FeedNotifier(),
+);

@@ -1,14 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../data/services/admin_service.dart';
-
-// Admin panel — debug mode only, accessible via /admin route.
-// Uses EmulatorAdminService to bypass Firestore security rules
-// (Authorization: Bearer owner — emulator only, never production).
 
 class AdminScreen extends StatefulWidget {
   const AdminScreen({super.key});
@@ -19,6 +16,7 @@ class AdminScreen extends StatefulWidget {
 
 class _AdminScreenState extends State<AdminScreen> {
   final _service = AdminService();
+  final _urlCtrl = TextEditingController();
   List<Map<String, dynamic>> _videos = [];
   bool _loading = true;
   String? _error;
@@ -26,11 +24,20 @@ class _AdminScreenState extends State<AdminScreen> {
   @override
   void initState() {
     super.initState();
-    if (kDebugMode) _loadVideos();
+    _loadVideos();
+  }
+
+  @override
+  void dispose() {
+    _urlCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadVideos() async {
-    setState(() { _loading = true; _error = null; });
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
     try {
       final videos = await _service.listVideos();
       videos.sort((a, b) {
@@ -89,16 +96,14 @@ class _AdminScreenState extends State<AdminScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
+  String _buildPipelineCommand() {
+    final url = _urlCtrl.text.trim();
+    if (url.isEmpty) return 'python python/pipeline/seed_video.py --url <youtube_url>';
+    return 'python python/pipeline/seed_video.py --url "$url"';
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!kDebugMode) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Admin')),
-        body: const Center(
-            child: Text('Admin panel only available in debug mode.')),
-      );
-    }
-
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -117,41 +122,155 @@ class _AdminScreenState extends State<AdminScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add Video'),
       ),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _error != null
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+        children: [
+          // ── YouTube Processing Section ──────────────────────────────
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(14),
+              border:
+                  Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.smart_display_outlined,
+                        color: AppColors.primary, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Process YouTube Video',
+                      style: TextStyle(
+                          color: AppColors.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Paste a YouTube URL. The pipeline fetches Chinese subtitles, '
+                  'segments by sentence, classifies by HSK level, and writes '
+                  'all clips to Firestore automatically.',
+                  style:
+                      TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _urlCtrl,
+                  style: const TextStyle(color: AppColors.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'https://youtu.be/...',
+                    hintStyle:
+                        const TextStyle(color: AppColors.onSurfaceMuted),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none),
+                    prefixIcon: const Icon(Icons.link,
+                        color: AppColors.onSurfaceMuted, size: 18),
+                  ),
+                  onChanged: (_) => setState(() {}),
+                ),
+                const SizedBox(height: 12),
+                const Text(
+                  'Run this command in your terminal:',
+                  style:
+                      TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+                ),
+                const SizedBox(height: 6),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
                     children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.wrongAnswer, size: 40),
-                      const SizedBox(height: 12),
-                      Text(_error!,
+                      Expanded(
+                        child: Text(
+                          _buildPipelineCommand(),
                           style: const TextStyle(
-                              color: AppColors.onSurfaceMuted),
-                          textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: _loadVideos,
-                        style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary),
-                        child: const Text('Retry'),
+                              color: Color(0xFF7CFC00),
+                              fontSize: 11,
+                              fontFamily: 'monospace'),
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.copy,
+                            color: Colors.white38, size: 16),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                        onPressed: () {
+                          Clipboard.setData(
+                              ClipboardData(text: _buildPipelineCommand()));
+                          _showSnack('Copied to clipboard');
+                        },
                       ),
                     ],
                   ),
-                )
-              : _videos.isEmpty
-                  ? const Center(
-                      child: Text('No videos. Tap + to add one.',
-                          style:
-                              TextStyle(color: AppColors.onSurfaceMuted)))
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
-                      itemCount: _videos.length,
-                      separatorBuilder: (_, __) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, i) {
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  kDebugMode
+                      ? '⚡ Emulator mode: writes to localhost:9299'
+                      : '⚠️ Production mode: will write to real Firestore',
+                  style: TextStyle(
+                      color: AppColors.correctAnswer,
+                      fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+
+          // ── Video list ──────────────────────────────────────────────
+          if (_loading)
+            const Center(
+                child: Padding(
+                    padding: EdgeInsets.all(40),
+                    child: CircularProgressIndicator()))
+          else if (_error != null)
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline,
+                      color: AppColors.wrongAnswer, size: 40),
+                  const SizedBox(height: 12),
+                  Text(_error!,
+                      style: const TextStyle(color: AppColors.onSurfaceMuted),
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: 16),
+                  FilledButton(
+                    onPressed: _loadVideos,
+                    style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.primary),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            )
+          else if (_videos.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(40),
+                child: Text('No videos yet. Use + to add one manually,\nor run the pipeline command above.',
+                    style: TextStyle(color: AppColors.onSurfaceMuted),
+                    textAlign: TextAlign.center),
+              ),
+            )
+          else
+            ...List.generate(
+              _videos.length,
+              (i) {
                         final v = _videos[i];
                         final isActive =
                             v['isActive'] as bool? ?? true;
@@ -249,8 +368,10 @@ class _AdminScreenState extends State<AdminScreen> {
                             ),
                           ),
                         );
-                      },
-                    ),
+              },
+            ),
+        ],
+      ),
     );
   }
 }

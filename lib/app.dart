@@ -20,6 +20,7 @@ import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/subscription/subscription_screen.dart';
 import 'presentation/screens/video_player/video_player_screen.dart';
+import 'presentation/screens/video_player/voscreen_player_screen.dart';
 
 // Tells GoRouter to re-evaluate redirects when auth state changes.
 class _AuthRefreshStream extends ChangeNotifier {
@@ -61,6 +62,10 @@ final _router = GoRouter(
       path: '/video/:id',
       builder: (_, state) =>
           VideoPlayerScreen(videoId: state.pathParameters['id']!),
+    ),
+    GoRoute(
+      path: '/play',
+      builder: (_, __) => const VoscreenPlayerScreen(),
     ),
     GoRoute(
       path: '/dictionary/:wordId',
