@@ -33,6 +33,23 @@
         { "fieldPath": "hskLevel", "order": "ASCENDING" },
         { "fieldPath": "stats.totalScore", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "matchQueue",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "hskLevel", "order": "ASCENDING" },
+        { "fieldPath": "joinedAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "gameRequests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "toUid", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

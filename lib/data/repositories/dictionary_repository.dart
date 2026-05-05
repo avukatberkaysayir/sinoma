@@ -1,24 +1,37 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../models/dictionary_model.dart';
+import '../services/cache_service.dart';
 
 class DictionaryRepository {
   final FirebaseFirestore _firestore;
+  final CacheService _cache;
 
-  DictionaryRepository({FirebaseFirestore? firestore})
-      : _firestore = firestore ?? FirebaseFirestore.instance;
+  DictionaryRepository({FirebaseFirestore? firestore, required CacheService cache})
+      : _firestore = firestore ?? FirebaseFirestore.instance,
+        _cache = cache;
 
   Future<DictionaryModel?> loadWord(String wordId) async {
-    final doc = await _firestore.collection('dictionary').doc(wordId).get();
-    if (!doc.exists) return null;
-    return DictionaryModel.fromFirestore(doc);
+    try {
+      final doc = await _firestore.collection('dictionary').doc(wordId).get();
+      if (!doc.exists) return null;
+      final model = DictionaryModel.fromFirestore(doc);
+      await _cache.cacheWord(model);
+      return model;
+    } catch (_) {
+      return _cache.loadCachedWord(wordId);
+    }
   }
 
   Future<List<DictionaryModel>> loadWordsForIds(List<String> wordIds) async {
     if (wordIds.isEmpty) return [];
-    final futures = wordIds.map(loadWord);
-    final results = await Future.wait(futures);
-    return results.whereType<DictionaryModel>().toList();
+    try {
+      final futures = wordIds.map(loadWord);
+      final results = await Future.wait(futures);
+      return results.whereType<DictionaryModel>().toList();
+    } catch (_) {
+      return _cache.loadCachedWordsForIds(wordIds);
+    }
   }
 
   Future<void> saveAiContextCache(
@@ -39,6 +52,28 @@ class DictionaryRepository {
         .where('simplified', isLessThan: '${query}z')
         .limit(limit)
         .get();
-    return snap.docs.map(DictionaryModel.fromFirestore).toList();
+    final results = snap.docs.map(DictionaryModel.fromFirestore).toList();
+    await _cache.cacheWords(results);
+    return results;
+  }
+
+  Future<List<DictionaryModel>> loadWordsForLevel(
+    int hskLevel, {
+    int limit = 20,
+  }) async {
+    final snap = await _firestore
+        .collection('dictionary')
+        .where('hskLevel', isEqualTo: hskLevel)
+        .limit(limit * 3)
+        .get();
+
+    final words = snap.docs
+        .map(DictionaryModel.fromFirestore)
+        .where((w) => w.simplified.length == 1 && w.radicals.isNotEmpty)
+        .take(limit)
+        .toList()
+      ..shuffle();
+    await _cache.cacheWords(words);
+    return words;
   }
 }

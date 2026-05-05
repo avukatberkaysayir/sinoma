@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Mandarin Academy — Learn Mandarin through real video clips, AI explanations, and games.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Mandarin Academy">
+  <meta name="theme-color" content="#121212">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Mandarin Academy</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/Icon-192.png">
+
+  <!-- Firebase SDK (compat version for service worker compatibility) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background-color: #121212;
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #121212;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #loading svg {
+      animation: spin 1.2s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="20" stroke="#2D3B8E" stroke-width="4" stroke-linecap="round"
+        stroke-dasharray="80 40" />
+    </svg>
+  </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', () => {
+      const el = document.getElementById('loading');
+      if (el) el.remove();
+    });
+  </script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>

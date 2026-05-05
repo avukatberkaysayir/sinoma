@@ -21,6 +21,7 @@ from pathlib import Path
 
 import firebase_admin
 from firebase_admin import credentials, firestore
+from google.cloud.firestore_v1 import SERVER_TIMESTAMP
 
 
 BATCH_SIZE = 500
@@ -45,6 +46,9 @@ def upload_collection(
                 print(f"Warning: missing '{id_field}' in document, skipping.", file=sys.stderr)
                 continue
             payload = {k: v for k, v in doc.items() if k != id_field}
+            # youtube_miner sets createdAt=None as a sentinel for SERVER_TIMESTAMP
+            if payload.get("createdAt") is None:
+                payload["createdAt"] = SERVER_TIMESTAMP
             ref = db.collection(collection).document(doc_id)
             batch.set(ref, payload, merge=True)
 

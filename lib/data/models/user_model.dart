@@ -12,6 +12,8 @@ class UserModel {
   final List<String> following;
   final List<String> learnedWords;
   final UserStats stats;
+  final bool isOnline;
+  final String? fcmToken;
   final DateTime createdAt;
 
   const UserModel({
@@ -26,6 +28,8 @@ class UserModel {
     required this.following,
     required this.learnedWords,
     required this.stats,
+    this.isOnline = false,
+    this.fcmToken,
     required this.createdAt,
   });
 
@@ -43,6 +47,8 @@ class UserModel {
       following: List<String>.from(data['following'] ?? []),
       learnedWords: List<String>.from(data['learnedWords'] ?? []),
       stats: UserStats.fromMap(data['stats'] as Map<String, dynamic>? ?? {}),
+      isOnline: data['isOnline'] as bool? ?? false,
+      fcmToken: data['fcmToken'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
@@ -58,8 +64,12 @@ class UserModel {
         'following': following,
         'learnedWords': learnedWords,
         'stats': stats.toMap(),
+        'isOnline': isOnline,
+        if (fcmToken != null) 'fcmToken': fcmToken!,
         'createdAt': Timestamp.fromDate(createdAt),
       };
+
+  static const _unset = Object();
 
   UserModel copyWith({
     String? displayName,
@@ -72,6 +82,8 @@ class UserModel {
     List<String>? following,
     List<String>? learnedWords,
     UserStats? stats,
+    bool? isOnline,
+    Object? fcmToken = _unset,
     DateTime? createdAt,
   }) => UserModel(
         uid: uid,
@@ -85,6 +97,8 @@ class UserModel {
         following: following ?? this.following,
         learnedWords: learnedWords ?? this.learnedWords,
         stats: stats ?? this.stats,
+        isOnline: isOnline ?? this.isOnline,
+        fcmToken: identical(fcmToken, _unset) ? this.fcmToken : fcmToken as String?,
         createdAt: createdAt ?? this.createdAt,
       );
 

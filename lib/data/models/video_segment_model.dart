@@ -2,6 +2,40 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum VideoSourceType { youtube, selfHosted }
 
+// 6 categories used by the Mandarin Duel category wheel.
+enum QuizCategory {
+  vocabulary,
+  grammar,
+  listening,
+  characters,
+  conversation,
+  culture;
+
+  static QuizCategory fromString(String value) =>
+      QuizCategory.values.firstWhere(
+        (c) => c.name == value,
+        orElse: () => QuizCategory.vocabulary,
+      );
+
+  String get displayName => switch (this) {
+        vocabulary => 'Vocabulary',
+        grammar => 'Grammar',
+        listening => 'Listening',
+        characters => 'Characters',
+        conversation => 'Daily Conversation',
+        culture => 'Culture',
+      };
+
+  String get emoji => switch (this) {
+        vocabulary => '📚',
+        grammar => '📝',
+        listening => '🎧',
+        characters => '🖊',
+        conversation => '💬',
+        culture => '🏮',
+      };
+}
+
 class VideoSegmentModel {
   final String videoId;
   final VideoSourceType sourceType;
@@ -14,6 +48,7 @@ class VideoSegmentModel {
   final String pinyin;
   final List<String> targetWords;
   final QuizData quiz;
+  final QuizCategory quizCategory;
   final bool isActive;
   final DateTime createdAt;
 
@@ -29,15 +64,32 @@ class VideoSegmentModel {
     required this.pinyin,
     required this.targetWords,
     required this.quiz,
+    this.quizCategory = QuizCategory.vocabulary,
     this.isActive = true,
     required this.createdAt,
   });
 
   factory VideoSegmentModel.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    return VideoSegmentModel._fromMap(doc.id, data,
+        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now());
+  }
+
+  factory VideoSegmentModel.fromCache(String id, Map<String, dynamic> data) {
+    return VideoSegmentModel._fromMap(id, data,
+        createdAt: data['createdAt'] is int
+            ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'] as int)
+            : DateTime.now());
+  }
+
+  factory VideoSegmentModel._fromMap(
+    String id,
+    Map<String, dynamic> data, {
+    required DateTime createdAt,
+  }) {
     final sourceStr = data['sourceType'] as String? ?? 'youtube';
     return VideoSegmentModel(
-      videoId: doc.id,
+      videoId: id,
       sourceType: sourceStr == 'self_hosted'
           ? VideoSourceType.selfHosted
           : VideoSourceType.youtube,
@@ -50,8 +102,10 @@ class VideoSegmentModel {
       pinyin: data['pinyin'] as String? ?? '',
       targetWords: List<String>.from(data['targetWords'] ?? []),
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
+      quizCategory: QuizCategory.fromString(
+          data['quizCategory'] as String? ?? 'vocabulary'),
       isActive: data['isActive'] as bool? ?? true,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: createdAt,
     );
   }
 
@@ -67,8 +121,26 @@ class VideoSegmentModel {
         'pinyin': pinyin,
         'targetWords': targetWords,
         'quiz': quiz.toMap(),
+        'quizCategory': quizCategory.name,
         'isActive': isActive,
         'createdAt': Timestamp.fromDate(createdAt),
+      };
+
+  Map<String, dynamic> toCacheMap() => {
+        'sourceType':
+            sourceType == VideoSourceType.youtube ? 'youtube' : 'self_hosted',
+        'youtubeId': youtubeId,
+        'videoUrl': videoUrl,
+        'startTime': startTime,
+        'endTime': endTime,
+        'hskLevel': hskLevel,
+        'transcription': transcription,
+        'pinyin': pinyin,
+        'targetWords': targetWords,
+        'quiz': quiz.toMap(),
+        'quizCategory': quizCategory.name,
+        'isActive': isActive,
+        'createdAt': createdAt.millisecondsSinceEpoch,
       };
 
   double get durationSeconds => endTime - startTime;

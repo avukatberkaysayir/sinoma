@@ -1,15 +1,25 @@
 """
-ADIM 10 — YouTube Content Pipeline V1
+ADIM 10 — YouTube Content Pipeline V2
 
-Fetches captions from a YouTube video via the official YouTube Data API v3
-(no scraping), segments them into 5-10 second windows, assigns HSK levels,
-and produces Firestore-ready JSON for the `videos` collection.
+Downloads Chinese subtitles via yt-dlp, segments them into 5-10s windows,
+assigns HSK levels, tags grammar → QuizCategory, generates pinyin, extracts
+target words, and produces Firestore-ready JSON for the `videos` collection.
+
+All output documents have isActive=False and empty quiz fields — a human
+reviewer sets isActive=True and fills quiz data before content goes live.
 
 Usage:
-    python youtube_miner.py \
-        --video-id dQw4w9WgXcQ \
-        --api-key YOUR_YOUTUBE_API_KEY \
-        --hsk-map hsk_map.json \
+    # Download subtitles automatically (yt-dlp required):
+    python youtube_miner.py \\
+        --url "https://www.youtube.com/watch?v=VIDEO_ID" \\
+        --hsk-map hsk_map.json \\
+        --output video_segments.json
+
+    # Use a locally downloaded SRT/VTT file:
+    python youtube_miner.py \\
+        --url "https://www.youtube.com/watch?v=VIDEO_ID" \\
+        --sub-file captions.vtt \\
+        --hsk-map hsk_map.json \\
         --output video_segments.json
 """
 
@@ -18,85 +28,179 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from typing import Any
 
-import requests
+from grammar_tagger import tag_grammar
+from pinyin_helper import get_pinyin
 
-YOUTUBE_CAPTIONS_LIST_URL = "https://www.googleapis.com/youtube/v3/captions"
-YOUTUBE_VIDEOS_URL = "https://www.googleapis.com/youtube/v3/videos"
+try:
+    import jieba  # type: ignore
+    _JIEBA_AVAILABLE = True
+except ImportError:
+    _JIEBA_AVAILABLE = False
 
 MIN_SEGMENT_SECONDS = 5.0
 MAX_SEGMENT_SECONDS = 10.0
+MAX_TARGET_WORDS = 3
 
 
 # ---------------------------------------------------------------------------
-# YouTube Data API helpers
+# yt-dlp subtitle download
 # ---------------------------------------------------------------------------
 
-def fetch_video_metadata(video_id: str, api_key: str) -> dict[str, Any]:
-    resp = requests.get(
-        YOUTUBE_VIDEOS_URL,
-        params={
-            "part": "snippet,contentDetails",
-            "id": video_id,
-            "key": api_key,
-        },
-        timeout=15,
-    )
-    resp.raise_for_status()
-    items = resp.json().get("items", [])
-    if not items:
-        raise ValueError(f"Video {video_id} not found or is private.")
-    return items[0]
+def download_subtitles(url: str, output_dir: Path) -> Path | None:
+    """Download Chinese subtitles (auto-generated preferred) via yt-dlp.
+
+    Returns path to the downloaded .vtt file, or None if not found.
+    """
+    cmd = [
+        "yt-dlp",
+        "--skip-download",
+        "--write-auto-sub",
+        "--write-sub",
+        "--sub-lang", "zh-Hans,zh,zh-CN,zh-TW",
+        "--sub-format", "vtt",
+        "--convert-subs", "vtt",
+        "--output", str(output_dir / "%(id)s.%(ext)s"),
+        url,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"yt-dlp error: {result.stderr}", file=sys.stderr)
+        return None
+
+    vtt_files = list(output_dir.glob("*.vtt"))
+    if not vtt_files:
+        # Try srt as fallback
+        srt_files = list(output_dir.glob("*.srt"))
+        return srt_files[0] if srt_files else None
+    return vtt_files[0]
 
 
-def fetch_caption_track_id(video_id: str, api_key: str, language: str = "zh") -> str | None:
-    resp = requests.get(
-        YOUTUBE_CAPTIONS_LIST_URL,
-        params={"part": "snippet", "videoId": video_id, "key": api_key},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    for item in resp.json().get("items", []):
-        lang = item["snippet"]["language"]
-        if lang.startswith(language):
-            return item["id"]
-    return None
+def extract_video_id_from_path(sub_path: Path) -> str:
+    """Infer YouTube video ID from the subtitle filename (yt-dlp naming)."""
+    stem = sub_path.stem
+    # yt-dlp names files like: "VIDEO_TITLE [VIDEO_ID].zh-Hans.vtt"
+    # or "VIDEO_ID.zh-Hans.vtt" — extract the bracketed or bare ID
+    bracketed = re.search(r'\[([A-Za-z0-9_-]{11})\]', stem)
+    if bracketed:
+        return bracketed.group(1)
+    # Try bare 11-char ID at start or end
+    bare = re.match(r'^([A-Za-z0-9_-]{11})', stem)
+    if bare:
+        return bare.group(1)
+    return stem
 
 
 # ---------------------------------------------------------------------------
-# SRT / VTT parser
+# VTT parser
 # ---------------------------------------------------------------------------
 
-_TIMESTAMP_RE = re.compile(
+def _parse_vtt_timestamp(ts: str) -> float:
+    """Parse VTT timestamp HH:MM:SS.mmm or MM:SS.mmm to seconds."""
+    parts = ts.strip().split(":")
+    if len(parts) == 3:
+        h, m, s = parts
+        return int(h) * 3600 + int(m) * 60 + float(s)
+    if len(parts) == 2:
+        m, s = parts
+        return int(m) * 60 + float(s)
+    return float(parts[0])
+
+
+def parse_vtt(content: str) -> list[dict[str, Any]]:
+    """Parse WebVTT subtitle content into list of {start, end, text}."""
+    entries: list[dict[str, Any]] = []
+    seen_texts: set[str] = set()
+
+    blocks = re.split(r"\n\s*\n", content)
+    for block in blocks:
+        lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
+        if not lines:
+            continue
+
+        # Find the --> timestamp line
+        ts_line_idx = -1
+        for i, line in enumerate(lines):
+            if " --> " in line:
+                ts_line_idx = i
+                break
+        if ts_line_idx == -1:
+            continue
+
+        ts_line = lines[ts_line_idx]
+        # VTT timestamps can have position metadata after the times
+        ts_match = re.match(
+            r"([\d:\.]+)\s+-->\s+([\d:\.]+)", ts_line
+        )
+        if not ts_match:
+            continue
+
+        start = _parse_vtt_timestamp(ts_match.group(1))
+        end = _parse_vtt_timestamp(ts_match.group(2))
+
+        # Collect all text lines after the timestamp
+        raw = " ".join(lines[ts_line_idx + 1 :])
+
+        # Strip inline VTT timestamps like <00:00:01.234>
+        text = re.sub(r"<\d+:\d+:\d+\.\d+>", "", raw)
+        # Strip tags: <c>, </c>, <b>, etc.
+        text = re.sub(r"<[^>]+>", "", text)
+        # Collapse whitespace (Chinese doesn't need spaces between chars)
+        text = re.sub(r"\s+", "", text).strip()
+
+        # Skip empty, pure punctuation, or exact duplicates of previous cue
+        if not text or not re.search(r"[一-鿿]", text):
+            continue
+        if text in seen_texts:
+            continue
+        seen_texts.add(text)
+
+        entries.append({"start": start, "end": end, "text": text})
+
+    return entries
+
+
+# ---------------------------------------------------------------------------
+# SRT parser (fallback)
+# ---------------------------------------------------------------------------
+
+_SRT_TS_RE = re.compile(
     r"(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*"
     r"(\d{2}):(\d{2}):(\d{2})[,.](\d{3})"
 )
 
 
-def parse_timestamp(h: str, m: str, s: str, ms: str) -> float:
-    return int(h) * 3600 + int(m) * 60 + int(s) + int(ms) / 1000
-
-
-def parse_srt(raw: str) -> list[dict]:
-    """Returns list of {start, end, text} from SRT content."""
-    entries = []
-    blocks = re.split(r"\n\s*\n", raw.strip())
+def parse_srt(content: str) -> list[dict[str, Any]]:
+    """Parse SRT subtitle content into list of {start, end, text}."""
+    entries: list[dict[str, Any]] = []
+    blocks = re.split(r"\n\s*\n", content.strip())
     for block in blocks:
         lines = block.strip().splitlines()
-        if len(lines) < 2:
+        if len(lines) < 3:
             continue
-        match = _TIMESTAMP_RE.search(lines[1] if len(lines) > 1 else lines[0])
+        match = _SRT_TS_RE.search(lines[1] if len(lines) > 1 else lines[0])
         if not match:
             continue
-        start = parse_timestamp(*match.groups()[:4])
-        end = parse_timestamp(*match.groups()[4:])
-        text = " ".join(lines[2:]).strip() if len(lines) > 2 else ""
-        if text:
+        g = match.groups()
+        start = int(g[0]) * 3600 + int(g[1]) * 60 + int(g[2]) + int(g[3]) / 1000
+        end = int(g[4]) * 3600 + int(g[5]) * 60 + int(g[6]) + int(g[7]) / 1000
+        text = re.sub(r"\s+", "", " ".join(lines[2:]).strip())
+        if text and re.search(r"[一-鿿]", text):
             entries.append({"start": start, "end": end, "text": text})
     return entries
+
+
+def parse_subtitle_file(path: Path) -> list[dict[str, Any]]:
+    """Auto-detect VTT or SRT and parse."""
+    content = path.read_text(encoding="utf-8", errors="replace")
+    if path.suffix.lower() == ".vtt" or content.startswith("WEBVTT"):
+        return parse_vtt(content)
+    return parse_srt(content)
 
 
 # ---------------------------------------------------------------------------
@@ -104,36 +208,60 @@ def parse_srt(raw: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def build_segments(
-    caption_entries: list[dict],
-    hsk_map: dict[str, int],
+    entries: list[dict[str, Any]],
     min_sec: float = MIN_SEGMENT_SECONDS,
     max_sec: float = MAX_SEGMENT_SECONDS,
-) -> list[dict]:
-    segments = []
+) -> list[dict[str, Any]]:
+    """Merge caption entries into 5-10s segments."""
+    segments: list[dict[str, Any]] = []
     current_text = ""
     current_start: float | None = None
 
-    for entry in caption_entries:
+    for entry in entries:
         if current_start is None:
             current_start = entry["start"]
 
-        current_text += entry["text"] + " "
+        current_text += entry["text"]
         duration = entry["end"] - current_start
 
         if duration >= min_sec:
-            if duration <= max_sec or not current_text.strip():
+            if duration <= max_sec or not current_text:
                 segments.append({
-                    "start": current_start,
-                    "end": entry["end"],
-                    "text": current_text.strip(),
+                    "start": round(current_start, 3),
+                    "end": round(entry["end"], 3),
+                    "text": current_text,
+                })
+                current_text = ""
+                current_start = None
+            # If exceeded max, force flush
+            elif duration > max_sec:
+                segments.append({
+                    "start": round(current_start, 3),
+                    "end": round(entry["end"], 3),
+                    "text": current_text,
                 })
                 current_text = ""
                 current_start = None
 
+    # Flush any remaining text that met minimum
+    if current_text and current_start is not None:
+        duration = entries[-1]["end"] - current_start if entries else 0
+        if duration >= min_sec:
+            segments.append({
+                "start": round(current_start, 3),
+                "end": round(entries[-1]["end"], 3),
+                "text": current_text,
+            })
+
     return [s for s in segments if len(s["text"]) >= 3]
 
 
+# ---------------------------------------------------------------------------
+# HSK scoring + target word extraction
+# ---------------------------------------------------------------------------
+
 def compute_hsk_level(text: str, hsk_map: dict[str, int]) -> int:
+    """Return highest HSK level of any word found in text."""
     max_level = 1
     for word, level in hsk_map.items():
         if word in text and level > max_level:
@@ -141,35 +269,64 @@ def compute_hsk_level(text: str, hsk_map: dict[str, int]) -> int:
     return max_level
 
 
+def extract_target_words(
+    text: str,
+    hsk_map: dict[str, int],
+    max_words: int = MAX_TARGET_WORDS,
+) -> list[str]:
+    """Return up to max_words HSK words from text, sorted by HSK level desc."""
+    if _JIEBA_AVAILABLE:
+        tokens = list(jieba.cut(text))
+    else:
+        # Fallback: try all substrings of length 1-4
+        tokens = [text[i:i+n] for n in range(1, 5) for i in range(len(text) - n + 1)]
+
+    seen: set[str] = set()
+    candidates: list[tuple[str, int]] = []
+    for token in tokens:
+        if token in hsk_map and token not in seen:
+            seen.add(token)
+            candidates.append((token, hsk_map[token]))
+
+    candidates.sort(key=lambda x: -x[1])
+    return [w for w, _ in candidates[:max_words]]
+
+
 # ---------------------------------------------------------------------------
 # Firestore document builder
 # ---------------------------------------------------------------------------
 
 def build_firestore_segment(
-    video_id: str,
-    segment: dict,
+    youtube_id: str,
+    segment: dict[str, Any],
     hsk_map: dict[str, int],
     index: int,
-) -> dict:
-    hsk_level = compute_hsk_level(segment["text"], hsk_map)
+) -> dict[str, Any]:
+    text = segment["text"]
+    hsk_level = compute_hsk_level(text, hsk_map)
+    target_words = extract_target_words(text, hsk_map)
+    quiz_category = tag_grammar(text)
+    pinyin = get_pinyin(text)
+
     return {
-        "videoId": f"{video_id}_seg{index:03d}",
+        "videoId": f"{youtube_id}_seg{index:03d}",
         "sourceType": "youtube",
-        "youtubeId": video_id,
+        "youtubeId": youtube_id,
         "videoUrl": None,
         "startTime": segment["start"],
         "endTime": segment["end"],
         "hskLevel": hsk_level,
-        "transcription": segment["text"],
-        "pinyin": "",
-        "targetWords": [],
+        "transcription": text,
+        "pinyin": pinyin,
+        "targetWords": target_words,
+        "quizCategory": quiz_category,
         "quiz": {
             "question": "",
             "correctAnswer": "",
             "wrongAnswer": "",
         },
         "isActive": False,
-        "createdAt": None,
+        "createdAt": None,  # set by firestore_uploader to SERVER_TIMESTAMP
     }
 
 
@@ -177,54 +334,93 @@ def build_firestore_segment(
 # Main
 # ---------------------------------------------------------------------------
 
-def run(video_id: str, api_key: str, hsk_map: dict[str, int], output_path: Path) -> None:
-    print(f"Fetching metadata for video {video_id}...")
-    metadata = fetch_video_metadata(video_id, api_key)
-    title = metadata["snippet"]["title"]
-    print(f"  Title: {title}")
+def run(
+    url: str,
+    hsk_map: dict[str, int],
+    output_path: Path,
+    sub_file: Path | None = None,
+    min_sec: float = MIN_SEGMENT_SECONDS,
+    max_sec: float = MAX_SEGMENT_SECONDS,
+) -> None:
+    if sub_file:
+        sub_path = sub_file
+        youtube_id = extract_video_id_from_path(sub_path)
+        print(f"Using local subtitle file: {sub_path}")
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            print(f"Downloading subtitles for: {url}")
+            sub_path = download_subtitles(url, Path(tmpdir))
+            if not sub_path:
+                print("No Chinese subtitles found. Try providing --sub-file.", file=sys.stderr)
+                sys.exit(1)
+            # Copy out of tmpdir before it's cleaned up
+            dest = Path(f"subtitles_{sub_path.name}")
+            dest.write_bytes(sub_path.read_bytes())
+            sub_path = dest
+        youtube_id = extract_video_id_from_path(sub_path)
+        print(f"  Saved subtitles to: {sub_path}")
 
-    caption_id = fetch_caption_track_id(video_id, api_key, language="zh")
-    if not caption_id:
-        print("No Chinese caption track found. Exiting.", file=sys.stderr)
-        sys.exit(1)
-    print(f"  Caption track ID: {caption_id}")
+    print(f"  YouTube ID: {youtube_id}")
+    print("Parsing subtitles...")
+    entries = parse_subtitle_file(sub_path)
+    print(f"  {len(entries)} caption cues.")
 
-    print("Note: Caption download requires OAuth (not just API key).")
-    print("For now, place the SRT file at ./captions.srt and re-run with --srt flag.")
-    sys.exit(0)
+    print("Building segments...")
+    segments = build_segments(entries, min_sec=min_sec, max_sec=max_sec)
+    print(f"  {len(segments)} segments ({min_sec:.0f}–{max_sec:.0f}s).")
 
+    print("Enriching (HSK level, grammar tag, pinyin, target words)...")
+    docs = [
+        build_firestore_segment(youtube_id, seg, hsk_map, i)
+        for i, seg in enumerate(segments)
+    ]
 
-def run_from_srt(video_id: str, srt_path: Path, hsk_map: dict[str, int], output_path: Path) -> None:
-    print(f"Parsing SRT: {srt_path}")
-    raw = srt_path.read_text(encoding="utf-8")
-    captions = parse_srt(raw)
-    print(f"  {len(captions)} caption entries.")
+    # Summary stats
+    from collections import Counter
+    cat_counts = Counter(d["quizCategory"] for d in docs)
+    hsk_counts = Counter(d["hskLevel"] for d in docs)
+    print(f"  QuizCategory breakdown: {dict(cat_counts)}")
+    print(f"  HSK level breakdown:    {dict(sorted(hsk_counts.items()))}")
 
-    segments = build_segments(captions, hsk_map)
-    print(f"  {len(segments)} valid segments (5–10s).")
-
-    docs = [build_firestore_segment(video_id, seg, hsk_map, i) for i, seg in enumerate(segments)]
-    output_path.write_text(json.dumps(docs, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Output written to {output_path}")
+    output_path.write_text(
+        json.dumps(docs, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    print(f"Output written to {output_path}  ({len(docs)} documents)")
+    print("Next step: review quiz fields, set isActive=True, then run firestore_uploader.py")
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="YouTube content pipeline")
-    parser.add_argument("--video-id", required=True)
-    parser.add_argument("--api-key")
-    parser.add_argument("--srt", type=Path, help="Path to local SRT file (bypasses API download)")
-    parser.add_argument("--hsk-map", required=True, type=Path, help="JSON file: {word: level}")
-    parser.add_argument("--output", default=Path("video_segments.json"), type=Path)
+    parser = argparse.ArgumentParser(
+        description="YouTube → Firestore VideoSegmentModel pipeline"
+    )
+    parser.add_argument("--url", required=True, help="YouTube video URL")
+    parser.add_argument(
+        "--sub-file", type=Path,
+        help="Local .vtt or .srt file (skips yt-dlp download)"
+    )
+    parser.add_argument(
+        "--hsk-map", required=True, type=Path,
+        help="JSON {word: level} map (output of hsk_analyzer.py)"
+    )
+    parser.add_argument(
+        "--output", default=Path("video_segments.json"), type=Path
+    )
+    parser.add_argument("--min-sec", type=float, default=MIN_SEGMENT_SECONDS)
+    parser.add_argument("--max-sec", type=float, default=MAX_SEGMENT_SECONDS)
     args = parser.parse_args()
 
-    hsk_map: dict[str, int] = json.loads(args.hsk_map.read_text(encoding="utf-8"))
+    hsk_map: dict[str, int] = json.loads(
+        args.hsk_map.read_text(encoding="utf-8")
+    )
 
-    if args.srt:
-        run_from_srt(args.video_id, args.srt, hsk_map, args.output)
-    elif args.api_key:
-        run(args.video_id, args.api_key, hsk_map, args.output)
-    else:
-        parser.error("Provide either --api-key or --srt")
+    run(
+        url=args.url,
+        hsk_map=hsk_map,
+        output_path=args.output,
+        sub_file=args.sub_file,
+        min_sec=args.min_sec,
+        max_sec=args.max_sec,
+    )
 
 
 if __name__ == "__main__":

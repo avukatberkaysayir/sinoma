@@ -3,3 +3,9 @@ google-cloud-firestore==2.19.0
 requests==2.32.3
 mypy==1.11.2
 ruff==0.6.9
+yt-dlp==2024.11.18
+jieba==0.42.1
+pypinyin==0.51.0
+internetarchive==5.1.0
+faster-whisper==1.0.3
+boto3==1.35.0

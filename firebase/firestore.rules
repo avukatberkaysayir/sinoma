@@ -2,6 +2,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // ── Auth helpers ──────────────────────────────────────────────────────────
+
     function isSignedIn() {
       return request.auth != null;
     }
@@ -10,18 +12,62 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == uid;
     }
 
+    function isNotAnonymous() {
+      return isSignedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // ── Field guards ──────────────────────────────────────────────────────────
+
     function doesNotWriteCredits() {
       return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['aiCredits']);
     }
 
-    // Users: owner can read/write their own doc, but never write aiCredits directly.
-    match /users/{uid} {
-      allow read: if isOwner(uid);
-      allow create: if isOwner(uid);
-      allow update: if isOwner(uid) && doesNotWriteCredits();
+    function doesNotWriteHskLevel() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['hskLevel']);
     }
 
-    // Dictionary and videos: any authenticated user can read. No client writes.
+    function doesNotWriteUid() {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid']);
+    }
+
+    function validPostType() {
+      return request.resource.data.postType in ['achievement', 'score', 'challenge', 'text'];
+    }
+
+    function userCreateValid() {
+      let d = request.resource.data;
+      return d.keys().hasAll(['uid', 'displayName', 'hskLevel', 'isPremium', 'aiCredits',
+                               'followers', 'following', 'learnedWords', 'stats', 'createdAt'])
+          && d.uid == request.auth.uid
+          && d.isPremium == false
+          && d.aiCredits is int && d.aiCredits >= 0
+          && d.hskLevel is int && d.hskLevel >= 1 && d.hskLevel <= 6
+          && d.followers is list
+          && d.following is list
+          && d.learnedWords is list;
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // aiCredits and hskLevel are CF-only fields; clients can never write them directly.
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create: if isOwner(uid) && userCreateValid();
+      allow update: if isOwner(uid)
+                    && doesNotWriteCredits()
+                    && doesNotWriteHskLevel()
+                    && doesNotWriteUid();
+    }
+
+    // ── Leaderboard: any authenticated user can read; only CF writes ──────────
+
+    match /leaderboard/{docId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // ── Dictionary and videos: authenticated read, no client writes ───────────
+
     match /dictionary/{wordId} {
       allow read: if isSignedIn();
       allow write: if false;
@@ -32,17 +78,67 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Posts: authenticated users can read. Owner can create/update/delete.
+    // ── Posts: non-anonymous users can read and create their own ─────────────
+    // Likes (array union/remove) count as updates — allow if content is unchanged.
+
     match /posts/{postId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.authorId == request.auth.uid;
-      allow update, delete: if isOwner(resource.data.authorId);
+      allow create: if isNotAnonymous()
+                    && request.resource.data.authorId == request.auth.uid
+                    && validPostType()
+                    && request.resource.data.content is string
+                    && request.resource.data.content.size() > 0
+                    && request.resource.data.content.size() <= 500;
+      // Owner can update own post OR any authenticated user can toggle likes (likes field only).
+      allow update: if isOwner(resource.data.authorId)
+                    || (isSignedIn()
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likes']));
+      allow delete: if isOwner(resource.data.authorId);
     }
 
-    // Leaderboard: read-only for authenticated users (written by Cloud Functions only).
-    match /leaderboard/{docId} {
-      allow read: if isSignedIn();
+    // ── Game requests ─────────────────────────────────────────────────────────
+
+    match /gameRequests/{requestId} {
+      allow read: if isSignedIn() && (
+        resource.data.fromUid == request.auth.uid ||
+        resource.data.toUid == request.auth.uid
+      );
+      allow create: if isNotAnonymous()
+                    && request.resource.data.fromUid == request.auth.uid
+                    && request.resource.data.status == 'pending';
+      allow update: if isSignedIn()
+                    && resource.data.toUid == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                    && request.resource.data.status in ['accepted', 'declined'];
+      allow delete: if false;
+    }
+
+    // ── Match queue: each user owns their own entry ───────────────────────────
+
+    match /matchQueue/{uid} {
+      allow read, write: if isOwner(uid);
+    }
+
+    // ── Matches: participants read, CF writes only ────────────────────────────
+
+    match /matches/{matchId} {
+      allow read: if isSignedIn() && (
+        resource.data.player1Uid == request.auth.uid ||
+        resource.data.player2Uid == request.auth.uid
+      );
       allow write: if false;
+    }
+
+    // ── GDPR consent: user creates/reads their own consent record ────────────
+    // Written once on onboarding completion; updates allowed (re-consent).
+
+    match /gdprConsent/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+                             && request.resource.data.uid == request.auth.uid
+                             && request.resource.data.consentGiven is bool
+                             && request.resource.data.consentTimestamp is timestamp;
+      allow delete: if false;
     }
   }
 }

@@ -44,6 +44,21 @@ class DictionaryModel {
     );
   }
 
+  factory DictionaryModel.fromCache(String id, Map<String, dynamic> data) {
+    return DictionaryModel(
+      wordId: id,
+      simplified: data['simplified'] as String? ?? '',
+      traditional: data['traditional'] as String? ?? '',
+      pinyin: data['pinyin'] as String? ?? '',
+      hskLevel: (data['hskLevel'] as num?)?.toInt() ?? 0,
+      definitions: WordDefinitions.fromMap(
+          data['definitions'] as Map<String, dynamic>? ?? {}),
+      aiContextCache: const {},
+      radicals: List<String>.from(data['radicals'] ?? []),
+      strokeCount: (data['strokeCount'] as num?)?.toInt() ?? 0,
+    );
+  }
+
   Map<String, dynamic> toFirestore() => {
         'simplified': simplified,
         'traditional': traditional,
@@ -52,6 +67,17 @@ class DictionaryModel {
         'definitions': definitions.toMap(),
         'aiContextCache':
             aiContextCache.map((k, v) => MapEntry(k, v.toFirestoreMap())),
+        'radicals': radicals,
+        'strokeCount': strokeCount,
+      };
+
+  // aiContextCache omitted — not JSON-serializable and not needed offline.
+  Map<String, dynamic> toCacheMap() => {
+        'simplified': simplified,
+        'traditional': traditional,
+        'pinyin': pinyin,
+        'hskLevel': hskLevel,
+        'definitions': definitions.toMap(),
         'radicals': radicals,
         'strokeCount': strokeCount,
       };

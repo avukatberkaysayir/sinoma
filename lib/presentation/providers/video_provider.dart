@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/video_segment_model.dart';
 import '../../data/repositories/video_repository.dart';
+import '../../data/services/analytics_service.dart';
+import 'ai_provider.dart';
+import 'dictionary_provider.dart';
 import 'user_provider.dart';
 
 final videoRepositoryProvider = Provider<VideoRepository>((ref) {
-  return VideoRepository();
+  return VideoRepository(cache: ref.read(cacheServiceProvider));
 });
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
@@ -62,13 +65,16 @@ class VideoPlaybackState {
 }
 
 class VideoPlaybackNotifier extends StateNotifier<VideoPlaybackState> {
-  VideoPlaybackNotifier() : super(const VideoPlaybackState());
+  VideoPlaybackNotifier(this._analytics) : super(const VideoPlaybackState());
+
+  final AnalyticsService _analytics;
 
   void loadSegment(VideoSegmentModel segment) {
     state = state.copyWith(
       segment: segment,
       status: VideoPlaybackStatus.playing,
     );
+    _analytics.logVideoStarted(segment.videoId, segment.hskLevel);
   }
 
   void activateQuiz() {
@@ -78,21 +84,39 @@ class VideoPlaybackNotifier extends StateNotifier<VideoPlaybackState> {
   void recordCorrectAnswer() {
     final newCombo = state.combo + 1;
     final points = VideoPlaybackState.basePoints * state.comboMultiplier;
+    final seg = state.segment;
     state = state.copyWith(
       status: VideoPlaybackStatus.completed,
       wasCorrect: true,
       combo: newCombo,
       score: state.score + points,
     );
+    if (seg != null) {
+      _analytics.logVideoCompleted(
+        videoId: seg.videoId,
+        hskLevel: seg.hskLevel,
+        wasCorrect: true,
+        quizCategory: seg.quizCategory.name,
+      );
+    }
   }
 
   void recordWrongAnswer() {
+    final seg = state.segment;
     state = state.copyWith(
       status: VideoPlaybackStatus.completed,
       wasCorrect: false,
       combo: 0,
       hearts: (state.hearts - 1).clamp(0, 3),
     );
+    if (seg != null) {
+      _analytics.logVideoCompleted(
+        videoId: seg.videoId,
+        hskLevel: seg.hskLevel,
+        wasCorrect: false,
+        quizCategory: seg.quizCategory.name,
+      );
+    }
   }
 
   void reset() {
@@ -102,5 +126,5 @@ class VideoPlaybackNotifier extends StateNotifier<VideoPlaybackState> {
 
 final videoPlaybackProvider =
     StateNotifierProvider<VideoPlaybackNotifier, VideoPlaybackState>(
-  (ref) => VideoPlaybackNotifier(),
+  (ref) => VideoPlaybackNotifier(ref.read(analyticsServiceProvider)),
 );
