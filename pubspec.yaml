@@ -64,6 +64,12 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+# Patches youtube_player_iframe_web to use dart:ui_web (platformViewRegistry
+# moved from dart:ui in Flutter 3.19+). Remove when pub.dev package is updated.
+dependency_overrides:
+  youtube_player_iframe_web:
+    path: packages/youtube_player_iframe_web
+
 flutter:
   uses-material-design: true
   assets:

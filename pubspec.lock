@@ -1270,12 +1270,11 @@ packages:
     source: hosted
     version: "4.0.4"
   youtube_player_iframe_web:
-    dependency: transitive
+    dependency: "direct overridden"
     description:
-      name: youtube_player_iframe_web
-      sha256: c7020816031600349b56d2729d4e8be011fcb723ff7dc2dd0cdf72096a0e5ff4
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/youtube_player_iframe_web"
+      relative: true
+    source: path
     version: "2.0.2"
 sdks:
   dart: ">=3.11.0 <4.0.0"
