@@ -49,6 +49,13 @@ class _YoutubeNativePlayerWebState extends State<YoutubeNativePlayer> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    // Auto-start the simulation so the user doesn't have to click a button.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _startSimulation());
+  }
+
+  @override
   void dispose() {
     _autoEndTimer?.cancel();
     super.dispose();

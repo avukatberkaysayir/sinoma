@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -87,6 +88,17 @@ class SettingsScreen extends ConsumerWidget {
                   color: AppColors.onSurfaceMuted),
             ),
             const Divider(color: AppColors.surfaceVariant, height: 1),
+            if (kDebugMode) ...[
+              const _SectionHeader('Developer'),
+              _InfoTile(
+                icon: Icons.admin_panel_settings,
+                label: 'Admin Panel',
+                onTap: () => context.push('/admin'),
+                trailing: const Icon(Icons.chevron_right,
+                    color: AppColors.onSurfaceMuted),
+              ),
+              const Divider(color: AppColors.surfaceVariant, height: 1),
+            ],
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -133,7 +145,11 @@ class SettingsScreen extends ConsumerWidget {
       ),
     );
     if (confirmed == true) {
-      await ref.read(socialRepositoryProvider).updateOnlineStatus(false);
+      try {
+        await ref.read(socialRepositoryProvider).updateOnlineStatus(false);
+      } catch (_) {
+        // User may not have a Firestore document yet — sign out anyway.
+      }
       await FirebaseAuth.instance.signOut();
     }
   }

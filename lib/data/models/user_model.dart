@@ -54,6 +54,7 @@ class UserModel {
   }
 
   Map<String, dynamic> toFirestore() => {
+        'uid': uid,
         'displayName': displayName,
         'email': email,
         'photoUrl': photoUrl,

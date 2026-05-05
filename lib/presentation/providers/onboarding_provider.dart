@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -135,19 +136,26 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        state = state.copyWith(isLoading: false);
-        return;
+      UserCredential result;
+      if (kIsWeb) {
+        // On web, use Firebase's built-in popup flow (emulator-compatible).
+        result = await _auth.signInWithPopup(GoogleAuthProvider());
+      } else {
+        final googleUser = await _googleSignIn.signIn();
+        if (googleUser == null) {
+          state = state.copyWith(isLoading: false);
+          return;
+        }
+        final googleAuth = await googleUser.authentication;
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+        result = await _auth.signInWithCredential(credential);
       }
-      final googleAuth = await googleUser.authentication;
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
-      final result = await _auth.signInWithCredential(credential);
       await _analytics.logSignIn('google');
-      await _handlePostSignIn(result.user!, googleUser.displayName ?? '');
+      final name = result.user?.displayName ?? '';
+      await _handlePostSignIn(result.user!, name);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }

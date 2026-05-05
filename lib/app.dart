@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'core/constants/app_colors.dart';
 import 'data/services/notification_service.dart';
 import 'presentation/providers/auth_provider.dart';
+import 'presentation/screens/admin/admin_screen.dart';
 import 'presentation/screens/dictionary/dictionary_screen.dart';
 import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
@@ -78,6 +79,8 @@ final _router = GoRouter(
     GoRoute(path: '/legal/terms', builder: (_, __) => const TermsScreen()),
     GoRoute(
         path: '/legal/privacy', builder: (_, __) => const PrivacyPolicyScreen()),
+    GoRoute(path: '/admin', builder: (_, __) => const AdminScreen()),
+    GoRoute(path: '/admin/add-video', builder: (_, __) => const AddVideoScreen()),
   ],
 );
 
