@@ -188,7 +188,7 @@ def main() -> None:
     tmp_output.unlink(missing_ok=True)
 
     if not docs:
-        print("⚠️  No segments produced. Check the video has Chinese subtitles.")
+        print("⚠️  No segments produced. The video may have no Chinese speech or subtitles.")
         sys.exit(1)
 
     # Write to emulator

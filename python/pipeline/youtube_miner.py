@@ -43,6 +43,14 @@ try:
 except ImportError:
     _JIEBA_AVAILABLE = False
 
+try:
+    from faster_whisper import WhisperModel  # type: ignore
+    _WHISPER_AVAILABLE = True
+except ImportError:
+    _WHISPER_AVAILABLE = False
+
+WHISPER_MODEL_SIZE = "small"  # tiny|small|medium — small is best for Mandarin speed/accuracy
+
 MIN_SEGMENT_SECONDS = 5.0
 MAX_SEGMENT_SECONDS = 10.0
 MAX_TARGET_WORDS = 3
@@ -58,7 +66,7 @@ def download_subtitles(url: str, output_dir: Path) -> Path | None:
     Returns path to the downloaded .vtt file, or None if not found.
     """
     cmd = [
-        "yt-dlp",
+        sys.executable, "-m", "yt_dlp",
         "--skip-download",
         "--write-auto-sub",
         "--write-sub",
@@ -79,6 +87,65 @@ def download_subtitles(url: str, output_dir: Path) -> Path | None:
         srt_files = list(output_dir.glob("*.srt"))
         return srt_files[0] if srt_files else None
     return vtt_files[0]
+
+
+def extract_youtube_id(url: str) -> str:
+    """Parse YouTube video ID from URL."""
+    m = re.search(r"(?:v=|youtu\.be/|shorts/)([A-Za-z0-9_-]{11})", url)
+    return m.group(1) if m else "unknown"
+
+
+def download_audio(url: str, output_dir: Path) -> Path | None:
+    """Download best audio track for a YouTube video via yt-dlp."""
+    cmd = [
+        sys.executable, "-m", "yt_dlp",
+        "--extract-audio",
+        "--audio-format", "mp3",
+        "--audio-quality", "5",       # ~128 kbps — enough for ASR
+        "--output", str(output_dir / "%(id)s.%(ext)s"),
+        url,
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"yt-dlp audio error: {result.stderr[:400]}", file=sys.stderr)
+        return None
+    mp3_files = list(output_dir.glob("*.mp3"))
+    return mp3_files[0] if mp3_files else None
+
+
+def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
+    """Transcribe a Mandarin audio file with faster-whisper.
+
+    Returns the same [{start, end, text}] format as parse_vtt/parse_srt.
+    First call downloads the model from Hugging Face (~480 MB for 'small').
+    """
+    if not _WHISPER_AVAILABLE:
+        print("faster-whisper not installed. Run: py -m pip install faster-whisper",
+              file=sys.stderr)
+        return []
+
+    print(f"  Loading Whisper model '{WHISPER_MODEL_SIZE}' (downloads on first use)…")
+    model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
+
+    print(f"  Transcribing {audio_path.name} …")
+    segments, info = model.transcribe(
+        str(audio_path),
+        language="zh",
+        beam_size=5,
+        vad_filter=True,              # skip silence
+        vad_parameters={"min_silence_duration_ms": 500},
+    )
+
+    entries: list[dict[str, Any]] = []
+    for seg in segments:
+        text = re.sub(r"\s+", "", seg.text.strip())
+        if text and re.search(r"[一-鿿]", text):
+            entries.append({"start": seg.start, "end": seg.end, "text": text})
+
+    print(f"  Whisper produced {len(entries)} Chinese cues "
+          f"(detected language: {info.language}, "
+          f"probability: {info.language_probability:.0%})")
+    return entries
 
 
 def extract_video_id_from_path(sub_path: Path) -> str:
@@ -342,28 +409,45 @@ def run(
     min_sec: float = MIN_SEGMENT_SECONDS,
     max_sec: float = MAX_SEGMENT_SECONDS,
 ) -> None:
+    entries: list[dict[str, Any]] = []
+
     if sub_file:
         sub_path = sub_file
         youtube_id = extract_video_id_from_path(sub_path)
         print(f"Using local subtitle file: {sub_path}")
+        print("Parsing subtitles...")
+        entries = parse_subtitle_file(sub_path)
+        print(f"  {len(entries)} caption cues.")
     else:
+        youtube_id = extract_youtube_id(url)
         with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+
+            # ── Step 1: try subtitle download ─────────────────────────────
             print(f"Downloading subtitles for: {url}")
-            sub_path = download_subtitles(url, Path(tmpdir))
-            if not sub_path:
-                print("No Chinese subtitles found. Try providing --sub-file.", file=sys.stderr)
-                sys.exit(1)
-            # Copy out of tmpdir before it's cleaned up
-            dest = Path(f"subtitles_{sub_path.name}")
-            dest.write_bytes(sub_path.read_bytes())
-            sub_path = dest
-        youtube_id = extract_video_id_from_path(sub_path)
-        print(f"  Saved subtitles to: {sub_path}")
+            sub_path = download_subtitles(url, tmp)
+
+            if sub_path:
+                dest = Path(f"subtitles_{sub_path.name}")
+                dest.write_bytes(sub_path.read_bytes())
+                print(f"  Saved subtitles to: {dest}")
+                print("Parsing subtitles...")
+                entries = parse_subtitle_file(dest)
+                print(f"  {len(entries)} caption cues.")
+            else:
+                # ── Step 2: Whisper ASR fallback ──────────────────────────
+                print("No Chinese subtitles found → falling back to Whisper ASR.")
+                print("Downloading audio…")
+                audio_path = download_audio(url, tmp)
+                if not audio_path:
+                    print("Audio download failed.", file=sys.stderr)
+                    sys.exit(1)
+                entries = transcribe_with_whisper(audio_path)
+                if not entries:
+                    print("Whisper produced no Chinese text.", file=sys.stderr)
+                    sys.exit(1)
 
     print(f"  YouTube ID: {youtube_id}")
-    print("Parsing subtitles...")
-    entries = parse_subtitle_file(sub_path)
-    print(f"  {len(entries)} caption cues.")
 
     print("Building segments...")
     segments = build_segments(entries, min_sec=min_sec, max_sec=max_sec)
