@@ -60,6 +60,15 @@ MAX_TARGET_WORDS = 3
 # yt-dlp subtitle download
 # ---------------------------------------------------------------------------
 
+_YTDLP_BASE_ARGS = [
+    # tv_embedded works without JS runtime or PO Token for most videos
+    "--extractor-args", "youtube:player_client=tv_embedded",
+    "--no-check-certificates",
+    "--quiet",
+    "--no-warnings",
+]
+
+
 def download_subtitles(url: str, output_dir: Path) -> Path | None:
     """Download Chinese subtitles (auto-generated preferred) via yt-dlp.
 
@@ -67,6 +76,7 @@ def download_subtitles(url: str, output_dir: Path) -> Path | None:
     """
     cmd = [
         sys.executable, "-m", "yt_dlp",
+        *_YTDLP_BASE_ARGS,
         "--skip-download",
         "--write-auto-sub",
         "--write-sub",
@@ -78,12 +88,11 @@ def download_subtitles(url: str, output_dir: Path) -> Path | None:
     ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        print(f"yt-dlp error: {result.stderr}", file=sys.stderr)
+        print(f"yt-dlp subtitle error: {result.stderr[:300]}", file=sys.stderr)
         return None
 
     vtt_files = list(output_dir.glob("*.vtt"))
     if not vtt_files:
-        # Try srt as fallback
         srt_files = list(output_dir.glob("*.srt"))
         return srt_files[0] if srt_files else None
     return vtt_files[0]
@@ -96,12 +105,20 @@ def extract_youtube_id(url: str) -> str:
 
 
 def download_audio(url: str, output_dir: Path) -> Path | None:
-    """Download best audio track for a YouTube video via yt-dlp."""
+    """Download best audio track without requiring ffmpeg.
+
+    Uses --format bestaudio to get the native audio container (webm/m4a/opus).
+    faster-whisper reads these via PyAV without ffmpeg.
+    """
+    # Request audio-only streams that can be downloaded directly without ffmpeg.
+    # Prefer webm/opus (251) or m4a (140) — both readable by PyAV/Whisper.
     cmd = [
         sys.executable, "-m", "yt_dlp",
-        "--extract-audio",
-        "--audio-format", "mp3",
-        "--audio-quality", "5",       # ~128 kbps — enough for ASR
+        *_YTDLP_BASE_ARGS,
+        "--format",
+        "bestaudio[vcodec=none][protocol=https]"
+        "/bestaudio[protocol=https]"
+        "/18",                         # 360p mp4 with audio — last resort
         "--output", str(output_dir / "%(id)s.%(ext)s"),
         url,
     ]
@@ -109,8 +126,13 @@ def download_audio(url: str, output_dir: Path) -> Path | None:
     if result.returncode != 0:
         print(f"yt-dlp audio error: {result.stderr[:400]}", file=sys.stderr)
         return None
-    mp3_files = list(output_dir.glob("*.mp3"))
-    return mp3_files[0] if mp3_files else None
+
+    # Accept any container — Whisper/PyAV handles webm, m4a, opus, mp4
+    for pattern in ("*.webm", "*.m4a", "*.opus", "*.ogg", "*.mp4", "*.mp3"):
+        files = list(output_dir.glob(pattern))
+        if files:
+            return files[0]
+    return None
 
 
 def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
