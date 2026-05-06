@@ -161,6 +161,29 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     }
   }
 
+  Future<void> signInWithDevAccount() async {
+    state = state.copyWith(isLoading: true, error: null);
+    const email = 'dev@mandarin.local';
+    const password = 'dev-local-123';
+    try {
+      UserCredential result;
+      try {
+        result = await _auth.signInWithEmailAndPassword(
+            email: email, password: password);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          result = await _auth.createUserWithEmailAndPassword(
+              email: email, password: password);
+        } else {
+          rethrow;
+        }
+      }
+      await _handlePostSignIn(result.user!, 'Dev User');
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
   Future<void> signInAnonymously() async {
     state = state.copyWith(isLoading: true, error: null);
     try {

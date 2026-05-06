@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -55,6 +56,7 @@ class OnboardingScreen extends ConsumerWidget {
               error: state.error,
               onGoogle: notifier.signInWithGoogle,
               onAnonymous: notifier.signInAnonymously,
+              onDevLogin: notifier.signInWithDevAccount,
               onClearError: notifier.clearError,
             ),
           OnboardingStep.profile => _ProfilePage(
@@ -171,6 +173,7 @@ class _SignInPage extends StatelessWidget {
   final String? error;
   final VoidCallback onGoogle;
   final VoidCallback onAnonymous;
+  final VoidCallback onDevLogin;
   final VoidCallback onClearError;
 
   const _SignInPage({
@@ -179,6 +182,7 @@ class _SignInPage extends StatelessWidget {
     required this.error,
     required this.onGoogle,
     required this.onAnonymous,
+    required this.onDevLogin,
     required this.onClearError,
   });
 
@@ -215,6 +219,32 @@ class _SignInPage extends StatelessWidget {
             if (isLoading)
               const CircularProgressIndicator()
             else ...[
+              if (kDebugMode) ...[
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: onDevLogin,
+                    icon: const Icon(Icons.developer_mode, size: 20),
+                    label: const Text('Dev Login (Emulator)',
+                        style: TextStyle(fontSize: 15)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D3B8E),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  '⚠ Local dev only — dev@mandarin.local',
+                  style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                const Divider(color: Colors.white12),
+                const SizedBox(height: 12),
+              ],
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

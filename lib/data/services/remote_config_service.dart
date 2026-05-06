@@ -1,4 +1,5 @@
 import 'package:firebase_remote_config/firebase_remote_config.dart';
+import 'package:flutter/foundation.dart';
 
 class RemoteConfigService {
   final _rc = FirebaseRemoteConfig.instance;
@@ -22,10 +23,12 @@ class RemoteConfigService {
       fetchTimeout: const Duration(seconds: 10),
       minimumFetchInterval: const Duration(hours: 1),
     ));
-    try {
-      await _rc.fetchAndActivate();
-    } catch (_) {
-      // Network failure — defaults remain active, safe to continue.
+    if (!kDebugMode) {
+      try {
+        await _rc.fetchAndActivate();
+      } catch (_) {
+        // Network failure — defaults remain active, safe to continue.
+      }
     }
   }
 
