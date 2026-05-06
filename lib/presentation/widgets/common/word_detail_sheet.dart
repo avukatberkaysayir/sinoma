@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_config.dart';
@@ -183,6 +184,8 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
             height: 1.5,
           ),
         ),
+        const SizedBox(height: 16),
+        _buildYouglishButton(word),
         const SizedBox(height: 24),
         _buildAiSection(canUseAi),
       ],
@@ -227,6 +230,23 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
         const Spacer(),
         _HskChip(level: word.hskLevel),
       ],
+    );
+  }
+
+  Widget _buildYouglishButton(DictionaryModel word) {
+    final encoded = Uri.encodeComponent(word.simplified);
+    final uri = Uri.parse('https://youglish.com/pronounce/$encoded/chinese');
+    return OutlinedButton.icon(
+      onPressed: () => launchUrl(uri, mode: LaunchMode.externalApplication),
+      icon: const Icon(Icons.hearing_outlined, size: 18),
+      label: const Text('Hear it used by natives (YouGlish)'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.onSurface,
+        side: const BorderSide(color: Colors.white24),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        minimumSize: const Size(double.infinity, 0),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
     );
   }
 
