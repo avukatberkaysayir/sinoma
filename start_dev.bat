@@ -22,20 +22,32 @@ echo      Hosting  → http://localhost:9300
 echo      UI       → http://localhost:4001
 echo.
 
-:: Start emulator in background, wait a bit, then seed data
-start /b firebase emulators:start --project demo-mandarin-academy --only auth,firestore,hosting
+:: --import restores saved data; --export-on-exit saves data on shutdown
+:: First run: emulator-data/ won't exist → emulator starts empty (then seeded)
+:: Subsequent runs: emulator-data/ exists → previous data is restored (seed skipped)
+if exist emulator-data\ (
+    echo  [INFO] Restoring saved emulator data from emulator-data\
+    start /b firebase emulators:start --project demo-mandarin-academy --only auth,firestore,hosting --import=emulator-data --export-on-exit=emulator-data
+) else (
+    start /b firebase emulators:start --project demo-mandarin-academy --only auth,firestore,hosting --export-on-exit=emulator-data
+)
 
 echo  Waiting for emulators to start...
-timeout /t 10 /nobreak > nul
+timeout /t 12 /nobreak > nul
 
-echo.
-echo  3.  Seeding demo data...
-dart run tool/seed_emulator.dart
+:: Only seed if this is the first run (no saved data)
+if not exist emulator-data\ (
+    echo.
+    echo  3.  Seeding demo data...
+    dart run tool/seed_emulator.dart
+) else (
+    echo  3.  Skipping seed — restored from emulator-data\
+)
 
 echo.
 echo  4.  Starting Pipeline dev server (port 9302)...
 echo      Admin panel "Process" button uses this server.
-start "Pipeline Server" cmd /k "cd /d %~dp0python && python pipeline/dev_server.py"
+start "Pipeline Server" cmd /k "cd /d %~dp0python && py pipeline/dev_server.py"
 timeout /t 2 /nobreak > nul
 
 echo.
