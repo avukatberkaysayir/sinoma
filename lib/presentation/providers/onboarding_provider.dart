@@ -122,12 +122,13 @@ class OnboardingState {
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
   OnboardingNotifier(this._userRepository, this._analytics)
-      : super(const OnboardingState());
+      : super(const OnboardingState(
+          step: kDebugMode ? OnboardingStep.signIn : OnboardingStep.welcome,
+        ));
 
   final UserRepository _userRepository;
   final AnalyticsService _analytics;
   final _auth = FirebaseAuth.instance;
-  final _googleSignIn = GoogleSignIn();
 
   void advanceToSignIn() {
     state = state.copyWith(step: OnboardingStep.signIn);
@@ -138,10 +139,11 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       UserCredential result;
       if (kIsWeb) {
-        // On web, use Firebase's built-in popup flow (emulator-compatible).
         result = await _auth.signInWithPopup(GoogleAuthProvider());
       } else {
-        final googleUser = await _googleSignIn.signIn();
+        // GoogleSignIn instantiated lazily — crashes on web without a client ID
+        final googleSignIn = GoogleSignIn();
+        final googleUser = await googleSignIn.signIn();
         if (googleUser == null) {
           state = state.copyWith(isLoading: false);
           return;
@@ -179,6 +181,14 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         }
       }
       await _handlePostSignIn(result.user!, 'Dev User');
+    } on FirebaseAuthException catch (e) {
+      // In kDebugMode the emulator may not be running — silently reset so the
+      // UI shows the normal sign-in buttons instead of a scary error banner.
+      if (kDebugMode && e.code.contains('api-key')) {
+        state = state.copyWith(isLoading: false);
+      } else {
+        state = state.copyWith(isLoading: false, error: e.toString());
+      }
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }

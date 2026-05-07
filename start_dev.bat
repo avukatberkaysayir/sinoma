@@ -1,62 +1,53 @@
 @echo off
 title Mandarin Academy — Dev Environment
+setlocal
 
-:: ── Java 21 (required by Firebase Emulator) ──────────────────────────────
 set JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.11.10-hotspot
 set PATH=%JAVA_HOME%\bin;%PATH%
+
+cd /d %~dp0
 
 echo.
 echo  Mandarin Academy — Dev Environment
 echo  ════════════════════════════════════════════
-echo  1.  Building Flutter web (debug)...
-echo.
 
-cd /d %~dp0
-call flutter build web --debug --no-pub
+:: Kill leftover processes
+taskkill /f /im java.exe  >nul 2>&1
+taskkill /f /im dartvm.exe >nul 2>&1
+timeout /t 3 /nobreak >nul
 
-echo.
-echo  2.  Starting Firebase Emulators...
-echo      Auth     → http://localhost:9199
-echo      Firestore→ http://localhost:9299
-echo      Hosting  → http://localhost:9300
-echo      UI       → http://localhost:4001
-echo.
-
-:: --import restores saved data; --export-on-exit saves data on shutdown
-:: First run: emulator-data/ won't exist → emulator starts empty (then seeded)
-:: Subsequent runs: emulator-data/ exists → previous data is restored (seed skipped)
+:: ── 1. Firebase Emulators (background, log → emulator.log) ───────────────
+echo  1.  Starting Firebase Emulators (auth + firestore)...
 if exist emulator-data\ (
-    echo  [INFO] Restoring saved emulator data from emulator-data\
-    start /b firebase emulators:start --project demo-mandarin-academy --only auth,firestore,hosting --import=emulator-data --export-on-exit=emulator-data
+    start "" /b "C:\Users\berka\AppData\Roaming\npm\firebase.cmd" emulators:start --project demo-mandarin-academy --only auth,firestore --import=emulator-data --export-on-exit=emulator-data > emulator.log 2>&1
 ) else (
-    start /b firebase emulators:start --project demo-mandarin-academy --only auth,firestore,hosting --export-on-exit=emulator-data
+    start "" /b "C:\Users\berka\AppData\Roaming\npm\firebase.cmd" emulators:start --project demo-mandarin-academy --only auth,firestore --export-on-exit=emulator-data > emulator.log 2>&1
 )
 
-echo  Waiting for emulators to start...
-timeout /t 12 /nobreak > nul
+:: ── 2. Pipeline server ────────────────────────────────────────────────────
+echo  2.  Starting Pipeline server (port 9302)...
+start "Pipeline" /b py "%~dp0python\pipeline\dev_server.py" > pipeline.log 2>&1
 
-:: Only seed if this is the first run (no saved data)
-if not exist emulator-data\ (
-    echo.
-    echo  3.  Seeding demo data...
-    dart run tool/seed_emulator.dart
-) else (
-    echo  3.  Skipping seed — restored from emulator-data\
-)
+:: ── 3. Flutter dev server ─────────────────────────────────────────────────
+echo  3.  Starting Flutter dev server (port 9300)...
+start "Flutter Dev Server  [r=reload  R=restart]" cmd /k "cd /d %~dp0 && flutter run -d web-server --web-port 9300 --web-hostname localhost"
 
-echo.
-echo  4.  Starting Pipeline dev server (port 9302)...
-echo      Admin panel "Process" button uses this server.
-start "Pipeline Server" cmd /k "cd /d %~dp0python && py pipeline/dev_server.py"
-timeout /t 2 /nobreak > nul
+:: ── Wait for Flutter then open browser ───────────────────────────────────
+echo  Waiting for Flutter to compile (~30s)...
+set /a n=0
+:wait
+timeout /t 3 /nobreak >nul
+set /a n+=1
+powershell -command "try{$null=(New-Object Net.WebClient).DownloadString('http://localhost:9300');exit 0}catch{exit 1}" >nul 2>&1
+if not errorlevel 1 goto :done
+if %n% geq 40 goto :done
+goto :wait
 
+:done
+start "" "http://localhost:9300"
 echo.
-echo  ════════════════════════════════════════════
-echo  App is ready!
-echo.
-echo  Open in browser:    http://localhost:9300
-echo  Emulator UI:        http://localhost:4001
-echo  Pipeline server:    http://localhost:9302
-echo  ════════════════════════════════════════════
+echo  http://localhost:9300  ^<-- App
+echo  http://localhost:4001  ^<-- Emulator UI (may take 60s)
+echo  Emulator log: %~dp0emulator.log
 echo.
 pause

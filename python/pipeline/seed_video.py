@@ -85,6 +85,8 @@ def _encode_val(v: Any) -> dict:
         return {"integerValue": str(v)}
     if isinstance(v, float):
         return {"doubleValue": v}
+    if isinstance(v, datetime):
+        return {"timestampValue": v.astimezone(timezone.utc).isoformat()}
     if isinstance(v, str):
         return {"stringValue": v}
     if isinstance(v, list):
@@ -193,12 +195,11 @@ def main() -> None:
 
     # Write to emulator
     print(f"\n🔥 Writing {len(docs)} segments to Firestore emulator...")
-    now_ts = datetime.now(timezone.utc).isoformat()
+    now_ts = datetime.now(timezone.utc)
     success = 0
     errors = 0
     for doc in docs:
         doc_id = doc["videoId"]
-        # Finalise fields
         doc["isActive"] = args.active
         doc["createdAt"] = now_ts
         # Remove None videoUrl to keep doc clean

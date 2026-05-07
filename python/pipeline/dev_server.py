@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
 """
 Mandarin Academy — Local pipeline dev server
-Runs on localhost:9302 and exposes HTTP endpoints that the Flutter admin
-panel calls to process YouTube videos without any terminal interaction.
+Runs on localhost:9302.
 
-Start manually:  python pipeline/dev_server.py
-Or via:          start_dev.bat  (starts this automatically)
+Endpoints:
+  GET  /health           — liveness check
+  GET  /ffmpeg-check     — returns {"available": true/false}
+  POST /process-video    — YouTube URL → subtitles → Firestore
+  POST /process-movie    — local video file → ffmpeg clips → Firestore
+  GET  /clips/<name>     — serve extracted movie clips (static)
 """
 
 from __future__ import annotations
 
 import json
+import mimetypes
 import subprocess
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -18,10 +22,12 @@ from pathlib import Path
 
 PORT = 9302
 PIPELINE_DIR = Path(__file__).parent
+CLIPS_DIR = PIPELINE_DIR.parent / "clips"
+CLIPS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class _Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt: str, *args: object) -> None:  # noqa: D401
+    def log_message(self, fmt: str, *args: object) -> None:
         print(f"  [server] {fmt % args}")
 
     # ── CORS preflight ──────────────────────────────────────────────────────
@@ -36,6 +42,15 @@ class _Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
             self._json(200, {"status": "ok", "port": PORT})
+
+        elif self.path == "/ffmpeg-check":
+            import shutil
+            available = shutil.which("ffmpeg") is not None
+            self._json(200, {"available": available})
+
+        elif self.path.startswith("/clips/"):
+            self._serve_clip()
+
         else:
             self.send_response(404)
             self._cors()
@@ -46,6 +61,8 @@ class _Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:  # noqa: N802
         if self.path == "/process-video":
             self._process_video()
+        elif self.path == "/process-movie":
+            self._process_movie()
         else:
             self.send_response(404)
             self._cors()
@@ -55,14 +72,13 @@ class _Handler(BaseHTTPRequestHandler):
 
     def _process_video(self) -> None:
         try:
-            length = int(self.headers.get("Content-Length", 0))
-            body: dict = json.loads(self.rfile.read(length))
+            body = self._read_json()
         except Exception as e:
             self._json(400, {"error": f"Invalid JSON: {e}"})
             return
 
         url: str = body.get("url", "").strip()
-        active: bool = body.get("active", True)
+        active: bool = body.get("active", False)
 
         if not url:
             self._json(400, {"error": "url is required"})
@@ -72,40 +88,125 @@ class _Handler(BaseHTTPRequestHandler):
         if active:
             cmd.append("--active")
 
-        print(f"\n▶ Processing: {url}")
+        print(f"\n▶ YouTube: {url}")
+        result = self._run(cmd, timeout=600)
+        if result is None:
+            self._json(504, {
+                "error": "Timed out after 10 minutes. "
+                         "If the video has no Chinese subtitles, Whisper needs more time. "
+                         "Try a video with manual subtitles."
+            })
+            return
+
+        if result.returncode == 0:
+            count = result.stdout.count("✓ ")
+            self._json(200, {"success": True, "segmentsWritten": count,
+                             "message": result.stdout.strip()})
+            print(f"✅ Done — {count} segments\n")
+        else:
+            err = result.stderr.strip() or result.stdout.strip()
+            self._json(500, {"success": False, "error": err})
+            print(f"❌ Failed: {err[:200]}\n")
+
+    def _process_movie(self) -> None:
         try:
-            result = subprocess.run(
+            body = self._read_json()
+        except Exception as e:
+            self._json(400, {"error": f"Invalid JSON: {e}"})
+            return
+
+        video_path: str = body.get("video_path", "").strip()
+        sub_path: str = body.get("sub_path", "").strip()
+        max_clips: int = int(body.get("max_clips", 0))
+        offset: int = int(body.get("offset", 0))
+        active: bool = body.get("active", False)
+
+        if not video_path:
+            self._json(400, {"error": "video_path is required"})
+            return
+
+        if not Path(video_path).exists():
+            self._json(400, {"error": f"File not found: {video_path}"})
+            return
+
+        cmd = [sys.executable, str(PIPELINE_DIR / "movie_pipeline.py"),
+               "--video", video_path]
+        if sub_path:
+            cmd += ["--sub", sub_path]
+        if max_clips:
+            cmd += ["--max-clips", str(max_clips)]
+        if offset:
+            cmd += ["--offset", str(offset)]
+        if active:
+            cmd.append("--active")
+
+        print(f"\n▶ Movie: {video_path}")
+        # Long timeout: ffmpeg extraction for 100 clips ≈ 2-5 min
+        result = self._run(cmd, timeout=1800)
+        if result is None:
+            self._json(504, {"error": "Timed out after 30 minutes."})
+            return
+
+        if result.returncode == 0:
+            count = result.stdout.count("✓")
+            self._json(200, {"success": True, "clipsWritten": count,
+                             "message": result.stdout.strip()})
+            print(f"✅ Done — {count} clips\n")
+        else:
+            err = result.stderr.strip() or result.stdout.strip()
+            self._json(500, {"success": False, "error": err})
+            print(f"❌ Failed: {err[:300]}\n")
+
+    def _serve_clip(self) -> None:
+        filename = self.path[len("/clips/"):]
+        # Prevent path traversal
+        if ".." in filename or "/" in filename:
+            self.send_response(403)
+            self._cors()
+            self.end_headers()
+            return
+
+        clip_path = CLIPS_DIR / filename
+        if not clip_path.exists():
+            self.send_response(404)
+            self._cors()
+            self.end_headers()
+            return
+
+        mime, _ = mimetypes.guess_type(str(clip_path))
+        data = clip_path.read_bytes()
+        self.send_response(200)
+        self._cors()
+        self.send_header("Content-Type", mime or "video/mp4")
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Accept-Ranges", "bytes")
+        self.end_headers()
+        self.wfile.write(data)
+
+    # ── Helpers ─────────────────────────────────────────────────────────────
+
+    def _read_json(self) -> dict:
+        length = int(self.headers.get("Content-Length", 0))
+        return json.loads(self.rfile.read(length))
+
+    def _run(self, cmd: list[str], timeout: int) -> subprocess.CompletedProcess | None:
+        try:
+            return subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 cwd=str(PIPELINE_DIR),
-                timeout=180,
+                timeout=timeout,
             )
         except subprocess.TimeoutExpired:
-            self._json(504, {"error": "Timed out after 3 minutes"})
-            return
+            return None
         except Exception as e:
-            self._json(500, {"error": str(e)})
-            return
-
-        output = result.stdout.strip()
-        err = result.stderr.strip()
-
-        if result.returncode == 0:
-            # Count '✓ ' occurrences to determine segments written
-            count = output.count("✓ ")
-            self._json(200, {
-                "success": True,
-                "segmentsWritten": count,
-                "message": output,
-            })
-            print(f"✅ Done — {count} segments written\n")
-        else:
-            combined = err or output
-            self._json(500, {"success": False, "error": combined})
-            print(f"❌ Failed: {combined}\n")
-
-    # ── Helpers ─────────────────────────────────────────────────────────────
+            # Return a fake failed result
+            class _FakeResult:
+                returncode = 1
+                stdout = ""
+                stderr = str(e)
+            return _FakeResult()  # type: ignore[return-value]
 
     def _cors(self) -> None:
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -125,8 +226,10 @@ class _Handler(BaseHTTPRequestHandler):
 def main() -> None:
     server = HTTPServer(("localhost", PORT), _Handler)
     print(f"🚀 Pipeline dev server  →  http://localhost:{PORT}")
-    print(f"   POST /process-video  {{\"url\": \"...\", \"active\": true}}")
-    print(f"   GET  /health")
+    print(f"   POST /process-video   {{\"url\": \"...\"}}")
+    print(f"   POST /process-movie   {{\"video_path\": \"C:\\\\...\", \"sub_path\": \"...\"}}")
+    print(f"   GET  /clips/<file>    static movie clips")
+    print(f"   GET  /ffmpeg-check")
     print("   Press Ctrl+C to stop\n")
     try:
         server.serve_forever()

@@ -12,9 +12,6 @@ build/
 # Firebase
 google-services.json
 GoogleService-Info.plist
-firebase_options.dart
-.firebaserc
-firebase.json
 **/serviceAccount.json
 **/*.key
 
@@ -74,3 +71,13 @@ node_modules/
 
 # macOS
 .DS_Store
+
+# Local dev logs and emulator data
+emulator-data/
+emulator.log
+emulator_err.log
+firestore-debug.log
+flutter_dev.log
+flutter_dev_err.log
+pipeline.log
+*.log

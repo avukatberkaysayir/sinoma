@@ -64,6 +64,7 @@ _YTDLP_BASE_ARGS = [
     # tv_embedded works without JS runtime or PO Token for most videos
     "--extractor-args", "youtube:player_client=tv_embedded",
     "--no-check-certificates",
+    "--no-playlist",          # never process playlist — only the video in the URL
     "--quiet",
     "--no-warnings",
 ]
@@ -102,6 +103,14 @@ def extract_youtube_id(url: str) -> str:
     """Parse YouTube video ID from URL."""
     m = re.search(r"(?:v=|youtu\.be/|shorts/)([A-Za-z0-9_-]{11})", url)
     return m.group(1) if m else "unknown"
+
+
+def normalize_youtube_url(url: str) -> str:
+    """Strip playlist, index, and other non-essential params, keeping only v=."""
+    video_id = extract_youtube_id(url)
+    if video_id == "unknown":
+        return url
+    return f"https://www.youtube.com/watch?v={video_id}"
 
 
 def download_audio(url: str, output_dir: Path) -> Path | None:
@@ -441,7 +450,9 @@ def run(
         entries = parse_subtitle_file(sub_path)
         print(f"  {len(entries)} caption cues.")
     else:
+        url = normalize_youtube_url(url)
         youtube_id = extract_youtube_id(url)
+        print(f"  Normalized URL: {url}")
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
 

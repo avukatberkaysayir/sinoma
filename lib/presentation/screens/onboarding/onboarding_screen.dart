@@ -168,7 +168,7 @@ class _WelcomePage extends StatelessWidget {
 // Sign In
 // ---------------------------------------------------------------------------
 
-class _SignInPage extends StatelessWidget {
+class _SignInPage extends StatefulWidget {
   final bool isLoading;
   final String? error;
   final VoidCallback onGoogle;
@@ -185,6 +185,21 @@ class _SignInPage extends StatelessWidget {
     required this.onDevLogin,
     required this.onClearError,
   });
+
+  @override
+  State<_SignInPage> createState() => _SignInPageState();
+}
+
+class _SignInPageState extends State<_SignInPage> {
+  @override
+  void initState() {
+    super.initState();
+    if (kDebugMode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) widget.onDevLogin();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -211,19 +226,19 @@ class _SignInPage extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 15),
             ),
-            if (error != null) ...[
+            if (widget.error != null) ...[
               const SizedBox(height: 16),
-              _ErrorBanner(message: error!, onDismiss: onClearError),
+              _ErrorBanner(message: widget.error!, onDismiss: widget.onClearError),
             ],
             const Spacer(flex: 2),
-            if (isLoading)
+            if (widget.isLoading)
               const CircularProgressIndicator()
             else ...[
               if (kDebugMode) ...[
                 SizedBox(
                   width: double.infinity,
                   child: FilledButton.icon(
-                    onPressed: onDevLogin,
+                    onPressed: widget.onDevLogin,
                     icon: const Icon(Icons.developer_mode, size: 20),
                     label: const Text('Dev Login (Emulator)',
                         style: TextStyle(fontSize: 15)),
@@ -248,7 +263,7 @@ class _SignInPage extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: onGoogle,
+                  onPressed: widget.onGoogle,
                   icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
                   label: const Text(
                     'Continue with Google',
@@ -265,7 +280,7 @@ class _SignInPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: onAnonymous,
+                onPressed: widget.onAnonymous,
                 child: const Text(
                   'Continue as Guest',
                   style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),

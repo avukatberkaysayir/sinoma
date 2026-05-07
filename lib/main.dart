@@ -15,6 +15,58 @@ import 'firebase_options.dart';
 import 'presentation/providers/ai_provider.dart';
 import 'presentation/providers/dictionary_provider.dart';
 
+const _devEmail    = 'dev@mandarin.local';
+const _devPassword = 'dev-local-123';
+
+/// Signs in with the dev account and ensures the Firestore user doc exists.
+/// Runs only in kDebugMode — no-op if already signed in.
+Future<void> _ensureDevSession() async {
+  final auth = FirebaseAuth.instance;
+  try {
+    if (auth.currentUser == null) {
+      try {
+        await auth.signInWithEmailAndPassword(
+            email: _devEmail, password: _devPassword);
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'user-not-found') {
+          await auth.createUserWithEmailAndPassword(
+              email: _devEmail, password: _devPassword);
+        }
+      }
+    }
+
+    final uid = auth.currentUser?.uid;
+    if (uid == null) return;
+
+    final firestore = FirebaseFirestore.instance;
+    final ref = firestore.collection('users').doc(uid);
+    final snap = await ref.get();
+    if (!snap.exists) {
+      await ref.set({
+        'uid': uid,
+        'displayName': 'Dev User',
+        'email': _devEmail,
+        'photoUrl': '',
+        'hskLevel': 3,
+        'isPremium': true,
+        'aiCredits': 999,
+        'followers': [],
+        'following': [],
+        'learnedWords': [],
+        'stats': {
+          'totalScore': 0,
+          'videosWatched': 0,
+          'questionsAnswered': 0,
+          'currentStreak': 0,
+        },
+        'createdAt': Timestamp.now(),
+      });
+    }
+  } catch (_) {
+    // Emulator not reachable — silently skip, app will show onboarding.
+  }
+}
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
@@ -31,6 +83,9 @@ Future<void> main() async {
     } catch (_) {
       // Emulator not running — fall through to production Firebase.
     }
+
+    // Auto-sign-in with the dev account so every rebuild goes straight to /home.
+    await _ensureDevSession();
   }
 
   if (!kIsWeb) {

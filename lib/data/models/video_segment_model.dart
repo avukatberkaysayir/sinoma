@@ -2,37 +2,69 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum VideoSourceType { youtube, selfHosted }
 
-// 6 categories used by the Mandarin Duel category wheel.
 enum QuizCategory {
-  vocabulary,
-  grammar,
-  listening,
-  characters,
-  conversation,
-  culture;
+  baConstruct,
+  beiPassive,
+  shiDeEmphasis,
+  conditional,
+  contrast,
+  causeEffect,
+  guoExperience,
+  biComparison,
+  huiNengKeyi,
+  yingDeiYao,
+  xiangDasuan,
+  questions,
+  leCompletion,
+  negation,
+  timeWords,
+  locationWords,
+  general;
 
   static QuizCategory fromString(String value) =>
       QuizCategory.values.firstWhere(
         (c) => c.name == value,
-        orElse: () => QuizCategory.vocabulary,
+        orElse: () => QuizCategory.general,
       );
 
   String get displayName => switch (this) {
-        vocabulary => 'Vocabulary',
-        grammar => 'Grammar',
-        listening => 'Listening',
-        characters => 'Characters',
-        conversation => 'Daily Conversation',
-        culture => 'Culture',
+        baConstruct   => '把字句',
+        beiPassive    => '被动句',
+        shiDeEmphasis => '是…的',
+        conditional   => '条件句',
+        contrast      => '转折句',
+        causeEffect   => '因果句',
+        guoExperience => '经历体 过',
+        biComparison  => '比较句',
+        huiNengKeyi   => '会/能/可以',
+        yingDeiYao    => '应该/得/要',
+        xiangDasuan   => '想/打算',
+        questions     => '疑问句',
+        leCompletion  => '完成体 了',
+        negation      => '否定句',
+        timeWords     => '时间表达',
+        locationWords => '方位/地点',
+        general       => '一般',
       };
 
   String get emoji => switch (this) {
-        vocabulary => '📚',
-        grammar => '📝',
-        listening => '🎧',
-        characters => '🖊',
-        conversation => '💬',
-        culture => '🏮',
+        baConstruct   => '🫳',
+        beiPassive    => '🔄',
+        shiDeEmphasis => '💡',
+        conditional   => '⚡',
+        contrast      => '↔️',
+        causeEffect   => '🔗',
+        guoExperience => '🌍',
+        biComparison  => '⚖️',
+        huiNengKeyi   => '💪',
+        yingDeiYao    => '📋',
+        xiangDasuan   => '🎯',
+        questions     => '❓',
+        leCompletion  => '✅',
+        negation      => '🚫',
+        timeWords     => '⏰',
+        locationWords => '📍',
+        general       => '📖',
       };
 }
 
@@ -64,7 +96,7 @@ class VideoSegmentModel {
     required this.pinyin,
     required this.targetWords,
     required this.quiz,
-    this.quizCategory = QuizCategory.vocabulary,
+    this.quizCategory = QuizCategory.general,
     this.isActive = true,
     required this.createdAt,
   });
@@ -103,7 +135,7 @@ class VideoSegmentModel {
       targetWords: List<String>.from(data['targetWords'] ?? []),
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
       quizCategory: QuizCategory.fromString(
-          data['quizCategory'] as String? ?? 'vocabulary'),
+          data['quizCategory'] as String? ?? 'general'),
       isActive: data['isActive'] as bool? ?? true,
       createdAt: createdAt,
     );
@@ -146,6 +178,17 @@ class VideoSegmentModel {
   double get durationSeconds => endTime - startTime;
   bool get isYouTube => sourceType == VideoSourceType.youtube;
   bool get isSelfHosted => sourceType == VideoSourceType.selfHosted;
+
+  int get hanCount =>
+      RegExp(r'[一-鿿]').allMatches(transcription).length;
+
+  String get sentenceLength {
+    if (hanCount <= 5) return '1-5字';
+    if (hanCount <= 10) return '6-10字';
+    if (hanCount <= 15) return '11-15字';
+    if (hanCount <= 20) return '16-20字';
+    return '21字+';
+  }
 }
 
 class QuizData {

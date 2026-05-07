@@ -17,6 +17,7 @@ class VideoRepository {
           .collection('videos')
           .where('hskLevel', isLessThanOrEqualTo: hskLevel + 1)
           .where('isActive', isEqualTo: true)
+          .orderBy('hskLevel')
           .orderBy('createdAt', descending: true)
           .limit(20)
           .get();
@@ -24,8 +25,9 @@ class VideoRepository {
       final segments = snap.docs.map(VideoSegmentModel.fromFirestore).toList();
       await _cache.cacheVideoFeed(hskLevel, segments);
       return segments;
-    } catch (_) {
-      return _cache.loadCachedVideoFeed(hskLevel) ?? [];
+    } catch (e) {
+      final cached = _cache.loadCachedVideoFeed(hskLevel);
+      return cached ?? [];
     }
   }
 
@@ -51,6 +53,7 @@ class VideoRepository {
           .where('hskLevel', isLessThanOrEqualTo: hskLevel + 1)
           .where('isActive', isEqualTo: true)
           .where('quizCategory', isEqualTo: quizCategory)
+          .orderBy('hskLevel')
           .orderBy('createdAt', descending: true)
           .limit(20)
           .get();

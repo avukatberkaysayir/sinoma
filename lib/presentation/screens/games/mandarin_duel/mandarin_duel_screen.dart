@@ -11,14 +11,25 @@ import '../../../providers/game_provider.dart';
 import '../../../providers/subscription_provider.dart';
 import '../../../providers/user_provider.dart';
 
-// Maps each category to a wheel-segment colour.
+// Maps each grammar category to a wheel-segment colour.
 Color _categoryColor(QuizCategory c) => switch (c) {
-      QuizCategory.vocabulary => const Color(0xFF2196F3),
-      QuizCategory.grammar => const Color(0xFFFF9800),
-      QuizCategory.listening => const Color(0xFF4CAF50),
-      QuizCategory.characters => const Color(0xFF9C27B0),
-      QuizCategory.conversation => const Color(0xFF009688),
-      QuizCategory.culture => AppColors.wrongAnswer,
+      QuizCategory.baConstruct   => const Color(0xFF2196F3),
+      QuizCategory.beiPassive    => const Color(0xFF3F51B5),
+      QuizCategory.shiDeEmphasis => const Color(0xFF9C27B0),
+      QuizCategory.conditional   => const Color(0xFF009688),
+      QuizCategory.contrast      => const Color(0xFF00BCD4),
+      QuizCategory.causeEffect   => const Color(0xFF4CAF50),
+      QuizCategory.guoExperience => const Color(0xFF8BC34A),
+      QuizCategory.biComparison  => const Color(0xFFFF9800),
+      QuizCategory.huiNengKeyi   => const Color(0xFF795548),
+      QuizCategory.yingDeiYao    => const Color(0xFFFF5722),
+      QuizCategory.xiangDasuan   => const Color(0xFFE91E63),
+      QuizCategory.questions     => const Color(0xFFF44336),
+      QuizCategory.leCompletion  => const Color(0xFF607D8B),
+      QuizCategory.negation      => AppColors.wrongAnswer,
+      QuizCategory.timeWords     => const Color(0xFF673AB7),
+      QuizCategory.locationWords => const Color(0xFF03A9F4),
+      QuizCategory.general       => const Color(0xFF9E9E9E),
     };
 
 // =============================================================================
@@ -88,7 +99,7 @@ class _MandarinDuelScreenState extends ConsumerState<MandarinDuelScreen> {
           DuelStatus.wheelSpinning => _WheelSection(
               key: ValueKey(state.currentRoundIndex),
               targetCategory:
-                  state.currentRound?.category ?? QuizCategory.vocabulary,
+                  state.currentRound?.category ?? QuizCategory.general,
               onSpinComplete: notifier.beginQuestion,
             ),
           _ => _GameView(
@@ -136,8 +147,8 @@ class _WheelSectionState extends State<_WheelSection>
     );
 
     // CW rotation formula: theta = 5 * 2π - targetIndex * (2π/6)
-    // This puts targetCategory's slice centre at 12 o'clock (top/pointer).
-    final idx = QuizCategory.values.indexOf(widget.targetCategory);
+    // Wheel has 6 slices; map all 17 categories onto them with modulo.
+    final idx = QuizCategory.values.indexOf(widget.targetCategory) % 6;
     final targetRad = 10 * pi - idx * (pi / 3);
 
     _rotation = Tween<double>(begin: 0, end: targetRad).animate(
@@ -232,17 +243,19 @@ class _WheelSectionState extends State<_WheelSection>
 }
 
 class _WheelPainter extends CustomPainter {
+  // 6 representative colours for the visual wheel (categories mapped with % 6).
   static const List<Color> _colors = [
-    Color(0xFF2196F3), // vocabulary
-    Color(0xFFFF9800), // grammar
-    Color(0xFF4CAF50), // listening
-    Color(0xFF9C27B0), // characters
-    Color(0xFF009688), // conversation
-    AppColors.wrongAnswer, // culture
+    Color(0xFF2196F3), // baConstruct
+    Color(0xFF3F51B5), // beiPassive
+    Color(0xFF9C27B0), // shiDeEmphasis
+    Color(0xFF009688), // conditional
+    Color(0xFF00BCD4), // contrast
+    Color(0xFF4CAF50), // causeEffect
   ];
 
+  // Show emojis for the first 6 categories on the wheel.
   static final List<String> _emojis =
-      QuizCategory.values.map((c) => c.emoji).toList();
+      QuizCategory.values.take(6).map((c) => c.emoji).toList();
 
   const _WheelPainter();
 

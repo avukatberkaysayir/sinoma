@@ -1,65 +1,32 @@
-name: Deploy to Play Store
+﻿name: Deploy to Vercel
 
 on:
-  # Manual trigger with a version tag input.
-  workflow_dispatch:
-    inputs:
-      track:
-        description: "Play Store track"
-        required: true
-        default: internal
-        type: choice
-        options: [internal, alpha, beta, production]
-      version_name:
-        description: "Version name (e.g. 1.0.0)"
-        required: true
-      version_code:
-        description: "Version code (integer, must increase each release)"
-        required: true
+  push:
+    branches: [main]
 
 jobs:
   deploy:
-    name: Deploy to ${{ inputs.track }}
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
-          distribution: temurin
-          java-version: "17"
-
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: "3.41.9"
           channel: stable
           cache: true
 
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/release.keystore
+      - name: Build web
+        run: flutter build web --release
 
-      - name: Build release AAB
-        run: |
-          flutter build appbundle --release \
-            --build-name=${{ inputs.version_name }} \
-            --build-number=${{ inputs.version_code }} \
-            --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
-        env:
-          STORE_FILE: release.keystore
-          STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-
-      - name: Upload to Play Store
-        uses: r0adkll/upload-google-play@v1
+      - name: Deploy to Vercel
+        uses: amondnet/vercel-action@v25
         with:
-          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
-          packageName: com.mandarin.academy
-          releaseFiles: build/app/outputs/bundle/release/app-release.aab
-          track: ${{ inputs.track }}
-          status: completed
-          whatsNewDirectory: fastlane/metadata/android/en-US/changelogs
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          working-directory: ./build/web
+          vercel-args: '--prod'

@@ -28,6 +28,47 @@ class AdminService {
     }
   }
 
+  Future<bool> isFfmpegAvailable() async {
+    try {
+      final res = await http
+          .get(Uri.parse('$_pipelineBase/ffmpeg-check'))
+          .timeout(const Duration(seconds: 3));
+      final body = jsonDecode(res.body) as Map<String, dynamic>;
+      return body['available'] as bool? ?? false;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, dynamic>> processMovieFile(
+    String videoPath, {
+    String? subPath,
+    int maxClips = 0,
+    int offset = 0,
+    bool active = false,
+  }) async {
+    assert(kDebugMode, 'AdminService only works in debug mode');
+    final res = await http
+        .post(
+          Uri.parse('$_pipelineBase/process-movie'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'video_path': videoPath,
+            if (subPath != null && subPath.isNotEmpty) 'sub_path': subPath,
+            'max_clips': maxClips,
+            'offset': offset,
+            'active': active,
+          }),
+        )
+        .timeout(const Duration(minutes: 35));
+
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode >= 300) {
+      throw Exception(body['error'] ?? 'Movie processing failed (${res.statusCode})');
+    }
+    return body;
+  }
+
   /// Sends the YouTube URL to the local pipeline server (localhost:9302).
   /// Returns a result map with {success, segmentsWritten, message/error}.
   /// Throws if the server is unreachable or returns an error.
@@ -42,7 +83,7 @@ class AdminService {
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({'url': url, 'active': active}),
         )
-        .timeout(const Duration(minutes: 3));
+        .timeout(const Duration(minutes: 12));
 
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode >= 300) {
@@ -98,6 +139,32 @@ class AdminService {
     final res = await http.delete(url, headers: _headers);
     if (res.statusCode >= 300) {
       throw Exception('Firestore delete error: ${res.statusCode} ${res.body}');
+    }
+  }
+
+  Future<int> deleteSeedVideos() async {
+    assert(kDebugMode, 'AdminService only works in debug mode');
+    final all = await listVideos();
+    final seedIds = all
+        .map((v) => v['id'] as String)
+        .where((id) => id.startsWith('video-'))
+        .toList();
+    for (final id in seedIds) {
+      await deleteVideo(id);
+    }
+    return seedIds.length;
+  }
+
+  Future<void> patchVideoFields(
+      String docId, Map<String, dynamic> fields) async {
+    assert(kDebugMode, 'AdminService only works in debug mode');
+    final mask =
+        fields.keys.map((k) => 'updateMask.fieldPaths=$k').join('&');
+    final url = Uri.parse('$_base/videos/$docId?$mask');
+    final body = jsonEncode({'fields': _encodeFields(fields)});
+    final res = await http.patch(url, headers: _headers, body: body);
+    if (res.statusCode >= 300) {
+      throw Exception('Firestore patch error: ${res.statusCode} ${res.body}');
     }
   }
 
