@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_colors.dart';
 import 'data/services/notification_service.dart';
@@ -22,6 +21,7 @@ import 'presentation/screens/legal/terms_screen.dart';
 import 'presentation/screens/onboarding/onboarding_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
+import 'presentation/screens/splash/splash_screen.dart';
 import 'presentation/screens/subscription/subscription_screen.dart';
 import 'presentation/screens/video_player/video_player_screen.dart';
 import 'presentation/screens/video_player/voscreen_player_screen.dart';
@@ -40,28 +40,13 @@ class _AuthRefreshStream extends ChangeNotifier {
 }
 
 final _router = GoRouter(
-  initialLocation: '/home',
+  initialLocation: '/splash',
   refreshListenable: _AuthRefreshStream(FirebaseAuth.instance.authStateChanges()),
-  redirect: (context, state) async {
+  redirect: (context, state) {
     final loc = state.matchedLocation;
-
-    // Language gate: checked before auth so new users always pick a language.
-    if (loc != '/language') {
-      final prefs = await SharedPreferences.getInstance();
-      if (!prefs.containsKey('app_locale')) return '/language';
-    }
-
-    // Use currentUser directly — synchronous after Firebase.initializeApp(),
-    // avoids the race condition where _AuthRefreshStream fires notifyListeners()
-    // before Riverpod's StreamProvider processes the same authStateChanges event.
     final user = FirebaseAuth.instance.currentUser;
-    final isSignedIn = user != null;
-    final isOnboarding = loc.startsWith('/onboarding');
-    final isLanguage   = loc == '/language';
 
-    if (!isSignedIn && !isOnboarding && !isLanguage) return '/onboarding';
-    if (isSignedIn && isOnboarding) return '/home';
-
+    // Admin-only guard
     if (loc.startsWith('/admin')) {
       if (user?.email != adminEmail) return '/home';
     }
@@ -69,6 +54,7 @@ final _router = GoRouter(
     return null;
   },
   routes: [
+    GoRoute(path: '/splash',     builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/language',   builder: (_, __) => const LanguageSelectionScreen()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
     GoRoute(path: '/home',       builder: (_, __) => const HomeScreen()),
