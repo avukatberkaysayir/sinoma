@@ -635,7 +635,7 @@ class _VideoCard extends ConsumerWidget {
       onTap: () {
         final index = feed.indexOf(segment);
         ref
-            .read(videoPlaybackProvider.notifier)
+            .read(videoPlaylistProvider.notifier)
             .loadFeed(feed, index < 0 ? 0 : index);
         context.push('/play');
       },
