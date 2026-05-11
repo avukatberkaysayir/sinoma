@@ -16,6 +16,10 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.firebase.sign_in_provider != 'anonymous';
     }
 
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.email == 'berkaysayir@gmail.com';
+    }
+
     // ── Field guards ──────────────────────────────────────────────────────────
 
     function doesNotWriteCredits() {
@@ -70,12 +74,12 @@ service cloud.firestore {
 
     match /dictionary/{wordId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
     match /videos/{videoId} {
       allow read: if isSignedIn();
-      allow write: if false;
+      allow write: if isAdmin();
     }
 
     // ── Posts: non-anonymous users can read and create their own ─────────────

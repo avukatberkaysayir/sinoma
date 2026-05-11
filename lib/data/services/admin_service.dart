@@ -1,21 +1,15 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 
 class AdminService {
-  static const _projectId = 'demo-mandarin-academy';
-  static const _firestorePort = 9299;
-  static const _base =
-      'http://localhost:$_firestorePort/v1/projects/$_projectId/databases/(default)/documents';
+  final _db = FirebaseFirestore.instance;
+
+  // Local pipeline server — only reachable when running the Python pipeline locally.
   static const _pipelineBase = 'http://localhost:9302';
 
-  static const _headers = {
-    'Content-Type': 'application/json',
-    'Authorization': 'Bearer owner',
-  };
-
-  // ── Pipeline server ─────────────────────────────────────────────────────────
+  // ── Pipeline server (local dev tool) ───────────────────────────────────────
 
   Future<bool> isPipelineServerRunning() async {
     try {
@@ -47,7 +41,6 @@ class AdminService {
     int offset = 0,
     bool active = false,
   }) async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
     final res = await http
         .post(
           Uri.parse('$_pipelineBase/process-movie'),
@@ -64,19 +57,16 @@ class AdminService {
 
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode >= 300) {
-      throw Exception(body['error'] ?? 'Movie processing failed (${res.statusCode})');
+      throw Exception(
+          body['error'] ?? 'Movie processing failed (${res.statusCode})');
     }
     return body;
   }
 
-  /// Sends the YouTube URL to the local pipeline server (localhost:9302).
-  /// Returns a result map with {success, segmentsWritten, message/error}.
-  /// Throws if the server is unreachable or returns an error.
   Future<Map<String, dynamic>> processYoutubeVideo(
     String url, {
     bool active = true,
   }) async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
     final res = await http
         .post(
           Uri.parse('$_pipelineBase/process-video'),
@@ -92,58 +82,33 @@ class AdminService {
     return body;
   }
 
+  // ── Firestore CRUD (live project, Firestore SDK) ────────────────────────────
+
   Future<List<Map<String, dynamic>>> listVideos() async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
-    final url = Uri.parse('$_base/videos?pageSize=100');
-    final res = await http.get(url, headers: _headers);
-    if (res.statusCode >= 300) {
-      throw Exception('Firestore list error: ${res.statusCode} ${res.body}');
-    }
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    final docs = (body['documents'] as List<dynamic>?) ?? [];
-    return docs.map((d) {
-      final raw = d as Map<String, dynamic>;
-      final name = raw['name'] as String;
-      final id = name.split('/').last;
-      return {'id': id, ...(_decodeFields(raw['fields'] as Map<String, dynamic>? ?? {}))};
-    }).toList();
+    final snap = await _db
+        .collection('videos')
+        .orderBy('hskLevel')
+        .limit(200)
+        .get();
+    return snap.docs
+        .map((d) => {'id': d.id, ...d.data()})
+        .toList();
   }
 
   Future<void> setVideo(String docId, Map<String, dynamic> data) async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
-    final url = Uri.parse('$_base/videos/$docId');
-    final body = jsonEncode({'fields': _encodeFields(data)});
-    final res = await http.patch(url, headers: _headers, body: body);
-    if (res.statusCode >= 300) {
-      throw Exception('Firestore write error: ${res.statusCode} ${res.body}');
-    }
+    await _db.collection('videos').doc(docId).set(data);
   }
 
   Future<void> updateField(
       String docId, String field, dynamic value) async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
-    final url = Uri.parse(
-        '$_base/videos/$docId?updateMask.fieldPaths=$field');
-    final body = jsonEncode({
-      'fields': {field: _encodeValue(value)},
-    });
-    final res = await http.patch(url, headers: _headers, body: body);
-    if (res.statusCode >= 300) {
-      throw Exception('Firestore update error: ${res.statusCode} ${res.body}');
-    }
+    await _db.collection('videos').doc(docId).update({field: value});
   }
 
   Future<void> deleteVideo(String docId) async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
-    final url = Uri.parse('$_base/videos/$docId');
-    final res = await http.delete(url, headers: _headers);
-    if (res.statusCode >= 300) {
-      throw Exception('Firestore delete error: ${res.statusCode} ${res.body}');
-    }
+    await _db.collection('videos').doc(docId).delete();
   }
 
   Future<int> deleteSeedVideos() async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
     final all = await listVideos();
     final seedIds = all
         .map((v) => v['id'] as String)
@@ -157,65 +122,6 @@ class AdminService {
 
   Future<void> patchVideoFields(
       String docId, Map<String, dynamic> fields) async {
-    assert(kDebugMode, 'AdminService only works in debug mode');
-    final mask =
-        fields.keys.map((k) => 'updateMask.fieldPaths=$k').join('&');
-    final url = Uri.parse('$_base/videos/$docId?$mask');
-    final body = jsonEncode({'fields': _encodeFields(fields)});
-    final res = await http.patch(url, headers: _headers, body: body);
-    if (res.statusCode >= 300) {
-      throw Exception('Firestore patch error: ${res.statusCode} ${res.body}');
-    }
-  }
-
-  // ── Firestore REST encoding ─────────────────────────────────────────────────
-
-  Map<String, dynamic> _encodeFields(Map<String, dynamic> data) {
-    return data.map((k, v) => MapEntry(k, _encodeValue(v)));
-  }
-
-  dynamic _encodeValue(dynamic v) {
-    if (v == null) return {'nullValue': null};
-    if (v is bool) return {'booleanValue': v};
-    if (v is int) return {'integerValue': v.toString()};
-    if (v is double) return {'doubleValue': v};
-    if (v is String) return {'stringValue': v};
-    if (v is DateTime) return {'timestampValue': v.toUtc().toIso8601String()};
-    if (v is List) {
-      return {
-        'arrayValue': {'values': v.map(_encodeValue).toList()}
-      };
-    }
-    if (v is Map<String, dynamic>) {
-      return {
-        'mapValue': {'fields': _encodeFields(v)}
-      };
-    }
-    return {'stringValue': v.toString()};
-  }
-
-  // ── Firestore REST decoding ─────────────────────────────────────────────────
-
-  Map<String, dynamic> _decodeFields(Map<String, dynamic> fields) {
-    return fields.map((k, v) => MapEntry(k, _decodeValue(v as Map<String, dynamic>)));
-  }
-
-  dynamic _decodeValue(Map<String, dynamic> v) {
-    if (v.containsKey('nullValue')) return null;
-    if (v.containsKey('booleanValue')) return v['booleanValue'] as bool;
-    if (v.containsKey('integerValue')) return int.parse(v['integerValue'] as String);
-    if (v.containsKey('doubleValue')) return (v['doubleValue'] as num).toDouble();
-    if (v.containsKey('stringValue')) return v['stringValue'] as String;
-    if (v.containsKey('timestampValue')) return v['timestampValue'] as String;
-    if (v.containsKey('arrayValue')) {
-      final arr = v['arrayValue'] as Map<String, dynamic>;
-      final vals = (arr['values'] as List<dynamic>?) ?? [];
-      return vals.map((e) => _decodeValue(e as Map<String, dynamic>)).toList();
-    }
-    if (v.containsKey('mapValue')) {
-      final map = v['mapValue'] as Map<String, dynamic>;
-      return _decodeFields(map['fields'] as Map<String, dynamic>? ?? {});
-    }
-    return null;
+    await _db.collection('videos').doc(docId).update(fields);
   }
 }
