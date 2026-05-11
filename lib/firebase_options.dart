@@ -1,7 +1,3 @@
-// Firebase demo project config — works with Firebase Emulator Suite.
-// For production deployment, replace with real values from:
-//   flutterfire configure --project=YOUR_REAL_PROJECT_ID
-
 import 'package:firebase_core/firebase_core.dart' show FirebaseOptions;
 import 'package:flutter/foundation.dart'
     show defaultTargetPlatform, kIsWeb, TargetPlatform;
@@ -20,28 +16,30 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'demo-api-key',
-    appId: '1:000000000000:web:0000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'demo-mandarin-academy',
-    authDomain: 'demo-mandarin-academy.firebaseapp.com',
-    storageBucket: 'demo-mandarin-academy.appspot.com',
+    apiKey: 'AIzaSyAJ8Y0V47fNoKvj1xe9io8GBdCpb3NJ_5E',
+    appId: '1:806489100275:web:4577fc71f803c51cc58c86',
+    messagingSenderId: '806489100275',
+    projectId: 'sinoma',
+    authDomain: 'sinoma.firebaseapp.com',
+    storageBucket: 'sinoma.firebasestorage.app',
+    measurementId: 'G-NWTDF5GE1N',
   );
 
+  // Android/iOS configs will be added when native apps are configured in Firebase Console.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'demo-api-key',
-    appId: '1:000000000000:android:0000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'demo-mandarin-academy',
-    storageBucket: 'demo-mandarin-academy.appspot.com',
+    apiKey: 'AIzaSyAJ8Y0V47fNoKvj1xe9io8GBdCpb3NJ_5E',
+    appId: '1:806489100275:android:0000000000000000c58c86',
+    messagingSenderId: '806489100275',
+    projectId: 'sinoma',
+    storageBucket: 'sinoma.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'demo-api-key',
-    appId: '1:000000000000:ios:0000000000000000',
-    messagingSenderId: '000000000000',
-    projectId: 'demo-mandarin-academy',
-    storageBucket: 'demo-mandarin-academy.appspot.com',
-    iosBundleId: 'com.mandarinacademy.app',
+    apiKey: 'AIzaSyAJ8Y0V47fNoKvj1xe9io8GBdCpb3NJ_5E',
+    appId: '1:806489100275:ios:0000000000000000c58c86',
+    messagingSenderId: '806489100275',
+    projectId: 'sinoma',
+    storageBucket: 'sinoma.firebasestorage.app',
+    iosBundleId: 'com.sinoma.app',
   );
 }
