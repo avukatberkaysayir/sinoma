@@ -32,7 +32,7 @@ class _TermsContent extends StatelessWidget {
         _buildSection('Effective Date', 'May 2026'),
         _buildBody(
           'These Terms of Service ("Terms") govern your access to and use of '
-          'Mandarin Academy ("the App"), operated by the Mandarin Academy team. '
+          'Sinoma ("the App"), operated by the Sinoma team. '
           'By using the App, you agree to be bound by these Terms.',
         ),
         _buildSection('1. Eligibility', null),
@@ -48,7 +48,7 @@ class _TermsContent extends StatelessWidget {
         ]),
         _buildSection('3. Subscriptions and Purchases', null),
         _buildBody(
-          'Mandarin Academy offers a free tier with ads and a Premium subscription. '
+          'Sinoma offers a free tier with ads and a Premium subscription. '
           'Premium subscriptions are billed monthly or annually through Google Play. '
           'Subscriptions automatically renew unless cancelled at least 24 hours before the end '
           'of the current billing period. You can manage and cancel subscriptions in your '
@@ -78,7 +78,7 @@ class _TermsContent extends StatelessWidget {
           'Dictionary data is based on CC-CEDICT (public domain) and official HSK word lists.',
         ),
         _buildBody(
-          'App design, code, brand, and original content are owned by Mandarin Academy. '
+          'App design, code, brand, and original content are owned by Sinoma. '
           'You may not copy, distribute, or create derivative works from them.',
         ),
         _buildSection('6. User-Generated Content', null),
@@ -93,7 +93,7 @@ class _TermsContent extends StatelessWidget {
           'Reverse-engineering, decompiling, or extracting the App\'s source code',
           'Attempting to manipulate scores, credits, or subscription status through technical means',
           'Using the App to distribute spam or unsolicited commercial messages',
-          'Impersonating other users or the Mandarin Academy team',
+          'Impersonating other users or the Sinoma team',
           'Using automated tools (bots, scripts) to interact with the App',
         ]),
         _buildSection('8. Disclaimers and Limitation of Liability', null),
@@ -103,7 +103,7 @@ class _TermsContent extends StatelessWidget {
           'Language learning outcomes depend on your individual effort and study habits.',
         ),
         _buildBody(
-          'To the maximum extent permitted by law, Mandarin Academy shall not be liable '
+          'To the maximum extent permitted by law, Sinoma shall not be liable '
           'for any indirect, incidental, or consequential damages arising from your use of the App.',
         ),
         _buildSection('9. Termination', null),
@@ -124,7 +124,7 @@ class _TermsContent extends StatelessWidget {
           'constitutes acceptance of the updated Terms.',
         ),
         _buildSection('12. Contact', null),
-        _buildBody('For questions about these Terms: legal@mandarinacademy.app'),
+        _buildBody('For questions about these Terms: legal@sinoma.app'),
         const SizedBox(height: 32),
       ],
     );

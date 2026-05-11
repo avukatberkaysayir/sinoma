@@ -1,4 +1,4 @@
-name: Deploy to Vercel
+name: Deploy to Firebase Hosting
 
 on:
   push:
@@ -20,16 +20,15 @@ jobs:
         run: flutter pub get
 
       - name: Build web
-        run: flutter build web --release
+        run: flutter build web --release --base-href /
 
-      - name: Replace service worker (nuke caches before unregister)
+      - name: Replace service worker
         run: cp web/sw_nuke.js build/web/flutter_service_worker.js
 
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
+      - name: Deploy to Firebase Hosting
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: team_tdAkFPOl6Dv0iA9KxAzdgTHW
-          vercel-project-id: prj_PXfJmVfy2PploC8BVkL3PFdcB6xj
-          working-directory: ./build/web
-          vercel-args: '--prod'
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          channelId: live
+          projectId: sinoma

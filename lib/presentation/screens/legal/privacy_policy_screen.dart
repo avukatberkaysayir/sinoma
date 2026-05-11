@@ -31,7 +31,7 @@ class _PolicyContent extends StatelessWidget {
       children: [
         _buildSection('Effective Date', 'May 2026'),
         _buildBody(
-          'Mandarin Academy ("we", "us", "our") is committed to protecting your privacy. '
+          'Sinoma ("we", "us", "our") is committed to protecting your privacy. '
           'This Privacy Policy explains how we collect, use, and safeguard your information '
           'when you use our mobile application and related services.',
         ),
@@ -76,7 +76,7 @@ class _PolicyContent extends StatelessWidget {
           'Right to data portability: your export includes all personal data in JSON format',
         ]),
         _buildBody(
-          'For GDPR requests, contact us at privacy@mandarinacademy.app. '
+          'For GDPR requests, contact us at privacy@sinoma.app. '
           'We will respond within 30 days.',
         ),
         _buildSection('5. Data Retention', null),
@@ -95,10 +95,10 @@ class _PolicyContent extends StatelessWidget {
         ),
         _buildSection('7. Children\'s Privacy', null),
         _buildBody(
-          'Mandarin Academy is not directed at children under 13. '
+          'Sinoma is not directed at children under 13. '
           'We do not knowingly collect personal information from children under 13. '
           'If you believe a child has provided us with personal data, '
-          'please contact us at privacy@mandarinacademy.app so we can delete it.',
+          'please contact us at privacy@sinoma.app so we can delete it.',
         ),
         _buildSection('8. Security', null),
         _buildBody(
@@ -114,7 +114,7 @@ class _PolicyContent extends StatelessWidget {
           'via the app on next launch.',
         ),
         _buildSection('10. Contact', null),
-        _buildBody('For privacy questions: privacy@mandarinacademy.app'),
+        _buildBody('For privacy questions: privacy@sinoma.app'),
         const SizedBox(height: 32),
       ],
     );

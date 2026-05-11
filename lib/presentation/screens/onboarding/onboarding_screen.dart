@@ -135,7 +135,7 @@ class _WelcomePage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             const Text(
-              'Mandarin Academy',
+              'Sinoma',
               style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 20,
