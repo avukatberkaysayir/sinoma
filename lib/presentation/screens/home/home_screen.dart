@@ -10,6 +10,7 @@ import '../../providers/ai_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
+import '../../widgets/common/section_sidebar.dart';
 
 // ── HSK-level grammar mapping ─────────────────────────────────────────────────
 
@@ -39,19 +40,10 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabController;
-  int _currentTab = 0;
-
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (_tabController.indexIsChanging) return;
-      setState(() => _currentTab = _tabController.index);
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(adServiceProvider);
       ref.read(fcmInitProvider);
@@ -59,104 +51,108 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final hskLevel  = ref.watch(currentHskLevelProvider);
-    final isAdmin   = ref.watch(isAdminProvider);
+    final hskLevel   = ref.watch(currentHskLevelProvider);
+    final isAdmin    = ref.watch(isAdminProvider);
+    final isGuest    = ref.watch(isGuestProvider);
     final filterOpen = ref.watch(filterPanelOpenProvider);
-    final isLearnTab = _currentTab == 0;
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        title: const Text('Sinoma'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Center(
-              child: Text(
-                'HSK $hskLevel',
-                style: TextStyle(
-                  color: AppColors.forHskLevel(hskLevel),
-                  fontWeight: FontWeight.bold,
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Sinoma'),
+            actions: [
+              GestureDetector(
+                onTap: () => context.push('/hsk-test'),
+                child: Container(
+                  margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.forHskLevel(hskLevel).withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: AppColors.forHskLevel(hskLevel).withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    'HSK $hskLevel',
+                    style: TextStyle(
+                      color: AppColors.forHskLevel(hskLevel),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.manage_search),
-            tooltip: 'Dictionary',
-            onPressed: () => context.push('/dictionary/search'),
-          ),
-          if (isAdmin)
-            IconButton(
-              icon: const Icon(Icons.admin_panel_settings_outlined),
-              tooltip: 'Admin Panel',
-              onPressed: () => context.push('/admin'),
-            ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            tooltip: 'Settings',
-            onPressed: () => context.push('/settings'),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.onSurfaceMuted,
-          indicatorColor: AppColors.primary,
-          tabs: const [
-            Tab(text: 'Learn'),
-            Tab(text: 'Games'),
-            Tab(text: 'Community'),
-          ],
-        ),
-      ),
-      body: Stack(
-        children: [
-          TabBarView(
-            controller: _tabController,
-            children: const [
-              _VideoFeedTab(),
-              _GamesTab(),
-              _SocialTab(),
+              IconButton(
+                icon: const Icon(Icons.manage_search),
+                tooltip: 'Dictionary',
+                onPressed: () => context.push('/dictionary/search'),
+              ),
+              if (isAdmin)
+                IconButton(
+                  icon: const Icon(Icons.admin_panel_settings_outlined),
+                  tooltip: 'Admin Panel',
+                  onPressed: () => context.push('/admin'),
+                ),
+              if (isGuest)
+                TextButton(
+                  onPressed: () => context.push('/profile'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.onSurfaceMuted,
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                  ),
+                  child: const Text('Misafir'),
+                )
+              else
+                IconButton(
+                  icon: const Icon(Icons.person_outline),
+                  tooltip: 'Profil',
+                  onPressed: () => context.push('/profile'),
+                ),
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Settings',
+                onPressed: () => context.push('/settings'),
+              ),
             ],
           ),
+          body: Stack(
+            children: [
+              const _VideoFeedTab(),
 
-          // Scrim — only on Learn tab when panel is open
-          if (isLearnTab)
-            IgnorePointer(
-              ignoring: !filterOpen,
-              child: AnimatedOpacity(
-                opacity: filterOpen ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 220),
-                child: GestureDetector(
-                  onTap: () =>
-                      ref.read(filterPanelOpenProvider.notifier).state =
-                          false,
-                  child: Container(color: Colors.black54),
+              // Section sidebar (below scrim and filter panel)
+              const SectionSidebarOverlay(current: AppSection.video),
+
+              // Scrim behind filter panel
+              IgnorePointer(
+                ignoring: !filterOpen,
+                child: AnimatedOpacity(
+                  opacity: filterOpen ? 1.0 : 0.0,
+                  duration: const Duration(milliseconds: 220),
+                  child: GestureDetector(
+                    onTap: () =>
+                        ref.read(filterPanelOpenProvider.notifier).state = false,
+                    child: Container(color: Colors.black54),
+                  ),
                 ),
               ),
-            ),
 
-          // Sliding filter panel — slides in from the left within body
-          if (isLearnTab)
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 260),
-              curve: Curves.easeOutCubic,
-              left: filterOpen ? 0 : -320,
-              top: 0,
-              bottom: 0,
-              width: 300,
-              child: const _FilterPanel(),
-            ),
-        ],
-      ),
+              // Sliding filter panel (on top of sidebar and scrim)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 260),
+                curve: Curves.easeOutCubic,
+                left: filterOpen ? 0 : -320,
+                top: 0,
+                bottom: 0,
+                width: 300,
+                child: const _FilterPanel(),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
@@ -881,210 +877,3 @@ class _VideoCard extends ConsumerWidget {
   }
 }
 
-// ── Tab: Games ────────────────────────────────────────────────────────────────
-
-class _GamesTab extends StatelessWidget {
-  const _GamesTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedPage(
-      child: ListView(
-        padding: const EdgeInsets.all(24),
-        children: [
-          const SizedBox(height: 12),
-          const Text(
-            'Games',
-            style: TextStyle(
-              color: AppColors.onSurface,
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            'Challenge yourself and compete with friends',
-            style: TextStyle(color: AppColors.onSurfaceMuted),
-          ),
-          const SizedBox(height: 24),
-          _GameCard(
-            icon: Icons.psychology,
-            title: 'Mandarin Duel',
-            subtitle: 'Real-time 1v1 quiz battles across 6 categories',
-            color: const Color(0xFF6C63FF),
-            detail: '10 rounds • 10s timer • 3 lives',
-            onTap: () => context.push('/games/duel'),
-          ),
-          const SizedBox(height: 16),
-          _GameCard(
-            icon: Icons.auto_awesome_mosaic,
-            title: 'Hanzi Build',
-            subtitle: 'Reconstruct characters from radicals',
-            color: const Color(0xFFFF6B6B),
-            detail: '10 words • 20s timer • hints available',
-            onTap: () => context.push('/games/hanzi'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GameCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String detail;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _GameCard({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.detail,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: color.withValues(alpha: 0.3)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 60,
-              height: 60,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Icon(icon, color: color, size: 30),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      color: AppColors.onSurface,
-                      fontSize: 17,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                        color: AppColors.onSurfaceMuted, fontSize: 13),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    detail,
-                    style: TextStyle(
-                      color: color,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Icon(Icons.chevron_right, color: color),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tab: Social ───────────────────────────────────────────────────────────────
-
-class _SocialTab extends StatelessWidget {
-  const _SocialTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return ConstrainedPage(
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Community',
-                        style: TextStyle(
-                          color: AppColors.onSurface,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Posts • Leaderboard • Friends • Challenges',
-                        style: TextStyle(color: AppColors.onSurfaceMuted),
-                      ),
-                    ],
-                  ),
-                ),
-                FilledButton(
-                  onPressed: () => context.push('/social'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                  ),
-                  child: const Text('Open'),
-                ),
-              ],
-            ),
-          ),
-          const Divider(color: AppColors.surfaceVariant, height: 1),
-          Expanded(
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.group,
-                      size: 64,
-                      color: AppColors.primary.withValues(alpha: 0.35)),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Connect with other Mandarin learners.\nSee who is learning the same level.',
-                    style: TextStyle(color: AppColors.onSurfaceMuted),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed: () => context.push('/social'),
-                    icon: const Icon(Icons.leaderboard,
-                        color: AppColors.primary),
-                    label: const Text('View Leaderboard',
-                        style: TextStyle(color: AppColors.primary)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.primary),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}

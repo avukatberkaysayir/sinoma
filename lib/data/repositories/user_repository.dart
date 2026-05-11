@@ -51,4 +51,59 @@ class UserRepository {
   Future<void> updateHskLevel(String uid, int newLevel) async {
     await _firestore.collection('users').doc(uid).update({'hskLevel': newLevel});
   }
+
+  Future<void> updateDisplayName(String uid, String newName) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .update({'displayName': newName});
+    await _auth.currentUser?.updateDisplayName(newName);
+  }
+
+  Future<void> updateProfileDetails({
+    required String uid,
+    required String displayName,
+    required String lastName,
+    required DateTime? birthday,
+    required String gender,
+    required String motherTongue,
+    required bool notificationsEnabled,
+  }) async {
+    await _firestore.collection('users').doc(uid).update({
+      'displayName': displayName,
+      'lastName': lastName,
+      if (birthday != null) 'birthday': Timestamp.fromDate(birthday),
+      'gender': gender,
+      'motherTongue': motherTongue,
+      'notificationsEnabled': notificationsEnabled,
+    });
+    await _auth.currentUser?.updateDisplayName(displayName);
+  }
+
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null) throw Exception('Not authenticated');
+    final credential = EmailAuthProvider.credential(
+      email: user.email!,
+      password: currentPassword,
+    );
+    await user.reauthenticateWithCredential(credential);
+    await user.updatePassword(newPassword);
+  }
+
+  Future<void> updatePhotoUrl(String uid, String photoUrl) async {
+    await _firestore
+        .collection('users')
+        .doc(uid)
+        .update({'photoUrl': photoUrl});
+    await _auth.currentUser?.updatePhotoURL(photoUrl);
+  }
+
+  Future<void> deleteAccount(String uid) async {
+    await _firestore.collection('users').doc(uid).delete();
+    await _auth.currentUser?.delete();
+  }
 }

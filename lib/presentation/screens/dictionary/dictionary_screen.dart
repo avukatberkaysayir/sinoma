@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../providers/dictionary_provider.dart';
+import '../../widgets/common/section_sidebar.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 
 // Transient search state — auto-disposed when screen leaves the tree.
@@ -99,8 +100,9 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     final searchState = ref.watch(_dictionarySearchProvider);
     final notifier = ref.read(_dictionarySearchProvider.notifier);
 
-    return Scaffold(
-      backgroundColor: AppColors.surface,
+    return Stack(
+      children: [
+    Scaffold(
       appBar: AppBar(
         title: const Text('Dictionary'),
         bottom: PreferredSize(
@@ -145,6 +147,9 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
         ),
       ),
       body: _buildBody(searchState),
+    ),
+    const SectionSidebarOverlay(current: AppSection.dictionary),
+      ],
     );
   }
 

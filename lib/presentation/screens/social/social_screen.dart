@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../widgets/common/section_sidebar.dart';
 import '../../../data/models/game_request_model.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/models/user_model.dart';
@@ -38,77 +39,85 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
     final isWide = ResponsiveLayout.isWide(context);
 
     if (isWide) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Community'),
-          actions: [_IncomingRequestsBadge()],
-        ),
-        body: const ConstrainedPage(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Feed — left 3/5
-              Expanded(
-                flex: 3,
-                child: _FeedTab(),
-              ),
-              VerticalDivider(width: 1, color: AppColors.surface),
-              // Leaderboard + Friends — right 2/5, stacked with local tabs
-              Expanded(
-                flex: 2,
-                child: DefaultTabController(
-                  length: 2,
-                  child: Column(
-                    children: [
-                      TabBar(
-                        indicatorColor: AppColors.primary,
-                        tabs: [
-                          Tab(text: 'Leaderboard'),
-                          Tab(text: 'Friends'),
+      return Stack(
+        children: [
+          Scaffold(
+            appBar: AppBar(
+              title: const Text('Community'),
+              actions: [_IncomingRequestsBadge()],
+            ),
+            body: const ConstrainedPage(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 3,
+                    child: _FeedTab(),
+                  ),
+                  VerticalDivider(width: 1, color: AppColors.surface),
+                  Expanded(
+                    flex: 2,
+                    child: DefaultTabController(
+                      length: 2,
+                      child: Column(
+                        children: [
+                          TabBar(
+                            indicatorColor: AppColors.primary,
+                            tabs: [
+                              Tab(text: 'Leaderboard'),
+                              Tab(text: 'Friends'),
+                            ],
+                          ),
+                          Expanded(
+                            child: TabBarView(
+                              children: [
+                                _LeaderboardTab(),
+                                _FriendsTab(),
+                              ],
+                            ),
+                          ),
                         ],
                       ),
-                      Expanded(
-                        child: TabBarView(
-                          children: [
-                            _LeaderboardTab(),
-                            _FriendsTab(),
-                          ],
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          const SectionSidebarOverlay(current: AppSection.social),
+        ],
       );
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Community'),
-        bottom: TabBar(
-          controller: _tabs,
-          indicatorColor: AppColors.primary,
-          tabs: const [
-            Tab(text: 'Feed'),
-            Tab(text: 'Leaderboard'),
-            Tab(text: 'Friends'),
-          ],
+    return Stack(
+      children: [
+        Scaffold(
+          appBar: AppBar(
+            title: const Text('Community'),
+            bottom: TabBar(
+              controller: _tabs,
+              indicatorColor: AppColors.primary,
+              tabs: const [
+                Tab(text: 'Feed'),
+                Tab(text: 'Leaderboard'),
+                Tab(text: 'Friends'),
+              ],
+            ),
+            actions: [
+              _IncomingRequestsBadge(),
+            ],
+          ),
+          body: TabBarView(
+            controller: _tabs,
+            children: const [
+              _FeedTab(),
+              _LeaderboardTab(),
+              _FriendsTab(),
+            ],
+          ),
         ),
-        actions: [
-          _IncomingRequestsBadge(),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabs,
-        children: const [
-          _FeedTab(),
-          _LeaderboardTab(),
-          _FriendsTab(),
-        ],
-      ),
+        const SectionSidebarOverlay(current: AppSection.social),
+      ],
     );
   }
 }

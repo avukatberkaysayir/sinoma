@@ -41,7 +41,7 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    context.go('/home');
+    context.go('/hub');
   }
 
   @override

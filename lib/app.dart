@@ -10,15 +10,20 @@ import 'core/constants/app_colors.dart';
 import 'data/services/notification_service.dart';
 import 'presentation/providers/auth_provider.dart' show adminEmail;
 import 'presentation/providers/locale_provider.dart';
+import 'presentation/providers/theme_provider.dart';
 import 'presentation/screens/admin/admin_screen.dart';
 import 'presentation/screens/dictionary/dictionary_screen.dart';
+import 'presentation/screens/games/games_section_screen.dart';
 import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/hub/hub_screen.dart';
 import 'presentation/screens/language/language_selection_screen.dart';
 import 'presentation/screens/legal/privacy_policy_screen.dart';
 import 'presentation/screens/legal/terms_screen.dart';
 import 'presentation/screens/onboarding/onboarding_screen.dart';
+import 'presentation/screens/onboarding/hsk_retest_screen.dart';
+import 'presentation/screens/profile/profile_screen.dart';
 import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/splash/splash_screen.dart';
@@ -57,7 +62,9 @@ final _router = GoRouter(
     GoRoute(path: '/splash',     builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/language',   builder: (_, __) => const LanguageSelectionScreen()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
+    GoRoute(path: '/hub',        builder: (_, __) => const HubScreen()),
     GoRoute(path: '/home',       builder: (_, __) => const HomeScreen()),
+    GoRoute(path: '/games',      builder: (_, __) => const GamesSectionScreen()),
     GoRoute(
       path: '/video/:id',
       builder: (_, state) =>
@@ -77,6 +84,8 @@ final _router = GoRouter(
     GoRoute(path: '/settings',      builder: (_, __) => const SettingsScreen()),
     GoRoute(path: '/legal/terms',   builder: (_, __) => const TermsScreen()),
     GoRoute(path: '/legal/privacy', builder: (_, __) => const PrivacyPolicyScreen()),
+    GoRoute(path: '/profile',        builder: (_, __) => const ProfileScreen()),
+    GoRoute(path: '/hsk-test',       builder: (_, __) => const HskRetestScreen()),
     GoRoute(path: '/admin',         builder: (_, __) => const AdminScreen()),
     GoRoute(path: '/admin/add-video', builder: (_, __) => const AddVideoScreen()),
   ],
@@ -88,7 +97,8 @@ class SinomaApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     NotificationService.setNavigationCallback(_router.go);
-    final locale = ref.watch(localeProvider);
+    final locale    = ref.watch(localeProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'Sinoma',
@@ -100,12 +110,14 @@ class SinomaApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      theme: _buildTheme(),
+      theme: _buildLightTheme(),
+      darkTheme: _buildDarkTheme(),
+      themeMode: themeMode,
       routerConfig: _router,
     );
   }
 
-  ThemeData _buildTheme() {
+  ThemeData _buildDarkTheme() {
     return ThemeData(
       useMaterial3: true,
       colorScheme: const ColorScheme.dark(
@@ -118,6 +130,23 @@ class SinomaApp extends ConsumerWidget {
         backgroundColor: AppColors.surfaceVariant,
         foregroundColor: AppColors.onSurface,
         elevation: 0,
+      ),
+    );
+  }
+
+  ThemeData _buildLightTheme() {
+    return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: AppColors.primary,
+        brightness: Brightness.light,
+      ),
+      scaffoldBackgroundColor: const Color(0xFFF2F3F7),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.white,
+        foregroundColor: Color(0xFF1A1A1A),
+        elevation: 0,
+        surfaceTintColor: Colors.transparent,
       ),
     );
   }

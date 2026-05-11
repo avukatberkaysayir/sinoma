@@ -37,7 +37,7 @@ class OnboardingScreen extends ConsumerWidget {
     final notifier = ref.read(onboardingProvider.notifier);
 
     ref.listen(onboardingProvider, (_, next) {
-      if (next.isComplete) context.go('/home');
+      if (next.isComplete) context.go('/hub');
     });
 
     return Scaffold(
