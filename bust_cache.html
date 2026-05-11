@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sinoma — Updating…</title>
+  <style>
+    body { margin: 0; background: #121212; display: flex; align-items: center;
+           justify-content: center; height: 100vh; flex-direction: column; gap: 16px; }
+    p { color: #fff; font-family: sans-serif; font-size: 14px; text-align: center; margin: 0; }
+    svg { animation: spin 1.2s linear infinite; }
+    @keyframes spin { to { rotate: 1turn; } }
+  </style>
+</head>
+<body>
+  <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+    <circle cx="24" cy="24" r="20" stroke="#E63946" stroke-width="4"
+      stroke-linecap="round" stroke-dasharray="80 40" />
+  </svg>
+  <p>Güncelleniyor, lütfen bekleyin…</p>
+  <script>
+    (async function () {
+      // 1. Unregister all service workers
+      if ('serviceWorker' in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(r => r.unregister()));
+      }
+
+      // 2. Delete every Cache Storage entry
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map(k => caches.delete(k)));
+      }
+
+      // 3. Clear localStorage + sessionStorage
+      try { localStorage.clear(); } catch (_) {}
+      try { sessionStorage.clear(); } catch (_) {}
+
+      // 4. Delete IndexedDB databases (Firebase Auth stores session here)
+      if (window.indexedDB && window.indexedDB.databases) {
+        try {
+          const dbs = await window.indexedDB.databases();
+          await Promise.all(dbs.map(db => new Promise((res) => {
+            const req = window.indexedDB.deleteDatabase(db.name);
+            req.onsuccess = res;
+            req.onerror = res;
+            req.onblocked = res;
+          })));
+        } catch (_) {}
+      }
+
+      // 5. Redirect to home with a cache-bust query param
+      window.location.replace('/?v=' + Date.now());
+    })();
+  </script>
+</body>
+</html>

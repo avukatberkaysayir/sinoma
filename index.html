@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base href="/sinoma/">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Sinoma — Learn Mandarin through real video clips, AI explanations, and games.">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+  <meta name="apple-mobile-web-app-title" content="Sinoma">
+  <meta name="theme-color" content="#121212">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Sinoma</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icons/Icon-192.png">
+
+  <!-- Firebase SDK (compat version for service worker compatibility) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      background-color: #121212;
+    }
+    #loading {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #121212;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #loading svg {
+      animation: spin 1.2s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+      <circle cx="24" cy="24" r="20" stroke="#E63946" stroke-width="4" stroke-linecap="round"
+        stroke-dasharray="80 40" />
+    </svg>
+  </div>
+
+  <script>
+    window.addEventListener('flutter-first-frame', () => {
+      const el = document.getElementById('loading');
+      if (el) el.remove();
+    });
+  </script>
+
+  <!-- Auto-clear stale caches on new deployments -->
+  <script>
+    (function () {
+      var APP_VERSION = '2026-05-v6';
+      var stored = '';
+      try { stored = localStorage.getItem('sinoma_version') || ''; } catch (_) {}
+
+      if (stored !== APP_VERSION) {
+        // Version mismatch → nuke everything, then reload once
+        (async function () {
+          if ('serviceWorker' in navigator) {
+            var regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(function (r) { return r.unregister(); }));
+          }
+          if ('caches' in window) {
+            var keys = await caches.keys();
+            await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }
+          try { localStorage.setItem('sinoma_version', APP_VERSION); } catch (_) {}
+          window.location.reload(true);
+        })();
+        return; // stop executing the rest of index.html on this load
+      }
+
+      // Version matches — enforce skip-waiting for any queued SW
+      if (!('serviceWorker' in navigator)) return;
+
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
+      function activateWaiting(reg) {
+        if (!reg.waiting) return;
+        reg.waiting.postMessage('skip-waiting');
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      navigator.serviceWorker.ready.then(function (reg) {
+        activateWaiting(reg);
+        reg.addEventListener('updatefound', function () {
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function () {
+            if (nw.state === 'installed') activateWaiting(reg);
+          });
+        });
+        setInterval(function () { reg.update(); }, 60000);
+      });
+    })();
+  </script>
+
+  <!-- YouGlish embed API — used by the video player screen -->
+  <script async src="https://youglish.com/public/emb/widget.js" charset="utf-8"></script>
+
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
