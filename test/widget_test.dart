@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mandarin_academy/core/utils/hsk_analyzer.dart';
+import 'package:sinoma/core/utils/hsk_analyzer.dart';
 
 void main() {
   group('HskAnalyzer', () {

@@ -61,7 +61,7 @@ const _questions = <PlacementQuestion>[
 // State
 // ---------------------------------------------------------------------------
 
-enum OnboardingStep { welcome, signIn, profile, test, results }
+enum OnboardingStep { welcome, signIn, emailVerification, profile, test, results }
 
 class OnboardingState {
   final OnboardingStep step;
@@ -72,6 +72,7 @@ class OnboardingState {
   final String? error;
   final String displayName;
   final bool isComplete;
+  final String? pendingVerificationEmail;
 
   static const totalQuestions = 20;
 
@@ -84,6 +85,7 @@ class OnboardingState {
     this.error,
     this.displayName = '',
     this.isComplete = false,
+    this.pendingVerificationEmail,
   });
 
   double get testProgress =>
@@ -103,6 +105,7 @@ class OnboardingState {
     String? error,
     String? displayName,
     bool? isComplete,
+    String? pendingVerificationEmail,
   }) =>
       OnboardingState(
         step: step ?? this.step,
@@ -113,6 +116,8 @@ class OnboardingState {
         error: error,
         displayName: displayName ?? this.displayName,
         isComplete: isComplete ?? this.isComplete,
+        pendingVerificationEmail:
+            pendingVerificationEmail ?? this.pendingVerificationEmail,
       );
 }
 
@@ -193,6 +198,82 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
+
+  Future<void> registerWithEmail(String email, String password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final result = await _auth.createUserWithEmailAndPassword(
+          email: email.trim(), password: password);
+      await result.user?.sendEmailVerification();
+      await _analytics.logSignIn('email_register');
+      state = state.copyWith(
+        isLoading: false,
+        step: OnboardingStep.emailVerification,
+        pendingVerificationEmail: email.trim(),
+      );
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(isLoading: false, error: _emailAuthError(e));
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> signInWithEmail(String email, String password) async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      final result = await _auth.signInWithEmailAndPassword(
+          email: email.trim(), password: password);
+      await _analytics.logSignIn('email');
+      final name =
+          result.user?.displayName ?? email.trim().split('@').first;
+      await _handlePostSignIn(result.user!, name);
+    } on FirebaseAuthException catch (e) {
+      state = state.copyWith(isLoading: false, error: _emailAuthError(e));
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> checkEmailVerified() async {
+    state = state.copyWith(isLoading: true, error: null);
+    try {
+      await _auth.currentUser?.reload();
+      final user = _auth.currentUser;
+      if (user?.emailVerified == true) {
+        final name = user?.displayName ??
+            (state.pendingVerificationEmail?.split('@').first ?? '');
+        await _handlePostSignIn(user!, name);
+      } else {
+        state = state.copyWith(
+          isLoading: false,
+          error:
+              'E-posta henüz doğrulanmadı. Gelen kutunuzu kontrol edin.',
+        );
+      }
+    } catch (e) {
+      state = state.copyWith(isLoading: false, error: e.toString());
+    }
+  }
+
+  Future<void> resendVerificationEmail() async {
+    try {
+      await _auth.currentUser?.sendEmailVerification();
+    } catch (_) {}
+  }
+
+  String _emailAuthError(FirebaseAuthException e) => switch (e.code) {
+        'email-already-in-use' =>
+          'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.',
+        'invalid-email' => 'Geçersiz e-posta adresi.',
+        'weak-password' => 'Şifre en az 6 karakter olmalıdır.',
+        'user-not-found' =>
+          'Bu e-posta ile kayıtlı kullanıcı bulunamadı.',
+        'wrong-password' => 'Hatalı şifre.',
+        'invalid-credential' => 'E-posta veya şifre hatalı.',
+        'too-many-requests' =>
+          'Çok fazla deneme. Lütfen bir süre bekleyin.',
+        _ => e.message ?? e.code,
+      };
 
   Future<void> signInAnonymously() async {
     state = state.copyWith(isLoading: true, error: null);

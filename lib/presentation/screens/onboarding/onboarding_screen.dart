@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -57,6 +56,17 @@ class OnboardingScreen extends ConsumerWidget {
               onGoogle: notifier.signInWithGoogle,
               onAnonymous: notifier.signInAnonymously,
               onDevLogin: notifier.signInWithDevAccount,
+              onRegisterWithEmail: notifier.registerWithEmail,
+              onSignInWithEmail: notifier.signInWithEmail,
+              onClearError: notifier.clearError,
+            ),
+          OnboardingStep.emailVerification => _EmailVerificationPage(
+              key: const ValueKey('emailVerification'),
+              email: state.pendingVerificationEmail ?? '',
+              isLoading: state.isLoading,
+              error: state.error,
+              onCheckVerified: notifier.checkEmailVerified,
+              onResend: notifier.resendVerificationEmail,
               onClearError: notifier.clearError,
             ),
           OnboardingStep.profile => _ProfilePage(
@@ -174,6 +184,8 @@ class _SignInPage extends StatefulWidget {
   final VoidCallback onGoogle;
   final VoidCallback onAnonymous;
   final VoidCallback onDevLogin;
+  final void Function(String email, String password) onRegisterWithEmail;
+  final void Function(String email, String password) onSignInWithEmail;
   final VoidCallback onClearError;
 
   const _SignInPage({
@@ -183,6 +195,8 @@ class _SignInPage extends StatefulWidget {
     required this.onGoogle,
     required this.onAnonymous,
     required this.onDevLogin,
+    required this.onRegisterWithEmail,
+    required this.onSignInWithEmail,
     required this.onClearError,
   });
 
@@ -191,15 +205,245 @@ class _SignInPage extends StatefulWidget {
 }
 
 class _SignInPageState extends State<_SignInPage> {
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool _obscurePassword = true;
+
   @override
-  void initState() {
-    super.initState();
-    if (kDebugMode) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) widget.onDevLogin();
-      });
-    }
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
   }
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const SizedBox(height: 48),
+            const Icon(Icons.login_rounded, size: 56, color: AppColors.primary),
+            const SizedBox(height: 24),
+            const Text(
+              'Hesap Oluştur / Giriş Yap',
+              style: TextStyle(
+                color: AppColors.onSurface,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'İlerlemeni kaydet, cihazlar arasında senkronize et.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 14),
+            ),
+            if (widget.error != null) ...[
+              const SizedBox(height: 16),
+              _ErrorBanner(
+                  message: widget.error!, onDismiss: widget.onClearError),
+            ],
+            const SizedBox(height: 32),
+
+            // ── Google ──────────────────────────────────────────────────────
+            if (!widget.isLoading) ...[
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: widget.onGoogle,
+                  icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
+                  label: const Text('Google ile Devam Et',
+                      style: TextStyle(fontSize: 15)),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    side:
+                        const BorderSide(color: AppColors.onSurfaceMuted),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+
+              // ── Divider ─────────────────────────────────────────────────
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.white12)),
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text(
+                        'VEYA E-POSTA İLE',
+                        style: TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 11),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.white12)),
+                  ],
+                ),
+              ),
+
+              // ── Email field ─────────────────────────────────────────────
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  hintText: 'E-posta',
+                  hintStyle:
+                      const TextStyle(color: AppColors.onSurfaceMuted),
+                  filled: true,
+                  fillColor: AppColors.surfaceVariant,
+                  prefixIcon: const Icon(Icons.email_outlined,
+                      color: AppColors.onSurfaceMuted, size: 20),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 15),
+              ),
+              const SizedBox(height: 10),
+
+              // ── Password field ──────────────────────────────────────────
+              TextField(
+                controller: _passwordCtrl,
+                obscureText: _obscurePassword,
+                decoration: InputDecoration(
+                  hintText: 'Şifre (en az 6 karakter)',
+                  hintStyle:
+                      const TextStyle(color: AppColors.onSurfaceMuted),
+                  filled: true,
+                  fillColor: AppColors.surfaceVariant,
+                  prefixIcon: const Icon(Icons.lock_outline,
+                      color: AppColors.onSurfaceMuted, size: 20),
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_outlined
+                          : Icons.visibility_off_outlined,
+                      color: AppColors.onSurfaceMuted,
+                      size: 20,
+                    ),
+                    onPressed: () => setState(
+                        () => _obscurePassword = !_obscurePassword),
+                  ),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 15),
+              ),
+              const SizedBox(height: 12),
+
+              // ── Email action buttons ────────────────────────────────────
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => widget.onSignInWithEmail(
+                          _emailCtrl.text, _passwordCtrl.text),
+                      style: OutlinedButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        side: const BorderSide(
+                            color: AppColors.onSurfaceMuted),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Giriş Yap',
+                          style: TextStyle(fontSize: 14)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => widget.onRegisterWithEmail(
+                          _emailCtrl.text, _passwordCtrl.text),
+                      style: FilledButton.styleFrom(
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Kayıt Ol',
+                          style: TextStyle(fontSize: 14)),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+              TextButton(
+                onPressed: widget.onAnonymous,
+                child: const Text(
+                  'Misafir olarak devam et',
+                  style: TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 13),
+                ),
+              ),
+            ] else
+              const CircularProgressIndicator(),
+
+            const SizedBox(height: 16),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Devam ederek ',
+                  style: TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11),
+                ),
+                _LegalLink(label: 'Şartlar', route: '/legal/terms'),
+                Text(
+                  "'ı ve ",
+                  style: TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11),
+                ),
+                _LegalLink(
+                    label: 'Gizlilik', route: '/legal/privacy'),
+                Text(
+                  " politikasını kabul edersin.",
+                  style: TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11),
+                ),
+              ],
+            ),
+            const SizedBox(height: 40),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Email Verification
+// ---------------------------------------------------------------------------
+
+class _EmailVerificationPage extends StatelessWidget {
+  final String email;
+  final bool isLoading;
+  final String? error;
+  final VoidCallback onCheckVerified;
+  final VoidCallback onResend;
+  final VoidCallback onClearError;
+
+  const _EmailVerificationPage({
+    super.key,
+    required this.email,
+    required this.isLoading,
+    required this.error,
+    required this.onCheckVerified,
+    required this.onResend,
+    required this.onClearError,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -210,102 +454,67 @@ class _SignInPageState extends State<_SignInPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Spacer(flex: 2),
-            const Icon(Icons.login_rounded, size: 56, color: AppColors.primary),
-            const SizedBox(height: 24),
+            Container(
+              width: 88,
+              height: 88,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.mark_email_unread_outlined,
+                  size: 44, color: AppColors.primary),
+            ),
+            const SizedBox(height: 28),
             const Text(
-              'Sign In',
+              'E-postanı Doğrula',
               style: TextStyle(
                 color: AppColors.onSurface,
-                fontSize: 26,
+                fontSize: 24,
                 fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Save your progress and sync across devices.',
+            const SizedBox(height: 12),
+            Text(
+              '$email adresine bir doğrulama bağlantısı gönderdik.\nE-postanı doğruladıktan sonra aşağıdaki butona bas.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 15),
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted,
+                  fontSize: 14,
+                  height: 1.5),
             ),
-            if (widget.error != null) ...[
+            if (error != null) ...[
               const SizedBox(height: 16),
-              _ErrorBanner(message: widget.error!, onDismiss: widget.onClearError),
+              _ErrorBanner(message: error!, onDismiss: onClearError),
             ],
             const Spacer(flex: 2),
-            if (widget.isLoading)
+            if (isLoading)
               const CircularProgressIndicator()
             else ...[
-              if (kDebugMode) ...[
-                SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: widget.onDevLogin,
-                    icon: const Icon(Icons.developer_mode, size: 20),
-                    label: const Text('Dev Login (Emulator)',
-                        style: TextStyle(fontSize: 15)),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D3B8E),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  '⚠ Local dev only — dev@mandarin.local',
-                  style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: Colors.white12),
-                const SizedBox(height: 12),
-              ],
               SizedBox(
                 width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: widget.onGoogle,
-                  icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
-                  label: const Text(
-                    'Continue with Google',
-                    style: TextStyle(fontSize: 15),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    side: const BorderSide(color: AppColors.onSurfaceMuted),
+                child: FilledButton.icon(
+                  onPressed: onCheckVerified,
+                  icon: const Icon(Icons.verified_outlined, size: 20),
+                  label: const Text('Doğruladım, Devam Et',
+                      style: TextStyle(fontSize: 15)),
+                  style: FilledButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                        borderRadius: BorderRadius.circular(14)),
                   ),
                 ),
               ),
               const SizedBox(height: 12),
               TextButton(
-                onPressed: widget.onAnonymous,
+                onPressed: onResend,
                 child: const Text(
-                  'Continue as Guest',
-                  style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
+                  'Tekrar gönder',
+                  style: TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 13),
                 ),
               ),
             ],
-            const SizedBox(height: 16),
-            const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  'By continuing you agree to our ',
-                  style:
-                      TextStyle(color: AppColors.onSurfaceMuted, fontSize: 11),
-                ),
-                _LegalLink(label: 'Terms', route: '/legal/terms'),
-                Text(
-                  ' & ',
-                  style:
-                      TextStyle(color: AppColors.onSurfaceMuted, fontSize: 11),
-                ),
-                _LegalLink(label: 'Privacy Policy', route: '/legal/privacy'),
-              ],
-            ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 40),
           ],
         ),
       ),

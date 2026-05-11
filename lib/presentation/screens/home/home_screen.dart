@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/ai_provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 
@@ -66,29 +67,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   @override
   Widget build(BuildContext context) {
     final hskLevel = ref.watch(currentHskLevelProvider);
-    final selectedCategory = ref.watch(selectedCategoryProvider);
-    final selectedLength = ref.watch(selectedLengthProvider);
-    final activeFilters =
-        (selectedCategory != null ? 1 : 0) + (selectedLength != null ? 1 : 0);
+    final isAdmin = ref.watch(isAdminProvider);
     final isLearnTab = _currentTab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
       drawer: isLearnTab ? const _FilterDrawer() : null,
       appBar: AppBar(
-        leading: isLearnTab
-            ? Builder(
-                builder: (ctx) => Badge(
-                  isLabelVisible: activeFilters > 0,
-                  label: Text('$activeFilters'),
-                  child: IconButton(
-                    icon: const Icon(Icons.tune),
-                    tooltip: 'Filters',
-                    onPressed: () => Scaffold.of(ctx).openDrawer(),
-                  ),
-                ),
-              )
-            : null,
         title: const Text('Sinoma'),
         actions: [
           Padding(
@@ -108,11 +93,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             tooltip: 'Dictionary',
             onPressed: () => context.push('/dictionary/search'),
           ),
-          IconButton(
-            icon: const Icon(Icons.admin_panel_settings_outlined),
-            tooltip: 'Admin Panel',
-            onPressed: () => context.push('/admin'),
-          ),
+          if (isAdmin)
+            IconButton(
+              icon: const Icon(Icons.admin_panel_settings_outlined),
+              tooltip: 'Admin Panel',
+              onPressed: () => context.push('/admin'),
+            ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
@@ -432,8 +418,63 @@ class _VideoFeedTab extends ConsumerWidget {
     final feedAsync = ref.watch(videoFeedProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedLength = ref.watch(selectedLengthProvider);
+    final activeFilters =
+        (selectedCategory != null ? 1 : 0) + (selectedLength != null ? 1 : 0);
 
-    return feedAsync.when(
+    return Column(
+      children: [
+        // ── Filter bar (below tab bar) ──────────────────────────────────────
+        Builder(
+          builder: (ctx) => InkWell(
+            onTap: () => Scaffold.of(ctx).openDrawer(),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: AppColors.surfaceVariant,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.tune,
+                    size: 18,
+                    color: activeFilters > 0
+                        ? AppColors.primary
+                        : AppColors.onSurfaceMuted,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    activeFilters > 0
+                        ? 'Filtreler ($activeFilters aktif)'
+                        : 'Filtrele',
+                    style: TextStyle(
+                      color: activeFilters > 0
+                          ? AppColors.primary
+                          : AppColors.onSurfaceMuted,
+                      fontSize: 13,
+                      fontWeight: activeFilters > 0
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                  if (selectedCategory != null) ...[
+                    const SizedBox(width: 8),
+                    _ActiveFilterChip(label: selectedCategory),
+                  ],
+                  if (selectedLength != null) ...[
+                    const SizedBox(width: 6),
+                    _ActiveFilterChip(label: selectedLength),
+                  ],
+                  const Spacer(),
+                  const Icon(Icons.chevron_right,
+                      size: 18, color: AppColors.onSurfaceMuted),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        // ── Feed content ────────────────────────────────────────────────────
+        Expanded(
+          child: feedAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(
         child: Column(
@@ -485,6 +526,32 @@ class _VideoFeedTab extends ConsumerWidget {
 
         return _FlatFeed(segments: segments);
       },
+    ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActiveFilterChip extends StatelessWidget {
+  final String label;
+  const _ActiveFilterChip({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(20),
+        border:
+            Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+            color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w500),
+      ),
     );
   }
 }

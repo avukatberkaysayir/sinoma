@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_colors.dart';
 import 'data/services/notification_service.dart';
-import 'presentation/providers/auth_provider.dart';
+import 'presentation/providers/auth_provider.dart' show authStateProvider, adminEmail;
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/screens/admin/admin_screen.dart';
 import 'presentation/screens/dictionary/dictionary_screen.dart';
@@ -61,6 +61,12 @@ final _router = GoRouter(
     final isLanguage   = loc == '/language';
 
     if (!isSignedIn && !isOnboarding && !isLanguage) return '/onboarding';
+
+    if (loc.startsWith('/admin')) {
+      final email = FirebaseAuth.instance.currentUser?.email;
+      if (email != adminEmail) return '/home';
+    }
+
     return null;
   },
   routes: [
