@@ -66,13 +66,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final hskLevel = ref.watch(currentHskLevelProvider);
-    final isAdmin = ref.watch(isAdminProvider);
+    final hskLevel  = ref.watch(currentHskLevelProvider);
+    final isAdmin   = ref.watch(isAdminProvider);
+    final filterOpen = ref.watch(filterPanelOpenProvider);
     final isLearnTab = _currentTab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      drawer: isLearnTab ? const _FilterDrawer() : null,
       appBar: AppBar(
         title: const Text('Sinoma'),
         actions: [
@@ -117,28 +117,63 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: const [
-          _VideoFeedTab(),
-          _GamesTab(),
-          _SocialTab(),
+      body: Stack(
+        children: [
+          TabBarView(
+            controller: _tabController,
+            children: const [
+              _VideoFeedTab(),
+              _GamesTab(),
+              _SocialTab(),
+            ],
+          ),
+
+          // Scrim — only on Learn tab when panel is open
+          if (isLearnTab)
+            IgnorePointer(
+              ignoring: !filterOpen,
+              child: AnimatedOpacity(
+                opacity: filterOpen ? 1.0 : 0.0,
+                duration: const Duration(milliseconds: 220),
+                child: GestureDetector(
+                  onTap: () =>
+                      ref.read(filterPanelOpenProvider.notifier).state =
+                          false,
+                  child: Container(color: Colors.black54),
+                ),
+              ),
+            ),
+
+          // Sliding filter panel — slides in from the left within body
+          if (isLearnTab)
+            AnimatedPositioned(
+              duration: const Duration(milliseconds: 260),
+              curve: Curves.easeOutCubic,
+              left: filterOpen ? 0 : -320,
+              top: 0,
+              bottom: 0,
+              width: 300,
+              child: const _FilterPanel(),
+            ),
         ],
       ),
     );
   }
 }
 
-// ── Filter Drawer ─────────────────────────────────────────────────────────────
+// ── Filter Panel (slides in from left within body) ────────────────────────────
 
-class _FilterDrawer extends ConsumerStatefulWidget {
-  const _FilterDrawer();
+class _FilterPanel extends ConsumerStatefulWidget {
+  const _FilterPanel();
 
   @override
-  ConsumerState<_FilterDrawer> createState() => _FilterDrawerState();
+  ConsumerState<_FilterPanel> createState() => _FilterPanelState();
 }
 
-class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
+class _FilterPanelState extends ConsumerState<_FilterPanel> {
+  void _close() =>
+      ref.read(filterPanelOpenProvider.notifier).state = false;
+
   void _selectCat(String? value) {
     ref.read(selectedCategoryProvider.notifier).state = value;
     ref.invalidate(videoFeedProvider);
@@ -161,46 +196,46 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
     final selectedLen = ref.watch(selectedLengthProvider);
     final hasFilters = selectedCat != null || selectedLen != null;
 
-    return Drawer(
-      backgroundColor: AppColors.surface,
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Header ────────────────────────────────────────────────────
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 20, 8, 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.tune, color: AppColors.primary, size: 22),
-                  const SizedBox(width: 10),
-                  const Expanded(
-                    child: Text(
-                      'Filtreler',
-                      style: TextStyle(
-                        color: AppColors.onSurface,
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                      ),
+    return Material(
+      color: AppColors.surface,
+      elevation: 8,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Header ────────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 8, 12),
+            child: Row(
+              children: [
+                const Icon(Icons.tune, color: AppColors.primary, size: 22),
+                const SizedBox(width: 10),
+                const Expanded(
+                  child: Text(
+                    'Filtreler',
+                    style: TextStyle(
+                      color: AppColors.onSurface,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
                     ),
                   ),
-                  if (hasFilters)
-                    TextButton(
-                      onPressed: _resetAll,
-                      style: TextButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                      ),
-                      child: const Text('Temizle'),
+                ),
+                if (hasFilters)
+                  TextButton(
+                    onPressed: _resetAll,
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    color: AppColors.onSurfaceMuted,
-                    onPressed: () => Navigator.of(context).pop(),
+                    child: const Text('Temizle'),
                   ),
-                ],
-              ),
+                IconButton(
+                  icon: const Icon(Icons.close, size: 20),
+                  color: AppColors.onSurfaceMuted,
+                  onPressed: _close,
+                ),
+              ],
             ),
+          ),
             const Divider(color: AppColors.surfaceVariant, height: 1),
 
             Expanded(
@@ -307,7 +342,6 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
             ),
           ],
         ),
-      ),
     );
   }
 
@@ -424,9 +458,8 @@ class _VideoFeedTab extends ConsumerWidget {
     return Column(
       children: [
         // ── Filter bar (below tab bar) ──────────────────────────────────────
-        Builder(
-          builder: (ctx) => InkWell(
-            onTap: () => Scaffold.of(ctx).openDrawer(),
+        InkWell(
+            onTap: () => ref.read(filterPanelOpenProvider.notifier).state = true,
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -470,7 +503,6 @@ class _VideoFeedTab extends ConsumerWidget {
               ),
             ),
           ),
-        ),
 
         // ── Feed content ────────────────────────────────────────────────────
         Expanded(

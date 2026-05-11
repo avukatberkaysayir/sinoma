@@ -127,9 +127,7 @@ class OnboardingState {
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
   OnboardingNotifier(this._userRepository, this._analytics)
-      : super(const OnboardingState(
-          step: kDebugMode ? OnboardingStep.signIn : OnboardingStep.welcome,
-        ));
+      : super(const OnboardingState(step: OnboardingStep.signIn));
 
   final UserRepository _userRepository;
   final AnalyticsService _analytics;

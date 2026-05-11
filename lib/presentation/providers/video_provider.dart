@@ -14,6 +14,7 @@ final videoRepositoryProvider = Provider<VideoRepository>((ref) {
 // null = show all
 final selectedCategoryProvider = StateProvider<String?>((ref) => null);
 final selectedLengthProvider   = StateProvider<String?>((ref) => null);
+final filterPanelOpenProvider  = StateProvider<bool>((ref) => false);
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   final hskLevel = ref.watch(currentHskLevelProvider);
