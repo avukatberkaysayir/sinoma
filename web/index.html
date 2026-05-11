@@ -55,43 +55,56 @@
     });
   </script>
 
-  <!-- Force immediate service worker activation on new deployments -->
+  <!-- Auto-clear stale caches on new deployments -->
   <script>
-    (function() {
+    (function () {
+      var APP_VERSION = '2026-05-v5';
+      var stored = '';
+      try { stored = localStorage.getItem('sinoma_version') || ''; } catch (_) {}
+
+      if (stored !== APP_VERSION) {
+        // Version mismatch → nuke everything, then reload once
+        (async function () {
+          if ('serviceWorker' in navigator) {
+            var regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(function (r) { return r.unregister(); }));
+          }
+          if ('caches' in window) {
+            var keys = await caches.keys();
+            await Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }
+          try { localStorage.setItem('sinoma_version', APP_VERSION); } catch (_) {}
+          window.location.reload(true);
+        })();
+        return; // stop executing the rest of index.html on this load
+      }
+
+      // Version matches — enforce skip-waiting for any queued SW
       if (!('serviceWorker' in navigator)) return;
 
-      // When a new SW takes control, reload once to serve fresh assets
       var refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', function() {
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (refreshing) return;
         refreshing = true;
         window.location.reload();
       });
 
-      // Activate any waiting service worker immediately
       function activateWaiting(reg) {
         if (!reg.waiting) return;
         reg.waiting.postMessage('skip-waiting');
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
 
-      navigator.serviceWorker.ready.then(function(reg) {
-        // Already a waiting worker (user revisited after deploy)
+      navigator.serviceWorker.ready.then(function (reg) {
         activateWaiting(reg);
-
-        // New worker found while page is open
-        reg.addEventListener('updatefound', function() {
-          var newWorker = reg.installing;
-          if (!newWorker) return;
-          newWorker.addEventListener('statechange', function() {
-            if (newWorker.state === 'installed') {
-              activateWaiting(reg);
-            }
+        reg.addEventListener('updatefound', function () {
+          var nw = reg.installing;
+          if (!nw) return;
+          nw.addEventListener('statechange', function () {
+            if (nw.state === 'installed') activateWaiting(reg);
           });
         });
-
-        // Proactively check for updates every 60 seconds
-        setInterval(function() { reg.update(); }, 60000);
+        setInterval(function () { reg.update(); }, 60000);
       });
     })();
   </script>
