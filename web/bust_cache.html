@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,7 +9,7 @@
            justify-content: center; height: 100vh; flex-direction: column; gap: 16px; }
     p { color: #fff; font-family: sans-serif; font-size: 14px; text-align: center; margin: 0; }
     svg { animation: spin 1.2s linear infinite; }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin { to { rotate: 1turn; } }
   </style>
 </head>
 <body>
@@ -26,7 +26,7 @@
         await Promise.all(regs.map(r => r.unregister()));
       }
 
-      // 2. Delete every cache
+      // 2. Delete every Cache Storage entry
       if ('caches' in window) {
         const keys = await caches.keys();
         await Promise.all(keys.map(k => caches.delete(k)));
@@ -36,7 +36,20 @@
       try { localStorage.clear(); } catch (_) {}
       try { sessionStorage.clear(); } catch (_) {}
 
-      // 4. Redirect to home with a cache-bust query param
+      // 4. Delete IndexedDB databases (Firebase Auth stores session here)
+      if (window.indexedDB && window.indexedDB.databases) {
+        try {
+          const dbs = await window.indexedDB.databases();
+          await Promise.all(dbs.map(db => new Promise((res) => {
+            const req = window.indexedDB.deleteDatabase(db.name);
+            req.onsuccess = res;
+            req.onerror = res;
+            req.onblocked = res;
+          })));
+        } catch (_) {}
+      }
+
+      // 5. Redirect to home with a cache-bust query param
       window.location.replace('/?v=' + Date.now());
     })();
   </script>

@@ -9,7 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/constants/app_colors.dart';
 import 'data/services/notification_service.dart';
-import 'presentation/providers/auth_provider.dart' show authStateProvider, adminEmail;
+import 'presentation/providers/auth_provider.dart' show adminEmail;
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/screens/admin/admin_screen.dart';
 import 'presentation/screens/dictionary/dictionary_screen.dart';
@@ -43,28 +43,27 @@ final _router = GoRouter(
   initialLocation: '/home',
   refreshListenable: _AuthRefreshStream(FirebaseAuth.instance.authStateChanges()),
   redirect: (context, state) async {
-    final container = ProviderScope.containerOf(context, listen: false);
-    final authAsync = container.read(authStateProvider);
-
-    if (authAsync.isLoading) return null;
-
     final loc = state.matchedLocation;
 
-    // Language gate — first time users pick a language before anything else.
+    // Language gate: checked before auth so new users always pick a language.
     if (loc != '/language') {
       final prefs = await SharedPreferences.getInstance();
       if (!prefs.containsKey('app_locale')) return '/language';
     }
 
-    final isSignedIn = authAsync.valueOrNull != null;
+    // Use currentUser directly — synchronous after Firebase.initializeApp(),
+    // avoids the race condition where _AuthRefreshStream fires notifyListeners()
+    // before Riverpod's StreamProvider processes the same authStateChanges event.
+    final user = FirebaseAuth.instance.currentUser;
+    final isSignedIn = user != null;
     final isOnboarding = loc.startsWith('/onboarding');
     final isLanguage   = loc == '/language';
 
     if (!isSignedIn && !isOnboarding && !isLanguage) return '/onboarding';
+    if (isSignedIn && isOnboarding) return '/home';
 
     if (loc.startsWith('/admin')) {
-      final email = FirebaseAuth.instance.currentUser?.email;
-      if (email != adminEmail) return '/home';
+      if (user?.email != adminEmail) return '/home';
     }
 
     return null;
