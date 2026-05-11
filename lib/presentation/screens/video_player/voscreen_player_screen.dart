@@ -9,7 +9,7 @@ import '../../widgets/common/word_detail_sheet.dart';
 import '../../widgets/video/youtube_section_player.dart';
 
 // Voscreen-style playlist player.
-// Reads from feedProvider — call feedProvider.notifier.loadFeed() before pushing /play.
+// Reads from videoPlaybackProvider — call videoPlaybackProvider.notifier.loadFeed() before pushing /play.
 // Layout: top bar → video 16:9 → Chinese text → pinyin → quiz/nav area.
 
 class VoscreenPlayerScreen extends ConsumerWidget {
@@ -17,7 +17,7 @@ class VoscreenPlayerScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final feed = ref.watch(feedProvider);
+    final feed = ref.watch(videoPlaybackProvider);
 
     if (feed.segments.isEmpty) {
       return Scaffold(
@@ -140,14 +140,14 @@ class _TopBar extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.skip_previous, color: Colors.white38),
             onPressed: feed.hasPrev
-                ? () => ref.read(feedProvider.notifier).goPrev()
+                ? () => ref.read(videoPlaybackProvider.notifier).goPrev()
                 : null,
             tooltip: 'Previous clip',
           ),
           IconButton(
             icon: const Icon(Icons.skip_next, color: Colors.white38),
             onPressed: feed.hasNext
-                ? () => ref.read(feedProvider.notifier).goNext()
+                ? () => ref.read(videoPlaybackProvider.notifier).goNext()
                 : null,
             tooltip: 'Next clip',
           ),
@@ -187,7 +187,7 @@ class _PlayerColumnState extends ConsumerState<_PlayerColumn> {
     setState(() => _selectedAnswer = answer);
     Future.delayed(const Duration(milliseconds: 900), () {
       if (!mounted) return;
-      ref.read(feedProvider.notifier).recordAnswer(isCorrect);
+      ref.read(videoPlaybackProvider.notifier).recordAnswer(isCorrect);
     });
   }
 
@@ -222,7 +222,7 @@ class _PlayerColumnState extends ConsumerState<_PlayerColumn> {
               key: ValueKey('${segment.videoId}-${feed.replayCounter}'),
               segment: segment,
               onSegmentEnded: () =>
-                  ref.read(feedProvider.notifier).activateQuiz(),
+                  ref.read(videoPlaybackProvider.notifier).activateQuiz(),
             ),
           ),
         ),
@@ -278,11 +278,11 @@ class _PlayerColumnState extends ConsumerState<_PlayerColumn> {
                     feed: feed,
                     onReplay: () {
                       setState(() => _selectedAnswer = null);
-                      ref.read(feedProvider.notifier).replay();
+                      ref.read(videoPlaybackProvider.notifier).replay();
                     },
                     onNext: () {
                       setState(() => _selectedAnswer = null);
-                      ref.read(feedProvider.notifier).goNext();
+                      ref.read(videoPlaybackProvider.notifier).goNext();
                     },
                   ),
               },

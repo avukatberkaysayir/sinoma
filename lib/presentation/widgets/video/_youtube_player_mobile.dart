@@ -28,7 +28,10 @@ class _YoutubeNativePlayerState extends State<YoutubeNativePlayer> {
   @override
   void initState() {
     super.initState();
-    _controller = YoutubePlayerController(
+    _controller = YoutubePlayerController.fromVideoId(
+      videoId: widget.segment.youtubeId!,
+      startSeconds: widget.segment.startTime,
+      autoPlay: true,
       params: const YoutubePlayerParams(
         showControls: false,
         showFullscreenButton: false,
@@ -36,11 +39,6 @@ class _YoutubeNativePlayerState extends State<YoutubeNativePlayer> {
         loop: false,
         playsInline: true,
       ),
-    );
-    _controller.loadVideoById(
-      videoId: widget.segment.youtubeId!,
-      startSeconds: widget.segment.startTime,
-      endSeconds: widget.segment.endTime,
     );
     _startPositionMonitor();
   }

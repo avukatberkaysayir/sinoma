@@ -114,7 +114,7 @@ Future<void> main() async {
         cacheServiceProvider.overrideWithValue(cache),
         remoteConfigProvider.overrideWithValue(remoteConfig),
       ],
-      child: const MandarinAcademyApp(),
+      child: const SinomaApp(),
     ),
   );
 }

@@ -89,15 +89,15 @@ final _router = GoRouter(
   ],
 );
 
-class MandarinAcademyApp extends ConsumerWidget {
-  const MandarinAcademyApp({super.key});
+class SinomaApp extends ConsumerWidget {
+  const SinomaApp({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     NotificationService.setNavigationCallback(_router.go);
 
     return MaterialApp.router(
-      title: 'Mandarin Academy',
+      title: 'Sinoma',
       debugShowCheckedModeBanner: false,
       theme: _buildTheme(),
       routerConfig: _router,

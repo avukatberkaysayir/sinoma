@@ -118,20 +118,4 @@ class AnalyticsService {
     await _analytics.logScreenView(screenName: 'subscription');
   }
 
-  // ── HSK Progression ───────────────────────────────────────────
-
-  Future<void> logLevelUp(int newLevel) async {
-    await _analytics.logEvent(
-      name: 'hsk_level_up',
-      parameters: {'new_level': newLevel},
-    );
-    await _analytics.setUserProperty(name: 'hsk_level', value: '$newLevel');
-    await _crashlytics.setCustomKey('hsk_level', newLevel);
-  }
-
-  // ── Errors ────────────────────────────────────────────────────
-
-  void recordNonFatalError(Object error, StackTrace stack, {String? reason}) {
-    _crashlytics.recordError(error, stack, reason: reason, fatal: false);
-  }
 }

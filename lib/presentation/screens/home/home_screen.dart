@@ -105,7 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             ),
           ),
         ),
-        title: const Text('Mandarin Academy'),
+        title: const Text('Sinoma'),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: 4),
@@ -635,7 +635,7 @@ class _VideoCard extends ConsumerWidget {
       onTap: () {
         final index = feed.indexOf(segment);
         ref
-            .read(feedProvider.notifier)
+            .read(videoPlaybackProvider.notifier)
             .loadFeed(feed, index < 0 ? 0 : index);
         context.push('/play');
       },

@@ -244,6 +244,6 @@ class FeedNotifier extends StateNotifier<FeedState> {
       );
 }
 
-final feedProvider = StateNotifierProvider<FeedNotifier, FeedState>(
+final videoPlaybackProvider = StateNotifierProvider<FeedNotifier, FeedState>(
   (ref) => FeedNotifier(),
 );
