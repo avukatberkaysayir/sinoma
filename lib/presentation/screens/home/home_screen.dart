@@ -10,45 +10,21 @@ import '../../providers/ai_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 
-// ── Grammar group data ────────────────────────────────────────────────────────
+// ── HSK-level grammar mapping ─────────────────────────────────────────────────
 
-class _GrammarGroup {
-  final String label;
-  final String sublabel;
+class _HskGroup {
+  final int level;
   final List<QuizCategory> cats;
-  const _GrammarGroup(this.label, this.sublabel, this.cats);
+  const _HskGroup(this.level, this.cats);
 }
 
-const _grammarGroups = <_GrammarGroup>[
-  _GrammarGroup('结构', 'Structural', [
-    QuizCategory.baConstruct,
-    QuizCategory.beiPassive,
-    QuizCategory.shiDeEmphasis,
-  ]),
-  _GrammarGroup('条件/转折', 'Condition · Contrast', [
-    QuizCategory.conditional,
-    QuizCategory.contrast,
-    QuizCategory.causeEffect,
-  ]),
-  _GrammarGroup('体貌', 'Aspect Markers', [
-    QuizCategory.guoExperience,
-    QuizCategory.leCompletion,
-  ]),
-  _GrammarGroup('情态', 'Modal Verbs', [
-    QuizCategory.huiNengKeyi,
-    QuizCategory.yingDeiYao,
-    QuizCategory.xiangDasuan,
-  ]),
-  _GrammarGroup('句型', 'Sentence Types', [
-    QuizCategory.questions,
-    QuizCategory.negation,
-    QuizCategory.biComparison,
-  ]),
-  _GrammarGroup('时间/地点', 'Time · Place', [
-    QuizCategory.timeWords,
-    QuizCategory.locationWords,
-  ]),
-  _GrammarGroup('一般', 'General', [QuizCategory.general]),
+const _hskGroups = <_HskGroup>[
+  _HskGroup(1, [QuizCategory.questions, QuizCategory.negation, QuizCategory.general]),
+  _HskGroup(2, [QuizCategory.timeWords, QuizCategory.locationWords, QuizCategory.leCompletion]),
+  _HskGroup(3, [QuizCategory.guoExperience, QuizCategory.baConstruct, QuizCategory.biComparison]),
+  _HskGroup(4, [QuizCategory.beiPassive, QuizCategory.conditional, QuizCategory.contrast]),
+  _HskGroup(5, [QuizCategory.shiDeEmphasis, QuizCategory.causeEffect,
+                QuizCategory.huiNengKeyi, QuizCategory.yingDeiYao, QuizCategory.xiangDasuan]),
 ];
 
 const _allLengths = <String?>[null, '1-5字', '6-10字', '11-15字', '16-20字', '21字+'];
@@ -65,11 +41,16 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  int _currentTab = 0;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (_tabController.indexIsChanging) return;
+      setState(() => _currentTab = _tabController.index);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(adServiceProvider);
       ref.read(fcmInitProvider);
@@ -89,22 +70,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     final selectedLength = ref.watch(selectedLengthProvider);
     final activeFilters =
         (selectedCategory != null ? 1 : 0) + (selectedLength != null ? 1 : 0);
+    final isLearnTab = _currentTab == 0;
 
     return Scaffold(
       backgroundColor: AppColors.surface,
-      drawer: const _FilterDrawer(),
+      drawer: isLearnTab ? const _FilterDrawer() : null,
       appBar: AppBar(
-        leading: Builder(
-          builder: (ctx) => Badge(
-            isLabelVisible: activeFilters > 0,
-            label: Text('$activeFilters'),
-            child: IconButton(
-              icon: const Icon(Icons.tune),
-              tooltip: 'Filters',
-              onPressed: () => Scaffold.of(ctx).openDrawer(),
-            ),
-          ),
-        ),
+        leading: isLearnTab
+            ? Builder(
+                builder: (ctx) => Badge(
+                  isLabelVisible: activeFilters > 0,
+                  label: Text('$activeFilters'),
+                  child: IconButton(
+                    icon: const Icon(Icons.tune),
+                    tooltip: 'Filters',
+                    onPressed: () => Scaffold.of(ctx).openDrawer(),
+                  ),
+                ),
+              )
+            : null,
         title: const Text('Sinoma'),
         actions: [
           Padding(
@@ -197,6 +181,7 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── Header ────────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 20, 8, 12),
               child: Row(
@@ -205,7 +190,7 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
                   const SizedBox(width: 10),
                   const Expanded(
                     child: Text(
-                      'Filters',
+                      'Filtreler',
                       style: TextStyle(
                         color: AppColors.onSurface,
                         fontSize: 20,
@@ -220,7 +205,7 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
                         foregroundColor: AppColors.primary,
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                       ),
-                      child: const Text('Reset All'),
+                      child: const Text('Temizle'),
                     ),
                   IconButton(
                     icon: const Icon(Icons.close, size: 20),
@@ -231,86 +216,95 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
               ),
             ),
             const Divider(color: AppColors.surfaceVariant, height: 1),
+
             Expanded(
-              child: SingleChildScrollView(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              child: Theme(
+                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                child: ListView(
+                  padding: EdgeInsets.zero,
                   children: [
-                    const _SectionHeader(
-                      icon: Icons.auto_awesome_outlined,
-                      label: '文法  GRAMMAR PATTERNS',
-                    ),
+                    // ── Tüm videolar ─────────────────────────────────────
                     _FilterOption(
                       emoji: '✦',
-                      label: '全部  All',
-                      isSelected: selectedCat == null,
-                      onTap: () => _selectCat(null),
+                      label: '全部  Tüm Videolar',
+                      isSelected: selectedCat == null && selectedLen == null,
+                      onTap: _resetAll,
                     ),
-                    // Grammar group expansion tiles
-                    Theme(
-                      data: Theme.of(context)
-                          .copyWith(dividerColor: Colors.transparent),
-                      child: Column(
-                        children: List.generate(_grammarGroups.length, (i) {
-                          final group = _grammarGroups[i];
-                          final hasActive =
-                              group.cats.any((c) => c.name == selectedCat);
-                          return ExpansionTile(
-                            initiallyExpanded: hasActive,
-                            tilePadding:
-                                const EdgeInsets.symmetric(horizontal: 20),
-                            childrenPadding: EdgeInsets.zero,
-                            leading: Container(
-                              width: 8,
-                              height: 8,
-                              margin: const EdgeInsets.only(top: 2),
-                              decoration: BoxDecoration(
-                                color: hasActive
-                                    ? AppColors.primary
-                                    : AppColors.surfaceVariant,
-                                shape: BoxShape.circle,
-                              ),
+                    const _SectionHeader(
+                      icon: Icons.school_outlined,
+                      label: '文法  GRAMER SEVİYELERİ',
+                    ),
+
+                    // ── HSK 1–5 accordion ────────────────────────────────
+                    ..._hskGroups.map((group) {
+                      final hasActive =
+                          group.cats.any((c) => c.name == selectedCat);
+                      final hskColor = AppColors.forHskLevel(group.level);
+                      return ExpansionTile(
+                        initiallyExpanded: hasActive,
+                        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+                        childrenPadding: EdgeInsets.zero,
+                        leading: Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: hasActive
+                                ? hskColor.withValues(alpha: 0.2)
+                                : AppColors.surfaceVariant,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: hasActive ? hskColor : Colors.transparent,
+                              width: 1.5,
                             ),
-                            title: Text(
-                              group.label,
+                          ),
+                          child: Center(
+                            child: Text(
+                              '${group.level}',
                               style: TextStyle(
-                                color: hasActive
-                                    ? AppColors.primary
-                                    : AppColors.onSurface,
-                                fontSize: 15,
-                                fontWeight: hasActive
-                                    ? FontWeight.bold
-                                    : FontWeight.w500,
+                                color: hasActive ? hskColor : AppColors.onSurfaceMuted,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
-                            subtitle: Text(
-                              group.sublabel,
-                              style: const TextStyle(
-                                color: AppColors.onSurfaceMuted,
-                                fontSize: 11,
-                              ),
-                            ),
-                            children: group.cats
-                                .map((cat) => _FilterOption(
-                                      emoji: cat.emoji,
-                                      label: cat.displayName,
-                                      isSelected: selectedCat == cat.name,
-                                      onTap: () => _selectCat(cat.name),
-                                      indent: 48,
-                                    ))
-                                .toList(),
-                          );
-                        }),
-                      ),
-                    ),
+                          ),
+                        ),
+                        title: Text(
+                          'HSK ${group.level}',
+                          style: TextStyle(
+                            color: hasActive ? hskColor : AppColors.onSurface,
+                            fontSize: 15,
+                            fontWeight: hasActive ? FontWeight.bold : FontWeight.w500,
+                          ),
+                        ),
+                        subtitle: Text(
+                          _hskSublabel(group.level),
+                          style: const TextStyle(
+                            color: AppColors.onSurfaceMuted,
+                            fontSize: 11,
+                          ),
+                        ),
+                        trailing: hasActive
+                            ? Icon(Icons.circle, size: 8, color: hskColor)
+                            : null,
+                        children: group.cats.map((cat) => _FilterOption(
+                          emoji: cat.emoji,
+                          label: cat.displayName,
+                          isSelected: selectedCat == cat.name,
+                          onTap: () => _selectCat(cat.name),
+                          indent: 60,
+                        )).toList(),
+                      );
+                    }),
+
+                    // ── Cümle uzunluğu ────────────────────────────────────
                     const Divider(color: AppColors.surfaceVariant, height: 32),
                     const _SectionHeader(
                       icon: Icons.text_fields_outlined,
-                      label: '字数  SENTENCE LENGTH',
+                      label: '字数  CÜMLE UZUNLUĞU',
                     ),
                     _FilterOption(
                       emoji: '↔',
-                      label: '全部  All',
+                      label: '全部  Tümü',
                       isSelected: selectedLen == null,
                       onTap: () => _selectLen(null),
                     ),
@@ -330,6 +324,15 @@ class _FilterDrawerState extends ConsumerState<_FilterDrawer> {
       ),
     );
   }
+
+  String _hskSublabel(int level) => switch (level) {
+    1 => 'Başlangıç',
+    2 => 'Temel',
+    3 => 'Orta',
+    4 => 'Orta-İleri',
+    5 => 'İleri',
+    _ => '',
+  };
 }
 
 class _SectionHeader extends StatelessWidget {
