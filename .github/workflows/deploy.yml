@@ -22,6 +22,30 @@ jobs:
       - name: Build web
         run: flutter build web --release
 
+      - name: Patch service worker (nuke all caches before unregister)
+        run: |
+          cat > build/web/flutter_service_worker.js << 'SWEOF'
+          'use strict';
+          self.addEventListener('install', () => { self.skipWaiting(); });
+          self.addEventListener('activate', (event) => {
+            event.waitUntil((async () => {
+              try {
+                const cacheKeys = await caches.keys();
+                await Promise.all(cacheKeys.map(k => caches.delete(k)));
+              } catch (e) {}
+              try {
+                await self.registration.unregister();
+              } catch (e) {}
+              try {
+                const clients = await self.clients.matchAll({ type: 'window' });
+                clients.forEach((c) => {
+                  if (c.url && 'navigate' in c) c.navigate(c.url);
+                });
+              } catch (e) {}
+            })());
+          });
+          SWEOF
+
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         with:
