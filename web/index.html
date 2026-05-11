@@ -43,7 +43,7 @@
 <body>
   <div id="loading">
     <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-      <circle cx="24" cy="24" r="20" stroke="#2D3B8E" stroke-width="4" stroke-linecap="round"
+      <circle cx="24" cy="24" r="20" stroke="#E63946" stroke-width="4" stroke-linecap="round"
         stroke-dasharray="80 40" />
     </svg>
   </div>
@@ -53,6 +53,47 @@
       const el = document.getElementById('loading');
       if (el) el.remove();
     });
+  </script>
+
+  <!-- Force immediate service worker activation on new deployments -->
+  <script>
+    (function() {
+      if (!('serviceWorker' in navigator)) return;
+
+      // When a new SW takes control, reload once to serve fresh assets
+      var refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', function() {
+        if (refreshing) return;
+        refreshing = true;
+        window.location.reload();
+      });
+
+      // Activate any waiting service worker immediately
+      function activateWaiting(reg) {
+        if (!reg.waiting) return;
+        reg.waiting.postMessage('skip-waiting');
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      navigator.serviceWorker.ready.then(function(reg) {
+        // Already a waiting worker (user revisited after deploy)
+        activateWaiting(reg);
+
+        // New worker found while page is open
+        reg.addEventListener('updatefound', function() {
+          var newWorker = reg.installing;
+          if (!newWorker) return;
+          newWorker.addEventListener('statechange', function() {
+            if (newWorker.state === 'installed') {
+              activateWaiting(reg);
+            }
+          });
+        });
+
+        // Proactively check for updates every 60 seconds
+        setInterval(function() { reg.update(); }, 60000);
+      });
+    })();
   </script>
 
   <!-- YouGlish embed API — used by the video player screen -->
