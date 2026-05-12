@@ -59,22 +59,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (uid == null) return;
 
     final picked = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, maxWidth: 512, maxHeight: 512);
+        .pickImage(source: ImageSource.gallery);
     if (picked == null) return;
 
     setState(() => _uploadingPhoto = true);
     try {
       final bytes = await picked.readAsBytes();
+      final ext  = picked.name.toLowerCase();
+      final mime = ext.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      final fileName = ext.endsWith('.png') ? 'avatar.png' : 'avatar.jpg';
+
       final storageRef =
-          FirebaseStorage.instance.ref('users/$uid/avatar.jpg');
+          FirebaseStorage.instance.ref('users/$uid/$fileName');
       await storageRef.putData(
         bytes,
-        SettableMetadata(contentType: 'image/jpeg'),
+        SettableMetadata(contentType: mime),
       );
       final url = await storageRef.getDownloadURL();
       await ref.read(userRepositoryProvider).updatePhotoUrl(uid, url);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Profil fotoğrafı güncellendi.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
     } catch (e) {
-      if (mounted) _showError(e.toString());
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Yükleme hatası: $e'),
+            duration: const Duration(seconds: 8),
+            backgroundColor: Colors.red.shade800,
+          ),
+        );
+      }
     } finally {
       if (mounted) setState(() => _uploadingPhoto = false);
     }

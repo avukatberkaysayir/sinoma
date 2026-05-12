@@ -12,20 +12,24 @@ final videoRepositoryProvider = Provider<VideoRepository>((ref) {
 });
 
 // null = show all
-final selectedCategoryProvider = StateProvider<String?>((ref) => null);
-final selectedLengthProvider   = StateProvider<String?>((ref) => null);
-final filterPanelOpenProvider  = StateProvider<bool>((ref) => false);
+final selectedCategoryProvider  = StateProvider<String?>((ref) => null);
+final selectedLengthProvider    = StateProvider<String?>((ref) => null);
+final selectedHskFilterProvider = StateProvider<int?>((ref) => null);
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
-  final hskLevel = ref.watch(currentHskLevelProvider);
-  final category = ref.watch(selectedCategoryProvider);
-  final length   = ref.watch(selectedLengthProvider);
-  final repo     = ref.read(videoRepositoryProvider);
+  final userHskLevel = ref.watch(currentHskLevelProvider);
+  final hskFilter    = ref.watch(selectedHskFilterProvider);
+  final category     = ref.watch(selectedCategoryProvider);
+  final length       = ref.watch(selectedLengthProvider);
+  final repo         = ref.read(videoRepositoryProvider);
 
   var segments = category != null
-      ? await repo.loadSegmentsByCategory(hskLevel, category)
-      : await repo.loadSegmentsForLevel(hskLevel);
+      ? await repo.loadSegmentsByCategory(userHskLevel, category)
+      : await repo.loadSegmentsForLevel(userHskLevel);
 
+  if (hskFilter != null) {
+    segments = segments.where((s) => s.hskLevel == hskFilter).toList();
+  }
   if (length != null) {
     segments = segments.where((s) => s.sentenceLength == length).toList();
   }

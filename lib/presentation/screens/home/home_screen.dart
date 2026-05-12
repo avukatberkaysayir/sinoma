@@ -12,25 +12,6 @@ import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/common/section_sidebar.dart';
 
-// ── HSK-level grammar mapping ─────────────────────────────────────────────────
-
-class _HskGroup {
-  final int level;
-  final List<QuizCategory> cats;
-  const _HskGroup(this.level, this.cats);
-}
-
-const _hskGroups = <_HskGroup>[
-  _HskGroup(1, [QuizCategory.questions, QuizCategory.negation, QuizCategory.general]),
-  _HskGroup(2, [QuizCategory.timeWords, QuizCategory.locationWords, QuizCategory.leCompletion]),
-  _HskGroup(3, [QuizCategory.guoExperience, QuizCategory.baConstruct, QuizCategory.biComparison]),
-  _HskGroup(4, [QuizCategory.beiPassive, QuizCategory.conditional, QuizCategory.contrast]),
-  _HskGroup(5, [QuizCategory.shiDeEmphasis, QuizCategory.causeEffect,
-                QuizCategory.huiNengKeyi, QuizCategory.yingDeiYao, QuizCategory.xiangDasuan]),
-];
-
-const _allLengths = <String?>[null, '1-5字', '6-10字', '11-15字', '16-20字', '21字+'];
-
 // ── Home Screen ───────────────────────────────────────────────────────────────
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -124,42 +105,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-// ── Top filter menu ───────────────────────────────────────────────────────────
-
-enum _TopMenu { hsk1, hsk2, hsk3, hsk4, hsk5, length }
-
-extension _TopMenuX on _TopMenu {
-  int? get hskLevel => switch (this) {
-        _TopMenu.hsk1   => 1,
-        _TopMenu.hsk2   => 2,
-        _TopMenu.hsk3   => 3,
-        _TopMenu.hsk4   => 4,
-        _TopMenu.hsk5   => 5,
-        _TopMenu.length => null,
-      };
-
-  _HskGroup? get hskGroup {
-    final lv = hskLevel;
-    if (lv == null) return null;
-    return _hskGroups.firstWhere((g) => g.level == lv);
-  }
-
-  String get label => switch (this) {
-        _TopMenu.hsk1   => 'HSK 1',
-        _TopMenu.hsk2   => 'HSK 2',
-        _TopMenu.hsk3   => 'HSK 3',
-        _TopMenu.hsk4   => 'HSK 4',
-        _TopMenu.hsk5   => 'HSK 5',
-        _TopMenu.length => 'Uzunluk',
-      };
-
-  bool hasActiveCategory(String? selected) {
-    final group = hskGroup;
-    if (group == null) return false;
-    return group.cats.any((c) => c.name == selected);
-  }
-}
-
 // ── Video Feed Tab ────────────────────────────────────────────────────────────
 
 class _VideoFeedTab extends ConsumerStatefulWidget {
@@ -170,30 +115,17 @@ class _VideoFeedTab extends ConsumerStatefulWidget {
 }
 
 class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
-  _TopMenu? _openMenu;
+  bool _panelOpen = false;
 
-  void _toggleMenu(_TopMenu menu) =>
-      setState(() => _openMenu = _openMenu == menu ? null : menu);
-
-  void _closeMenu() => setState(() => _openMenu = null);
-
-  void _selectCategory(String? value) {
-    ref.read(selectedCategoryProvider.notifier).state = value;
-    ref.invalidate(videoFeedProvider);
-    _closeMenu();
-  }
-
-  void _selectLength(String? value) {
-    ref.read(selectedLengthProvider.notifier).state = value;
-    ref.invalidate(videoFeedProvider);
-    _closeMenu();
-  }
+  void _togglePanel() => setState(() => _panelOpen = !_panelOpen);
+  void _closePanel()  => setState(() => _panelOpen = false);
 
   void _resetAll() {
-    ref.read(selectedCategoryProvider.notifier).state = null;
-    ref.read(selectedLengthProvider.notifier).state = null;
+    ref.read(selectedCategoryProvider.notifier).state  = null;
+    ref.read(selectedLengthProvider.notifier).state    = null;
+    ref.read(selectedHskFilterProvider.notifier).state = null;
     ref.invalidate(videoFeedProvider);
-    _closeMenu();
+    setState(() => _panelOpen = false);
   }
 
   @override
@@ -201,14 +133,13 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
     final feedAsync        = ref.watch(videoFeedProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedLength   = ref.watch(selectedLengthProvider);
+    final hskFilter        = ref.watch(selectedHskFilterProvider);
 
     return Column(
       children: [
-        _TopFilterBar(
-          openMenu: _openMenu,
-          selectedCategory: selectedCategory,
-          selectedLength: selectedLength,
-          onMenuTap: _toggleMenu,
+        _FilterHeader(
+          panelOpen: _panelOpen,
+          onToggle: _togglePanel,
           onReset: _resetAll,
         ),
         Expanded(
@@ -249,9 +180,11 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                                   AppColors.primary.withValues(alpha: 0.4)),
                           const SizedBox(height: 16),
                           Text(
-                            selectedCategory != null || selectedLength != null
-                                ? 'No videos match the selected filters.'
-                                : 'No videos available at your level.',
+                            selectedCategory != null ||
+                                    selectedLength != null ||
+                                    hskFilter != null
+                                ? 'Seçili filtrelere uygun video yok.'
+                                : 'Seviyenizde video bulunamadı.',
                             style: const TextStyle(
                                 color: AppColors.onSurfaceMuted),
                             textAlign: TextAlign.center,
@@ -260,31 +193,23 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                       ),
                     );
                   }
-                  if (selectedCategory == null && selectedLength == null) {
-                    return _GroupedFeed(segments: segments);
-                  }
-                  return _FlatFeed(segments: segments);
+                  final hasFilter = selectedCategory != null ||
+                      selectedLength != null ||
+                      hskFilter != null;
+                  return hasFilter
+                      ? _FlatFeed(segments: segments)
+                      : _GroupedFeed(segments: segments);
                 },
               ),
-              // Section sidebar — vertically centered within feed area
               const SectionSidebarOverlay(current: AppSection.video),
-              // Tap-outside dismisses the open dropdown
-              if (_openMenu != null)
+              if (_panelOpen)
                 Positioned.fill(
                   child: GestureDetector(
                     behavior: HitTestBehavior.translucent,
-                    onTap: _closeMenu,
+                    onTap: _closePanel,
                   ),
                 ),
-              // Dropdown panel (overlays top of feed)
-              if (_openMenu != null)
-                _DropdownPanel(
-                  menu: _openMenu!,
-                  selectedCategory: selectedCategory,
-                  selectedLength: selectedLength,
-                  onSelectCategory: _selectCategory,
-                  onSelectLength: _selectLength,
-                ),
+              if (_panelOpen) _MegaPanel(onClose: _closePanel),
             ],
           ),
         ),
@@ -293,299 +218,401 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
   }
 }
 
-// ── Top filter bar ────────────────────────────────────────────────────────────
+// ── Filter header — click-based, VoScreen-style ───────────────────────────────
 
-class _TopFilterBar extends StatelessWidget {
-  final _TopMenu? openMenu;
-  final String? selectedCategory;
-  final String? selectedLength;
-  final void Function(_TopMenu) onMenuTap;
+class _FilterHeader extends ConsumerWidget {
+  final bool panelOpen;
+  final VoidCallback onToggle;
   final VoidCallback onReset;
 
-  const _TopFilterBar({
-    required this.openMenu,
-    required this.selectedCategory,
-    required this.selectedLength,
-    required this.onMenuTap,
+  const _FilterHeader({
+    required this.panelOpen,
+    required this.onToggle,
     required this.onReset,
   });
 
-  bool get _hasFilters => selectedCategory != null || selectedLength != null;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hskFilter = ref.watch(selectedHskFilterProvider);
+    final category  = ref.watch(selectedCategoryProvider);
+    final length    = ref.watch(selectedLengthProvider);
+    final user      = ref.watch(currentUserProvider).valueOrNull;
+
+    final hasFilter =
+        hskFilter != null || category != null || length != null;
+
+    final label = hasFilter
+        ? [
+            if (hskFilter != null) 'HSK $hskFilter',
+            if (category != null)
+              QuizCategory.values
+                  .firstWhere(
+                    (c) => c.name == category,
+                    orElse: () => QuizCategory.general,
+                  )
+                  .displayName,
+            if (length != null) length,
+          ].join(' · ')
+        : 'Tümü';
+
     return Container(
       color: AppColors.surfaceVariant,
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        child: Row(
-          children: [
-            _MenuButton(
-              label: 'Tümü',
-              isActive: !_hasFilters,
-              isOpen: false,
-              showArrow: false,
-              onTap: onReset,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          // ── Filter toggle ────────────────────────────────────────────────
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: hasFilter
+                              ? AppColors.primary
+                              : AppColors.onSurface,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      Text(
+                        hasFilter ? 'Filtre aktif' : 'Filtrele',
+                        style: const TextStyle(
+                          color: AppColors.onSurfaceMuted,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(width: 6),
+                  Icon(
+                    panelOpen
+                        ? Icons.keyboard_arrow_up
+                        : Icons.keyboard_arrow_down,
+                    color: AppColors.onSurfaceMuted,
+                    size: 18,
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(width: 8),
-            for (final menu in _TopMenu.values) ...[
-              if (menu == _TopMenu.length)
-                _MenuButton(
-                  label: 'Uzunluk',
-                  isActive: selectedLength != null,
-                  isOpen: openMenu == _TopMenu.length,
-                  onTap: () => onMenuTap(_TopMenu.length),
-                )
-              else
-                _MenuButton(
-                  label: menu.label,
-                  isActive: menu.hasActiveCategory(selectedCategory),
-                  isOpen: openMenu == menu,
-                  color: AppColors.forHskLevel(menu.hskLevel!),
-                  onTap: () => onMenuTap(menu),
-                ),
-              const SizedBox(width: 8),
-            ],
+          ),
+          if (hasFilter) ...[
+            const SizedBox(width: 4),
+            InkWell(
+              onTap: onReset,
+              borderRadius: BorderRadius.circular(12),
+              child: const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(Icons.close,
+                    color: AppColors.onSurfaceMuted, size: 16),
+              ),
+            ),
           ],
-        ),
+          const Spacer(),
+          // ── Stats ────────────────────────────────────────────────────────
+          if (user != null) ...[
+            _StatChip(
+              icon: Icons.play_circle_outline,
+              value: '${user.stats.videosWatched}',
+              label: 'izlendi',
+            ),
+            const SizedBox(width: 16),
+            _StatChip(
+              icon: Icons.emoji_events_outlined,
+              value: _fmt(user.stats.totalScore),
+              label: 'puan',
+            ),
+            const SizedBox(width: 16),
+            _StatChip(
+              icon: Icons.local_fire_department,
+              value: '${user.stats.currentStreak}',
+              label: 'gün',
+            ),
+          ],
+        ],
       ),
     );
   }
+
+  static String _fmt(int n) {
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+    return '$n';
+  }
 }
 
-class _MenuButton extends StatelessWidget {
+class _StatChip extends StatelessWidget {
+  final IconData icon;
+  final String value;
   final String label;
-  final bool isActive;
-  final bool isOpen;
-  final bool showArrow;
-  final Color? color;
-  final VoidCallback onTap;
 
-  const _MenuButton({
+  const _StatChip({
+    required this.icon,
+    required this.value,
     required this.label,
-    required this.isActive,
-    required this.isOpen,
-    this.showArrow = true,
-    this.color,
-    required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.primary;
-    final highlighted = isActive || isOpen;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: highlighted ? c.withValues(alpha: 0.15) : Colors.transparent,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: highlighted ? c : Colors.transparent,
-          ),
-        ),
-        child: Row(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Icon(icon, size: 13, color: AppColors.onSurfaceMuted),
+            const SizedBox(width: 3),
             Text(
-              label,
-              style: TextStyle(
-                color: highlighted ? c : AppColors.onSurfaceMuted,
-                fontSize: 13,
-                fontWeight:
-                    highlighted ? FontWeight.w600 : FontWeight.normal,
+              value,
+              style: const TextStyle(
+                color: AppColors.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            if (showArrow) ...[
-              const SizedBox(width: 4),
-              Icon(
-                isOpen
-                    ? Icons.keyboard_arrow_up
-                    : Icons.keyboard_arrow_down,
-                size: 14,
-                color: highlighted ? c : AppColors.onSurfaceMuted,
-              ),
-            ],
           ],
         ),
-      ),
+        Text(
+          label,
+          style: const TextStyle(
+            color: AppColors.onSurfaceMuted,
+            fontSize: 10,
+          ),
+        ),
+      ],
     );
   }
 }
 
-// ── Dropdown panel ────────────────────────────────────────────────────────────
+// ── Mega panel — 5 columns, click-based ──────────────────────────────────────
 
-class _DropdownPanel extends StatelessWidget {
-  final _TopMenu menu;
-  final String? selectedCategory;
-  final String? selectedLength;
-  final void Function(String?) onSelectCategory;
-  final void Function(String?) onSelectLength;
-
-  const _DropdownPanel({
-    required this.menu,
-    required this.selectedCategory,
-    required this.selectedLength,
-    required this.onSelectCategory,
-    required this.onSelectLength,
-  });
+class _MegaPanel extends ConsumerWidget {
+  final VoidCallback onClose;
+  const _MegaPanel({required this.onClose});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final hskFilter = ref.watch(selectedHskFilterProvider);
+    final category  = ref.watch(selectedCategoryProvider);
+    final length    = ref.watch(selectedLengthProvider);
+
+    void setHsk(int? level) {
+      ref.read(selectedHskFilterProvider.notifier).state = level;
+      ref.invalidate(videoFeedProvider);
+      onClose();
+    }
+
+    void setCategory(String? cat) {
+      ref.read(selectedCategoryProvider.notifier).state = cat;
+      ref.invalidate(videoFeedProvider);
+      onClose();
+    }
+
+    void setLength(String? len) {
+      ref.read(selectedLengthProvider.notifier).state = len;
+      ref.invalidate(videoFeedProvider);
+      onClose();
+    }
+
     return Positioned(
       top: 0,
       left: 0,
       right: 0,
       child: Material(
-        elevation: 8,
+        elevation: 12,
         color: AppColors.surfaceVariant,
         borderRadius: const BorderRadius.only(
           bottomLeft: Radius.circular(12),
           bottomRight: Radius.circular(12),
         ),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
-          child: menu == _TopMenu.length
-              ? _buildLengthOptions()
-              : _buildCategoryOptions(),
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // ① Hayat
+                _PanelColumn(
+                  title: 'Hayat',
+                  children: [
+                    _PanelItem(
+                      label: 'Günlük Hayat',
+                      selected: hskFilter == null &&
+                          category == null &&
+                          length == null,
+                      onTap: onClose,
+                    ),
+                  ],
+                ),
+                const _ColumnDivider(),
+                // ② Adım
+                _PanelColumn(
+                  title: 'Adım',
+                  children: [
+                    for (final (lbl, lvl) in [
+                      ('Başlangıç',  1),
+                      ('Temel',      2),
+                      ('Orta',       3),
+                      ('Orta-İleri', 4),
+                      ('İleri',      5),
+                    ])
+                      _PanelItem(
+                        label: lbl,
+                        selected: hskFilter == lvl,
+                        onTap: () => setHsk(hskFilter == lvl ? null : lvl),
+                      ),
+                  ],
+                ),
+                const _ColumnDivider(),
+                // ③ HSK
+                _PanelColumn(
+                  title: 'HSK',
+                  children: [
+                    for (int i = 1; i <= 5; i++)
+                      _PanelItem(
+                        label: 'HSK $i',
+                        selected: hskFilter == i,
+                        color: AppColors.forHskLevel(i),
+                        onTap: () => setHsk(hskFilter == i ? null : i),
+                      ),
+                  ],
+                ),
+                const _ColumnDivider(),
+                // ④ Gramer Kuralları
+                _PanelColumn(
+                  title: 'Gramer Kuralları',
+                  children: [
+                    for (final cat in QuizCategory.values)
+                      _PanelItem(
+                        label: '${cat.emoji}  ${cat.displayName}',
+                        selected: category == cat.name,
+                        onTap: () => setCategory(
+                          category == cat.name ? null : cat.name,
+                        ),
+                      ),
+                  ],
+                ),
+                const _ColumnDivider(),
+                // ⑤ SinoRhythm
+                _PanelColumn(
+                  title: 'SinoRhythm',
+                  children: [
+                    for (final len in [
+                      '1-5字',
+                      '6-10字',
+                      '11-15字',
+                      '16-20字',
+                      '21字+',
+                    ])
+                      _PanelItem(
+                        label: len,
+                        selected: length == len,
+                        onTap: () => setLength(length == len ? null : len),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
-
-  Widget _buildCategoryOptions() {
-    final group    = menu.hskGroup!;
-    final hskColor = AppColors.forHskLevel(group.level);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          children: [
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-              decoration: BoxDecoration(
-                color: hskColor.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Text(
-                'HSK ${group.level}',
-                style: TextStyle(
-                    color: hskColor,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              _sublabel(group.level),
-              style: const TextStyle(
-                  color: AppColors.onSurfaceMuted, fontSize: 12),
-            ),
-          ],
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: group.cats.map((cat) {
-            final sel = selectedCategory == cat.name;
-            return _Chip(
-              emoji: cat.emoji,
-              label: cat.displayName,
-              isSelected: sel,
-              color: hskColor,
-              onTap: () => onSelectCategory(sel ? null : cat.name),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildLengthOptions() {
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
-      children: _allLengths.skip(1).map((len) {
-        final sel = selectedLength == len;
-        return _Chip(
-          emoji: '─',
-          label: len!,
-          isSelected: sel,
-          color: AppColors.primary,
-          onTap: () => onSelectLength(sel ? null : len),
-        );
-      }).toList(),
-    );
-  }
-
-  String _sublabel(int level) => switch (level) {
-        1 => 'Başlangıç',
-        2 => 'Temel',
-        3 => 'Orta',
-        4 => 'Orta-İleri',
-        5 => 'İleri',
-        _ => '',
-      };
 }
 
-class _Chip extends StatelessWidget {
-  final String emoji;
-  final String label;
-  final bool isSelected;
-  final Color color;
-  final VoidCallback onTap;
+class _PanelColumn extends StatelessWidget {
+  final String title;
+  final List<Widget> children;
+  const _PanelColumn({required this.title, required this.children});
 
-  const _Chip({
-    required this.emoji,
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 170,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            title.toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.onSurfaceMuted,
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 1,
+            ),
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+}
+
+class _ColumnDivider extends StatelessWidget {
+  const _ColumnDivider();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 1,
+      height: 240,
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      color: AppColors.surface,
+    );
+  }
+}
+
+class _PanelItem extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color? color;
+
+  const _PanelItem({
     required this.label,
-    required this.isSelected,
-    required this.color,
+    required this.selected,
     required this.onTap,
+    this.color,
   });
 
   @override
   Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.surface,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color: isSelected
-                ? color
-                : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
-            width: isSelected ? 1.5 : 1,
-          ),
-        ),
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         child: Row(
-          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(emoji, style: const TextStyle(fontSize: 14)),
-            const SizedBox(width: 6),
-            Text(
-              label,
-              style: TextStyle(
-                color: isSelected ? color : AppColors.onSurface,
-                fontSize: 13,
-                fontWeight:
-                    isSelected ? FontWeight.w600 : FontWeight.normal,
+            SizedBox(
+              width: 18,
+              child: selected
+                  ? Icon(Icons.check, size: 13, color: c)
+                  : null,
+            ),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: selected ? c : AppColors.onSurfaceMuted,
+                  fontSize: 14,
+                  fontWeight:
+                      selected ? FontWeight.w600 : FontWeight.normal,
+                ),
               ),
             ),
-            if (isSelected) ...[
-              const SizedBox(width: 6),
-              Icon(Icons.check, size: 13, color: color),
-            ],
           ],
         ),
       ),
@@ -885,4 +912,3 @@ class _VideoCard extends ConsumerWidget {
     );
   }
 }
-
