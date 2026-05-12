@@ -24,6 +24,36 @@ class HubScreen extends ConsumerWidget {
               tooltip: 'Admin',
               onPressed: () => context.push('/admin'),
             ),
+          GestureDetector(
+            onTap: () => context.push('/hsk-test'),
+            child: Container(
+              margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.forHskLevel(hskLevel).withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.forHskLevel(hskLevel).withValues(alpha: 0.4),
+                ),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'HSK $hskLevel',
+                    style: TextStyle(
+                      color: AppColors.forHskLevel(hskLevel),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(Icons.refresh, size: 13,
+                      color: AppColors.forHskLevel(hskLevel)),
+                ],
+              ),
+            ),
+          ),
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profil',
@@ -61,28 +91,6 @@ class HubScreen extends ConsumerWidget {
                     fontSize: 22,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 2,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: AppColors.forHskLevel(hskLevel)
-                        .withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: AppColors.forHskLevel(hskLevel)
-                          .withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(
-                    'HSK $hskLevel',
-                    style: TextStyle(
-                      color: AppColors.forHskLevel(hskLevel),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
-                    ),
                   ),
                 ),
               ],

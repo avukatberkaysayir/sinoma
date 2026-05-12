@@ -55,56 +55,44 @@
     });
   </script>
 
-  <!-- Auto-clear stale caches on new deployments -->
+  <!-- SW update enforcement: always check for new version on load, reload when new SW activates -->
   <script>
     (function () {
-      var APP_VERSION = '2026-05-v6';
-      var stored = '';
-      try { stored = localStorage.getItem('sinoma_version') || ''; } catch (_) {}
-
-      if (stored !== APP_VERSION) {
-        // Version mismatch → nuke everything, then reload once
-        (async function () {
-          if ('serviceWorker' in navigator) {
-            var regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(function (r) { return r.unregister(); }));
-          }
-          if ('caches' in window) {
-            var keys = await caches.keys();
-            await Promise.all(keys.map(function (k) { return caches.delete(k); }));
-          }
-          try { localStorage.setItem('sinoma_version', APP_VERSION); } catch (_) {}
-          window.location.reload(true);
-        })();
-        return; // stop executing the rest of index.html on this load
-      }
-
-      // Version matches — enforce skip-waiting for any queued SW
       if (!('serviceWorker' in navigator)) return;
 
+      // Track whether a SW was already controlling this page BEFORE this load.
+      // If hadController=false, this is a first-install — don't reload (content
+      // was already fetched fresh from the network).
+      var hadController = !!navigator.serviceWorker.controller;
       var refreshing = false;
+
       navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (refreshing) return;
+        if (refreshing || !hadController) return;
         refreshing = true;
         window.location.reload();
       });
 
       function activateWaiting(reg) {
         if (!reg.waiting) return;
-        reg.waiting.postMessage('skip-waiting');
+        // Flutter's SW listens for this message to call skipWaiting()
         reg.waiting.postMessage({ type: 'SKIP_WAITING' });
       }
 
       navigator.serviceWorker.ready.then(function (reg) {
         activateWaiting(reg);
+        // Check for a new SW version immediately on every page load.
+        // The browser always fetches flutter_service_worker.js from network
+        // (spec: SW scripts bypass the SW cache), so this detects new deploys
+        // within seconds — not after the 60-second interval.
+        reg.update().catch(function () { /* offline — silent fail */ });
+
         reg.addEventListener('updatefound', function () {
-          var nw = reg.installing;
-          if (!nw) return;
-          nw.addEventListener('statechange', function () {
-            if (nw.state === 'installed') activateWaiting(reg);
+          var sw = reg.installing;
+          if (!sw) return;
+          sw.addEventListener('statechange', function () {
+            if (sw.state === 'installed') activateWaiting(sw);
           });
         });
-        setInterval(function () { reg.update(); }, 60000);
       });
     })();
   </script>

@@ -117,12 +117,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          body: const Stack(
-            children: [
-              _VideoFeedTab(),
-              SectionSidebarOverlay(current: AppSection.video),
-            ],
-          ),
+          body: const _VideoFeedTab(),
         ),
       ],
     );
@@ -271,6 +266,8 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                   return _FlatFeed(segments: segments);
                 },
               ),
+              // Section sidebar — vertically centered within feed area
+              const SectionSidebarOverlay(current: AppSection.video),
               // Tap-outside dismisses the open dropdown
               if (_openMenu != null)
                 Positioned.fill(

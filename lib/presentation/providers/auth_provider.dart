@@ -18,3 +18,8 @@ final isSignedInProvider = Provider<bool>((ref) {
 final isAdminProvider = Provider<bool>((ref) {
   return ref.watch(authStateProvider).valueOrNull?.email == adminEmail;
 });
+
+final isGuestProvider = Provider<bool>((ref) {
+  final user = ref.watch(authStateProvider).valueOrNull;
+  return user?.isAnonymous ?? false;
+});

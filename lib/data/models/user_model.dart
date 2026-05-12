@@ -15,10 +15,16 @@ class UserModel {
   final bool isOnline;
   final String? fcmToken;
   final DateTime createdAt;
+  final String lastName;
+  final DateTime? birthday;
+  final String gender;
+  final String motherTongue;
+  final bool notificationsEnabled;
 
   const UserModel({
     required this.uid,
     required this.displayName,
+    this.lastName = '',
     required this.email,
     required this.photoUrl,
     required this.hskLevel,
@@ -31,6 +37,10 @@ class UserModel {
     this.isOnline = false,
     this.fcmToken,
     required this.createdAt,
+    this.birthday,
+    this.gender = '',
+    this.motherTongue = 'tr',
+    this.notificationsEnabled = true,
   });
 
   factory UserModel.fromFirestore(DocumentSnapshot doc) {
@@ -50,6 +60,11 @@ class UserModel {
       isOnline: data['isOnline'] as bool? ?? false,
       fcmToken: data['fcmToken'] as String?,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      lastName: data['lastName'] as String? ?? '',
+      birthday: (data['birthday'] as Timestamp?)?.toDate(),
+      gender: data['gender'] as String? ?? '',
+      motherTongue: data['motherTongue'] as String? ?? 'tr',
+      notificationsEnabled: data['notificationsEnabled'] as bool? ?? true,
     );
   }
 
@@ -68,12 +83,18 @@ class UserModel {
         'isOnline': isOnline,
         if (fcmToken != null) 'fcmToken': fcmToken!,
         'createdAt': Timestamp.fromDate(createdAt),
+        'lastName': lastName,
+        if (birthday != null) 'birthday': Timestamp.fromDate(birthday!),
+        'gender': gender,
+        'motherTongue': motherTongue,
+        'notificationsEnabled': notificationsEnabled,
       };
 
   static const _unset = Object();
 
   UserModel copyWith({
     String? displayName,
+    String? lastName,
     String? email,
     String? photoUrl,
     int? hskLevel,
@@ -86,9 +107,14 @@ class UserModel {
     bool? isOnline,
     Object? fcmToken = _unset,
     DateTime? createdAt,
+    Object? birthday = _unset,
+    String? gender,
+    String? motherTongue,
+    bool? notificationsEnabled,
   }) => UserModel(
         uid: uid,
         displayName: displayName ?? this.displayName,
+        lastName: lastName ?? this.lastName,
         email: email ?? this.email,
         photoUrl: photoUrl ?? this.photoUrl,
         hskLevel: hskLevel ?? this.hskLevel,
@@ -101,6 +127,10 @@ class UserModel {
         isOnline: isOnline ?? this.isOnline,
         fcmToken: identical(fcmToken, _unset) ? this.fcmToken : fcmToken as String?,
         createdAt: createdAt ?? this.createdAt,
+        birthday: identical(birthday, _unset) ? this.birthday : birthday as DateTime?,
+        gender: gender ?? this.gender,
+        motherTongue: motherTongue ?? this.motherTongue,
+        notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
       );
 
   bool get canUseAiDictionary => isPremium || aiCredits > 0;

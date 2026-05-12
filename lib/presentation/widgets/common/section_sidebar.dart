@@ -43,10 +43,8 @@ class _SectionSidebarOverlayState extends State<SectionSidebarOverlay> {
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      left: 0,
-      top: 0,
-      bottom: 0,
+    return Align(
+      alignment: Alignment.centerLeft,
       child: MouseRegion(
         onEnter: (_) => setState(() => _hovered = true),
         onExit: (_) => setState(() => _hovered = false),
@@ -63,7 +61,7 @@ class _SectionSidebarOverlayState extends State<SectionSidebarOverlay> {
             ),
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
             children: AppSection.values.map((section) {
               final isCurrent = section == widget.current;
               return _SidebarItem(

@@ -28,7 +28,7 @@ class PlacementQuestion {
   });
 }
 
-const _questions = <PlacementQuestion>[
+const kPlacementQuestions = <PlacementQuestion>[
   // HSK 1
   PlacementQuestion(text: '你好', choices: ['Hello', 'Goodbye', 'Thank you', 'Sorry'], correctIndex: 0, hskLevel: 1),
   PlacementQuestion(text: '水', choices: ['Fire', 'Earth', 'Water', 'Wind'], correctIndex: 2, hskLevel: 1),
@@ -56,6 +56,22 @@ const _questions = <PlacementQuestion>[
   PlacementQuestion(text: '出乎意料', choices: ['As planned', 'Disappointing', 'Intentional', 'Unexpected'], correctIndex: 3, hskLevel: 6),
   PlacementQuestion(text: '望而生畏', choices: ['Feel inspired', 'Feel attracted', 'Feel bored', 'Feel intimidated'], correctIndex: 3, hskLevel: 6),
 ];
+
+int computeHskLevel(List<int?> answers) {
+  var correct = 0;
+  for (var i = 0; i < kPlacementQuestions.length; i++) {
+    if (i < answers.length &&
+        answers[i] == kPlacementQuestions[i].correctIndex) {
+      correct++;
+    }
+  }
+  if (correct <= 3) return 1;
+  if (correct <= 6) return 2;
+  if (correct <= 9) return 3;
+  if (correct <= 13) return 4;
+  if (correct <= 17) return 5;
+  return 6;
+}
 
 // ---------------------------------------------------------------------------
 // State
@@ -91,10 +107,10 @@ class OnboardingState {
   double get testProgress =>
       totalQuestions == 0 ? 0 : questionIndex / totalQuestions;
 
-  List<PlacementQuestion> get questions => _questions;
+  List<PlacementQuestion> get questions => kPlacementQuestions;
 
   PlacementQuestion? get currentQuestion =>
-      questionIndex < totalQuestions ? _questions[questionIndex] : null;
+      questionIndex < totalQuestions ? kPlacementQuestions[questionIndex] : null;
 
   OnboardingState copyWith({
     OnboardingStep? step,
@@ -372,20 +388,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     state = state.copyWith(error: null);
   }
 
-  int _computeLevel(List<int?> answers) {
-    var correct = 0;
-    for (var i = 0; i < _questions.length; i++) {
-      if (i < answers.length && answers[i] == _questions[i].correctIndex) {
-        correct++;
-      }
-    }
-    if (correct <= 3) return 1;
-    if (correct <= 6) return 2;
-    if (correct <= 9) return 3;
-    if (correct <= 13) return 4;
-    if (correct <= 17) return 5;
-    return 6;
-  }
+  int _computeLevel(List<int?> answers) => computeHskLevel(answers);
 }
 
 // ---------------------------------------------------------------------------
