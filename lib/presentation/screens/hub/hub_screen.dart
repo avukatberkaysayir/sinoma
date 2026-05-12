@@ -107,19 +107,25 @@ class HubScreen extends ConsumerWidget {
 
 // ── Top Bar ───────────────────────────────────────────────────────────────────
 
-class _SinomaTopBar extends ConsumerWidget implements PreferredSizeWidget {
+class _SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
   const _SinomaTopBar();
 
   @override
   Size get preferredSize => const Size.fromHeight(60);
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider).valueOrNull;
-    final hskLevel = ref.watch(currentHskLevelProvider);
-    final isAdmin = ref.watch(isAdminProvider);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+  Widget build(BuildContext context) {
+    return Consumer(builder: (context, ref, _) {
+      final user = ref.watch(currentUserProvider).valueOrNull;
+      final hskLevel = ref.watch(currentHskLevelProvider);
+      final isAdmin = ref.watch(isAdminProvider);
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      return _buildBar(context, ref, user, hskLevel, isAdmin, isDark);
+    });
+  }
 
+  Widget _buildBar(BuildContext context, WidgetRef ref, user, int hskLevel,
+      bool isAdmin, bool isDark) {
     return Container(
       height: 60,
       decoration: BoxDecoration(

@@ -88,17 +88,29 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _readAndPreviewFile(html.File file) async {
-    final completer = Completer<ByteBuffer?>();
+    final completer = Completer<String?>();
     final reader   = html.FileReader();
-    reader.readAsArrayBuffer(file);
+    reader.readAsDataUrl(file);
     reader.onLoad.listen((_) {
-      final r = reader.result;
-      completer.complete(r is ByteBuffer ? r : null);
+      debugPrint('[Photo] FileReader onLoad');
+      completer.complete(reader.result as String?);
     });
-    reader.onError.listen((_) => completer.complete(null));
-    final buffer = await completer.future;
-    if (buffer == null || !mounted) return;
-    setState(() => _pendingPhotoBytes = buffer.asUint8List());
+    reader.onError.listen((_) {
+      debugPrint('[Photo] FileReader error: ${reader.error}');
+      completer.complete(null);
+    });
+    final dataUrl = await completer.future;
+    if (dataUrl == null || !mounted) {
+      debugPrint('[Photo] dataUrl null, aborting');
+      return;
+    }
+    try {
+      final bytes = base64Decode(dataUrl.split(',').last);
+      setState(() => _pendingPhotoBytes = bytes);
+      debugPrint('[Photo] loaded ${bytes.length} bytes');
+    } catch (e) {
+      debugPrint('[Photo] decode error: $e');
+    }
   }
 
   // Resize to 256×256 PNG, return as base64 data URL stored in Supabase.
