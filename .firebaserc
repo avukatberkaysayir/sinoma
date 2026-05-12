@@ -1,5 +1,15 @@
 {
   "projects": {
     "default": "sinoma"
-  }
+  },
+  "targets": {
+    "sinoma": {
+      "storage": {
+        "default": [
+          "sinoma-storage"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

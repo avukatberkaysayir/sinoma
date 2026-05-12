@@ -69,8 +69,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       final mime = ext.endsWith('.png') ? 'image/png' : 'image/jpeg';
       final fileName = ext.endsWith('.png') ? 'avatar.png' : 'avatar.jpg';
 
-      final storageRef =
-          FirebaseStorage.instance.ref('users/$uid/$fileName');
+      final storageRef = FirebaseStorage.instanceFor(
+        bucket: 'gs://sinoma-storage',
+      ).ref('users/$uid/$fileName');
       await storageRef.putData(
         bytes,
         SettableMetadata(contentType: mime),
