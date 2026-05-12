@@ -14,6 +14,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/social_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
@@ -137,8 +138,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (_pendingPhotoBytes != null) {
         final dataUrl = await _makeThumbnailDataUrl(_pendingPhotoBytes!);
         await ref.read(userRepositoryProvider).updatePhotoUrl(uid, dataUrl);
-        // Keep _pendingPhotoBytes so _buildAvatar shows Image.memory immediately;
-        // on next load Firestore streams the data: URL and we decode from base64.
+        ref.invalidate(currentUserProvider);
       }
 
       await ref.read(userRepositoryProvider).updateProfileDetails(
@@ -531,6 +531,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
+                      const Divider(color: AppColors.surface, height: 16),
+                      _LanguageRow(),
                       const Divider(color: AppColors.surface, height: 20),
                       _ActionRow(
                         icon: Icons.logout,
@@ -835,6 +837,42 @@ class _DropdownField<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.surface)),
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Language row ──────────────────────────────────────────────────────────────
+
+class _LanguageRow extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final current = ref.watch(localeProvider).languageCode;
+    return Row(
+      children: [
+        const Icon(Icons.language, size: 18, color: AppColors.onSurfaceMuted),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Text(
+            'Uygulama Dili',
+            style: TextStyle(color: AppColors.onSurface, fontSize: 14),
+          ),
+        ),
+        DropdownButton<String>(
+          value: current,
+          underline: const SizedBox(),
+          dropdownColor: AppColors.surfaceVariant,
+          style: const TextStyle(color: AppColors.onSurface, fontSize: 14),
+          items: const [
+            DropdownMenuItem(value: 'tr', child: Text('Türkçe 🇹🇷')),
+            DropdownMenuItem(value: 'en', child: Text('English 🇬🇧')),
+          ],
+          onChanged: (code) {
+            if (code != null) {
+              ref.read(localeProvider.notifier).setLocale(Locale(code));
+            }
+          },
         ),
       ],
     );

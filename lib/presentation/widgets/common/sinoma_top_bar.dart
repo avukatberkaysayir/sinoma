@@ -43,7 +43,13 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _LogoSection(hskLevel: hskLevel),
+          GestureDetector(
+            onTap: () => context.go('/hub'),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: _LogoSection(hskLevel: hskLevel),
+            ),
+          ),
           const Spacer(),
           if (user != null) ...[
             _StatChip(
