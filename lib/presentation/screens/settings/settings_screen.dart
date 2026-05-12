@@ -1,8 +1,8 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/social_provider.dart';
@@ -147,10 +147,8 @@ class SettingsScreen extends ConsumerWidget {
     if (confirmed == true) {
       try {
         await ref.read(socialRepositoryProvider).updateOnlineStatus(false);
-      } catch (_) {
-        // User may not have a Firestore document yet — sign out anyway.
-      }
-      await FirebaseAuth.instance.signOut();
+      } catch (_) {}
+      await Supabase.instance.client.auth.signOut();
     }
   }
 }
@@ -176,8 +174,10 @@ class _ProfileHeader extends StatelessWidget {
             radius: 36,
             backgroundColor: AppColors.surfaceVariant,
             backgroundImage:
-                photoUrl != null ? NetworkImage(photoUrl!) : null,
-            child: photoUrl == null
+                (photoUrl != null && !photoUrl!.startsWith('data:'))
+                    ? NetworkImage(photoUrl!)
+                    : null,
+            child: (photoUrl == null || photoUrl!.startsWith('data:'))
                 ? Text(
                     displayName.isNotEmpty
                         ? displayName[0].toUpperCase()

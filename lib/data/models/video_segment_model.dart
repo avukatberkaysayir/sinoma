@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum VideoSourceType { youtube, selfHosted }
 
 enum QuizCategory {
@@ -101,24 +99,31 @@ class VideoSegmentModel {
     required this.createdAt,
   });
 
-  factory VideoSegmentModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return VideoSegmentModel._fromMap(doc.id, data,
-        createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now());
+  factory VideoSegmentModel.fromMap(Map<String, dynamic> data) {
+    final sourceStr = data['source_type'] as String? ?? 'youtube';
+    return VideoSegmentModel(
+      videoId: data['id'] as String? ?? '',
+      sourceType: sourceStr == 'self_hosted'
+          ? VideoSourceType.selfHosted
+          : VideoSourceType.youtube,
+      youtubeId: data['youtube_id'] as String?,
+      videoUrl: data['video_url'] as String?,
+      startTime: (data['start_time'] as num?)?.toDouble() ?? 0,
+      endTime: (data['end_time'] as num?)?.toDouble() ?? 0,
+      hskLevel: (data['hsk_level'] as num?)?.toInt() ?? 1,
+      transcription: data['transcription'] as String? ?? '',
+      pinyin: data['pinyin'] as String? ?? '',
+      targetWords: List<String>.from(data['target_words'] ?? []),
+      quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
+      quizCategory: QuizCategory.fromString(data['quiz_category'] as String? ?? 'general'),
+      isActive: data['is_active'] as bool? ?? true,
+      createdAt: data['created_at'] != null
+          ? DateTime.parse(data['created_at'] as String)
+          : DateTime.now(),
+    );
   }
 
   factory VideoSegmentModel.fromCache(String id, Map<String, dynamic> data) {
-    return VideoSegmentModel._fromMap(id, data,
-        createdAt: data['createdAt'] is int
-            ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'] as int)
-            : DateTime.now());
-  }
-
-  factory VideoSegmentModel._fromMap(
-    String id,
-    Map<String, dynamic> data, {
-    required DateTime createdAt,
-  }) {
     final sourceStr = data['sourceType'] as String? ?? 'youtube';
     return VideoSegmentModel(
       videoId: id,
@@ -134,33 +139,33 @@ class VideoSegmentModel {
       pinyin: data['pinyin'] as String? ?? '',
       targetWords: List<String>.from(data['targetWords'] ?? []),
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
-      quizCategory: QuizCategory.fromString(
-          data['quizCategory'] as String? ?? 'general'),
+      quizCategory: QuizCategory.fromString(data['quizCategory'] as String? ?? 'general'),
       isActive: data['isActive'] as bool? ?? true,
-      createdAt: createdAt,
+      createdAt: data['createdAt'] is int
+          ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'] as int)
+          : DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toFirestore() => {
-        'sourceType':
-            sourceType == VideoSourceType.youtube ? 'youtube' : 'self_hosted',
-        'youtubeId': youtubeId,
-        'videoUrl': videoUrl,
-        'startTime': startTime,
-        'endTime': endTime,
-        'hskLevel': hskLevel,
+  Map<String, dynamic> toMap() => {
+        'id': videoId,
+        'source_type': sourceType == VideoSourceType.youtube ? 'youtube' : 'self_hosted',
+        'youtube_id': youtubeId,
+        'video_url': videoUrl,
+        'start_time': startTime,
+        'end_time': endTime,
+        'hsk_level': hskLevel,
         'transcription': transcription,
         'pinyin': pinyin,
-        'targetWords': targetWords,
+        'target_words': targetWords,
         'quiz': quiz.toMap(),
-        'quizCategory': quizCategory.name,
-        'isActive': isActive,
-        'createdAt': Timestamp.fromDate(createdAt),
+        'quiz_category': quizCategory.name,
+        'is_active': isActive,
+        'created_at': createdAt.toIso8601String(),
       };
 
   Map<String, dynamic> toCacheMap() => {
-        'sourceType':
-            sourceType == VideoSourceType.youtube ? 'youtube' : 'self_hosted',
+        'sourceType': sourceType == VideoSourceType.youtube ? 'youtube' : 'self_hosted',
         'youtubeId': youtubeId,
         'videoUrl': videoUrl,
         'startTime': startTime,

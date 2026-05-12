@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class UserModel {
   final String uid;
   final String displayName;
@@ -13,7 +11,6 @@ class UserModel {
   final List<String> learnedWords;
   final UserStats stats;
   final bool isOnline;
-  final String? fcmToken;
   final DateTime createdAt;
   final String lastName;
   final DateTime? birthday;
@@ -35,7 +32,6 @@ class UserModel {
     required this.learnedWords,
     required this.stats,
     this.isOnline = false,
-    this.fcmToken,
     required this.createdAt,
     this.birthday,
     this.gender = '',
@@ -43,51 +39,50 @@ class UserModel {
     this.notificationsEnabled = true,
   });
 
-  factory UserModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return UserModel(
-      uid: doc.id,
-      displayName: data['displayName'] as String? ?? '',
-      email: data['email'] as String? ?? '',
-      photoUrl: data['photoUrl'] as String? ?? '',
-      hskLevel: (data['hskLevel'] as num?)?.toInt() ?? 1,
-      isPremium: data['isPremium'] as bool? ?? false,
-      aiCredits: (data['aiCredits'] as num?)?.toInt() ?? 0,
-      followers: List<String>.from(data['followers'] ?? []),
-      following: List<String>.from(data['following'] ?? []),
-      learnedWords: List<String>.from(data['learnedWords'] ?? []),
-      stats: UserStats.fromMap(data['stats'] as Map<String, dynamic>? ?? {}),
-      isOnline: data['isOnline'] as bool? ?? false,
-      fcmToken: data['fcmToken'] as String?,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      lastName: data['lastName'] as String? ?? '',
-      birthday: (data['birthday'] as Timestamp?)?.toDate(),
-      gender: data['gender'] as String? ?? '',
-      motherTongue: data['motherTongue'] as String? ?? 'tr',
-      notificationsEnabled: data['notificationsEnabled'] as bool? ?? true,
-    );
-  }
+  factory UserModel.fromMap(Map<String, dynamic> data) => UserModel(
+        uid: data['id'] as String? ?? '',
+        displayName: data['display_name'] as String? ?? '',
+        email: data['email'] as String? ?? '',
+        photoUrl: data['photo_url'] as String? ?? '',
+        hskLevel: (data['hsk_level'] as num?)?.toInt() ?? 1,
+        isPremium: data['is_premium'] as bool? ?? false,
+        aiCredits: (data['ai_credits'] as num?)?.toInt() ?? 0,
+        followers: List<String>.from(data['followers'] ?? []),
+        following: List<String>.from(data['following'] ?? []),
+        learnedWords: List<String>.from(data['learned_words'] ?? []),
+        stats: UserStats.fromMap(data['stats'] as Map<String, dynamic>? ?? {}),
+        isOnline: data['is_online'] as bool? ?? false,
+        createdAt: data['created_at'] != null
+            ? DateTime.parse(data['created_at'] as String)
+            : DateTime.now(),
+        lastName: data['last_name'] as String? ?? '',
+        birthday: data['birthday'] != null
+            ? DateTime.parse(data['birthday'] as String)
+            : null,
+        gender: data['gender'] as String? ?? '',
+        motherTongue: data['mother_tongue'] as String? ?? 'tr',
+        notificationsEnabled: data['notifications_enabled'] as bool? ?? true,
+      );
 
-  Map<String, dynamic> toFirestore() => {
-        'uid': uid,
-        'displayName': displayName,
+  Map<String, dynamic> toMap() => {
+        'id': uid,
+        'display_name': displayName,
         'email': email,
-        'photoUrl': photoUrl,
-        'hskLevel': hskLevel,
-        'isPremium': isPremium,
-        'aiCredits': aiCredits,
+        'photo_url': photoUrl,
+        'hsk_level': hskLevel,
+        'is_premium': isPremium,
+        'ai_credits': aiCredits,
         'followers': followers,
         'following': following,
-        'learnedWords': learnedWords,
+        'learned_words': learnedWords,
         'stats': stats.toMap(),
-        'isOnline': isOnline,
-        if (fcmToken != null) 'fcmToken': fcmToken!,
-        'createdAt': Timestamp.fromDate(createdAt),
-        'lastName': lastName,
-        if (birthday != null) 'birthday': Timestamp.fromDate(birthday!),
+        'is_online': isOnline,
+        'created_at': createdAt.toIso8601String(),
+        'last_name': lastName,
+        if (birthday != null) 'birthday': birthday!.toIso8601String(),
         'gender': gender,
-        'motherTongue': motherTongue,
-        'notificationsEnabled': notificationsEnabled,
+        'mother_tongue': motherTongue,
+        'notifications_enabled': notificationsEnabled,
       };
 
   static const _unset = Object();
@@ -105,7 +100,6 @@ class UserModel {
     List<String>? learnedWords,
     UserStats? stats,
     bool? isOnline,
-    Object? fcmToken = _unset,
     DateTime? createdAt,
     Object? birthday = _unset,
     String? gender,
@@ -125,7 +119,6 @@ class UserModel {
         learnedWords: learnedWords ?? this.learnedWords,
         stats: stats ?? this.stats,
         isOnline: isOnline ?? this.isOnline,
-        fcmToken: identical(fcmToken, _unset) ? this.fcmToken : fcmToken as String?,
         createdAt: createdAt ?? this.createdAt,
         birthday: identical(birthday, _unset) ? this.birthday : birthday as DateTime?,
         gender: gender ?? this.gender,

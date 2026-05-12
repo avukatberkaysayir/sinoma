@@ -1,13 +1,12 @@
 import 'dart:async';
 
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/constants/app_colors.dart';
-import 'data/services/notification_service.dart';
 import 'presentation/providers/auth_provider.dart' show adminEmail;
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/theme_provider.dart';
@@ -46,12 +45,13 @@ class _AuthRefreshStream extends ChangeNotifier {
 
 final _router = GoRouter(
   initialLocation: '/splash',
-  refreshListenable: _AuthRefreshStream(FirebaseAuth.instance.authStateChanges()),
+  refreshListenable: _AuthRefreshStream(
+    Supabase.instance.client.auth.onAuthStateChange,
+  ),
   redirect: (context, state) {
     final loc = state.matchedLocation;
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
 
-    // Admin-only guard
     if (loc.startsWith('/admin')) {
       if (user?.email != adminEmail) return '/home';
     }
@@ -84,10 +84,20 @@ final _router = GoRouter(
     GoRoute(path: '/settings',      builder: (_, __) => const SettingsScreen()),
     GoRoute(path: '/legal/terms',   builder: (_, __) => const TermsScreen()),
     GoRoute(path: '/legal/privacy', builder: (_, __) => const PrivacyPolicyScreen()),
-    GoRoute(path: '/profile',        builder: (_, __) => const ProfileScreen()),
-    GoRoute(path: '/hsk-test',       builder: (_, __) => const HskRetestScreen()),
-    GoRoute(path: '/admin',         builder: (_, __) => const AdminScreen()),
-    GoRoute(path: '/admin/add-video', builder: (_, __) => const AddVideoScreen()),
+    GoRoute(
+      path: '/profile/:uid',
+      builder: (_, state) => ProfileScreen(uid: state.pathParameters['uid']!),
+    ),
+    GoRoute(
+      path: '/profile',
+      redirect: (_, __) {
+        final uid = Supabase.instance.client.auth.currentUser?.id;
+        return uid != null ? '/profile/$uid' : '/onboarding';
+      },
+    ),
+    GoRoute(path: '/hsk-test',         builder: (_, __) => const HskRetestScreen()),
+    GoRoute(path: '/admin',            builder: (_, __) => const AdminScreen()),
+    GoRoute(path: '/admin/add-video',  builder: (_, __) => const AddVideoScreen()),
   ],
 );
 
@@ -96,7 +106,6 @@ class SinomaApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    NotificationService.setNavigationCallback(_router.go);
     final locale    = ref.watch(localeProvider);
     final themeMode = ref.watch(themeModeProvider);
 

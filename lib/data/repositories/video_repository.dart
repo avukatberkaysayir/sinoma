@@ -1,28 +1,27 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/video_segment_model.dart';
 import '../services/cache_service.dart';
 
 class VideoRepository {
-  final FirebaseFirestore _firestore;
   final CacheService _cache;
 
-  VideoRepository({FirebaseFirestore? firestore, required CacheService cache})
-      : _firestore = firestore ?? FirebaseFirestore.instance,
-        _cache = cache;
+  VideoRepository({required CacheService cache}) : _cache = cache;
+
+  SupabaseClient get _db => Supabase.instance.client;
 
   Future<List<VideoSegmentModel>> loadSegmentsForLevel(int hskLevel) async {
     try {
-      final snap = await _firestore
-          .collection('videos')
-          .where('hskLevel', isLessThanOrEqualTo: hskLevel + 1)
-          .where('isActive', isEqualTo: true)
-          .orderBy('hskLevel')
-          .orderBy('createdAt', descending: true)
-          .limit(20)
-          .get();
+      final data = await _db
+          .from('videos')
+          .select()
+          .lte('hsk_level', hskLevel + 1)
+          .eq('is_active', true)
+          .order('hsk_level')
+          .order('created_at', ascending: false)
+          .limit(20);
 
-      final segments = snap.docs.map(VideoSegmentModel.fromFirestore).toList();
+      final segments = data.map(VideoSegmentModel.fromMap).toList();
       await _cache.cacheVideoFeed(hskLevel, segments);
       return segments;
     } catch (e) {
@@ -33,9 +32,13 @@ class VideoRepository {
 
   Future<VideoSegmentModel?> loadSegment(String videoId) async {
     try {
-      final doc = await _firestore.collection('videos').doc(videoId).get();
-      if (!doc.exists) return null;
-      final segment = VideoSegmentModel.fromFirestore(doc);
+      final data = await _db
+          .from('videos')
+          .select()
+          .eq('id', videoId)
+          .maybeSingle();
+      if (data == null) return null;
+      final segment = VideoSegmentModel.fromMap(data);
       await _cache.cacheVideoSegment(segment);
       return segment;
     } catch (_) {
@@ -48,17 +51,17 @@ class VideoRepository {
     String quizCategory,
   ) async {
     try {
-      final snap = await _firestore
-          .collection('videos')
-          .where('hskLevel', isLessThanOrEqualTo: hskLevel + 1)
-          .where('isActive', isEqualTo: true)
-          .where('quizCategory', isEqualTo: quizCategory)
-          .orderBy('hskLevel')
-          .orderBy('createdAt', descending: true)
-          .limit(20)
-          .get();
+      final data = await _db
+          .from('videos')
+          .select()
+          .lte('hsk_level', hskLevel + 1)
+          .eq('is_active', true)
+          .eq('quiz_category', quizCategory)
+          .order('hsk_level')
+          .order('created_at', ascending: false)
+          .limit(20);
 
-      return snap.docs.map(VideoSegmentModel.fromFirestore).toList();
+      return data.map(VideoSegmentModel.fromMap).toList();
     } catch (_) {
       final all = _cache.loadCachedVideoFeed(hskLevel) ?? [];
       return all.where((v) => v.quizCategory.name == quizCategory).toList();
@@ -68,15 +71,14 @@ class VideoRepository {
   Future<List<VideoSegmentModel>> loadSegmentsForGame(int hskLevel,
       {int limit = 10}) async {
     try {
-      final snap = await _firestore
-          .collection('videos')
-          .where('hskLevel', isEqualTo: hskLevel)
-          .where('isActive', isEqualTo: true)
-          .limit(limit)
-          .get();
+      final data = await _db
+          .from('videos')
+          .select()
+          .eq('hsk_level', hskLevel)
+          .eq('is_active', true)
+          .limit(limit);
 
-      final segments =
-          snap.docs.map(VideoSegmentModel.fromFirestore).toList()..shuffle();
+      final segments = data.map(VideoSegmentModel.fromMap).toList()..shuffle();
       return segments;
     } catch (_) {
       final cached = _cache.loadCachedVideoFeed(hskLevel) ?? [];

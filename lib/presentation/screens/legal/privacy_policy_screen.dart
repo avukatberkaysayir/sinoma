@@ -39,8 +39,8 @@ class _PolicyContent extends StatelessWidget {
         _buildBullets([
           'Account data: display name, email address, profile photo (from Google Sign-In or provided by you)',
           'Learning data: HSK level, words learned, videos watched, quiz answers',
-          'Usage analytics: screen views, feature interactions, session duration (Firebase Analytics)',
-          'Device data: FCM push token, device type (for notifications)',
+          'Usage analytics: screen views, feature interactions, session duration (Vercel Analytics)',
+          'Device data: device type and browser info',
           'Purchase data: subscription status (verified server-side; we do not store payment card details)',
         ]),
         _buildSection('2. How We Use Your Information', null),
@@ -48,8 +48,8 @@ class _PolicyContent extends StatelessWidget {
           'To provide and personalise your learning experience',
           'To track your progress and award achievements',
           'To send streak reminders and game challenge notifications (opt-out available)',
-          'To measure and improve app performance via Firebase Analytics and Crashlytics',
-          'To display relevant advertisements to free users (via Google AdMob)',
+          'To measure and improve app performance via Vercel Analytics',
+          'To display relevant advertisements to free users (web-based ads)',
           'To verify premium subscriptions and prevent fraud',
         ]),
         _buildSection('3. Data Sharing', null),
@@ -58,10 +58,9 @@ class _PolicyContent extends StatelessWidget {
           'of service providers under strict data processing agreements:',
         ),
         _buildBullets([
-          'Google Firebase (Firestore, Auth, Storage, Analytics, Crashlytics, FCM, Remote Config)',
-          'Google AdMob (advertising, free users only)',
+          'Supabase (database, authentication, realtime)',
+          'Vercel (hosting and analytics)',
           'Google Gemini API (AI explanations — only the word and sentence you tap are sent)',
-          'Google Play (subscription management)',
         ]),
         _buildSection('4. Your Rights (GDPR)', null),
         _buildBody(
@@ -83,15 +82,12 @@ class _PolicyContent extends StatelessWidget {
         _buildBody(
           'We retain your account data for as long as your account is active. '
           'Deleted accounts are purged within 30 days. '
-          'Firebase Analytics data is retained for 14 months per Google\'s default policy. '
-          'Crashlytics data is retained for 90 days.',
+          'Analytics data is retained for 12 months.',
         ),
         _buildSection('6. Advertising', null),
         _buildBody(
-          'Free users see ads served by Google AdMob. AdMob may use device identifiers '
-          'to serve personalised ads based on your interests. '
-          'Premium subscribers see no ads. '
-          'You can opt out of personalised ads at any time in Settings → Privacy → Ad Preferences.',
+          'A web-based subscription model is used for premium features. '
+          'Premium subscribers have access to all features without restrictions.',
         ),
         _buildSection('7. Children\'s Privacy', null),
         _buildBody(
@@ -103,8 +99,8 @@ class _PolicyContent extends StatelessWidget {
         _buildSection('8. Security', null),
         _buildBody(
           'All data is transmitted over HTTPS/TLS. '
-          'Firebase Security Rules ensure each user can only read and write their own data. '
-          'AI credits and subscription status are modified exclusively by server-side Cloud Functions '
+          'Supabase Row Level Security (RLS) ensures each user can only read and write their own data. '
+          'AI credits are modified exclusively by server-side PostgreSQL functions '
           'to prevent client-side manipulation.',
         ),
         _buildSection('9. Changes to This Policy', null),

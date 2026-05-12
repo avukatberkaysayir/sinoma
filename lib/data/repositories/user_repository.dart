@@ -1,63 +1,55 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/user_model.dart';
 
 class UserRepository {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
-
-  UserRepository({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
+  SupabaseClient get _db => Supabase.instance.client;
 
   Stream<UserModel?> watchCurrentUser() {
-    final uid = _auth.currentUser?.uid;
+    final uid = _db.auth.currentUser?.id;
     if (uid == null) return Stream.value(null);
-    return _firestore
-        .collection('users')
-        .doc(uid)
-        .snapshots()
-        .map((snap) => snap.exists ? UserModel.fromFirestore(snap) : null);
+    return _db
+        .from('users')
+        .stream(primaryKey: ['id'])
+        .eq('id', uid)
+        .map((rows) => rows.isEmpty ? null : UserModel.fromMap(rows.first));
   }
 
   Future<UserModel?> loadUser(String uid) async {
-    final doc = await _firestore.collection('users').doc(uid).get();
-    if (!doc.exists) return null;
-    return UserModel.fromFirestore(doc);
+    final data =
+        await _db.from('users').select().eq('id', uid).maybeSingle();
+    if (data == null) return null;
+    return UserModel.fromMap(data);
   }
 
   Future<void> createUser(UserModel user) async {
-    await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .set(user.toFirestore());
+    await _db.from('users').upsert(user.toMap());
   }
 
   Future<void> updateUserStats(String uid, UserStats stats) async {
-    await _firestore.collection('users').doc(uid).update({
-      'stats': stats.toMap(),
-    });
+    await _db.from('users').update({'stats': stats.toMap()}).eq('id', uid);
   }
 
   Future<void> markWordLearned(String uid, String wordId) async {
-    await _firestore.collection('users').doc(uid).update({
-      'learnedWords': FieldValue.arrayUnion([wordId]),
-    });
+    final data = await _db
+        .from('users')
+        .select('learned_words')
+        .eq('id', uid)
+        .single();
+    final words = List<String>.from(data['learned_words'] ?? []);
+    if (!words.contains(wordId)) {
+      words.add(wordId);
+      await _db.from('users').update({'learned_words': words}).eq('id', uid);
+    }
   }
 
   Future<void> updateHskLevel(String uid, int newLevel) async {
-    await _firestore.collection('users').doc(uid).update({'hskLevel': newLevel});
+    await _db.from('users').update({'hsk_level': newLevel}).eq('id', uid);
   }
 
   Future<void> updateDisplayName(String uid, String newName) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .update({'displayName': newName});
-    await _auth.currentUser?.updateDisplayName(newName);
+    await _db.from('users').update({'display_name': newName}).eq('id', uid);
+    await _db.auth.updateUser(UserAttributes(data: {'display_name': newName}));
   }
 
   Future<void> updateProfileDetails({
@@ -69,41 +61,36 @@ class UserRepository {
     required String motherTongue,
     required bool notificationsEnabled,
   }) async {
-    await _firestore.collection('users').doc(uid).update({
-      'displayName': displayName,
-      'lastName': lastName,
-      if (birthday != null) 'birthday': Timestamp.fromDate(birthday),
+    await _db.from('users').update({
+      'display_name': displayName,
+      'last_name': lastName,
+      if (birthday != null) 'birthday': birthday.toIso8601String(),
       'gender': gender,
-      'motherTongue': motherTongue,
-      'notificationsEnabled': notificationsEnabled,
-    });
-    await _auth.currentUser?.updateDisplayName(displayName);
+      'mother_tongue': motherTongue,
+      'notifications_enabled': notificationsEnabled,
+    }).eq('id', uid);
+    await _db.auth.updateUser(UserAttributes(data: {'display_name': displayName}));
   }
 
   Future<void> changePassword({
     required String currentPassword,
     required String newPassword,
   }) async {
-    final user = _auth.currentUser;
-    if (user == null || user.email == null) throw Exception('Not authenticated');
-    final credential = EmailAuthProvider.credential(
-      email: user.email!,
+    final user = _db.auth.currentUser;
+    if (user?.email == null) throw Exception('Not authenticated');
+    await _db.auth.signInWithPassword(
+      email: user!.email!,
       password: currentPassword,
     );
-    await user.reauthenticateWithCredential(credential);
-    await user.updatePassword(newPassword);
+    await _db.auth.updateUser(UserAttributes(password: newPassword));
   }
 
   Future<void> updatePhotoUrl(String uid, String photoUrl) async {
-    await _firestore
-        .collection('users')
-        .doc(uid)
-        .update({'photoUrl': photoUrl});
-    await _auth.currentUser?.updatePhotoURL(photoUrl);
+    await _db.from('users').update({'photo_url': photoUrl}).eq('id', uid);
   }
 
   Future<void> deleteAccount(String uid) async {
-    await _firestore.collection('users').doc(uid).delete();
-    await _auth.currentUser?.delete();
+    await _db.from('users').delete().eq('id', uid);
+    await _db.auth.signOut();
   }
 }

@@ -1,33 +1,28 @@
-import 'package:cloud_functions/cloud_functions.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/errors/app_exception.dart';
 
 class CreditService {
-  final FirebaseFunctions _functions;
-
-  CreditService({FirebaseFunctions? functions})
-      : _functions = functions ?? FirebaseFunctions.instance;
+  SupabaseClient get _db => Supabase.instance.client;
 
   Future<int> spendOneCredit() async {
     try {
-      final result = await _functions
-          .httpsCallable('decrementAiCredits')
-          .call<Map<String, dynamic>>();
-      return (result.data['aiCredits'] as num).toInt();
-    } on FirebaseFunctionsException catch (e) {
-      if (e.code == 'resource-exhausted') throw const AiQuotaExceededException();
-      throw FirestoreException(e.code, e.message ?? 'Credit decrement failed.');
+      final result = await _db.rpc('decrement_ai_credits');
+      return (result as num).toInt();
+    } on PostgrestException catch (e) {
+      // P0001 = RAISE EXCEPTION from the stored procedure (quota exceeded)
+      if (e.code == 'P0001') throw const AiQuotaExceededException();
+      throw DatabaseException(e.code ?? 'unknown', e.message);
     }
   }
 
   Future<int> grantCreditsFromAd({int amount = 10}) async {
     try {
-      final result = await _functions
-          .httpsCallable('grantAiCredits')
-          .call<Map<String, dynamic>>({'amount': amount});
-      return (result.data['aiCredits'] as num).toInt();
-    } on FirebaseFunctionsException catch (e) {
-      throw FirestoreException(e.code, e.message ?? 'Credit grant failed.');
+      final result =
+          await _db.rpc('grant_ai_credits', params: {'p_amount': amount});
+      return (result as num).toInt();
+    } on PostgrestException catch (e) {
+      throw DatabaseException(e.code ?? 'unknown', e.message);
     }
   }
 }

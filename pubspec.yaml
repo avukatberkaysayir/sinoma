@@ -17,25 +17,8 @@ dependencies:
   # State Management
   flutter_riverpod: ^2.5.1
 
-  # Auth
-  google_sign_in: ^6.2.1
-
-  # Firebase
-  firebase_core: ^3.3.0
-  cloud_firestore: ^5.3.0
-  firebase_auth: ^5.2.0
-  firebase_storage: ^12.2.0
-  firebase_messaging: ^15.1.0
-  firebase_analytics: ^11.2.0
-  firebase_crashlytics: ^4.1.0
-  firebase_remote_config: ^5.1.0
-  cloud_functions: ^5.1.0
-
-  # Ads
-  google_mobile_ads: ^5.1.0
-
-  # In-App Purchases (subscriptions)
-  in_app_purchase: ^3.2.0
+  # Backend — Supabase (Auth + Database + Storage + Realtime)
+  supabase_flutter: ^2.5.0
 
   # Video
   youtube_player_iframe: ^4.0.3
@@ -47,8 +30,6 @@ dependencies:
 
   # Local Cache
   hive_flutter: ^1.1.0
-
-  # Data Models (manual implementation — no code generation needed)
 
   # Navigation
   go_router: ^14.2.7
@@ -80,4 +61,3 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/data/
-  # fonts:  # Add NotoSansSC font files to assets/fonts/ before uncommenting

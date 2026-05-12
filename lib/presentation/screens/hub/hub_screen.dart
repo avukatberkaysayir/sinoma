@@ -57,7 +57,10 @@ class HubScreen extends ConsumerWidget {
           IconButton(
             icon: const Icon(Icons.person_outline),
             tooltip: 'Profil',
-            onPressed: () => context.push('/profile'),
+            onPressed: () {
+              final uid = ref.read(currentUidProvider);
+              if (uid != null) context.push('/profile/$uid');
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),

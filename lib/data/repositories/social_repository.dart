@@ -1,148 +1,213 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+import 'dart:math';
+
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/game_request_model.dart';
 import '../models/post_model.dart';
 import '../models/user_model.dart';
 
 class SocialRepository {
-  final FirebaseFirestore _firestore;
-  final FirebaseAuth _auth;
+  SupabaseClient get _db => Supabase.instance.client;
 
-  SocialRepository({
-    FirebaseFirestore? firestore,
-    FirebaseAuth? auth,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _auth = auth ?? FirebaseAuth.instance;
-
-  String get _uid => _auth.currentUser?.uid ?? '';
+  String get _uid => _db.auth.currentUser?.id ?? '';
 
   // ── Feed ────────────────────────────────────────────────────────────────────
 
   Stream<List<PostModel>> watchFeed(List<String> followingIds) {
     if (followingIds.isEmpty) return Stream.value([]);
+
+    final controller = StreamController<List<PostModel>>.broadcast();
     final ids = followingIds.take(30).toList();
-    return _firestore
-        .collection('posts')
-        .where('authorId', whereIn: ids)
-        .orderBy('timestamp', descending: true)
-        .limit(30)
-        .snapshots()
-        .map((snap) => snap.docs.map(PostModel.fromFirestore).toList());
+
+    Future<void> load() async {
+      try {
+        final data = await _db
+            .from('posts')
+            .select()
+            .inFilter('author_id', ids)
+            .order('timestamp', ascending: false)
+            .limit(30);
+        if (!controller.isClosed) {
+          controller.add(data.map(PostModel.fromMap).toList());
+        }
+      } catch (e) {
+        if (!controller.isClosed) controller.addError(e);
+      }
+    }
+
+    load();
+
+    final channel = _db
+        .channel('posts-feed-${_uid.hashCode}')
+        .onPostgresChanges(
+          event: PostgresChangeEvent.all,
+          schema: 'public',
+          table: 'posts',
+          callback: (_) => load(),
+        )
+        .subscribe();
+
+    controller.onCancel = () {
+      channel.unsubscribe();
+      controller.close();
+    };
+
+    return controller.stream;
   }
 
-  String generatePostId() => _firestore.collection('posts').doc().id;
+  String generatePostId() {
+    final rand = Random.secure();
+    final bytes = List.generate(16, (_) => rand.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    final hex =
+        bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
+        '${hex.substring(12, 16)}-${hex.substring(16, 20)}-'
+        '${hex.substring(20)}';
+  }
 
   Future<void> createPost(PostModel post) async {
-    await _firestore.collection('posts').doc(post.postId).set(post.toFirestore());
+    await _db.from('posts').upsert(post.toMap());
   }
 
   Future<void> toggleLike(String postId) async {
     if (_uid.isEmpty) return;
-    final ref = _firestore.collection('posts').doc(postId);
-    final snap = await ref.get();
-    if (!snap.exists) return;
-    final likes = List<String>.from(snap.data()?['likes'] ?? []);
+    final data = await _db
+        .from('posts')
+        .select('likes')
+        .eq('id', postId)
+        .single();
+    final likes = List<String>.from(data['likes'] ?? []);
     if (likes.contains(_uid)) {
-      await ref.update({'likes': FieldValue.arrayRemove([_uid])});
+      likes.remove(_uid);
     } else {
-      await ref.update({'likes': FieldValue.arrayUnion([_uid])});
+      likes.add(_uid);
     }
+    await _db.from('posts').update({'likes': likes}).eq('id', postId);
   }
 
   // ── Follow / Unfollow ───────────────────────────────────────────────────────
 
   Future<void> followUser(String targetUid) async {
     if (_uid.isEmpty || _uid == targetUid) return;
-    final batch = _firestore.batch();
-    batch.update(_firestore.collection('users').doc(_uid), {
-      'following': FieldValue.arrayUnion([targetUid]),
-    });
-    batch.update(_firestore.collection('users').doc(targetUid), {
-      'followers': FieldValue.arrayUnion([_uid]),
-    });
-    await batch.commit();
+    final myData = await _db
+        .from('users')
+        .select('following')
+        .eq('id', _uid)
+        .single();
+    final myFollowing = List<String>.from(myData['following'] ?? []);
+    if (!myFollowing.contains(targetUid)) {
+      myFollowing.add(targetUid);
+      await _db.from('users').update({'following': myFollowing}).eq('id', _uid);
+    }
+    final theirData = await _db
+        .from('users')
+        .select('followers')
+        .eq('id', targetUid)
+        .single();
+    final theirFollowers = List<String>.from(theirData['followers'] ?? []);
+    if (!theirFollowers.contains(_uid)) {
+      theirFollowers.add(_uid);
+      await _db
+          .from('users')
+          .update({'followers': theirFollowers})
+          .eq('id', targetUid);
+    }
   }
 
   Future<void> unfollowUser(String targetUid) async {
     if (_uid.isEmpty) return;
-    final batch = _firestore.batch();
-    batch.update(_firestore.collection('users').doc(_uid), {
-      'following': FieldValue.arrayRemove([targetUid]),
-    });
-    batch.update(_firestore.collection('users').doc(targetUid), {
-      'followers': FieldValue.arrayRemove([_uid]),
-    });
-    await batch.commit();
+    final myData = await _db
+        .from('users')
+        .select('following')
+        .eq('id', _uid)
+        .single();
+    final myFollowing = List<String>.from(myData['following'] ?? []);
+    myFollowing.remove(targetUid);
+    await _db.from('users').update({'following': myFollowing}).eq('id', _uid);
+
+    final theirData = await _db
+        .from('users')
+        .select('followers')
+        .eq('id', targetUid)
+        .single();
+    final theirFollowers = List<String>.from(theirData['followers'] ?? []);
+    theirFollowers.remove(_uid);
+    await _db
+        .from('users')
+        .update({'followers': theirFollowers})
+        .eq('id', targetUid);
   }
 
   // ── User Search ─────────────────────────────────────────────────────────────
 
   Future<List<UserModel>> searchUsers(String query) async {
     if (query.trim().isEmpty) return [];
-    final q = query.trim();
-    // Firestore prefix query: displayName >= q AND displayName < q + ''
-    final snap = await _firestore
-        .collection('users')
-        .where('displayName', isGreaterThanOrEqualTo: q)
-        .where('displayName', isLessThan: '$q')
-        .limit(20)
-        .get();
-    return snap.docs
-        .map(UserModel.fromFirestore)
+    final data = await _db
+        .from('users')
+        .select()
+        .ilike('display_name', '${query.trim()}%')
+        .limit(20);
+    return data
+        .map(UserModel.fromMap)
         .where((u) => u.uid != _uid)
         .toList();
   }
 
   // ── Leaderboard ─────────────────────────────────────────────────────────────
 
-  Future<List<UserModel>> loadLeaderboard({int? hskLevel, int limit = 20}) async {
-    Query<Map<String, dynamic>> q = _firestore.collection('users');
-    if (hskLevel != null) q = q.where('hskLevel', isEqualTo: hskLevel);
-    final snap = await q
-        .orderBy('stats.totalScore', descending: true)
-        .limit(limit)
-        .get();
-    return snap.docs.map(UserModel.fromFirestore).toList();
+  Future<List<UserModel>> loadLeaderboard(
+      {int? hskLevel, int limit = 20}) async {
+    var query = _db.from('users').select();
+    if (hskLevel != null) query = query.eq('hsk_level', hskLevel);
+    final data = await query.limit(limit * 2);
+    final users = data.map(UserModel.fromMap).toList()
+      ..sort((a, b) => b.stats.totalScore.compareTo(a.stats.totalScore));
+    return users.take(limit).toList();
   }
 
   // ── Online Status ────────────────────────────────────────────────────────────
 
   Future<void> updateOnlineStatus(bool isOnline) async {
     if (_uid.isEmpty) return;
-    await _firestore.collection('users').doc(_uid).update({'isOnline': isOnline});
+    await _db.from('users').update({'is_online': isOnline}).eq('id', _uid);
   }
 
   // ── Game Requests ────────────────────────────────────────────────────────────
 
   Future<void> sendGameRequest(String toUid, int hskLevel) async {
     if (_uid.isEmpty || _uid == toUid) return;
-    final ref = _firestore.collection('gameRequests').doc();
     final request = GameRequestModel(
-      requestId: ref.id,
+      requestId: generatePostId(),
       fromUid: _uid,
       toUid: toUid,
       hskLevel: hskLevel,
       status: GameRequestStatus.pending,
       createdAt: DateTime.now(),
     );
-    await ref.set(request.toFirestore());
+    await _db.from('game_requests').upsert(request.toMap());
   }
 
   Future<void> respondToGameRequest(String requestId, bool accepted) async {
-    await _firestore.collection('gameRequests').doc(requestId).update({
-      'status': accepted ? GameRequestStatus.accepted.name : GameRequestStatus.declined.name,
-    });
+    await _db.from('game_requests').update({
+      'status': accepted
+          ? GameRequestStatus.accepted.name
+          : GameRequestStatus.declined.name,
+    }).eq('id', requestId);
   }
 
   Stream<List<GameRequestModel>> watchIncomingRequests() {
     if (_uid.isEmpty) return Stream.value([]);
-    return _firestore
-        .collection('gameRequests')
-        .where('toUid', isEqualTo: _uid)
-        .where('status', isEqualTo: GameRequestStatus.pending.name)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snap) => snap.docs.map(GameRequestModel.fromFirestore).toList());
+    return _db
+        .from('game_requests')
+        .stream(primaryKey: ['id'])
+        .eq('to_uid', _uid)
+        .map((rows) => rows
+            .where((r) => r['status'] == GameRequestStatus.pending.name)
+            .map(GameRequestModel.fromMap)
+            .toList()
+          ..sort((a, b) => b.createdAt.compareTo(a.createdAt)));
   }
 }

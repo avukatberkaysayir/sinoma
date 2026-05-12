@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum GameRequestStatus { pending, accepted, declined, expired }
 
 class GameRequestModel {
@@ -19,17 +17,17 @@ class GameRequestModel {
     required this.createdAt,
   });
 
-  factory GameRequestModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return GameRequestModel(
-      requestId: doc.id,
-      fromUid: data['fromUid'] as String? ?? '',
-      toUid: data['toUid'] as String? ?? '',
-      hskLevel: (data['hskLevel'] as num?)?.toInt() ?? 1,
-      status: _parseStatus(data['status'] as String?),
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
+  factory GameRequestModel.fromMap(Map<String, dynamic> data) =>
+      GameRequestModel(
+        requestId: data['id'] as String? ?? '',
+        fromUid: data['from_uid'] as String? ?? '',
+        toUid: data['to_uid'] as String? ?? '',
+        hskLevel: (data['hsk_level'] as num?)?.toInt() ?? 1,
+        status: _parseStatus(data['status'] as String?),
+        createdAt: data['created_at'] != null
+            ? DateTime.parse(data['created_at'] as String)
+            : DateTime.now(),
+      );
 
   static GameRequestStatus _parseStatus(String? value) => switch (value) {
         'accepted' => GameRequestStatus.accepted,
@@ -38,11 +36,12 @@ class GameRequestModel {
         _ => GameRequestStatus.pending,
       };
 
-  Map<String, dynamic> toFirestore() => {
-        'fromUid': fromUid,
-        'toUid': toUid,
-        'hskLevel': hskLevel,
+  Map<String, dynamic> toMap() => {
+        'id': requestId,
+        'from_uid': fromUid,
+        'to_uid': toUid,
+        'hsk_level': hskLevel,
         'status': status.name,
-        'createdAt': Timestamp.fromDate(createdAt),
+        'created_at': createdAt.toIso8601String(),
       };
 }

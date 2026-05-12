@@ -69,7 +69,7 @@ class SocialActionsNotifier extends StateNotifier<void> {
     PostType postType = PostType.text,
     Map<String, dynamic> metadata = const {},
   }) async {
-    final uid = _ref.read(authStateProvider).valueOrNull?.uid;
+    final uid = _ref.read(currentUidProvider);
     if (uid == null) return;
     final post = PostModel(
       postId: _repo.generatePostId(),

@@ -1,8 +1,6 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/user_model.dart';
 import '../../data/repositories/user_repository.dart';
@@ -143,11 +141,24 @@ class OnboardingState {
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
   OnboardingNotifier(this._userRepository, this._analytics)
-      : super(const OnboardingState(step: OnboardingStep.signIn));
+      : super(const OnboardingState(step: OnboardingStep.signIn)) {
+    _checkExistingSession();
+  }
 
   final UserRepository _userRepository;
   final AnalyticsService _analytics;
-  final _auth = FirebaseAuth.instance;
+
+  GoTrueClient get _auth => Supabase.instance.client.auth;
+
+  // If the user is already signed in (e.g. after OAuth redirect), skip directly
+  // to profile setup or mark complete if they already have a DB record.
+  Future<void> _checkExistingSession() async {
+    final user = _auth.currentUser;
+    if (user != null && !user.isAnonymous) {
+      state = state.copyWith(isLoading: true);
+      await _handlePostSignIn(user, '');
+    }
+  }
 
   void advanceToSignIn() {
     state = state.copyWith(step: OnboardingStep.signIn);
@@ -156,76 +167,56 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> signInWithGoogle() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      UserCredential result;
-      if (kIsWeb) {
-        result = await _auth.signInWithPopup(GoogleAuthProvider());
-      } else {
-        // GoogleSignIn instantiated lazily — crashes on web without a client ID
-        final googleSignIn = GoogleSignIn();
-        final googleUser = await googleSignIn.signIn();
-        if (googleUser == null) {
-          state = state.copyWith(isLoading: false);
-          return;
-        }
-        final googleAuth = await googleUser.authentication;
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
-        );
-        result = await _auth.signInWithCredential(credential);
-      }
-      await _analytics.logSignIn('google');
-      final name = result.user?.displayName ?? '';
-      await _handlePostSignIn(result.user!, name);
+      await Supabase.instance.client.auth.signInWithOAuth(
+        OAuthProvider.google,
+        // On web this performs a full-page redirect — state is lost.
+        // The splash screen handles post-redirect routing.
+      );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
   Future<void> signInWithDevAccount() async {
+    if (!kDebugMode) return;
     state = state.copyWith(isLoading: true, error: null);
-    const email = 'dev@mandarin.local';
+    const email = 'dev@sinoma.local';
     const password = 'dev-local-123';
     try {
-      UserCredential result;
+      AuthResponse result;
       try {
-        result = await _auth.signInWithEmailAndPassword(
+        result = await _auth.signInWithPassword(
             email: email, password: password);
-      } on FirebaseAuthException catch (e) {
-        if (e.code == 'user-not-found') {
-          result = await _auth.createUserWithEmailAndPassword(
-              email: email, password: password);
+      } on AuthException catch (e) {
+        if (e.message.toLowerCase().contains('invalid') ||
+            e.statusCode == '400') {
+          result = await _auth.signUp(email: email, password: password);
         } else {
           rethrow;
         }
       }
-      await _handlePostSignIn(result.user!, 'Dev User');
-    } on FirebaseAuthException catch (e) {
-      // In kDebugMode the emulator may not be running — silently reset so the
-      // UI shows the normal sign-in buttons instead of a scary error banner.
-      if (kDebugMode && e.code.contains('api-key')) {
-        state = state.copyWith(isLoading: false);
+      if (result.user != null) {
+        await _analytics.logSignIn('dev');
+        await _handlePostSignIn(result.user!, 'Dev User');
       } else {
-        state = state.copyWith(isLoading: false, error: e.toString());
+        state = state.copyWith(isLoading: false);
       }
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false);
     }
   }
 
   Future<void> registerWithEmail(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await _auth.createUserWithEmailAndPassword(
-          email: email.trim(), password: password);
-      await result.user?.sendEmailVerification();
+      await _auth.signUp(email: email.trim(), password: password);
       await _analytics.logSignIn('email_register');
       state = state.copyWith(
         isLoading: false,
         step: OnboardingStep.emailVerification,
         pendingVerificationEmail: email.trim(),
       );
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       state = state.copyWith(isLoading: false, error: _emailAuthError(e));
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -235,13 +226,13 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> signInWithEmail(String email, String password) async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final result = await _auth.signInWithEmailAndPassword(
+      final result = await _auth.signInWithPassword(
           email: email.trim(), password: password);
       await _analytics.logSignIn('email');
-      final name =
-          result.user?.displayName ?? email.trim().split('@').first;
+      final name = result.user?.userMetadata?['display_name'] as String? ??
+          email.trim().split('@').first;
       await _handlePostSignIn(result.user!, name);
-    } on FirebaseAuthException catch (e) {
+    } on AuthException catch (e) {
       state = state.copyWith(isLoading: false, error: _emailAuthError(e));
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
@@ -251,17 +242,16 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   Future<void> checkEmailVerified() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      await _auth.currentUser?.reload();
+      await _auth.refreshSession();
       final user = _auth.currentUser;
-      if (user?.emailVerified == true) {
-        final name = user?.displayName ??
+      if (user?.emailConfirmedAt != null) {
+        final name = user?.userMetadata?['display_name'] as String? ??
             (state.pendingVerificationEmail?.split('@').first ?? '');
         await _handlePostSignIn(user!, name);
       } else {
         state = state.copyWith(
           isLoading: false,
-          error:
-              'E-posta henüz doğrulanmadı. Gelen kutunuzu kontrol edin.',
+          error: 'E-posta henüz doğrulanmadı. Gelen kutunuzu kontrol edin.',
         );
       }
     } catch (e) {
@@ -271,23 +261,32 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
 
   Future<void> resendVerificationEmail() async {
     try {
-      await _auth.currentUser?.sendEmailVerification();
+      if (state.pendingVerificationEmail != null) {
+        await _auth.resend(
+          type: OtpType.signup,
+          email: state.pendingVerificationEmail!,
+        );
+      }
     } catch (_) {}
   }
 
-  String _emailAuthError(FirebaseAuthException e) => switch (e.code) {
-        'email-already-in-use' =>
-          'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.',
-        'invalid-email' => 'Geçersiz e-posta adresi.',
-        'weak-password' => 'Şifre en az 6 karakter olmalıdır.',
-        'user-not-found' =>
-          'Bu e-posta ile kayıtlı kullanıcı bulunamadı.',
-        'wrong-password' => 'Hatalı şifre.',
-        'invalid-credential' => 'E-posta veya şifre hatalı.',
-        'too-many-requests' =>
-          'Çok fazla deneme. Lütfen bir süre bekleyin.',
-        _ => e.message ?? e.code,
-      };
+  String _emailAuthError(AuthException e) {
+    final msg = e.message.toLowerCase();
+    if (msg.contains('already registered') || msg.contains('already exists')) {
+      return 'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.';
+    }
+    if (msg.contains('invalid email')) return 'Geçersiz e-posta adresi.';
+    if (msg.contains('password') && msg.contains('short')) {
+      return 'Şifre en az 6 karakter olmalıdır.';
+    }
+    if (msg.contains('invalid login') || msg.contains('wrong')) {
+      return 'E-posta veya şifre hatalı.';
+    }
+    if (msg.contains('too many')) {
+      return 'Çok fazla deneme. Lütfen bir süre bekleyin.';
+    }
+    return e.message;
+  }
 
   Future<void> signInAnonymously() async {
     state = state.copyWith(isLoading: true, error: null);
@@ -301,14 +300,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   Future<void> _handlePostSignIn(User user, String suggestedName) async {
-    final existing = await _userRepository.loadUser(user.uid);
+    final existing = await _userRepository.loadUser(user.id);
     if (existing != null) {
       state = state.copyWith(isLoading: false, isComplete: true);
     } else {
+      final name = user.userMetadata?['full_name'] as String? ??
+          user.userMetadata?['display_name'] as String? ??
+          suggestedName;
       state = state.copyWith(
         isLoading: false,
         step: OnboardingStep.profile,
-        displayName: user.displayName ?? suggestedName,
+        displayName: name,
       );
     }
   }
@@ -343,17 +345,16 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   Future<void> completeOnboarding() async {
-    final uid = _auth.currentUser?.uid;
-    if (uid == null) return;
+    final user = _auth.currentUser;
+    if (user == null) return;
 
     state = state.copyWith(isLoading: true, error: null);
     try {
-      final now = DateTime.now();
       final userDoc = UserModel(
-        uid: uid,
+        uid: user.id,
         displayName: state.displayName.trim(),
-        email: _auth.currentUser?.email ?? '',
-        photoUrl: _auth.currentUser?.photoURL ?? '',
+        email: user.email ?? '',
+        photoUrl: user.userMetadata?['avatar_url'] as String? ?? '',
         hskLevel: state.hskLevel ?? 1,
         isPremium: false,
         aiCredits: 5,
@@ -361,10 +362,10 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
         following: const [],
         learnedWords: const [],
         stats: const UserStats(),
-        createdAt: now,
+        createdAt: DateTime.now(),
       );
       await _userRepository.createUser(userDoc);
-      await _recordGdprConsent(uid);
+      await _recordGdprConsent(user.id);
       await _analytics.logOnboardingCompleted(state.hskLevel ?? 1);
       state = state.copyWith(isLoading: false, isComplete: true);
     } catch (e) {
@@ -373,15 +374,13 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   }
 
   Future<void> _recordGdprConsent(String uid) async {
-    // Record that the user accepted the Terms of Service / Privacy Policy
-    // during onboarding. Required for GDPR Art. 7 (demonstrable consent).
-    await FirebaseFirestore.instance.collection('gdprConsent').doc(uid).set({
+    await Supabase.instance.client.from('gdpr_consent').upsert({
       'uid': uid,
-      'consentGiven': true,
-      'consentTimestamp': Timestamp.now(),
-      'appVersion': '1.0.0',
-      'consentVersion': '2026-05',
-    }, SetOptions(merge: true));
+      'consent_given': true,
+      'consent_timestamp': DateTime.now().toIso8601String(),
+      'app_version': '1.0.0',
+      'consent_version': '2026-05',
+    });
   }
 
   void clearError() {

@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 enum PostType { achievement, score, challenge, text }
 
 class PostModel {
@@ -23,20 +21,18 @@ class PostModel {
     required this.timestamp,
   });
 
-  factory PostModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    return PostModel(
-      postId: doc.id,
-      authorId: data['authorId'] as String? ?? '',
-      content: data['content'] as String? ?? '',
-      attachmentUrl: data['attachmentUrl'] as String?,
-      likes: List<String>.from(data['likes'] ?? []),
-      postType: _parsePostType(data['postType'] as String?),
-      metadata: Map<String, dynamic>.from(data['metadata'] ?? {}),
-      timestamp:
-          (data['timestamp'] as Timestamp?)?.toDate() ?? DateTime.now(),
-    );
-  }
+  factory PostModel.fromMap(Map<String, dynamic> data) => PostModel(
+        postId: data['id'] as String? ?? '',
+        authorId: data['author_id'] as String? ?? '',
+        content: data['content'] as String? ?? '',
+        attachmentUrl: data['attachment_url'] as String?,
+        likes: List<String>.from(data['likes'] ?? []),
+        postType: _parsePostType(data['post_type'] as String?),
+        metadata: Map<String, dynamic>.from(data['metadata'] ?? {}),
+        timestamp: data['timestamp'] != null
+            ? DateTime.parse(data['timestamp'] as String)
+            : DateTime.now(),
+      );
 
   static PostType _parsePostType(String? value) => switch (value) {
         'achievement' => PostType.achievement,
@@ -45,14 +41,15 @@ class PostModel {
         _ => PostType.text,
       };
 
-  Map<String, dynamic> toFirestore() => {
-        'authorId': authorId,
+  Map<String, dynamic> toMap() => {
+        'id': postId,
+        'author_id': authorId,
         'content': content,
-        'attachmentUrl': attachmentUrl,
+        'attachment_url': attachmentUrl,
         'likes': likes,
-        'postType': postType.name,
+        'post_type': postType.name,
         'metadata': metadata,
-        'timestamp': Timestamp.fromDate(timestamp),
+        'timestamp': timestamp.toIso8601String(),
       };
 
   int get likeCount => likes.length;

@@ -1,12 +1,11 @@
 import 'dart:convert';
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AdminService {
-  final _db = FirebaseFirestore.instance;
+  SupabaseClient get _db => Supabase.instance.client;
 
-  // Local pipeline server — only reachable when running the Python pipeline locally.
   static const _pipelineBase = 'http://localhost:9302';
 
   // ── Pipeline server (local dev tool) ───────────────────────────────────────
@@ -82,30 +81,27 @@ class AdminService {
     return body;
   }
 
-  // ── Firestore CRUD (live project, Firestore SDK) ────────────────────────────
+  // ── Supabase CRUD ───────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> listVideos() async {
-    final snap = await _db
-        .collection('videos')
-        .orderBy('hskLevel')
-        .limit(200)
-        .get();
-    return snap.docs
-        .map((d) => {'id': d.id, ...d.data()})
-        .toList();
+    final data = await _db
+        .from('videos')
+        .select()
+        .order('hsk_level')
+        .limit(200);
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<void> setVideo(String docId, Map<String, dynamic> data) async {
-    await _db.collection('videos').doc(docId).set(data);
+    await _db.from('videos').upsert({'id': docId, ...data});
   }
 
-  Future<void> updateField(
-      String docId, String field, dynamic value) async {
-    await _db.collection('videos').doc(docId).update({field: value});
+  Future<void> updateField(String docId, String field, dynamic value) async {
+    await _db.from('videos').update({field: value}).eq('id', docId);
   }
 
   Future<void> deleteVideo(String docId) async {
-    await _db.collection('videos').doc(docId).delete();
+    await _db.from('videos').delete().eq('id', docId);
   }
 
   Future<int> deleteSeedVideos() async {
@@ -122,6 +118,6 @@ class AdminService {
 
   Future<void> patchVideoFields(
       String docId, Map<String, dynamic> fields) async {
-    await _db.collection('videos').doc(docId).update(fields);
+    await _db.from('videos').update(fields).eq('id', docId);
   }
 }

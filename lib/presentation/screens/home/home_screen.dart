@@ -27,7 +27,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref.read(adServiceProvider);
-      ref.read(fcmInitProvider);
     });
   }
 
@@ -78,7 +77,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               if (isGuest)
                 TextButton(
-                  onPressed: () => context.push('/profile'),
+                  onPressed: () {
+                    final uid = ref.read(currentUidProvider);
+                    if (uid != null) context.push('/profile/$uid');
+                  },
                   style: TextButton.styleFrom(
                     foregroundColor: AppColors.onSurfaceMuted,
                     padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -89,7 +91,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 IconButton(
                   icon: const Icon(Icons.person_outline),
                   tooltip: 'Profil',
-                  onPressed: () => context.push('/profile'),
+                  onPressed: () {
+                    final uid = ref.read(currentUidProvider);
+                    if (uid != null) context.push('/profile/$uid');
+                  },
                 ),
               IconButton(
                 icon: const Icon(Icons.settings_outlined),
@@ -533,10 +538,12 @@ class _PanelColumn extends StatelessWidget {
   final List<Widget> children;
   const _PanelColumn({required this.title, required this.children});
 
+  static const double _listHeight = 232.0;
+
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 170,
+      width: 160,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -550,8 +557,14 @@ class _PanelColumn extends StatelessWidget {
               letterSpacing: 1,
             ),
           ),
-          const SizedBox(height: 12),
-          ...children,
+          const SizedBox(height: 10),
+          SizedBox(
+            height: _listHeight,
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: children,
+            ),
+          ),
         ],
       ),
     );
@@ -561,12 +574,15 @@ class _PanelColumn extends StatelessWidget {
 class _ColumnDivider extends StatelessWidget {
   const _ColumnDivider();
 
+  // matches title line-height (~16) + spacing (10) + list (232)
+  static const double _height = 258.0;
+
   @override
   Widget build(BuildContext context) {
     return Container(
       width: 1,
-      height: 240,
-      margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: _height,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
       color: AppColors.surface,
     );
   }

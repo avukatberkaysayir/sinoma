@@ -1,7 +1,7 @@
 # Sinoma — Claude Project Guide
 
 ## Role
-You are the Lead Software Architect and Full-Stack Developer for Sinoma. You write all Flutter (mobile), Firebase (backend), and Python (data pipeline) code. Always use Active Voice in function/variable names. Write modular, clean, scalable code. Default to writing no comments unless the WHY is non-obvious.
+You are the Lead Software Architect and Full-Stack Developer for Sinoma. You write all Flutter Web (Dart), Firebase (backend), and Python (data pipeline) code. Always use Active Voice in function/variable names. Write modular, clean, scalable code. Default to writing no comments unless the WHY is non-obvious.
 
 ## Project Vision
 A Mandarin Chinese learning platform that fuses:
@@ -9,10 +9,10 @@ A Mandarin Chinese learning platform that fuses:
 - **AI contextual dictionary** (Gemini API explains words in video context)
 - **Gamification** (Mandarin Duel + Hanzi Build games)
 - **Social layer** (achievements, leaderboard, challenges)
-- **Hybrid monetization** (Rewarded Ads for free users + Premium subscription)
+- **Web monetization** (Premium subscription — mobile IAP removed, web payments coming)
 
 Target audience: Mandarin learners **outside mainland China** (expats, students, global learners).
-Platform: Google Play (Android-first), eventual iOS.
+Platform: **Web-only** (Flutter Web deployed on Vercel). No Android/iOS at this stage.
 
 ---
 
@@ -20,23 +20,22 @@ Platform: Google Play (Android-first), eventual iOS.
 
 | Layer | Technology | Reason |
 |---|---|---|
-| Mobile | Flutter (Dart) | Cross-platform, single codebase |
+| Frontend | Flutter Web (Dart) | Single-codebase web app |
+| Hosting | **Vercel** | Git-integrated, instant previews, no caching issues |
 | State Management | Riverpod | Less boilerplate than Bloc, good for this scale |
 | Database | Firebase Firestore | Real-time, scales well, offline support |
-| Auth | Firebase Auth | Google/Apple/Email sign-in |
-| File Storage | Firebase Storage (MVP) → Cloudflare R2 (scale) | R2 has no egress fees |
+| Auth | Firebase Auth | Google/Email sign-in |
+| File Storage | Firebase Storage | Profile photos stored as base64 in Firestore |
 | Push Notifications | Firebase Cloud Messaging (FCM) | |
 | AI Dictionary | Gemini 1.5 Flash API | Cost-effective, context-aware |
-| Ads | AdMob (google_mobile_ads) | |
 | Analytics | Firebase Analytics + Crashlytics | |
 | Feature Flags | Firebase Remote Config | A/B testing, ad frequency control |
 | Video (YouTube) | youtube_player_iframe | Official IFrame embed |
 | Video (self-hosted) | video_player + chewie | Full control, seek restriction possible |
 | Local Cache | Hive | Offline mode, dictionary cache |
-| Data Models | freezed + json_serializable | Immutable, boilerplate-free |
 | Navigation | go_router | Declarative, deep-link ready |
 | Python Pipeline | Python 3.11+ | Content mining, HSK analysis, Firestore upload |
-| CI/CD | GitHub Actions + Fastlane | Automated build + Play Store deploy |
+| CI/CD | GitHub Actions → Vercel CLI | Auto-deploy on every `git push` |
 
 ---
 
@@ -319,10 +318,25 @@ HSK word lists: Official HANBAN/Confucius Institute lists (public domain)
 ---
 
 ## Development Workflow
-1. Each step from the Master Plan is a separate Git branch: `feature/adim-01-schema`, `feature/adim-02-hsk-logic`, etc.
-2. Dart code: run `dart fix --apply` and `flutter analyze` before marking a step complete
-3. Python code: run `mypy` + `ruff` before marking a step complete
-4. Firestore rules: test with `firebase emulators:start` before deploying
+
+### Local dev
+- Start: `start_dev.bat` — launches Firebase emulators (auth+firestore) + Flutter web server on port 9300
+- Flutter dev: `flutter run -d web-server --web-port 9300 --web-hostname localhost`
+- **NEVER use `flutter build web` + Firebase hosting emulator for dev** — use `flutter run -d web-server` only
+
+### Deployment (fully automated)
+- `git push` → GitHub Actions → `flutter build web --release` → `vercel deploy --prod`
+- First-time setup: run `.\setup_production.ps1` locally, then add 3 secrets to GitHub
+- Preview URLs: every pull request gets an automatic Vercel preview deployment
+
+### Firebase backend (separate from hosting)
+- Deploy rules/functions when changed: `firebase deploy --only firestore,storage,functions --project=sinoma`
+- Test rules locally: `firebase emulators:start --only auth,firestore --project sinoma`
+
+### Code quality
+1. Each feature: separate Git branch (`feature/adim-01-schema`, etc.)
+2. Dart: `dart fix --apply` and `flutter analyze` before merging
+3. Python: `mypy` + `ruff` before merging
 
 ---
 

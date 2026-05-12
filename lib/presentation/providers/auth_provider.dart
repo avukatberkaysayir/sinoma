@@ -1,14 +1,15 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const adminEmail = 'berkaysayir@gmail.com';
 
-final authStateProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.authStateChanges();
+final authStateProvider = StreamProvider<Session?>((ref) {
+  return Supabase.instance.client.auth.onAuthStateChange
+      .map((event) => event.session);
 });
 
 final currentUidProvider = Provider<String?>((ref) {
-  return ref.watch(authStateProvider).valueOrNull?.uid;
+  return ref.watch(authStateProvider).valueOrNull?.user.id;
 });
 
 final isSignedInProvider = Provider<bool>((ref) {
@@ -16,10 +17,10 @@ final isSignedInProvider = Provider<bool>((ref) {
 });
 
 final isAdminProvider = Provider<bool>((ref) {
-  return ref.watch(authStateProvider).valueOrNull?.email == adminEmail;
+  return ref.watch(authStateProvider).valueOrNull?.user.email == adminEmail;
 });
 
 final isGuestProvider = Provider<bool>((ref) {
-  final user = ref.watch(authStateProvider).valueOrNull;
-  return user?.isAnonymous ?? false;
+  final session = ref.watch(authStateProvider).valueOrNull;
+  return session?.user.isAnonymous ?? false;
 });

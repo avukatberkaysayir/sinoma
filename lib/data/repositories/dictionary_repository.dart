@@ -1,21 +1,24 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/dictionary_model.dart';
 import '../services/cache_service.dart';
 
 class DictionaryRepository {
-  final FirebaseFirestore _firestore;
   final CacheService _cache;
 
-  DictionaryRepository({FirebaseFirestore? firestore, required CacheService cache})
-      : _firestore = firestore ?? FirebaseFirestore.instance,
-        _cache = cache;
+  DictionaryRepository({required CacheService cache}) : _cache = cache;
+
+  SupabaseClient get _db => Supabase.instance.client;
 
   Future<DictionaryModel?> loadWord(String wordId) async {
     try {
-      final doc = await _firestore.collection('dictionary').doc(wordId).get();
-      if (!doc.exists) return null;
-      final model = DictionaryModel.fromFirestore(doc);
+      final data = await _db
+          .from('dictionary')
+          .select()
+          .eq('id', wordId)
+          .maybeSingle();
+      if (data == null) return null;
+      final model = DictionaryModel.fromMap(data);
       await _cache.cacheWord(model);
       return model;
     } catch (_) {
@@ -39,20 +42,29 @@ class DictionaryRepository {
     String sentenceHash,
     AiContextCache cache,
   ) async {
-    await _firestore.collection('dictionary').doc(wordId).update({
-      'aiContextCache.$sentenceHash': cache.toFirestoreMap(),
-    });
+    final current = await _db
+        .from('dictionary')
+        .select('ai_context_cache')
+        .eq('id', wordId)
+        .maybeSingle();
+    if (current == null) return;
+    final cacheMap = Map<String, dynamic>.from(
+        current['ai_context_cache'] as Map<String, dynamic>? ?? {});
+    cacheMap[sentenceHash] = cache.toMap();
+    await _db
+        .from('dictionary')
+        .update({'ai_context_cache': cacheMap})
+        .eq('id', wordId);
   }
 
   Future<List<DictionaryModel>> searchWords(String query,
       {int limit = 20}) async {
-    final snap = await _firestore
-        .collection('dictionary')
-        .where('simplified', isGreaterThanOrEqualTo: query)
-        .where('simplified', isLessThan: '${query}z')
-        .limit(limit)
-        .get();
-    final results = snap.docs.map(DictionaryModel.fromFirestore).toList();
+    final data = await _db
+        .from('dictionary')
+        .select()
+        .ilike('simplified', '$query%')
+        .limit(limit);
+    final results = data.map(DictionaryModel.fromMap).toList();
     await _cache.cacheWords(results);
     return results;
   }
@@ -61,14 +73,14 @@ class DictionaryRepository {
     int hskLevel, {
     int limit = 20,
   }) async {
-    final snap = await _firestore
-        .collection('dictionary')
-        .where('hskLevel', isEqualTo: hskLevel)
-        .limit(limit * 3)
-        .get();
+    final data = await _db
+        .from('dictionary')
+        .select()
+        .eq('hsk_level', hskLevel)
+        .limit(limit * 5);
 
-    final words = snap.docs
-        .map(DictionaryModel.fromFirestore)
+    final words = data
+        .map(DictionaryModel.fromMap)
         .where((w) => w.simplified.length == 1 && w.radicals.isNotEmpty)
         .take(limit)
         .toList()

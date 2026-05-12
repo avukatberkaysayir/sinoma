@@ -1,5 +1,3 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class DictionaryModel {
   final String wordId;
   final String simplified;
@@ -23,16 +21,14 @@ class DictionaryModel {
     this.strokeCount = 0,
   });
 
-  factory DictionaryModel.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
-    final rawCache =
-        data['aiContextCache'] as Map<String, dynamic>? ?? {};
+  factory DictionaryModel.fromMap(Map<String, dynamic> data) {
+    final rawCache = data['ai_context_cache'] as Map<String, dynamic>? ?? {};
     return DictionaryModel(
-      wordId: doc.id,
+      wordId: data['id'] as String? ?? '',
       simplified: data['simplified'] as String? ?? '',
       traditional: data['traditional'] as String? ?? '',
       pinyin: data['pinyin'] as String? ?? '',
-      hskLevel: (data['hskLevel'] as num?)?.toInt() ?? 0,
+      hskLevel: (data['hsk_level'] as num?)?.toInt() ?? 0,
       definitions: WordDefinitions.fromMap(
           data['definitions'] as Map<String, dynamic>? ?? {}),
       aiContextCache: rawCache.map(
@@ -40,38 +36,37 @@ class DictionaryModel {
             MapEntry(key, AiContextCache.fromMap(value as Map<String, dynamic>)),
       ),
       radicals: List<String>.from(data['radicals'] ?? []),
-      strokeCount: (data['strokeCount'] as num?)?.toInt() ?? 0,
+      strokeCount: (data['stroke_count'] as num?)?.toInt() ?? 0,
     );
   }
 
-  factory DictionaryModel.fromCache(String id, Map<String, dynamic> data) {
-    return DictionaryModel(
-      wordId: id,
-      simplified: data['simplified'] as String? ?? '',
-      traditional: data['traditional'] as String? ?? '',
-      pinyin: data['pinyin'] as String? ?? '',
-      hskLevel: (data['hskLevel'] as num?)?.toInt() ?? 0,
-      definitions: WordDefinitions.fromMap(
-          data['definitions'] as Map<String, dynamic>? ?? {}),
-      aiContextCache: const {},
-      radicals: List<String>.from(data['radicals'] ?? []),
-      strokeCount: (data['strokeCount'] as num?)?.toInt() ?? 0,
-    );
-  }
+  factory DictionaryModel.fromCache(String id, Map<String, dynamic> data) =>
+      DictionaryModel(
+        wordId: id,
+        simplified: data['simplified'] as String? ?? '',
+        traditional: data['traditional'] as String? ?? '',
+        pinyin: data['pinyin'] as String? ?? '',
+        hskLevel: (data['hskLevel'] as num?)?.toInt() ?? 0,
+        definitions: WordDefinitions.fromMap(
+            data['definitions'] as Map<String, dynamic>? ?? {}),
+        aiContextCache: const {},
+        radicals: List<String>.from(data['radicals'] ?? []),
+        strokeCount: (data['strokeCount'] as num?)?.toInt() ?? 0,
+      );
 
-  Map<String, dynamic> toFirestore() => {
+  Map<String, dynamic> toMap() => {
+        'id': wordId,
         'simplified': simplified,
         'traditional': traditional,
         'pinyin': pinyin,
-        'hskLevel': hskLevel,
+        'hsk_level': hskLevel,
         'definitions': definitions.toMap(),
-        'aiContextCache':
-            aiContextCache.map((k, v) => MapEntry(k, v.toFirestoreMap())),
+        'ai_context_cache':
+            aiContextCache.map((k, v) => MapEntry(k, v.toMap())),
         'radicals': radicals,
-        'strokeCount': strokeCount,
+        'stroke_count': strokeCount,
       };
 
-  // aiContextCache omitted — not JSON-serializable and not needed offline.
   Map<String, dynamic> toCacheMap() => {
         'simplified': simplified,
         'traditional': traditional,
@@ -136,14 +131,14 @@ class AiContextCache {
   factory AiContextCache.fromMap(Map<String, dynamic> map) => AiContextCache(
         explanation: map['explanation'] as String? ?? '',
         grammarNote: map['grammarNote'] as String? ?? '',
-        cachedAt: map['cachedAt'] is Timestamp
-            ? (map['cachedAt'] as Timestamp).toDate()
+        cachedAt: map['cachedAt'] != null
+            ? DateTime.tryParse(map['cachedAt'] as String) ?? DateTime.now()
             : DateTime.now(),
       );
 
-  Map<String, dynamic> toFirestoreMap() => {
+  Map<String, dynamic> toMap() => {
         'explanation': explanation,
         'grammarNote': grammarNote,
-        'cachedAt': Timestamp.fromDate(cachedAt),
+        'cachedAt': cachedAt.toIso8601String(),
       };
 }

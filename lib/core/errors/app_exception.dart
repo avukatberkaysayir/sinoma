@@ -7,9 +7,9 @@ class NetworkException extends AppException {
   const NetworkException([super.message = 'No internet connection.']);
 }
 
-class FirestoreException extends AppException {
+class DatabaseException extends AppException {
   final String code;
-  const FirestoreException(this.code, super.message);
+  const DatabaseException(this.code, super.message);
 }
 
 class AiQuotaExceededException extends AppException {

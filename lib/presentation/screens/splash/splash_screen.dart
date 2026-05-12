@@ -1,7 +1,7 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
 
@@ -20,14 +20,12 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _route() async {
-    // Give Firebase Auth time to restore session from IndexedDB
+    // Give Supabase time to restore session from local storage
     await Future.delayed(const Duration(milliseconds: 400));
-
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
     final hasLocale = prefs.containsKey('app_locale');
-
     if (!mounted) return;
 
     if (!hasLocale) {
@@ -35,13 +33,26 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    final user = FirebaseAuth.instance.currentUser;
+    final user = Supabase.instance.client.auth.currentUser;
     if (user == null) {
       context.go('/onboarding');
       return;
     }
 
-    context.go('/hub');
+    // Check if the user has completed onboarding (has a DB profile)
+    final profile = await Supabase.instance.client
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (!mounted) return;
+
+    if (profile == null) {
+      context.go('/onboarding');
+    } else {
+      context.go('/hub');
+    }
   }
 
   @override
@@ -49,18 +60,13 @@ class _SplashScreenState extends State<SplashScreen> {
     return const Scaffold(
       backgroundColor: AppColors.surface,
       body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 48,
-              height: 48,
-              child: CircularProgressIndicator(
-                color: AppColors.primary,
-                strokeWidth: 3,
-              ),
-            ),
-          ],
+        child: SizedBox(
+          width: 48,
+          height: 48,
+          child: CircularProgressIndicator(
+            color: AppColors.primary,
+            strokeWidth: 3,
+          ),
         ),
       ),
     );

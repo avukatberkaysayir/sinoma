@@ -221,7 +221,7 @@ class _FeedTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final feed = ref.watch(feedProvider);
-    final uid = ref.watch(authStateProvider).valueOrNull?.uid ?? '';
+    final uid = ref.watch(authStateProvider).valueOrNull?.user.id ?? '';
 
     return feed.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -482,7 +482,7 @@ class _LeaderboardTabState extends ConsumerState<_LeaderboardTab> {
   @override
   Widget build(BuildContext context) {
     final board = ref.watch(leaderboardProvider(_selectedHsk));
-    final currentUid = ref.watch(authStateProvider).valueOrNull?.uid ?? '';
+    final currentUid = ref.watch(authStateProvider).valueOrNull?.user.id ?? '';
 
     return Column(
       children: [
