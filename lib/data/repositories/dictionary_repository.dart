@@ -58,13 +58,29 @@ class DictionaryRepository {
   }
 
   Future<List<DictionaryModel>> searchWords(String query,
-      {int limit = 20}) async {
+      {int limit = 50}) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+
     final data = await _db
         .from('dictionary')
         .select()
-        .ilike('simplified', '$query%')
+        .or('simplified.ilike.$q%,pinyin.ilike.$q%')
         .limit(limit);
     final results = data.map(DictionaryModel.fromMap).toList();
+
+    const posOrder = <String, int>{
+      'verb': 0, 'noun': 1, 'adjective': 2, 'adverb': 3,
+      'pronoun': 4, 'number': 5, 'classifier': 6, 'auxiliary': 7,
+      'prefix': 8, 'suffix': 9, 'conjunction': 10, 'preposition': 11,
+      'interjection': 12, 'expression': 13,
+    };
+    results.sort((a, b) {
+      final aPos = a.definitions.pos.split(',').first.trim().toLowerCase();
+      final bPos = b.definitions.pos.split(',').first.trim().toLowerCase();
+      return (posOrder[aPos] ?? 99).compareTo(posOrder[bPos] ?? 99);
+    });
+
     await _cache.cacheWords(results);
     return results;
   }

@@ -21,6 +21,7 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) {
+    GoRouterState.of(context); // subscribe to route changes → rebuilds when route changes
     return Consumer(builder: (context, ref, _) {
       final user    = ref.watch(currentUserProvider).valueOrNull;
       final hskLevel = ref.watch(currentHskLevelProvider);

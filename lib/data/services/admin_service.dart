@@ -1,7 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
+
+import '../../core/constants/hsk1_words.dart';
 
 class AdminService {
   SupabaseClient get _db => Supabase.instance.client;
@@ -119,5 +122,59 @@ class AdminService {
   Future<void> patchVideoFields(
       String docId, Map<String, dynamic> fields) async {
     await _db.from('videos').update(fields).eq('id', docId);
+  }
+
+  Future<Map<String, dynamic>> processMovieFileBytes(
+    Uint8List bytes, {
+    required String fileName,
+    int maxClips = 50,
+    bool active = false,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$_pipelineBase/process-movie-upload'),
+    );
+    request.files.add(http.MultipartFile.fromBytes(
+      'file',
+      bytes,
+      filename: fileName,
+    ));
+    request.fields['max_clips'] = '$maxClips';
+    request.fields['active'] = '$active';
+
+    final streamed = await request.send().timeout(const Duration(minutes: 35));
+    final response = await http.Response.fromStream(streamed);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    if (response.statusCode >= 300) {
+      throw Exception(body['error'] ?? 'Movie processing failed (${response.statusCode})');
+    }
+    return body;
+  }
+
+  /// Seeds all 300 HSK Level 1 words into the dictionary table.
+  /// Returns the number of words upserted.
+  Future<int> seedHsk1Dictionary() async {
+    const batchSize = 50;
+    var total = 0;
+    for (var i = 0; i < kHsk1Words.length; i += batchSize) {
+      final batch = kHsk1Words.sublist(
+        i,
+        (i + batchSize).clamp(0, kHsk1Words.length),
+      );
+      final rows = batch.map((w) => {
+        'id': w[0],
+        'simplified': w[0],
+        'traditional': w[0],
+        'pinyin': w[1],
+        'hsk_level': 1,
+        'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+        'ai_context_cache': <String, dynamic>{},
+        'radicals': <String>[],
+        'stroke_count': 0,
+      }).toList();
+      await _db.from('dictionary').upsert(rows);
+      total += rows.length;
+    }
+    return total;
   }
 }

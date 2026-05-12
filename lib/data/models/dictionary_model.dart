@@ -101,20 +101,23 @@ class WordDefinitions {
   final String tr;
   final String en;
   final String vi;
+  final String pos; // part of speech, stored in definitions JSONB as 'pos' key
 
   const WordDefinitions({
     required this.tr,
     required this.en,
     this.vi = '',
+    this.pos = '',
   });
 
   factory WordDefinitions.fromMap(Map<String, dynamic> map) => WordDefinitions(
         tr: map['tr'] as String? ?? '',
         en: map['en'] as String? ?? '',
         vi: map['vi'] as String? ?? '',
+        pos: map['pos'] as String? ?? '',
       );
 
-  Map<String, dynamic> toMap() => {'tr': tr, 'en': en, 'vi': vi};
+  Map<String, dynamic> toMap() => {'tr': tr, 'en': en, 'vi': vi, 'pos': pos};
 }
 
 class AiContextCache {
