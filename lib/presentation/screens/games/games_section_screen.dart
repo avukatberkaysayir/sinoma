@@ -13,7 +13,6 @@ class GamesSectionScreen extends StatelessWidget {
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(title: const Text('Oyunlar')),
           body: ConstrainedPage(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(64, 24, 24, 24),

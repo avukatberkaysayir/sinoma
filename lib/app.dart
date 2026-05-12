@@ -29,6 +29,24 @@ import 'presentation/screens/splash/splash_screen.dart';
 import 'presentation/screens/subscription/subscription_screen.dart';
 import 'presentation/screens/video_player/video_player_screen.dart';
 import 'presentation/screens/video_player/voscreen_player_screen.dart';
+import 'presentation/widgets/common/sinoma_top_bar.dart';
+
+// ── Shell ─────────────────────────────────────────────────────────────────────
+
+class _AppShell extends StatelessWidget {
+  final Widget child;
+  const _AppShell({required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: const SinomaTopBar(),
+      body: child,
+    );
+  }
+}
+
+// ── Router ────────────────────────────────────────────────────────────────────
 
 class _AuthRefreshStream extends ChangeNotifier {
   _AuthRefreshStream(Stream<dynamic> stream) {
@@ -59,36 +77,26 @@ final _router = GoRouter(
     return null;
   },
   routes: [
+    // ── Full-screen (no persistent top bar) ──────────────────────────────────
     GoRoute(path: '/',           redirect: (_, __) => '/splash'),
     GoRoute(path: '/splash',     builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/language',   builder: (_, __) => const LanguageSelectionScreen()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
-    GoRoute(path: '/hub',        builder: (_, __) => const HubScreen()),
-    GoRoute(path: '/home',       builder: (_, __) => const HomeScreen()),
-    GoRoute(path: '/games',      builder: (_, __) => const GamesSectionScreen()),
+    GoRoute(path: '/hsk-test',   builder: (_, __) => const HskRetestScreen()),
     GoRoute(
       path: '/video/:id',
       builder: (_, state) =>
           VideoPlayerScreen(videoId: state.pathParameters['id']!),
     ),
-    GoRoute(path: '/play',       builder: (_, __) => const VoscreenPlayerScreen()),
-    GoRoute(
-      path: '/dictionary/:wordId',
-      builder: (_, state) => DictionaryScreen(
-        initialWordId: state.pathParameters['wordId'],
-      ),
-    ),
+    GoRoute(path: '/play',          builder: (_, __) => const VoscreenPlayerScreen()),
     GoRoute(path: '/games/duel',    builder: (_, __) => const MandarinDuelScreen()),
     GoRoute(path: '/games/hanzi',   builder: (_, __) => const HanziBuildScreen()),
-    GoRoute(path: '/social',        builder: (_, __) => const SocialScreen()),
-    GoRoute(path: '/subscription',  builder: (_, __) => const SubscriptionScreen()),
-    GoRoute(path: '/settings',      builder: (_, __) => const SettingsScreen()),
     GoRoute(path: '/legal/terms',   builder: (_, __) => const TermsScreen()),
     GoRoute(path: '/legal/privacy', builder: (_, __) => const PrivacyPolicyScreen()),
-    GoRoute(
-      path: '/profile/:uid',
-      builder: (_, state) => ProfileScreen(uid: state.pathParameters['uid']!),
-    ),
+    GoRoute(path: '/admin',            builder: (_, __) => const AdminScreen()),
+    GoRoute(path: '/admin/add-video',  builder: (_, __) => const AddVideoScreen()),
+
+    // ── Redirect helpers ─────────────────────────────────────────────────────
     GoRoute(
       path: '/profile',
       redirect: (_, __) {
@@ -96,11 +104,34 @@ final _router = GoRouter(
         return uid != null ? '/profile/$uid' : '/onboarding';
       },
     ),
-    GoRoute(path: '/hsk-test',         builder: (_, __) => const HskRetestScreen()),
-    GoRoute(path: '/admin',            builder: (_, __) => const AdminScreen()),
-    GoRoute(path: '/admin/add-video',  builder: (_, __) => const AddVideoScreen()),
+
+    // ── Shell routes (persistent SinomaTopBar) ────────────────────────────────
+    ShellRoute(
+      builder: (context, state, child) => _AppShell(child: child),
+      routes: [
+        GoRoute(path: '/hub',   builder: (_, __) => const HubScreen()),
+        GoRoute(path: '/home',  builder: (_, __) => const HomeScreen()),
+        GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
+        GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
+        GoRoute(
+          path: '/dictionary/:wordId',
+          builder: (_, state) => DictionaryScreen(
+            initialWordId: state.pathParameters['wordId'],
+          ),
+        ),
+        GoRoute(
+          path: '/profile/:uid',
+          builder: (_, state) =>
+              ProfileScreen(uid: state.pathParameters['uid']!),
+        ),
+        GoRoute(path: '/settings',     builder: (_, __) => const SettingsScreen()),
+        GoRoute(path: '/subscription', builder: (_, __) => const SubscriptionScreen()),
+      ],
+    ),
   ],
 );
+
+// ── App ───────────────────────────────────────────────────────────────────────
 
 class SinomaApp extends ConsumerWidget {
   const SinomaApp({super.key});

@@ -7,7 +7,6 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/ai_provider.dart';
-import '../../providers/auth_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/common/section_sidebar.dart';
@@ -32,80 +31,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hskLevel = ref.watch(currentHskLevelProvider);
-    final isAdmin  = ref.watch(isAdminProvider);
-    final isGuest  = ref.watch(isGuestProvider);
-
-    return Stack(
-      children: [
-        Scaffold(
-          appBar: AppBar(
-            title: const Text('Sinoma'),
-            actions: [
-              GestureDetector(
-                onTap: () => context.push('/hsk-test'),
-                child: Container(
-                  margin: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.forHskLevel(hskLevel).withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: AppColors.forHskLevel(hskLevel).withValues(alpha: 0.4),
-                    ),
-                  ),
-                  child: Text(
-                    'HSK $hskLevel',
-                    style: TextStyle(
-                      color: AppColors.forHskLevel(hskLevel),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.manage_search),
-                tooltip: 'Dictionary',
-                onPressed: () => context.push('/dictionary/search'),
-              ),
-              if (isAdmin)
-                IconButton(
-                  icon: const Icon(Icons.admin_panel_settings_outlined),
-                  tooltip: 'Admin Panel',
-                  onPressed: () => context.push('/admin'),
-                ),
-              if (isGuest)
-                TextButton(
-                  onPressed: () {
-                    final uid = ref.read(currentUidProvider);
-                    if (uid != null) context.push('/profile/$uid');
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.onSurfaceMuted,
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                  ),
-                  child: const Text('Misafir'),
-                )
-              else
-                IconButton(
-                  icon: const Icon(Icons.person_outline),
-                  tooltip: 'Profil',
-                  onPressed: () {
-                    final uid = ref.read(currentUidProvider);
-                    if (uid != null) context.push('/profile/$uid');
-                  },
-                ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined),
-                tooltip: 'Settings',
-                onPressed: () => context.push('/settings'),
-              ),
-            ],
-          ),
-          body: const _VideoFeedTab(),
-        ),
-      ],
+    return const Scaffold(
+      body: _VideoFeedTab(),
     );
   }
 }

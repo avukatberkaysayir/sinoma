@@ -267,7 +267,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (user != null) _initFromUser(user);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profil')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(

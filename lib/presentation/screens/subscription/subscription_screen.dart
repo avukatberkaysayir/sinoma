@@ -18,10 +18,6 @@ class SubscriptionScreen extends ConsumerWidget {
     ref.read(analyticsServiceProvider).logSubscriptionScreenViewed();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Premium'),
-        leading: const BackButton(),
-      ),
       body: ConstrainedPage(
         maxWidth: 640,
         child: isPremium ? const _PremiumActiveView() : const _PaywallView(),

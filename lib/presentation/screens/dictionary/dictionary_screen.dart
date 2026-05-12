@@ -102,53 +102,51 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
 
     return Stack(
       children: [
-    Scaffold(
-      appBar: AppBar(
-        title: const Text('Dictionary'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-            child: TextField(
-              controller: _controller,
-              autofocus: widget.initialWordId == null,
-              style: const TextStyle(color: AppColors.onSurface),
-              decoration: InputDecoration(
-                hintText: 'Search Chinese characters…',
-                hintStyle:
-                    const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 14),
-                prefixIcon: const Icon(Icons.search,
-                    color: AppColors.onSurfaceMuted, size: 20),
-                suffixIcon: _controller.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear,
-                            color: AppColors.onSurfaceMuted, size: 18),
-                        onPressed: () {
-                          _controller.clear();
-                          notifier.search('');
-                        },
-                      )
-                    : null,
-                filled: true,
-                fillColor: AppColors.surfaceVariant,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+        Scaffold(
+          body: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: TextField(
+                  controller: _controller,
+                  autofocus: widget.initialWordId == null,
+                  style: const TextStyle(color: AppColors.onSurface),
+                  decoration: InputDecoration(
+                    hintText: 'Search Chinese characters…',
+                    hintStyle: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 14),
+                    prefixIcon: const Icon(Icons.search,
+                        color: AppColors.onSurfaceMuted, size: 20),
+                    suffixIcon: _controller.text.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear,
+                                color: AppColors.onSurfaceMuted, size: 18),
+                            onPressed: () {
+                              _controller.clear();
+                              notifier.search('');
+                            },
+                          )
+                        : null,
+                    filled: true,
+                    fillColor: AppColors.surfaceVariant,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 12),
+                  ),
+                  onChanged: (v) {
+                    setState(() {});
+                    notifier.search(v);
+                  },
                 ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               ),
-              onChanged: (v) {
-                setState(() {});
-                notifier.search(v);
-              },
-            ),
+              Expanded(child: _buildBody(searchState)),
+            ],
           ),
         ),
-      ),
-      body: _buildBody(searchState),
-    ),
-    const SectionSidebarOverlay(current: AppSection.dictionary),
+        const SectionSidebarOverlay(current: AppSection.dictionary),
       ],
     );
   }

@@ -42,33 +42,33 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
       return Stack(
         children: [
           Scaffold(
-            appBar: AppBar(
-              title: const Text('Community'),
-              actions: [_IncomingRequestsBadge()],
-            ),
-            body: const ConstrainedPage(
+            body: ConstrainedPage(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Expanded(
-                    flex: 3,
-                    child: _FeedTab(),
-                  ),
-                  VerticalDivider(width: 1, color: AppColors.surface),
+                  const Expanded(flex: 3, child: _FeedTab()),
+                  const VerticalDivider(width: 1, color: AppColors.surface),
                   Expanded(
                     flex: 2,
                     child: DefaultTabController(
                       length: 2,
                       child: Column(
                         children: [
-                          TabBar(
-                            indicatorColor: AppColors.primary,
-                            tabs: [
-                              Tab(text: 'Leaderboard'),
-                              Tab(text: 'Friends'),
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: TabBar(
+                                  indicatorColor: AppColors.primary,
+                                  tabs: [
+                                    Tab(text: 'Leaderboard'),
+                                    Tab(text: 'Friends'),
+                                  ],
+                                ),
+                              ),
+                              _IncomingRequestsBadge(),
                             ],
                           ),
-                          Expanded(
+                          const Expanded(
                             child: TabBarView(
                               children: [
                                 _LeaderboardTab(),
@@ -92,27 +92,34 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
     return Stack(
       children: [
         Scaffold(
-          appBar: AppBar(
-            title: const Text('Community'),
-            bottom: TabBar(
-              controller: _tabs,
-              indicatorColor: AppColors.primary,
-              tabs: const [
-                Tab(text: 'Feed'),
-                Tab(text: 'Leaderboard'),
-                Tab(text: 'Friends'),
-              ],
-            ),
-            actions: [
-              _IncomingRequestsBadge(),
-            ],
-          ),
-          body: TabBarView(
-            controller: _tabs,
-            children: const [
-              _FeedTab(),
-              _LeaderboardTab(),
-              _FriendsTab(),
+          body: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TabBar(
+                      controller: _tabs,
+                      indicatorColor: AppColors.primary,
+                      tabs: const [
+                        Tab(text: 'Feed'),
+                        Tab(text: 'Leaderboard'),
+                        Tab(text: 'Friends'),
+                      ],
+                    ),
+                  ),
+                  _IncomingRequestsBadge(),
+                ],
+              ),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabs,
+                  children: const [
+                    _FeedTab(),
+                    _LeaderboardTab(),
+                    _FriendsTab(),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
