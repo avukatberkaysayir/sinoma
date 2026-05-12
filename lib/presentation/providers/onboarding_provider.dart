@@ -169,7 +169,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        redirectTo: Uri.base.origin,
+        redirectTo: '${Uri.base.origin}/splash',
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());

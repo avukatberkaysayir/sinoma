@@ -59,6 +59,7 @@ final _router = GoRouter(
     return null;
   },
   routes: [
+    GoRoute(path: '/',           redirect: (_, __) => '/splash'),
     GoRoute(path: '/splash',     builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/language',   builder: (_, __) => const LanguageSelectionScreen()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
