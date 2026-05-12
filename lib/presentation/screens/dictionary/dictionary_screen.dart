@@ -68,12 +68,12 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   @override
   void initState() {
     super.initState();
-    final id = widget.initialWordId;
-    if (id != null && id != 'search') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        _openWordDetail(id);
-      });
-    }
+    // Auto-seed HSK1 words on first ever visit if the table is empty.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(dictionaryRepositoryProvider).ensureHsk1Seeded();
+      final id = widget.initialWordId;
+      if (id != null && id != 'search') _openWordDetail(id);
+    });
   }
 
   @override
@@ -233,31 +233,59 @@ class _WordTile extends StatelessWidget {
           ),
         ),
       ),
-      title: Text(
-        word.pinyin,
-        style: const TextStyle(color: AppColors.onSurface, fontSize: 15),
+      title: Row(
+        children: [
+          Text(
+            word.pinyin,
+            style: const TextStyle(color: AppColors.onSurface, fontSize: 15),
+          ),
+          const SizedBox(width: 8),
+          if (word.definitions.pos.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColors.onSurfaceMuted.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                word.definitions.pos.split(',').first.trim(),
+                style: const TextStyle(
+                    color: AppColors.onSurfaceMuted, fontSize: 10),
+              ),
+            ),
+        ],
       ),
       subtitle: Text(
-        word.definitions.en,
+        word.definitions.tr.isNotEmpty
+            ? '${word.definitions.tr} · ${word.definitions.en}'
+            : word.definitions.en,
         style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-        decoration: BoxDecoration(
-          color: AppColors.forHskLevel(word.hskLevel).withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Text(
-          'HSK ${word.hskLevel}',
-          style: TextStyle(
-            color: AppColors.forHskLevel(word.hskLevel),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-      ),
+      trailing: word.hskLevel > 0
+          ? Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color:
+                    AppColors.forHskLevel(word.hskLevel).withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                  color: AppColors.forHskLevel(word.hskLevel)
+                      .withValues(alpha: 0.4),
+                ),
+              ),
+              child: Text(
+                'HSK ${word.hskLevel}',
+                style: TextStyle(
+                  color: AppColors.forHskLevel(word.hskLevel),
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            )
+          : null,
       onTap: () => onTap(word.wordId),
     );
   }
