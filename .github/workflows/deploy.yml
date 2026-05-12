@@ -25,7 +25,11 @@ jobs:
         run: flutter pub get
 
       - name: Build web (CanvasKit)
-        run: flutter build web --release --web-renderer canvaskit
+        run: |
+          flutter build web --release --web-renderer canvaskit \
+            --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
+            --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
+            --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
 
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
