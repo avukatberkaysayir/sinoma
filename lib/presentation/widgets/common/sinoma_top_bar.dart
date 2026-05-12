@@ -32,6 +32,7 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildBar(BuildContext context, WidgetRef ref, UserModel? user,
       int hskLevel, bool isAdmin, bool isDark) {
+    final canPop = context.canPop();
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -43,6 +44,17 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
+          if (canPop)
+            IconButton(
+              icon: Icon(
+                Icons.arrow_back_ios_new_rounded,
+                size: 18,
+                color: isDark ? Colors.white70 : Colors.black54,
+              ),
+              onPressed: () => context.pop(),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+            ),
           GestureDetector(
             onTap: () => context.go('/hub'),
             child: MouseRegion(

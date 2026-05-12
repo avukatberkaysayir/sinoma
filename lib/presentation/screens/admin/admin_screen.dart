@@ -28,7 +28,7 @@ class _AdminScreenState extends State<AdminScreen>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 3, vsync: this, initialIndex: 2);
     _loadVideos();
   }
 
@@ -1093,11 +1093,24 @@ class _ManualAddTabState extends State<_ManualAddTab> {
     super.dispose();
   }
 
-  void _onYoutubeIdChanged(String ytId) {
+  // Accepts a full YouTube URL or a bare 11-char video ID.
+  static String _extractYtId(String input) {
+    final uri = Uri.tryParse(input);
+    if (uri != null) {
+      if (uri.host.contains('youtu.be')) return uri.pathSegments.first;
+      final v = uri.queryParameters['v'];
+      if (v != null && v.isNotEmpty) return v;
+    }
+    return input.trim();
+  }
+
+  void _onYoutubeUrlChanged(String raw) {
+    final ytId = _extractYtId(raw);
     if (_idCtrl.text.isEmpty && ytId.length >= 4) {
       _idCtrl.text =
           'video-hsk$_hskLevel-${ytId.substring(0, 4).toLowerCase()}';
     }
+    setState(() {});
   }
 
   Future<void> _save() async {
@@ -1115,7 +1128,7 @@ class _ManualAddTabState extends State<_ManualAddTab> {
       await widget.service.setVideo(id, {
         'videoId': id,
         'sourceType': 'youtube',
-        'youtubeId': _youtubeIdCtrl.text.trim(),
+        'youtubeId': _extractYtId(_youtubeIdCtrl.text.trim()),
         'startTime': _startTime,
         'endTime': _endTime,
         'hskLevel': _hskLevel,
@@ -1166,8 +1179,8 @@ class _ManualAddTabState extends State<_ManualAddTab> {
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         children: [
-          _field(_youtubeIdCtrl, 'YouTube ID (11-char)',
-              required: true, onChanged: _onYoutubeIdChanged),
+          _field(_youtubeIdCtrl, 'YouTube URL or ID',
+              required: true, onChanged: _onYoutubeUrlChanged),
           _field(_idCtrl, 'Document ID (auto-filled)', required: true),
           _field(_transcriptionCtrl, 'Chinese transcription (汉字)',
               required: true),

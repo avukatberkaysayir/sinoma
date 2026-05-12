@@ -81,3 +81,5 @@ flutter_dev.log
 flutter_dev_err.log
 pipeline.log
 *.log
+
+.vercel
