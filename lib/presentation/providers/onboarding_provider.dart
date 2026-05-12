@@ -169,8 +169,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     try {
       await Supabase.instance.client.auth.signInWithOAuth(
         OAuthProvider.google,
-        // On web this performs a full-page redirect — state is lost.
-        // The splash screen handles post-redirect routing.
+        redirectTo: Uri.base.origin,
       );
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
