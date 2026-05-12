@@ -96,15 +96,6 @@ final _router = GoRouter(
     GoRoute(path: '/admin',            builder: (_, __) => const AdminScreen()),
     GoRoute(path: '/admin/add-video',  builder: (_, __) => const AddVideoScreen()),
 
-    // ── Redirect helpers ─────────────────────────────────────────────────────
-    GoRoute(
-      path: '/profile',
-      redirect: (_, __) {
-        final uid = Supabase.instance.client.auth.currentUser?.id;
-        return uid != null ? '/profile/$uid' : '/onboarding';
-      },
-    ),
-
     // ── Shell routes (persistent SinomaTopBar) ────────────────────────────────
     ShellRoute(
       builder: (context, state, child) => _AppShell(child: child),
@@ -118,6 +109,13 @@ final _router = GoRouter(
           builder: (_, state) => DictionaryScreen(
             initialWordId: state.pathParameters['wordId'],
           ),
+        ),
+        GoRoute(
+          path: '/profile',
+          builder: (_, __) {
+            final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
+            return ProfileScreen(uid: uid);
+          },
         ),
         GoRoute(
           path: '/profile/:uid',

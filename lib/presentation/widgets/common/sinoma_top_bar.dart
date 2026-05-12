@@ -33,7 +33,11 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
 
   Widget _buildBar(BuildContext context, WidgetRef ref, UserModel? user,
       int hskLevel, bool isAdmin, bool isDark) {
-    final canPop = context.canPop();
+    final loc = GoRouterState.of(context).matchedLocation;
+    final showBack = loc.startsWith('/profile') ||
+        loc == '/settings' ||
+        loc == '/subscription' ||
+        loc.startsWith('/dictionary/');
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -45,14 +49,15 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          if (canPop)
+          if (showBack)
             IconButton(
               icon: Icon(
                 Icons.arrow_back_ios_new_rounded,
                 size: 18,
                 color: isDark ? Colors.white70 : Colors.black54,
               ),
-              onPressed: () => context.pop(),
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go('/home'),
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
             ),
@@ -499,8 +504,7 @@ class _DropdownCard extends ConsumerWidget {
               isDark: isDark,
               onTap: () {
                 onClose();
-                final uid = user?.uid;
-                if (uid != null) context.push('/profile/$uid');
+                context.go('/profile');
               },
             ),
             _DropdownItem(
