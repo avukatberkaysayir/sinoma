@@ -109,7 +109,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: TextField(
                   controller: _controller,
-                  autofocus: widget.initialWordId == null,
+                  autofocus: widget.initialWordId == null || widget.initialWordId == 'search',
                   style: const TextStyle(color: AppColors.onSurface),
                   decoration: InputDecoration(
                     hintText: 'Search Chinese characters…',

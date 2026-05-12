@@ -105,6 +105,10 @@ final _router = GoRouter(
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
         GoRoute(
+          path: '/dictionary',
+          builder: (_, __) => const DictionaryScreen(),
+        ),
+        GoRoute(
           path: '/dictionary/:wordId',
           builder: (_, state) => DictionaryScreen(
             initialWordId: state.pathParameters['wordId'],

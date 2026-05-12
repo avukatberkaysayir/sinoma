@@ -37,7 +37,7 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
     final showBack = loc.startsWith('/profile') ||
         loc == '/settings' ||
         loc == '/subscription' ||
-        loc.startsWith('/dictionary/');
+        loc.startsWith('/dictionary');
     return Container(
       height: 60,
       decoration: BoxDecoration(
