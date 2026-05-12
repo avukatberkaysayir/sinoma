@@ -52,10 +52,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final hskLevel   = ref.watch(currentHskLevelProvider);
-    final isAdmin    = ref.watch(isAdminProvider);
-    final isGuest    = ref.watch(isGuestProvider);
-    final filterOpen = ref.watch(filterPanelOpenProvider);
+    final hskLevel = ref.watch(currentHskLevelProvider);
+    final isAdmin  = ref.watch(isAdminProvider);
+    final isGuest  = ref.watch(isGuestProvider);
 
     return Stack(
       children: [
@@ -118,37 +117,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
             ],
           ),
-          body: Stack(
+          body: const Stack(
             children: [
-              const _VideoFeedTab(),
-
-              // Section sidebar (below scrim and filter panel)
-              const SectionSidebarOverlay(current: AppSection.video),
-
-              // Scrim behind filter panel
-              IgnorePointer(
-                ignoring: !filterOpen,
-                child: AnimatedOpacity(
-                  opacity: filterOpen ? 1.0 : 0.0,
-                  duration: const Duration(milliseconds: 220),
-                  child: GestureDetector(
-                    onTap: () =>
-                        ref.read(filterPanelOpenProvider.notifier).state = false,
-                    child: Container(color: Colors.black54),
-                  ),
-                ),
-              ),
-
-              // Sliding filter panel (on top of sidebar and scrim)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 260),
-                curve: Curves.easeOutCubic,
-                left: filterOpen ? 0 : -320,
-                top: 0,
-                bottom: 0,
-                width: 300,
-                child: const _FilterPanel(),
-              ),
+              _VideoFeedTab(),
+              SectionSidebarOverlay(current: AppSection.video),
             ],
           ),
         ),
@@ -157,428 +129,468 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   }
 }
 
-// ── Filter Panel (slides in from left within body) ────────────────────────────
+// ── Top filter menu ───────────────────────────────────────────────────────────
 
-class _FilterPanel extends ConsumerStatefulWidget {
-  const _FilterPanel();
+enum _TopMenu { hsk1, hsk2, hsk3, hsk4, hsk5, length }
 
-  @override
-  ConsumerState<_FilterPanel> createState() => _FilterPanelState();
-}
+extension _TopMenuX on _TopMenu {
+  int? get hskLevel => switch (this) {
+        _TopMenu.hsk1   => 1,
+        _TopMenu.hsk2   => 2,
+        _TopMenu.hsk3   => 3,
+        _TopMenu.hsk4   => 4,
+        _TopMenu.hsk5   => 5,
+        _TopMenu.length => null,
+      };
 
-class _FilterPanelState extends ConsumerState<_FilterPanel> {
-  void _close() =>
-      ref.read(filterPanelOpenProvider.notifier).state = false;
-
-  void _selectCat(String? value) {
-    ref.read(selectedCategoryProvider.notifier).state = value;
-    ref.invalidate(videoFeedProvider);
+  _HskGroup? get hskGroup {
+    final lv = hskLevel;
+    if (lv == null) return null;
+    return _hskGroups.firstWhere((g) => g.level == lv);
   }
 
-  void _selectLen(String? value) {
+  String get label => switch (this) {
+        _TopMenu.hsk1   => 'HSK 1',
+        _TopMenu.hsk2   => 'HSK 2',
+        _TopMenu.hsk3   => 'HSK 3',
+        _TopMenu.hsk4   => 'HSK 4',
+        _TopMenu.hsk5   => 'HSK 5',
+        _TopMenu.length => 'Uzunluk',
+      };
+
+  bool hasActiveCategory(String? selected) {
+    final group = hskGroup;
+    if (group == null) return false;
+    return group.cats.any((c) => c.name == selected);
+  }
+}
+
+// ── Video Feed Tab ────────────────────────────────────────────────────────────
+
+class _VideoFeedTab extends ConsumerStatefulWidget {
+  const _VideoFeedTab();
+
+  @override
+  ConsumerState<_VideoFeedTab> createState() => _VideoFeedTabState();
+}
+
+class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
+  _TopMenu? _openMenu;
+
+  void _toggleMenu(_TopMenu menu) =>
+      setState(() => _openMenu = _openMenu == menu ? null : menu);
+
+  void _closeMenu() => setState(() => _openMenu = null);
+
+  void _selectCategory(String? value) {
+    ref.read(selectedCategoryProvider.notifier).state = value;
+    ref.invalidate(videoFeedProvider);
+    _closeMenu();
+  }
+
+  void _selectLength(String? value) {
     ref.read(selectedLengthProvider.notifier).state = value;
     ref.invalidate(videoFeedProvider);
+    _closeMenu();
   }
 
   void _resetAll() {
     ref.read(selectedCategoryProvider.notifier).state = null;
     ref.read(selectedLengthProvider.notifier).state = null;
     ref.invalidate(videoFeedProvider);
+    _closeMenu();
   }
 
   @override
   Widget build(BuildContext context) {
-    final selectedCat = ref.watch(selectedCategoryProvider);
-    final selectedLen = ref.watch(selectedLengthProvider);
-    final hasFilters = selectedCat != null || selectedLen != null;
-
-    return Material(
-      color: AppColors.surface,
-      elevation: 8,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Header ────────────────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 20, 8, 12),
-            child: Row(
-              children: [
-                const Icon(Icons.tune, color: AppColors.primary, size: 22),
-                const SizedBox(width: 10),
-                const Expanded(
-                  child: Text(
-                    'Filtreler',
-                    style: TextStyle(
-                      color: AppColors.onSurface,
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                if (hasFilters)
-                  TextButton(
-                    onPressed: _resetAll,
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                    ),
-                    child: const Text('Temizle'),
-                  ),
-                IconButton(
-                  icon: const Icon(Icons.close, size: 20),
-                  color: AppColors.onSurfaceMuted,
-                  onPressed: _close,
-                ),
-              ],
-            ),
-          ),
-            const Divider(color: AppColors.surfaceVariant, height: 1),
-
-            Expanded(
-              child: Theme(
-                data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                child: ListView(
-                  padding: EdgeInsets.zero,
-                  children: [
-                    // ── Tüm videolar ─────────────────────────────────────
-                    _FilterOption(
-                      emoji: '✦',
-                      label: '全部  Tüm Videolar',
-                      isSelected: selectedCat == null && selectedLen == null,
-                      onTap: _resetAll,
-                    ),
-                    const _SectionHeader(
-                      icon: Icons.school_outlined,
-                      label: '文法  GRAMER SEVİYELERİ',
-                    ),
-
-                    // ── HSK 1–5 accordion ────────────────────────────────
-                    ..._hskGroups.map((group) {
-                      final hasActive =
-                          group.cats.any((c) => c.name == selectedCat);
-                      final hskColor = AppColors.forHskLevel(group.level);
-                      return ExpansionTile(
-                        initiallyExpanded: hasActive,
-                        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
-                        childrenPadding: EdgeInsets.zero,
-                        leading: Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: hasActive
-                                ? hskColor.withValues(alpha: 0.2)
-                                : AppColors.surfaceVariant,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: hasActive ? hskColor : Colors.transparent,
-                              width: 1.5,
-                            ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              '${group.level}',
-                              style: TextStyle(
-                                color: hasActive ? hskColor : AppColors.onSurfaceMuted,
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        title: Text(
-                          'HSK ${group.level}',
-                          style: TextStyle(
-                            color: hasActive ? hskColor : AppColors.onSurface,
-                            fontSize: 15,
-                            fontWeight: hasActive ? FontWeight.bold : FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: Text(
-                          _hskSublabel(group.level),
-                          style: const TextStyle(
-                            color: AppColors.onSurfaceMuted,
-                            fontSize: 11,
-                          ),
-                        ),
-                        trailing: hasActive
-                            ? Icon(Icons.circle, size: 8, color: hskColor)
-                            : null,
-                        children: group.cats.map((cat) => _FilterOption(
-                          emoji: cat.emoji,
-                          label: cat.displayName,
-                          isSelected: selectedCat == cat.name,
-                          onTap: () => _selectCat(cat.name),
-                          indent: 60,
-                        )).toList(),
-                      );
-                    }),
-
-                    // ── Cümle uzunluğu ────────────────────────────────────
-                    const Divider(color: AppColors.surfaceVariant, height: 32),
-                    const _SectionHeader(
-                      icon: Icons.text_fields_outlined,
-                      label: '字数  CÜMLE UZUNLUĞU',
-                    ),
-                    _FilterOption(
-                      emoji: '↔',
-                      label: '全部  Tümü',
-                      isSelected: selectedLen == null,
-                      onTap: () => _selectLen(null),
-                    ),
-                    ..._allLengths.skip(1).map((len) => _FilterOption(
-                          emoji: '─',
-                          label: len!,
-                          isSelected: selectedLen == len,
-                          onTap: () => _selectLen(len),
-                        )),
-                    const SizedBox(height: 24),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-    );
-  }
-
-  String _hskSublabel(int level) => switch (level) {
-    1 => 'Başlangıç',
-    2 => 'Temel',
-    3 => 'Orta',
-    4 => 'Orta-İleri',
-    5 => 'İleri',
-    _ => '',
-  };
-}
-
-class _SectionHeader extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _SectionHeader({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 8),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: AppColors.onSurfaceMuted),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.onSurfaceMuted,
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterOption extends StatelessWidget {
-  final String emoji;
-  final String label;
-  final bool isSelected;
-  final VoidCallback onTap;
-  final double indent;
-
-  const _FilterOption({
-    required this.emoji,
-    required this.label,
-    required this.isSelected,
-    required this.onTap,
-    this.indent = 20,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding:
-            EdgeInsets.only(left: indent, right: 20, top: 11, bottom: 11),
-        decoration: BoxDecoration(
-          color: isSelected
-              ? AppColors.primary.withValues(alpha: 0.1)
-              : Colors.transparent,
-          border: Border(
-            left: BorderSide(
-              color: isSelected ? AppColors.primary : Colors.transparent,
-              width: 3,
-            ),
-          ),
-        ),
-        child: Row(
-          children: [
-            Text(emoji, style: const TextStyle(fontSize: 15)),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  color: isSelected ? AppColors.primary : AppColors.onSurface,
-                  fontSize: 14,
-                  fontWeight:
-                      isSelected ? FontWeight.w600 : FontWeight.normal,
-                ),
-              ),
-            ),
-            if (isSelected)
-              const Icon(Icons.check_circle,
-                  color: AppColors.primary, size: 16),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ── Tab: Video Feed ───────────────────────────────────────────────────────────
-
-class _VideoFeedTab extends ConsumerWidget {
-  const _VideoFeedTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final feedAsync = ref.watch(videoFeedProvider);
+    final feedAsync        = ref.watch(videoFeedProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
-    final selectedLength = ref.watch(selectedLengthProvider);
-    final activeFilters =
-        (selectedCategory != null ? 1 : 0) + (selectedLength != null ? 1 : 0);
+    final selectedLength   = ref.watch(selectedLengthProvider);
 
     return Column(
       children: [
-        // ── Filter bar (below tab bar) ──────────────────────────────────────
-        InkWell(
-            onTap: () => ref.read(filterPanelOpenProvider.notifier).state = true,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              color: AppColors.surfaceVariant,
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.tune,
-                    size: 18,
-                    color: activeFilters > 0
-                        ? AppColors.primary
-                        : AppColors.onSurfaceMuted,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    activeFilters > 0
-                        ? 'Filtreler ($activeFilters aktif)'
-                        : 'Filtrele',
-                    style: TextStyle(
-                      color: activeFilters > 0
-                          ? AppColors.primary
-                          : AppColors.onSurfaceMuted,
-                      fontSize: 13,
-                      fontWeight: activeFilters > 0
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                  ),
-                  if (selectedCategory != null) ...[
-                    const SizedBox(width: 8),
-                    _ActiveFilterChip(label: selectedCategory),
-                  ],
-                  if (selectedLength != null) ...[
-                    const SizedBox(width: 6),
-                    _ActiveFilterChip(label: selectedLength),
-                  ],
-                  const Spacer(),
-                  const Icon(Icons.chevron_right,
-                      size: 18, color: AppColors.onSurfaceMuted),
-                ],
-              ),
-            ),
-          ),
-
-        // ── Feed content ────────────────────────────────────────────────────
-        Expanded(
-          child: feedAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline,
-                color: AppColors.wrongAnswer, size: 40),
-            const SizedBox(height: 12),
-            Text(
-              'Failed to load videos\n$e',
-              style: const TextStyle(color: AppColors.onSurface),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 16),
-            FilledButton(
-              onPressed: () => ref.invalidate(videoFeedProvider),
-              style:
-                  FilledButton.styleFrom(backgroundColor: AppColors.primary),
-              child: const Text('Retry'),
-            ),
-          ],
+        _TopFilterBar(
+          openMenu: _openMenu,
+          selectedCategory: selectedCategory,
+          selectedLength: selectedLength,
+          onMenuTap: _toggleMenu,
+          onReset: _resetAll,
         ),
-      ),
-      data: (segments) {
-        if (segments.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.video_library_outlined,
-                    size: 56,
-                    color: AppColors.primary.withValues(alpha: 0.4)),
-                const SizedBox(height: 16),
-                Text(
-                  selectedCategory != null || selectedLength != null
-                      ? 'No videos match the selected filters.'
-                      : 'No videos available at your level.',
-                  style: const TextStyle(color: AppColors.onSurfaceMuted),
-                  textAlign: TextAlign.center,
+        Expanded(
+          child: Stack(
+            children: [
+              feedAsync.when(
+                loading: () =>
+                    const Center(child: CircularProgressIndicator()),
+                error: (e, _) => Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.error_outline,
+                          color: AppColors.wrongAnswer, size: 40),
+                      const SizedBox(height: 12),
+                      Text('Failed to load videos\n$e',
+                          style: const TextStyle(color: AppColors.onSurface),
+                          textAlign: TextAlign.center),
+                      const SizedBox(height: 16),
+                      FilledButton(
+                        onPressed: () => ref.invalidate(videoFeedProvider),
+                        style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.primary),
+                        child: const Text('Retry'),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
-          );
-        }
-
-        if (selectedCategory == null && selectedLength == null) {
-          return _GroupedFeed(segments: segments);
-        }
-
-        return _FlatFeed(segments: segments);
-      },
-    ),
+                data: (segments) {
+                  if (segments.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.video_library_outlined,
+                              size: 56,
+                              color:
+                                  AppColors.primary.withValues(alpha: 0.4)),
+                          const SizedBox(height: 16),
+                          Text(
+                            selectedCategory != null || selectedLength != null
+                                ? 'No videos match the selected filters.'
+                                : 'No videos available at your level.',
+                            style: const TextStyle(
+                                color: AppColors.onSurfaceMuted),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
+                    );
+                  }
+                  if (selectedCategory == null && selectedLength == null) {
+                    return _GroupedFeed(segments: segments);
+                  }
+                  return _FlatFeed(segments: segments);
+                },
+              ),
+              // Tap-outside dismisses the open dropdown
+              if (_openMenu != null)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: _closeMenu,
+                  ),
+                ),
+              // Dropdown panel (overlays top of feed)
+              if (_openMenu != null)
+                _DropdownPanel(
+                  menu: _openMenu!,
+                  selectedCategory: selectedCategory,
+                  selectedLength: selectedLength,
+                  onSelectCategory: _selectCategory,
+                  onSelectLength: _selectLength,
+                ),
+            ],
+          ),
         ),
       ],
     );
   }
 }
 
-class _ActiveFilterChip extends StatelessWidget {
-  final String label;
-  const _ActiveFilterChip({required this.label});
+// ── Top filter bar ────────────────────────────────────────────────────────────
+
+class _TopFilterBar extends StatelessWidget {
+  final _TopMenu? openMenu;
+  final String? selectedCategory;
+  final String? selectedLength;
+  final void Function(_TopMenu) onMenuTap;
+  final VoidCallback onReset;
+
+  const _TopFilterBar({
+    required this.openMenu,
+    required this.selectedCategory,
+    required this.selectedLength,
+    required this.onMenuTap,
+    required this.onReset,
+  });
+
+  bool get _hasFilters => selectedCategory != null || selectedLength != null;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(20),
-        border:
-            Border.all(color: AppColors.primary.withValues(alpha: 0.4), width: 1),
+      color: AppColors.surfaceVariant,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: [
+            _MenuButton(
+              label: 'Tümü',
+              isActive: !_hasFilters,
+              isOpen: false,
+              showArrow: false,
+              onTap: onReset,
+            ),
+            const SizedBox(width: 8),
+            for (final menu in _TopMenu.values) ...[
+              if (menu == _TopMenu.length)
+                _MenuButton(
+                  label: 'Uzunluk',
+                  isActive: selectedLength != null,
+                  isOpen: openMenu == _TopMenu.length,
+                  onTap: () => onMenuTap(_TopMenu.length),
+                )
+              else
+                _MenuButton(
+                  label: menu.label,
+                  isActive: menu.hasActiveCategory(selectedCategory),
+                  isOpen: openMenu == menu,
+                  color: AppColors.forHskLevel(menu.hskLevel!),
+                  onTap: () => onMenuTap(menu),
+                ),
+              const SizedBox(width: 8),
+            ],
+          ],
+        ),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-            color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w500),
+    );
+  }
+}
+
+class _MenuButton extends StatelessWidget {
+  final String label;
+  final bool isActive;
+  final bool isOpen;
+  final bool showArrow;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _MenuButton({
+    required this.label,
+    required this.isActive,
+    required this.isOpen,
+    this.showArrow = true,
+    this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    final highlighted = isActive || isOpen;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+        decoration: BoxDecoration(
+          color: highlighted ? c.withValues(alpha: 0.15) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: highlighted ? c : Colors.transparent,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                color: highlighted ? c : AppColors.onSurfaceMuted,
+                fontSize: 13,
+                fontWeight:
+                    highlighted ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            if (showArrow) ...[
+              const SizedBox(width: 4),
+              Icon(
+                isOpen
+                    ? Icons.keyboard_arrow_up
+                    : Icons.keyboard_arrow_down,
+                size: 14,
+                color: highlighted ? c : AppColors.onSurfaceMuted,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Dropdown panel ────────────────────────────────────────────────────────────
+
+class _DropdownPanel extends StatelessWidget {
+  final _TopMenu menu;
+  final String? selectedCategory;
+  final String? selectedLength;
+  final void Function(String?) onSelectCategory;
+  final void Function(String?) onSelectLength;
+
+  const _DropdownPanel({
+    required this.menu,
+    required this.selectedCategory,
+    required this.selectedLength,
+    required this.onSelectCategory,
+    required this.onSelectLength,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      top: 0,
+      left: 0,
+      right: 0,
+      child: Material(
+        elevation: 8,
+        color: AppColors.surfaceVariant,
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(12),
+          bottomRight: Radius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          child: menu == _TopMenu.length
+              ? _buildLengthOptions()
+              : _buildCategoryOptions(),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCategoryOptions() {
+    final group    = menu.hskGroup!;
+    final hskColor = AppColors.forHskLevel(group.level);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: hskColor.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'HSK ${group.level}',
+                style: TextStyle(
+                    color: hskColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _sublabel(group.level),
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 12),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: group.cats.map((cat) {
+            final sel = selectedCategory == cat.name;
+            return _Chip(
+              emoji: cat.emoji,
+              label: cat.displayName,
+              isSelected: sel,
+              color: hskColor,
+              onTap: () => onSelectCategory(sel ? null : cat.name),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLengthOptions() {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      children: _allLengths.skip(1).map((len) {
+        final sel = selectedLength == len;
+        return _Chip(
+          emoji: '─',
+          label: len!,
+          isSelected: sel,
+          color: AppColors.primary,
+          onTap: () => onSelectLength(sel ? null : len),
+        );
+      }).toList(),
+    );
+  }
+
+  String _sublabel(int level) => switch (level) {
+        1 => 'Başlangıç',
+        2 => 'Temel',
+        3 => 'Orta',
+        4 => 'Orta-İleri',
+        5 => 'İleri',
+        _ => '',
+      };
+}
+
+class _Chip extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final bool isSelected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _Chip({
+    required this.emoji,
+    required this.label,
+    required this.isSelected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? color.withValues(alpha: 0.15) : AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: isSelected
+                ? color
+                : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
+            width: isSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? color : AppColors.onSurface,
+                fontSize: 13,
+                fontWeight:
+                    isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+            if (isSelected) ...[
+              const SizedBox(width: 6),
+              Icon(Icons.check, size: 13, color: color),
+            ],
+          ],
+        ),
       ),
     );
   }
