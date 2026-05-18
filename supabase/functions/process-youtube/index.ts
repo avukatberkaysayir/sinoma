@@ -7,6 +7,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+const UA =
+  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
+
 function extractYtId(input: string): string {
   try {
     const url = new URL(input.trim());
@@ -17,43 +20,130 @@ function extractYtId(input: string): string {
   }
 }
 
+// ── Caption track discovery ───────────────────────────────────────────────────
+
+interface TrackInfo {
+  langCode: string;
+  kind: string; // '' | 'asr'
+  name: string;
+}
+
+const CHINESE_LANG_CODES = [
+  "zh-Hans", "zh-hans",
+  "zh-Hant", "zh-hant",
+  "zh", "zh-CN", "zh-TW", "zh-HK",
+  "yue", "zh-yue",
+  "cmn",
+];
+
+function isChinese(lang: string): boolean {
+  return CHINESE_LANG_CODES.some(
+    (c) => lang.toLowerCase() === c.toLowerCase() || lang.toLowerCase().startsWith("zh")
+  );
+}
+
+async function listCaptiontracks(videoId: string): Promise<TrackInfo[]> {
+  try {
+    const res = await fetch(
+      `https://www.youtube.com/api/timedtext?v=${videoId}&type=list`,
+      { headers: { "User-Agent": UA } }
+    );
+    if (!res.ok) return [];
+    const xml = await res.text();
+
+    // Parse <track id="..." lang_code="zh-Hans" name="..." kind="asr" ... />
+    const tracks: TrackInfo[] = [];
+    const regex = /<track\s[^>]*>/g;
+    for (const tag of xml.matchAll(regex)) {
+      const langCode = tag[0].match(/lang_code="([^"]+)"/)?.[1] ?? "";
+      const kind = tag[0].match(/kind="([^"]+)"/)?.[1] ?? "";
+      const name = tag[0].match(/name="([^"]+)"/)?.[1] ?? "";
+      if (langCode) tracks.push({ langCode, kind, name });
+    }
+    return tracks;
+  } catch {
+    return [];
+  }
+}
+
+// ── Caption event fetching ────────────────────────────────────────────────────
+
 interface CaptionEvent {
   tStartMs: number;
   dDurationMs?: number;
   segs?: Array<{ utf8: string }>;
 }
 
-async function fetchCaptions(videoId: string): Promise<CaptionEvent[]> {
-  const candidates = [
-    `https://www.youtube.com/api/timedtext?lang=zh-Hans&v=${videoId}&fmt=json3`,
-    `https://www.youtube.com/api/timedtext?lang=zh-Hans&v=${videoId}&fmt=json3&kind=asr`,
-    `https://www.youtube.com/api/timedtext?lang=zh&v=${videoId}&fmt=json3`,
-    `https://www.youtube.com/api/timedtext?lang=zh&v=${videoId}&fmt=json3&kind=asr`,
-    `https://www.youtube.com/api/timedtext?lang=zh-Hant&v=${videoId}&fmt=json3`,
-  ];
+const hasChinese = (text: string) => /[一-鿿]/.test(text);
 
-  const hasChinese = (text: string) => /[一-鿿]/.test(text);
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        },
-      });
-      if (!res.ok) continue;
-      const data = await res.json() as { events?: CaptionEvent[] };
-      const events = (data.events ?? []).filter(
-        (e) => e.segs?.some((s) => hasChinese(s.utf8))
-      );
-      if (events.length > 0) return events;
-    } catch {
-      continue;
-    }
+async function fetchTrack(
+  videoId: string,
+  langCode: string,
+  kind: string
+): Promise<CaptionEvent[]> {
+  const kindParam = kind === "asr" ? "&kind=asr" : "";
+  const url = `https://www.youtube.com/api/timedtext?v=${videoId}&lang=${langCode}&fmt=json3${kindParam}`;
+  try {
+    const res = await fetch(url, { headers: { "User-Agent": UA } });
+    if (!res.ok) return [];
+    const data = await res.json() as { events?: CaptionEvent[] };
+    return (data.events ?? []).filter(
+      (e) => e.segs?.some((s) => hasChinese(s.utf8))
+    );
+  } catch {
+    return [];
   }
-  return [];
 }
+
+async function fetchCaptions(videoId: string): Promise<{
+  events: CaptionEvent[];
+  tracksFound: string[];
+  tracksSearched: string[];
+}> {
+  // 1. Discover all available tracks for this video
+  const allTracks = await listCaptiontracks(videoId);
+  const tracksFound = allTracks.map((t) => `${t.langCode}${t.kind ? `(${t.kind})` : ""}`);
+
+  // 2. Try discovered Chinese tracks first
+  const chineseTracks = allTracks.filter((t) => isChinese(t.langCode));
+  // Prefer manual captions over ASR; prefer zh-Hans over others
+  chineseTracks.sort((a, b) => {
+    const aScore = (a.kind === "asr" ? 1 : 0) + (a.langCode.toLowerCase().startsWith("zh-hans") ? 0 : 2);
+    const bScore = (b.kind === "asr" ? 1 : 0) + (b.langCode.toLowerCase().startsWith("zh-hans") ? 0 : 2);
+    return aScore - bScore;
+  });
+
+  const tracksSearched: string[] = [];
+  for (const track of chineseTracks) {
+    const label = `${track.langCode}${track.kind ? `(${track.kind})` : ""}`;
+    tracksSearched.push(label);
+    const events = await fetchTrack(videoId, track.langCode, track.kind);
+    if (events.length > 0) return { events, tracksFound, tracksSearched };
+  }
+
+  // 3. Fallback: try hardcoded list (catches videos where type=list returned empty)
+  const fallbacks: TrackInfo[] = [
+    { langCode: "zh-Hans", kind: "", name: "" },
+    { langCode: "zh-Hans", kind: "asr", name: "" },
+    { langCode: "zh", kind: "", name: "" },
+    { langCode: "zh", kind: "asr", name: "" },
+    { langCode: "zh-Hant", kind: "", name: "" },
+    { langCode: "zh-Hant", kind: "asr", name: "" },
+    { langCode: "yue", kind: "", name: "" },
+    { langCode: "yue", kind: "asr", name: "" },
+  ];
+  for (const track of fallbacks) {
+    const label = `${track.langCode}${track.kind ? `(${track.kind})` : ""}`;
+    if (tracksSearched.includes(label)) continue; // already tried
+    tracksSearched.push(label);
+    const events = await fetchTrack(videoId, track.langCode, track.kind);
+    if (events.length > 0) return { events, tracksFound, tracksSearched };
+  }
+
+  return { events: [], tracksFound, tracksSearched };
+}
+
+// ── Segment building ──────────────────────────────────────────────────────────
 
 interface Segment {
   start: number;
@@ -97,6 +187,8 @@ function buildSegments(events: CaptionEvent[], targetDuration = 7): Segment[] {
   return segments;
 }
 
+// ── HSK / word analysis ───────────────────────────────────────────────────────
+
 type SupabaseClient = ReturnType<typeof createClient>;
 
 async function analyzeText(
@@ -126,9 +218,10 @@ async function analyzeText(
   const hskLevel = Math.max(
     ...data.map((r: { id: string; hsk_level: number }) => r.hsk_level ?? 1)
   );
-
   return { words, hskLevel };
 }
+
+// ── Handler ───────────────────────────────────────────────────────────────────
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -148,11 +241,11 @@ serve(async (req) => {
     };
     if (!url) return json({ error: "url zorunlu" }, 400);
 
-    // Verify the caller is the admin
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
+    // Verify admin
     const authHeader = req.headers.get("Authorization") ?? "";
     const callerDb = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
@@ -165,21 +258,20 @@ serve(async (req) => {
     const videoId = extractYtId(url);
     if (videoId.length < 4) return json({ error: "Geçersiz YouTube URL" }, 400);
 
-    const events = await fetchCaptions(videoId);
+    const { events, tracksFound, tracksSearched } = await fetchCaptions(videoId);
+
     if (!events.length) {
+      const detail = tracksFound.length
+        ? `Videoda ${tracksFound.join(", ")} track'leri var ama Çince metin içermiyor.`
+        : "Bu videoda hiç altyazı track'i bulunamadı.";
       return json(
-        {
-          error:
-            "Bu video için Çince altyazı bulunamadı. Lütfen altyazısı olan bir video deneyin.",
-        },
+        { error: `Çince altyazı bulunamadı — ${detail} Manuel segment oluşturucuyu kullanın.` },
         422
       );
     }
 
     const segments = buildSegments(events);
-    if (!segments.length) {
-      return json({ error: "Segment oluşturulamadı." }, 422);
-    }
+    if (!segments.length) return json({ error: "Segment oluşturulamadı." }, 422);
 
     const db = createClient(supabaseUrl, serviceKey);
 
@@ -204,7 +296,11 @@ serve(async (req) => {
     const { error: insertErr } = await db.from("videos").insert(rows);
     if (insertErr) throw new Error(insertErr.message);
 
-    return json({ segmentsWritten: rows.length });
+    return json({
+      segmentsWritten: rows.length,
+      tracksFound,
+      tracksSearched,
+    });
   } catch (e) {
     return json({ error: (e as Error).message }, 500);
   }
