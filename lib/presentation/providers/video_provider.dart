@@ -40,15 +40,20 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
 
 // Multilingual search over the already-fetched feed.
 // CJK query  → filter by transcription / targetWords (character match).
-// Latin query → resolve to Chinese via dictionary definitions (whole-word match only),
-//               then filter by targetWords.
+// Latin query → resolve to Chinese via dictionary definitions, scored by how
+//               closely the definition matches the query, then sort videos
+//               so the closest match appears first.
 final _cjkRegex = RegExp(r'[一-鿿]');
+final _tokenSplitter = RegExp(r'[\s,;/()\-\.·、，。]+');
 
-// Checks if [word] appears as a whole token in [text] (splits on whitespace / punctuation).
-bool _isWholeWordMatch(String text, String word) {
-  final lw = word.toLowerCase();
-  final tokens = text.toLowerCase().split(RegExp(r'[\s,;/()\-\.·]+'));
-  return tokens.any((t) => t == lw);
+// Returns 0 (no whole-word match), 1 (secondary meaning), or 2 (primary / first token).
+int _definitionScore(String def, String lowerQuery) {
+  final tokens = def.toLowerCase().split(_tokenSplitter)
+      .where((t) => t.isNotEmpty).toList();
+  if (tokens.isEmpty) return 0;
+  if (tokens.first == lowerQuery) return 2;
+  if (tokens.contains(lowerQuery)) return 1;
+  return 0;
 }
 
 final filteredVideoFeedProvider =
@@ -67,22 +72,37 @@ final filteredVideoFeedProvider =
     ).toList();
   }
 
-  // Latin (EN / TR) query: look up by definition, then keep only whole-word matches
-  // to avoid "ot" matching "not", "robot", etc.
+  // Latin (EN / TR) query.
+  // Score each dictionary hit: 2 = primary meaning, 1 = secondary meaning, 0 = skip.
   final DictionaryRepository dictRepo = ref.read(dictionaryRepositoryProvider);
   final candidates = await dictRepo.searchWords(q, limit: 50);
 
-  final matchedChars = candidates
-      .where((m) =>
-          _isWholeWordMatch(m.definitions.en, q) ||
-          _isWholeWordMatch(m.definitions.tr, q))
-      .map((m) => m.simplified)
-      .toSet();
+  final lq = q.toLowerCase();
+  final charScores = <String, int>{};
+  for (final m in candidates) {
+    final score = [
+      _definitionScore(m.definitions.tr, lq),
+      _definitionScore(m.definitions.en, lq),
+    ].fold(0, (best, s) => s > best ? s : best);
+    if (score > 0) charScores[m.simplified] = score;
+  }
 
-  if (matchedChars.isEmpty) return [];
-  return segments.where((s) =>
-    s.targetWords.any(matchedChars.contains)
-  ).toList();
+  if (charScores.isEmpty) return [];
+
+  // Filter videos that have at least one matching targetWord.
+  final matching = segments
+      .where((s) => s.targetWords.any(charScores.containsKey))
+      .toList();
+
+  // Sort: videos whose targetWord is the *primary* meaning come first.
+  matching.sort((a, b) {
+    int bestScore(VideoSegmentModel s) => s.targetWords
+        .map((w) => charScores[w] ?? 0)
+        .fold(0, (best, v) => v > best ? v : best);
+    return bestScore(b).compareTo(bestScore(a));
+  });
+
+  return matching;
 });
 
 // ---------------------------------------------------------------------------
