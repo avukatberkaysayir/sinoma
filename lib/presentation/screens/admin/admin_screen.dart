@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
@@ -585,9 +586,9 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   String? _resultMsg;
   bool _resultSuccess = false;
 
-  // Local pipeline ASR
-  bool _serverRunning = false;
+  // ASR job queue
   bool _asrProcessing = false;
+  Timer? _jobPollTimer;
 
   // Segment builder
   String _ytId = '';
@@ -601,19 +602,10 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   bool _saving = false;
   bool _playerReady = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _checkServer();
-  }
-
-  Future<void> _checkServer() async {
-    final running = await _service.isPipelineServerRunning();
-    if (mounted) setState(() => _serverRunning = running);
-  }
 
   @override
   void dispose() {
+    _jobPollTimer?.cancel();
     _urlCtrl.dispose();
     _startCtrl.dispose();
     _endCtrl.dispose();
@@ -710,17 +702,13 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     if (url.isEmpty) return;
     setState(() { _asrProcessing = true; _resultMsg = null; });
     try {
-      final result = await _service.processYoutubeVideoAsr(url, active: false);
-      final count = result['segmentsWritten'] as int? ?? 0;
-      final method = result['method'] as String? ?? 'whisper';
-      if (mounted) {
-        setState(() {
-          _asrProcessing = false;
-          _resultSuccess = true;
-          _resultMsg = '✓ $count klip içe aktarıldı ($method). Aşağıdan aktifleştirin.';
-        });
-        widget.onVideosChanged();
-      }
+      final jobId = await _service.createYoutubeAsrJob(url, active: false);
+      if (!mounted) return;
+      setState(() {
+        _resultSuccess = true;
+        _resultMsg = '⏳ İşe alındı — pipeline arka planda çalışıyor…';
+      });
+      _startJobPolling(jobId);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -730,6 +718,37 @@ class _YouTubeTabState extends State<_YouTubeTab> {
         });
       }
     }
+  }
+
+  void _startJobPolling(String jobId) {
+    _jobPollTimer?.cancel();
+    _jobPollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      if (!mounted) return;
+      try {
+        final job = await _service.getJob(jobId);
+        if (!mounted) return;
+        final status = job['status'] as String? ?? '';
+        if (status == 'processing') {
+          setState(() => _resultMsg = '🔄 Whisper transkripsiyon yapıyor…');
+        } else if (status == 'done') {
+          final count = (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
+          setState(() {
+            _asrProcessing = false;
+            _resultSuccess = true;
+            _resultMsg = '✓ $count klip içe aktarıldı (Whisper). Aşağıdan aktifleştirin.';
+          });
+          _jobPollTimer?.cancel();
+          widget.onVideosChanged();
+        } else if (status == 'error') {
+          setState(() {
+            _asrProcessing = false;
+            _resultSuccess = false;
+            _resultMsg = job['error_text'] as String? ?? 'Bilinmeyen hata';
+          });
+          _jobPollTimer?.cancel();
+        }
+      } catch (_) {}
+    });
   }
 
   Future<void> _saveSegment() async {
@@ -804,22 +823,11 @@ class _YouTubeTabState extends State<_YouTubeTab> {
               ),
             ),
             const SizedBox(width: 12),
-            Icon(
-              _serverRunning ? Icons.memory : Icons.memory_outlined,
-              size: 14,
-              color: _serverRunning
-                  ? AppColors.correctAnswer
-                  : AppColors.onSurfaceMuted,
-            ),
+            const Icon(Icons.memory, size: 14, color: AppColors.correctAnswer),
             const SizedBox(width: 4),
-            Text(
-              _serverRunning ? 'Pipeline: Whisper ASR hazır' : 'Pipeline çevrimdışı',
-              style: TextStyle(
-                color: _serverRunning
-                    ? AppColors.correctAnswer
-                    : AppColors.onSurfaceMuted,
-                fontSize: 12,
-              ),
+            const Text(
+              'Whisper ASR aktif',
+              style: TextStyle(color: AppColors.correctAnswer, fontSize: 12),
             ),
           ]),
           const SizedBox(height: 10),
@@ -887,34 +895,32 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             ),
           ),
 
-          // ── Whisper ASR button (local pipeline only) ──────────────────────
-          if (_serverRunning) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed:
-                    (_urlCtrl.text.trim().isNotEmpty && !_processing && !_asrProcessing)
-                        ? _processAsr
-                        : null,
-                icon: _asrProcessing
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.graphic_eq, size: 18),
-                label: Text(_asrProcessing
-                    ? 'Whisper transkripsiyon yapıyor…'
-                    : 'Whisper ASR — Sesden Transkripsiyon'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.primary,
-                  side: const BorderSide(color: AppColors.primary),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
+          // ── Whisper ASR button ────────────────────────────────────────────
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed:
+                  (_urlCtrl.text.trim().isNotEmpty && !_processing && !_asrProcessing)
+                      ? _processAsr
+                      : null,
+              icon: _asrProcessing
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.graphic_eq, size: 18),
+              label: Text(_asrProcessing
+                  ? 'İşe alındı — pipeline çalışıyor…'
+                  : 'Whisper ASR — Altyazısız Videolar İçin'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
             ),
-          ],
+          ),
 
           if (_resultMsg != null) ...[
             const SizedBox(height: 10),

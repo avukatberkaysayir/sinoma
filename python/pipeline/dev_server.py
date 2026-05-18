@@ -251,6 +251,17 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    # Start Supabase job poller in background thread
+    try:
+        from youtube_asr_pipeline import SUPABASE_URL, SUPABASE_SERVICE_KEY
+        if SUPABASE_SERVICE_KEY:
+            from pipeline_poller import start as start_poller
+            start_poller(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+        else:
+            print("⚠️  SUPABASE_SERVICE_ROLE_KEY eksik — job poller devre dışı")
+    except Exception as e:
+        print(f"⚠️  Poller başlatılamadı: {e}")
+
     server = HTTPServer(("localhost", PORT), _Handler)
     print(f"🚀 Pipeline dev server  →  http://localhost:{PORT}")
     print(f"   POST /process-video        {{\"url\": \"...\"}}")

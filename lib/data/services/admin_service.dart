@@ -65,22 +65,22 @@ class AdminService {
     return body;
   }
 
-  Future<Map<String, dynamic>> processYoutubeVideoAsr(
-    String url, {
-    bool active = false,
-  }) async {
-    final res = await http
-        .post(
-          Uri.parse('$_pipelineBase/process-youtube-asr'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'url': url, 'active': active}),
-        )
-        .timeout(const Duration(minutes: 30));
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode >= 300) {
-      throw Exception(body['error'] ?? 'ASR işlemi başarısız (${res.statusCode})');
-    }
-    return body;
+  Future<String> createYoutubeAsrJob(String url, {bool active = false}) async {
+    final res = await _db
+        .from('pipeline_jobs')
+        .insert({'job_type': 'youtube_asr', 'payload': {'url': url, 'active': active}})
+        .select('id')
+        .single();
+    return res['id'] as String;
+  }
+
+  Future<Map<String, dynamic>> getJob(String jobId) async {
+    final res = await _db
+        .from('pipeline_jobs')
+        .select()
+        .eq('id', jobId)
+        .single();
+    return Map<String, dynamic>.from(res);
   }
 
   Future<Map<String, dynamic>> processYoutubeVideo(
