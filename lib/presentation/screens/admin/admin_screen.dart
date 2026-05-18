@@ -23,18 +23,13 @@ class _AdminScreenState extends State<AdminScreen>
     with SingleTickerProviderStateMixin {
   final _service = AdminService();
   late final TabController _tabs;
-
-  List<Map<String, dynamic>> _videos = [];
-  bool _loadingVideos = true;
-  String? _videosError;
+  final _reviewKey = GlobalKey<_VideoReviewPanelState>();
   bool _seeding = false;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this, initialIndex: 0);
-    _loadVideos();
-    // Auto-seed dictionary on every admin panel open if < 150 words exist.
+    _tabs = TabController(length: 2, vsync: this);
     _service.seedHsk1Dictionary();
   }
 
@@ -44,55 +39,42 @@ class _AdminScreenState extends State<AdminScreen>
     super.dispose();
   }
 
-  Future<void> _loadVideos() async {
-    setState(() { _loadingVideos = true; _videosError = null; });
-    try {
-      final videos = await _service.listVideos();
-      videos.sort((a, b) =>
-          ((a['hsk_level'] as int?) ?? 1)
-              .compareTo((b['hsk_level'] as int?) ?? 1));
-      if (mounted) setState(() { _videos = videos; _loadingVideos = false; });
-    } catch (e) {
-      if (mounted) setState(() { _videosError = e.toString(); _loadingVideos = false; });
-    }
-  }
-
-  Future<void> _toggleActive(String videoId, bool current) async {
-    try {
-      await _service.updateField(videoId, 'is_active', !current);
-      await _loadVideos();
-    } catch (e) {
-      _snack('Error: $e');
-    }
-  }
-
-  Future<void> _deleteVideo(String videoId) async {
+  Future<void> _seedDictionary(int level) async {
+    final counts = {1: 300, 2: 198, 3: 494};
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
-        title: const Text('Delete video?',
-            style: TextStyle(color: AppColors.onSurface)),
-        content: Text(videoId,
+        title: Text('Seed HSK $level Dictionary?',
+            style: const TextStyle(color: AppColors.onSurface)),
+        content: Text(
+            '~${counts[level]} HSK Level $level kelimesi dictionary tablosuna eklenir. Mevcut kayıtlar güncellenir.',
             style: const TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('İptal')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Delete',
-                style: TextStyle(color: AppColors.wrongAnswer)),
+            child: const Text('Ekle',
+                style: TextStyle(color: AppColors.primary)),
           ),
         ],
       ),
     );
-    if (ok == true) {
-      try {
-        await _service.deleteVideo(videoId);
-        await _loadVideos();
-      } catch (e) {
-        _snack('Error: $e');
-      }
+    if (ok != true) return;
+    setState(() => _seeding = true);
+    try {
+      final count = level == 1
+          ? await _service.seedHsk1Dictionary()
+          : level == 2
+              ? await _service.seedHsk2Dictionary()
+              : await _service.seedHsk3Dictionary();
+      _snack('✓ $count kelime eklendi (HSK $level)');
+    } catch (e) {
+      _snack('Hata: $e');
+    } finally {
+      if (mounted) setState(() => _seeding = false);
     }
   }
 
@@ -108,7 +90,8 @@ class _AdminScreenState extends State<AdminScreen>
             'Real imported videos won\'t be affected.',
             style: TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
               child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -122,51 +105,16 @@ class _AdminScreenState extends State<AdminScreen>
       try {
         final count = await _service.deleteSeedVideos();
         _snack('Deleted $count seed videos');
-        await _loadVideos();
+        _reviewKey.currentState?.refresh();
       } catch (e) {
         _snack('Error: $e');
       }
     }
   }
 
-  Future<void> _seedDictionary() async {
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        backgroundColor: AppColors.surfaceVariant,
-        title: const Text('Seed HSK 1 Dictionary?',
-            style: TextStyle(color: AppColors.onSurface)),
-        content: const Text(
-            '300 HSK Level 1 kelimesi dictionary tablosuna eklenir. '
-            'Mevcut kayıtlar güncellenir.',
-            style: TextStyle(color: AppColors.onSurfaceMuted)),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false),
-              child: const Text('İptal')),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Ekle',
-                style: TextStyle(color: AppColors.primary)),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    setState(() => _seeding = true);
-    try {
-      final count = await _service.seedHsk1Dictionary();
-      _snack('✓ $count kelime eklendi');
-    } catch (e) {
-      _snack('Hata: $e');
-    } finally {
-      if (mounted) setState(() => _seeding = false);
-    }
-  }
-
   void _snack(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(content: Text(msg)));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   @override
@@ -174,118 +122,669 @@ class _AdminScreenState extends State<AdminScreen>
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
-        title: Text('Admin — ${_videos.length} videos'),
+        title: const Text('Admin Panel'),
         actions: [
           if (_seeding)
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
               child: SizedBox(
-                  width: 18, height: 18,
+                  width: 18,
+                  height: 18,
                   child: CircularProgressIndicator(
                       strokeWidth: 2, color: AppColors.primary)),
             )
-          else
+          else ...[
             IconButton(
-              icon: const Icon(Icons.book_outlined, color: AppColors.primary),
+              icon: const Icon(Icons.looks_one_outlined, color: AppColors.primary),
               tooltip: 'Seed HSK 1 Dictionary (300 words)',
-              onPressed: _seedDictionary,
+              onPressed: () => _seedDictionary(1),
             ),
+            IconButton(
+              icon: const Icon(Icons.looks_two_outlined, color: AppColors.primary),
+              tooltip: 'Seed HSK 2 Dictionary (198 words)',
+              onPressed: () => _seedDictionary(2),
+            ),
+            IconButton(
+              icon: const Icon(Icons.looks_3_outlined, color: AppColors.primary),
+              tooltip: 'Seed HSK 3 Dictionary (~494 words)',
+              onPressed: () => _seedDictionary(3),
+            ),
+          ],
           IconButton(
             icon: const Icon(Icons.delete_sweep_outlined,
                 color: AppColors.wrongAnswer),
             tooltip: 'Clear seed data',
             onPressed: _deleteSeedVideos,
           ),
-          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadVideos),
         ],
-        bottom: TabBar(
-          controller: _tabs,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.onSurfaceMuted,
-          tabs: const [
-            Tab(icon: Icon(Icons.smart_display_outlined, size: 18),
-                text: 'YouTube'),
-            Tab(icon: Icon(Icons.movie_outlined, size: 18),
-                text: 'Movie / File'),
-          ],
-        ),
       ),
-      body: Column(
+      body: Row(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
-            flex: 2,
-            child: TabBarView(
-              controller: _tabs,
+          // ── Left: Add panel (420px) ──────────────────────────────────────
+          SizedBox(
+            width: 420,
+            child: Column(
               children: [
-                _YouTubeTab(onVideosChanged: _loadVideos),
-                _MovieImportTab(onVideosChanged: _loadVideos),
+                Material(
+                  color: AppColors.surfaceVariant,
+                  child: TabBar(
+                    controller: _tabs,
+                    indicatorColor: AppColors.primary,
+                    labelColor: AppColors.primary,
+                    unselectedLabelColor: AppColors.onSurfaceMuted,
+                    tabs: const [
+                      Tab(
+                          icon: Icon(Icons.smart_display_outlined, size: 18),
+                          text: 'YouTube'),
+                      Tab(
+                          icon: Icon(Icons.movie_outlined, size: 18),
+                          text: 'Movie / File'),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabs,
+                    children: [
+                      _YouTubeTab(
+                        onVideosChanged: () =>
+                            _reviewKey.currentState?.refresh(),
+                      ),
+                      _MovieImportTab(
+                        onVideosChanged: () =>
+                            _reviewKey.currentState?.refresh(),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.surfaceVariant),
-          Expanded(child: _buildVideoList()),
+          // ── Divider ──────────────────────────────────────────────────────
+          Container(width: 1, color: AppColors.surfaceVariant),
+          // ── Right: Review panel ──────────────────────────────────────────
+          Expanded(
+            child: _VideoReviewPanel(key: _reviewKey, service: _service),
+          ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildVideoList() {
-    if (_loadingVideos) {
-      return const Center(child: CircularProgressIndicator());
-    }
-    if (_videosError != null) {
-      return Center(
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.error_outline, color: AppColors.wrongAnswer, size: 40),
-          const SizedBox(height: 12),
-          Text(_videosError!,
-              style: const TextStyle(color: AppColors.onSurfaceMuted),
-              textAlign: TextAlign.center),
-          const SizedBox(height: 16),
-          FilledButton(
-              onPressed: _loadVideos,
-              style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary),
-              child: const Text('Retry')),
-        ]),
-      );
-    }
-    if (_videos.isEmpty) {
-      return const Center(
-        child: Text('No videos yet.',
-            style: TextStyle(color: AppColors.onSurfaceMuted)),
-      );
-    }
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
-      itemCount: _videos.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _VideoCard(
-        data: _videos[i],
-        service: _service,
-        onToggleActive: _toggleActive,
-        onDelete: _deleteVideo,
-        onSaved: _loadVideos,
       ),
     );
   }
 }
 
-// ── Video card ────────────────────────────────────────────────────────────────
+// ── Video Review Panel ────────────────────────────────────────────────────────
+
+class _VideoReviewPanel extends StatefulWidget {
+  final AdminService service;
+  const _VideoReviewPanel({super.key, required this.service});
+
+  @override
+  State<_VideoReviewPanel> createState() => _VideoReviewPanelState();
+}
+
+class _VideoReviewPanelState extends State<_VideoReviewPanel>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
+  int _refreshCount = 0;
+  int? _filterHsk;
+  String? _filterCategory;
+  String? _filterLength;
+  String _searchQuery = '';
+  final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 3, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    _searchCtrl.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void refresh() {
+    if (mounted) setState(() => _refreshCount++);
+  }
+
+  Widget _buildFilterBar() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 6),
+      color: AppColors.surface,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            height: 36,
+            child: TextField(
+              controller: _searchCtrl,
+              style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Ara (Çince, pinyin, kelime…)',
+                hintStyle: const TextStyle(
+                    color: AppColors.onSurfaceMuted, fontSize: 12),
+                filled: true,
+                fillColor: AppColors.surfaceVariant,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                prefixIcon: const Icon(Icons.search,
+                    size: 16, color: AppColors.onSurfaceMuted),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, size: 16),
+                        padding: EdgeInsets.zero,
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none),
+              ),
+              onChanged: (q) {
+                _searchDebounce?.cancel();
+                _searchDebounce =
+                    Timer(const Duration(milliseconds: 300), () {
+                  if (mounted) setState(() => _searchQuery = q.trim());
+                });
+              },
+            ),
+          ),
+          const SizedBox(height: 6),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                const Text('HSK:',
+                    style: TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+                const SizedBox(width: 4),
+                _FilterDropdown<int>(
+                  value: _filterHsk,
+                  hint: 'Tümü',
+                  options: [for (var i = 1; i <= 6; i++) ('HSK $i', i)],
+                  onChanged: (v) => setState(() => _filterHsk = v),
+                ),
+                const SizedBox(width: 10),
+                const Text('Kat:',
+                    style: TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+                const SizedBox(width: 4),
+                _FilterDropdown<String>(
+                  value: _filterCategory,
+                  hint: 'Tümü',
+                  options: QuizCategory.values
+                      .map((c) => ('${c.emoji} ${c.displayName}', c.name))
+                      .toList(),
+                  onChanged: (v) => setState(() => _filterCategory = v),
+                ),
+                const SizedBox(width: 10),
+                const Text('Uzunluk:',
+                    style: TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+                const SizedBox(width: 4),
+                _FilterDropdown<String>(
+                  value: _filterLength,
+                  hint: 'Tümü',
+                  options: const [
+                    ('1-5字', '1-5字'),
+                    ('6-10字', '6-10字'),
+                    ('11-15字', '11-15字'),
+                    ('16-20字', '16-20字'),
+                    ('21字+', '21字+'),
+                  ],
+                  onChanged: (v) => setState(() => _filterLength = v),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildFilterBar(),
+        Material(
+          color: AppColors.surfaceVariant,
+          child: TabBar(
+            controller: _tabs,
+            indicatorColor: AppColors.primary,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.onSurfaceMuted,
+            tabs: const [
+              Tab(
+                  icon: Icon(Icons.hourglass_empty_outlined, size: 16),
+                  text: 'Onay Bekleyen'),
+              Tab(
+                  icon: Icon(Icons.check_circle_outline, size: 16),
+                  text: 'Aktif'),
+              Tab(
+                  icon: Icon(Icons.delete_outline, size: 16),
+                  text: 'Silinmiş'),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [
+              _VideoStatusTab(
+                key: ValueKey('pending-$_refreshCount'),
+                status: 'pending',
+                service: widget.service,
+                onRefresh: refresh,
+                filterHsk: _filterHsk,
+                filterCategory: _filterCategory,
+                filterLength: _filterLength,
+                searchQuery: _searchQuery,
+              ),
+              _VideoStatusTab(
+                key: ValueKey('active-$_refreshCount'),
+                status: 'active',
+                service: widget.service,
+                onRefresh: refresh,
+                filterHsk: _filterHsk,
+                filterCategory: _filterCategory,
+                filterLength: _filterLength,
+                searchQuery: _searchQuery,
+              ),
+              _VideoStatusTab(
+                key: ValueKey('deleted-$_refreshCount'),
+                status: 'deleted',
+                service: widget.service,
+                onRefresh: refresh,
+                filterHsk: _filterHsk,
+                filterCategory: _filterCategory,
+                filterLength: _filterLength,
+                searchQuery: _searchQuery,
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Video Status Tab ──────────────────────────────────────────────────────────
+
+class _VideoStatusTab extends StatefulWidget {
+  final String status;
+  final AdminService service;
+  final VoidCallback onRefresh;
+  final int? filterHsk;
+  final String? filterCategory;
+  final String? filterLength;
+  final String searchQuery;
+
+  const _VideoStatusTab({
+    super.key,
+    required this.status,
+    required this.service,
+    required this.onRefresh,
+    this.filterHsk,
+    this.filterCategory,
+    this.filterLength,
+    this.searchQuery = '',
+  });
+
+  @override
+  State<_VideoStatusTab> createState() => _VideoStatusTabState();
+}
+
+class _VideoStatusTabState extends State<_VideoStatusTab> {
+  List<Map<String, dynamic>> _videos = [];
+  bool _loading = true;
+  String? _error;
+  final Set<String> _selected = {};
+  bool _bulkLoading = false;
+
+  static String _sentenceLengthBucket(int n) {
+    if (n <= 5) return '1-5字';
+    if (n <= 10) return '6-10字';
+    if (n <= 15) return '11-15字';
+    if (n <= 20) return '16-20字';
+    return '21字+';
+  }
+
+  List<Map<String, dynamic>> get _filteredVideos {
+    var result = _videos;
+    if (widget.filterHsk != null) {
+      result = result
+          .where((v) => (v['hsk_level'] as int?) == widget.filterHsk)
+          .toList();
+    }
+    if (widget.filterCategory != null) {
+      result = result
+          .where((v) => (v['quiz_category'] as String?) == widget.filterCategory)
+          .toList();
+    }
+    if (widget.filterLength != null) {
+      result = result.where((v) {
+        final t = v['transcription'] as String? ?? '';
+        final n = RegExp(r'[一-鿿]').allMatches(t).length;
+        return _sentenceLengthBucket(n) == widget.filterLength;
+      }).toList();
+    }
+    if (widget.searchQuery.isNotEmpty) {
+      final q = widget.searchQuery.toLowerCase();
+      result = result.where((v) {
+        final t = (v['transcription'] as String? ?? '').toLowerCase();
+        final p = (v['pinyin'] as String? ?? '').toLowerCase();
+        final words = (v['target_words'] as List<dynamic>?)
+                ?.map((w) => w.toString().toLowerCase())
+                .toList() ??
+            [];
+        return t.contains(q) || p.contains(q) || words.any((w) => w.contains(q));
+      }).toList();
+    }
+    return result;
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+      _selected.clear();
+    });
+    try {
+      final list = await widget.service.listVideosByStatus(widget.status);
+      if (mounted) setState(() { _videos = list; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  void _toggleSelect(String id) {
+    setState(() {
+      if (_selected.contains(id)) {
+        _selected.remove(id);
+      } else {
+        _selected.add(id);
+      }
+    });
+  }
+
+  void _toggleSelectAll() {
+    final filtered = _filteredVideos;
+    setState(() {
+      final allSel = filtered.isNotEmpty &&
+          filtered.every((v) => _selected.contains(v['id'] as String));
+      if (allSel) {
+        _selected.removeAll(filtered.map((v) => v['id'] as String));
+      } else {
+        _selected.addAll(filtered.map((v) => v['id'] as String));
+      }
+    });
+  }
+
+  Future<void> _bulkApprove() async {
+    if (_selected.isEmpty) return;
+    setState(() => _bulkLoading = true);
+    try {
+      await widget.service.approveVideos(_selected.toList());
+      if (mounted) _snack('✓ ${_selected.length} video onaylandı');
+      widget.onRefresh();
+    } catch (e) {
+      if (mounted) _snack('Hata: $e');
+    } finally {
+      if (mounted) setState(() => _bulkLoading = false);
+    }
+  }
+
+  Future<void> _bulkSoftDelete() async {
+    if (_selected.isEmpty) return;
+    setState(() => _bulkLoading = true);
+    try {
+      await widget.service.softDeleteVideos(_selected.toList());
+      if (mounted) _snack('${_selected.length} video silindi');
+      widget.onRefresh();
+    } catch (e) {
+      if (mounted) _snack('Hata: $e');
+    } finally {
+      if (mounted) setState(() => _bulkLoading = false);
+    }
+  }
+
+  Future<void> _bulkDeactivate() async {
+    if (_selected.isEmpty) return;
+    setState(() => _bulkLoading = true);
+    try {
+      await widget.service.restoreVideos(_selected.toList()); // → pending
+      if (mounted) _snack('${_selected.length} video pasife alındı');
+      widget.onRefresh();
+    } catch (e) {
+      if (mounted) _snack('Hata: $e');
+    } finally {
+      if (mounted) setState(() => _bulkLoading = false);
+    }
+  }
+
+  Future<void> _bulkRestore() async {
+    if (_selected.isEmpty) return;
+    setState(() => _bulkLoading = true);
+    try {
+      await widget.service.restoreVideos(_selected.toList());
+      if (mounted) _snack('${_selected.length} video geri yüklendi');
+      widget.onRefresh();
+    } catch (e) {
+      if (mounted) _snack('Hata: $e');
+    } finally {
+      if (mounted) setState(() => _bulkLoading = false);
+    }
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  bool get _allSelected {
+    final filtered = _filteredVideos;
+    return filtered.isNotEmpty &&
+        filtered.every((v) => _selected.contains(v['id'] as String));
+  }
+
+  bool get _someSelected {
+    final filtered = _filteredVideos;
+    return filtered.any((v) => _selected.contains(v['id'] as String));
+  }
+
+  Widget _buildBulkActions() {
+    final selCount = _selected.length;
+    final disabled = selCount == 0 || _bulkLoading;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      color: AppColors.surfaceVariant,
+      child: Row(
+        children: [
+          Checkbox(
+            value: _allSelected ? true : (_someSelected ? null : false),
+            tristate: true,
+            activeColor: AppColors.primary,
+            onChanged: (_) => _toggleSelectAll(),
+          ),
+          Text(
+            selCount > 0 ? '$selCount seçili' : 'Tümünü seç',
+            style: TextStyle(
+              color: selCount > 0
+                  ? AppColors.onSurface
+                  : AppColors.onSurfaceMuted,
+              fontSize: 12,
+            ),
+          ),
+          const Spacer(),
+          if (_bulkLoading)
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: AppColors.primary),
+            )
+          else ...[
+            if (widget.status == 'pending') ...[
+              _actionBtn('Onayla', AppColors.primary, filled: true,
+                  onPressed: disabled ? null : _bulkApprove),
+              const SizedBox(width: 6),
+              _actionBtn('Sil', AppColors.wrongAnswer,
+                  onPressed: disabled ? null : _bulkSoftDelete),
+            ],
+            if (widget.status == 'active') ...[
+              _actionBtn('Pasife Al', AppColors.onSurfaceMuted,
+                  onPressed: disabled ? null : _bulkDeactivate),
+              const SizedBox(width: 6),
+              _actionBtn('Sil', AppColors.wrongAnswer,
+                  onPressed: disabled ? null : _bulkSoftDelete),
+            ],
+            if (widget.status == 'deleted') ...[
+              _actionBtn('Geri Yükle', AppColors.primary, filled: true,
+                  onPressed: disabled ? null : _bulkRestore),
+            ],
+          ],
+          const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.refresh, size: 18),
+            onPressed: _load,
+            tooltip: 'Yenile',
+            style: IconButton.styleFrom(
+                minimumSize: const Size(32, 32), padding: EdgeInsets.zero),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _actionBtn(String label, Color color,
+      {bool filled = false, VoidCallback? onPressed}) {
+    final style = filled
+        ? FilledButton.styleFrom(
+            backgroundColor: color,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            textStyle: const TextStyle(fontSize: 12),
+            minimumSize: Size.zero,
+          )
+        : OutlinedButton.styleFrom(
+            foregroundColor: color,
+            side: BorderSide(color: color),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            textStyle: const TextStyle(fontSize: 12),
+            minimumSize: Size.zero,
+          );
+
+    return filled
+        ? FilledButton(onPressed: onPressed, style: style, child: Text(label))
+        : OutlinedButton(
+            onPressed: onPressed, style: style, child: Text(label));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.error_outline,
+              color: AppColors.wrongAnswer, size: 40),
+          const SizedBox(height: 12),
+          Text(_error!,
+              style: const TextStyle(color: AppColors.onSurfaceMuted),
+              textAlign: TextAlign.center),
+          const SizedBox(height: 16),
+          FilledButton(
+              onPressed: _load,
+              style:
+                  FilledButton.styleFrom(backgroundColor: AppColors.primary),
+              child: const Text('Tekrar Dene')),
+        ]),
+      );
+    }
+
+    final filtered = _filteredVideos;
+    return Column(
+      children: [
+        _buildBulkActions(),
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Text(
+                    _videos.isEmpty
+                        ? switch (widget.status) {
+                            'pending' => 'Onay bekleyen video yok.',
+                            'active' => 'Aktif video yok.',
+                            'deleted' => 'Silinmiş video yok.',
+                            _ => 'Video yok.',
+                          }
+                        : 'Filtreyle eşleşen video yok.',
+                    style:
+                        const TextStyle(color: AppColors.onSurfaceMuted),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 6),
+                  itemBuilder: (_, i) {
+                    final video = filtered[i];
+                    final id = video['id'] as String;
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Checkbox(
+                            value: _selected.contains(id),
+                            activeColor: AppColors.primary,
+                            onChanged: (_) => _toggleSelect(id),
+                          ),
+                        ),
+                        Expanded(
+                          child: _VideoCard(
+                            data: video,
+                            service: widget.service,
+                            onSaved: _load,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Video Card ────────────────────────────────────────────────────────────────
 
 class _VideoCard extends StatefulWidget {
   final Map<String, dynamic> data;
   final AdminService service;
-  final Future<void> Function(String, bool) onToggleActive;
-  final Future<void> Function(String) onDelete;
   final VoidCallback onSaved;
 
   const _VideoCard({
     required this.data,
     required this.service,
-    required this.onToggleActive,
-    required this.onDelete,
     required this.onSaved,
   });
 
@@ -297,6 +796,7 @@ class _VideoCardState extends State<_VideoCard> {
   bool _expanded = false;
   late int _hskLevel;
   late QuizCategory _category;
+  late List<String> _targetWords;
   late final TextEditingController _questionCtrl;
   late final TextEditingController _correctCtrl;
   late final TextEditingController _wrongCtrl;
@@ -307,15 +807,17 @@ class _VideoCardState extends State<_VideoCard> {
     super.initState();
     final v = widget.data;
     _hskLevel = (v['hsk_level'] as int?) ?? 1;
-    _category = QuizCategory.fromString(
-        v['quiz_category'] as String? ?? 'general');
+    _category =
+        QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
+    _targetWords = List<String>.from(
+        (v['target_words'] as List<dynamic>?) ?? []);
     final quiz = v['quiz'] as Map<String, dynamic>? ?? {};
-    _questionCtrl = TextEditingController(
-        text: quiz['question'] as String? ?? '');
-    _correctCtrl = TextEditingController(
-        text: quiz['correctAnswer'] as String? ?? '');
-    _wrongCtrl = TextEditingController(
-        text: quiz['wrongAnswer'] as String? ?? '');
+    _questionCtrl =
+        TextEditingController(text: quiz['question'] as String? ?? '');
+    _correctCtrl =
+        TextEditingController(text: quiz['correctAnswer'] as String? ?? '');
+    _wrongCtrl =
+        TextEditingController(text: quiz['wrongAnswer'] as String? ?? '');
   }
 
   @override
@@ -332,6 +834,7 @@ class _VideoCardState extends State<_VideoCard> {
       await widget.service.patchVideoFields(widget.data['id'] as String, {
         'hsk_level': _hskLevel,
         'quiz_category': _category.name,
+        'target_words': _targetWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
           'correctAnswer': _correctCtrl.text.trim(),
@@ -362,19 +865,19 @@ class _VideoCardState extends State<_VideoCard> {
   @override
   Widget build(BuildContext context) {
     final v = widget.data;
-    final isActive = v['is_active'] as bool? ?? false;
     final hsk = (v['hsk_level'] as int?) ?? 1;
-    final qc = QuizCategory.fromString(
-        v['quiz_category'] as String? ?? 'general');
+    final qc =
+        QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
     final ytId = v['youtube_id'] as String?;
     final id = v['id'] as String;
+    final status = v['status'] as String? ?? '';
 
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isActive
+          color: status == 'active'
               ? AppColors.primary.withValues(alpha: 0.3)
               : Colors.grey.withValues(alpha: 0.15),
         ),
@@ -386,8 +889,8 @@ class _VideoCardState extends State<_VideoCard> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: AppColors.forHskLevel(hsk),
                     borderRadius: BorderRadius.circular(6),
@@ -404,11 +907,8 @@ class _VideoCardState extends State<_VideoCard> {
             ),
             title: Text(
               v['transcription'] as String? ?? id,
-              style: TextStyle(
-                  color: isActive
-                      ? AppColors.onSurface
-                      : AppColors.onSurfaceMuted,
-                  fontSize: 14),
+              style:
+                  const TextStyle(color: AppColors.onSurface, fontSize: 13),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -425,28 +925,15 @@ class _VideoCardState extends State<_VideoCard> {
                         color: AppColors.onSurfaceMuted, fontSize: 11)),
               ],
             ),
-            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              Switch(
-                value: isActive,
-                activeTrackColor: AppColors.primary,
-                onChanged: (_) => widget.onToggleActive(id, isActive),
+            trailing: IconButton(
+              icon: Icon(
+                _expanded ? Icons.edit : Icons.edit_outlined,
+                color:
+                    _expanded ? AppColors.primary : AppColors.onSurfaceMuted,
+                size: 20,
               ),
-              IconButton(
-                icon: Icon(
-                  _expanded ? Icons.edit : Icons.edit_outlined,
-                  color: _expanded
-                      ? AppColors.primary
-                      : AppColors.onSurfaceMuted,
-                  size: 20,
-                ),
-                onPressed: () => setState(() => _expanded = !_expanded),
-              ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline,
-                    color: AppColors.wrongAnswer, size: 20),
-                onPressed: () => widget.onDelete(id),
-              ),
-            ]),
+              onPressed: () => setState(() => _expanded = !_expanded),
+            ),
           ),
           if (_expanded) ...[
             const Divider(height: 1, color: AppColors.surface),
@@ -477,7 +964,9 @@ class _VideoCardState extends State<_VideoCard> {
                           fontSize: 13)),
                   Slider(
                     value: _hskLevel.toDouble(),
-                    min: 1, max: 6, divisions: 5,
+                    min: 1,
+                    max: 6,
+                    divisions: 5,
                     activeColor: AppColors.forHskLevel(_hskLevel),
                     label: 'HSK $_hskLevel',
                     onChanged: (v) => setState(() => _hskLevel = v.round()),
@@ -489,7 +978,8 @@ class _VideoCardState extends State<_VideoCard> {
                           fontSize: 13)),
                   const SizedBox(height: 6),
                   Wrap(
-                    spacing: 6, runSpacing: 4,
+                    spacing: 6,
+                    runSpacing: 4,
                     children: QuizCategory.values.map((cat) {
                       final sel = _category == cat;
                       return ChoiceChip(
@@ -505,6 +995,13 @@ class _VideoCardState extends State<_VideoCard> {
                         onSelected: (_) => setState(() => _category = cat),
                       );
                     }).toList(),
+                  ),
+                  const SizedBox(height: 14),
+                  _WordTagEditor(
+                    words: _targetWords,
+                    service: widget.service,
+                    onChanged: (words) =>
+                        setState(() => _targetWords = words),
                   ),
                   const SizedBox(height: 14),
                   const Text('Quiz',
@@ -527,7 +1024,8 @@ class _VideoCardState extends State<_VideoCard> {
                               const EdgeInsets.symmetric(vertical: 12)),
                       child: _saving
                           ? const SizedBox(
-                              width: 16, height: 16,
+                              width: 16,
+                              height: 16,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
                           : const Text('Kaydet'),
@@ -550,8 +1048,8 @@ class _VideoCardState extends State<_VideoCard> {
         style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
         decoration: InputDecoration(
           labelText: label,
-          labelStyle: const TextStyle(
-              color: AppColors.onSurfaceMuted, fontSize: 12),
+          labelStyle:
+              const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
           filled: true,
           fillColor: AppColors.surface,
           isDense: true,
@@ -567,7 +1065,222 @@ class _VideoCardState extends State<_VideoCard> {
   }
 }
 
-// ── Tab 1: YouTube — Pipeline + YouGlish segment builder ─────────────────────
+// ── Word Tag Editor ───────────────────────────────────────────────────────────
+
+class _WordTagEditor extends StatefulWidget {
+  final List<String> words;
+  final AdminService service;
+  final void Function(List<String>) onChanged;
+
+  const _WordTagEditor({
+    required this.words,
+    required this.service,
+    required this.onChanged,
+  });
+
+  @override
+  State<_WordTagEditor> createState() => _WordTagEditorState();
+}
+
+class _WordTagEditorState extends State<_WordTagEditor> {
+  final _ctrl = TextEditingController();
+  Timer? _debounce;
+  List<Map<String, dynamic>> _suggestions = [];
+  bool _searching = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearch(String q) {
+    _debounce?.cancel();
+    if (q.trim().isEmpty) {
+      setState(() => _suggestions = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 300), () async {
+      setState(() => _searching = true);
+      final results = await widget.service.searchDictionary(q.trim());
+      if (mounted) setState(() { _suggestions = results; _searching = false; });
+    });
+  }
+
+  void _addWord(String word) {
+    final current = List<String>.from(widget.words);
+    if (!current.contains(word)) {
+      current.add(word);
+      widget.onChanged(current);
+    }
+    _ctrl.clear();
+    setState(() => _suggestions = []);
+  }
+
+  void _removeWord(String word) {
+    final current = List<String>.from(widget.words);
+    current.remove(word);
+    widget.onChanged(current);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('Kelimeler (sözlükten)',
+            style: TextStyle(
+                color: AppColors.onSurface,
+                fontWeight: FontWeight.w600,
+                fontSize: 13)),
+        const SizedBox(height: 6),
+        if (widget.words.isNotEmpty)
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: widget.words
+                .map((w) => InputChip(
+                      label: Text(w,
+                          style: const TextStyle(
+                              fontSize: 12, color: AppColors.primary)),
+                      onDeleted: () => _removeWord(w),
+                      deleteIcon: const Icon(Icons.close, size: 14),
+                      backgroundColor:
+                          AppColors.primary.withValues(alpha: 0.1),
+                      deleteIconColor: AppColors.primary,
+                    ))
+                .toList(),
+          ),
+        const SizedBox(height: 6),
+        TextField(
+          controller: _ctrl,
+          style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Kelime ara (Çince veya pinyin)…',
+            hintStyle: const TextStyle(
+                color: AppColors.onSurfaceMuted, fontSize: 12),
+            filled: true,
+            fillColor: AppColors.surface,
+            isDense: true,
+            prefixIcon: _searching
+                ? const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: SizedBox(
+                      width: 12,
+                      height: 12,
+                      child: CircularProgressIndicator(strokeWidth: 1.5),
+                    ))
+                : const Icon(Icons.search,
+                    size: 16, color: AppColors.onSurfaceMuted),
+            border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppColors.primary)),
+          ),
+          onChanged: _onSearch,
+        ),
+        if (_suggestions.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 4),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: AppColors.primary.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              children: _suggestions.map((s) {
+                final word = s['simplified'] as String;
+                final pinyin = s['pinyin'] as String? ?? '';
+                final hsk = s['hsk_level'] as int? ?? 0;
+                final already = widget.words.contains(word);
+                return ListTile(
+                  dense: true,
+                  leading: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 5, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.forHskLevel(hsk),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text('HSK$hsk',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                  title: Text(word,
+                      style: const TextStyle(
+                          color: AppColors.onSurface, fontSize: 13)),
+                  subtitle: Text(pinyin,
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 11)),
+                  trailing: already
+                      ? const Icon(Icons.check,
+                          color: AppColors.correctAnswer, size: 16)
+                      : const Icon(Icons.add,
+                          color: AppColors.primary, size: 16),
+                  onTap: already ? null : () => _addWord(word),
+                );
+              }).toList(),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Filter Dropdown ───────────────────────────────────────────────────────────
+
+class _FilterDropdown<T> extends StatelessWidget {
+  final T? value;
+  final List<(String, T)> options;
+  final String hint;
+  final void Function(T?) onChanged;
+
+  const _FilterDropdown({
+    required this.value,
+    required this.options,
+    required this.hint,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButton<T?>(
+      value: value,
+      hint: Text(hint,
+          style: const TextStyle(
+              color: AppColors.onSurfaceMuted, fontSize: 12)),
+      dropdownColor: AppColors.surfaceVariant,
+      style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+      underline: const SizedBox.shrink(),
+      isDense: true,
+      onChanged: onChanged,
+      items: [
+        DropdownMenuItem<T?>(
+          value: null,
+          child: const Text('Tümü',
+              style: TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 12)),
+        ),
+        ...options.map(
+          (opt) => DropdownMenuItem<T?>(
+            value: opt.$2,
+            child: Text(opt.$1,
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 12)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Tab 1: YouTube ────────────────────────────────────────────────────────────
 
 class _YouTubeTab extends StatefulWidget {
   final VoidCallback onVideosChanged;
@@ -581,16 +1294,13 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   final _service = AdminService();
   final _urlCtrl = TextEditingController();
 
-  // Cloud processing
   bool _processing = false;
   String? _resultMsg;
   bool _resultSuccess = false;
 
-  // ASR job queue
   bool _asrProcessing = false;
   Timer? _jobPollTimer;
 
-  // Segment builder
   String _ytId = '';
   YoutubePlayerController? _ytCtrl;
   final _startCtrl = TextEditingController(text: '0');
@@ -601,7 +1311,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   QuizCategory _category = QuizCategory.general;
   bool _saving = false;
   bool _playerReady = false;
-
 
   @override
   void dispose() {
@@ -653,7 +1362,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     final end = double.tryParse(_endCtrl.text) ?? 10;
     await _ytCtrl!.seekTo(seconds: start, allowSeekAhead: true);
     await _ytCtrl!.playVideo();
-    // Stop at endTime
     Future.delayed(Duration(milliseconds: ((end - start) * 1000).round()), () {
       if (mounted) _ytCtrl?.pauseVideo();
     });
@@ -682,7 +1390,8 @@ class _YouTubeTabState extends State<_YouTubeTab> {
         setState(() {
           _processing = false;
           _resultSuccess = true;
-          _resultMsg = '✓ $count klip içe aktarıldı (pasif). Aşağıdan aktifleştirin.';
+          _resultMsg =
+              '✓ $count klip içe aktarıldı. Sağdan onaylayın.';
         });
         widget.onVideosChanged();
       }
@@ -731,11 +1440,12 @@ class _YouTubeTabState extends State<_YouTubeTab> {
         if (status == 'processing') {
           setState(() => _resultMsg = '🔄 Whisper transkripsiyon yapıyor…');
         } else if (status == 'done') {
-          final count = (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
+          final count =
+              (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
           setState(() {
             _asrProcessing = false;
             _resultSuccess = true;
-            _resultMsg = '✓ $count klip içe aktarıldı (Whisper). Aşağıdan aktifleştirin.';
+            _resultMsg = '✓ $count klip içe aktarıldı (Whisper). Sağdan onaylayın.';
           });
           _jobPollTimer?.cancel();
           widget.onVideosChanged();
@@ -779,7 +1489,8 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           'correctAnswer': '',
           'wrongAnswer': '',
         },
-        'is_active': true,
+        'status': 'pending',
+        'is_active': false,
         'created_at': DateTime.now().toUtc().toIso8601String(),
       });
       if (mounted) {
@@ -790,16 +1501,16 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           _category = QuizCategory.general;
           _saving = false;
         });
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('✓ Segment kaydedildi!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✓ Segment kaydedildi! Onay bekleyenler sekmesine düştü.')));
         widget.onVideosChanged();
       }
     } catch (e) {
       if (mounted) {
         setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Hata: $e'),
-                backgroundColor: AppColors.wrongAnswer));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Hata: $e'),
+            backgroundColor: AppColors.wrongAnswer));
       }
     }
   }
@@ -811,28 +1522,26 @@ class _YouTubeTabState extends State<_YouTubeTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Status row ───────────────────────────────────────────────────
-          Row(children: [
-            const Icon(Icons.cloud_done_outlined,
+          const Row(children: [
+            Icon(Icons.cloud_done_outlined,
                 size: 14, color: AppColors.correctAnswer),
-            const SizedBox(width: 6),
-            const Expanded(
+            SizedBox(width: 6),
+            Expanded(
               child: Text(
                 'Bulut: altyazılı videolar otomatik parçalanır',
-                style: TextStyle(color: AppColors.correctAnswer, fontSize: 12),
+                style:
+                    TextStyle(color: AppColors.correctAnswer, fontSize: 12),
               ),
             ),
-            const SizedBox(width: 12),
-            const Icon(Icons.memory, size: 14, color: AppColors.correctAnswer),
-            const SizedBox(width: 4),
-            const Text(
-              'Whisper ASR aktif',
-              style: TextStyle(color: AppColors.correctAnswer, fontSize: 12),
-            ),
+            SizedBox(width: 12),
+            Icon(Icons.memory, size: 14, color: AppColors.correctAnswer),
+            SizedBox(width: 4),
+            Text('Whisper ASR aktif',
+                style:
+                    TextStyle(color: AppColors.correctAnswer, fontSize: 12)),
           ]),
           const SizedBox(height: 10),
 
-          // ── URL field ────────────────────────────────────────────────────
           Row(children: [
             Expanded(
               child: TextField(
@@ -841,8 +1550,8 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                 style: const TextStyle(color: AppColors.onSurface),
                 decoration: InputDecoration(
                   hintText: 'https://www.youtube.com/watch?v=...',
-                  hintStyle: const TextStyle(
-                      color: AppColors.onSurfaceMuted),
+                  hintStyle:
+                      const TextStyle(color: AppColors.onSurfaceMuted),
                   filled: true,
                   fillColor: AppColors.surface,
                   border: OutlineInputBorder(
@@ -869,17 +1578,18 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           ]),
           const SizedBox(height: 10),
 
-          // ── Cloud process button ──────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed:
-                  (_urlCtrl.text.trim().isNotEmpty && !_processing && !_asrProcessing)
-                      ? _process
-                      : null,
+              onPressed: (_urlCtrl.text.trim().isNotEmpty &&
+                      !_processing &&
+                      !_asrProcessing)
+                  ? _process
+                  : null,
               icon: _processing
                   ? const SizedBox(
-                      width: 16, height: 16,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.auto_awesome, size: 18),
@@ -895,18 +1605,19 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             ),
           ),
 
-          // ── Whisper ASR button ────────────────────────────────────────────
           const SizedBox(height: 8),
           SizedBox(
             width: double.infinity,
             child: OutlinedButton.icon(
-              onPressed:
-                  (_urlCtrl.text.trim().isNotEmpty && !_processing && !_asrProcessing)
-                      ? _processAsr
-                      : null,
+              onPressed: (_urlCtrl.text.trim().isNotEmpty &&
+                      !_processing &&
+                      !_asrProcessing)
+                  ? _processAsr
+                  : null,
               icon: _asrProcessing
                   ? const SizedBox(
-                      width: 16, height: 16,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.graphic_eq, size: 18),
               label: Text(_asrProcessing
@@ -929,7 +1640,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
 
           const SizedBox(height: 16),
 
-          // ── YouGlish-style segment builder ────────────────────────────────
           if (_playerReady && _ytCtrl != null) ...[
             Container(
               decoration: BoxDecoration(
@@ -941,7 +1651,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Player
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(12)),
@@ -953,22 +1662,16 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                       ),
                     ),
                   ),
-
                   Padding(
                     padding: const EdgeInsets.all(14),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // Time controls
                         Row(children: [
                           Expanded(
-                            child: _timeField(
-                                _startCtrl, 'Başlangıç (sn)'),
-                          ),
+                              child: _timeField(_startCtrl, 'Başlangıç (sn)')),
                           const SizedBox(width: 8),
-                          Expanded(
-                            child: _timeField(_endCtrl, 'Bitiş (sn)'),
-                          ),
+                          Expanded(child: _timeField(_endCtrl, 'Bitiş (sn)')),
                           const SizedBox(width: 8),
                           _timeBtn(
                               icon: Icons.flag_outlined,
@@ -981,8 +1684,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                               onTap: _setEndToCurrent),
                         ]),
                         const SizedBox(height: 10),
-
-                        // Play segment button
                         SizedBox(
                           width: double.infinity,
                           child: OutlinedButton.icon(
@@ -990,29 +1691,21 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                             icon: const Icon(Icons.play_circle_outline,
                                 size: 18, color: AppColors.primary),
                             label: const Text('Segmenti Oynat',
-                                style:
-                                    TextStyle(color: AppColors.primary)),
+                                style: TextStyle(color: AppColors.primary)),
                             style: OutlinedButton.styleFrom(
-                              side: const BorderSide(
-                                  color: AppColors.primary),
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 10),
+                              side: const BorderSide(color: AppColors.primary),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 10),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(8)),
+                                  borderRadius: BorderRadius.circular(8)),
                             ),
                           ),
                         ),
                         const SizedBox(height: 14),
-
-                        // Transcription + Pinyin
-                        _segField(_transcriptionCtrl,
-                            'Çince metin (汉字)'),
+                        _segField(_transcriptionCtrl, 'Çince metin (汉字)'),
                         const SizedBox(height: 8),
                         _segField(_pinyinCtrl, 'Pinyin'),
                         const SizedBox(height: 10),
-
-                        // HSK level
                         Text('HSK Seviye: $_hskLevel',
                             style: const TextStyle(
                                 color: AppColors.onSurface,
@@ -1020,22 +1713,21 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                                 fontSize: 13)),
                         Slider(
                           value: _hskLevel.toDouble(),
-                          min: 1, max: 6, divisions: 5,
-                          activeColor:
-                              AppColors.forHskLevel(_hskLevel),
+                          min: 1,
+                          max: 6,
+                          divisions: 5,
+                          activeColor: AppColors.forHskLevel(_hskLevel),
                           label: 'HSK $_hskLevel',
                           onChanged: (v) =>
                               setState(() => _hskLevel = v.round()),
                         ),
-
-                        // Category
                         Wrap(
-                          spacing: 6, runSpacing: 4,
+                          spacing: 6,
+                          runSpacing: 4,
                           children: QuizCategory.values.map((cat) {
                             final sel = _category == cat;
                             return ChoiceChip(
-                              label: Text(
-                                  '${cat.emoji} ${cat.displayName}',
+                              label: Text('${cat.emoji} ${cat.displayName}',
                                   style: TextStyle(
                                       fontSize: 11,
                                       color: sel
@@ -1050,28 +1742,24 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                           }).toList(),
                         ),
                         const SizedBox(height: 14),
-
-                        // Save button
                         SizedBox(
                           width: double.infinity,
                           child: FilledButton.icon(
                             onPressed: _saving ? null : _saveSegment,
                             icon: _saving
                                 ? const SizedBox(
-                                    width: 16, height: 16,
+                                    width: 16,
+                                    height: 16,
                                     child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        color: Colors.white))
-                                : const Icon(Icons.save_outlined,
-                                    size: 18),
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Icon(Icons.save_outlined, size: 18),
                             label: const Text('Segmenti Kaydet'),
                             style: FilledButton.styleFrom(
                               backgroundColor: AppColors.primary,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 12),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12),
                               shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.circular(10)),
+                                  borderRadius: BorderRadius.circular(10)),
                             ),
                           ),
                         ),
@@ -1082,7 +1770,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
               ),
             ),
           ] else ...[
-            // Empty state hint
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(24),
@@ -1102,8 +1789,8 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                     'Video yüklendikten sonra başlangıç/bitiş sürelerini\n'
                     'ayarlayıp segmentleri kaydedebilirsiniz.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: AppColors.onSurfaceMuted, fontSize: 13),
+                    style:
+                        TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
                   ),
                 ],
               ),
@@ -1148,8 +1835,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           onPressed: onTap,
           tooltip: 'Mevcut süreyi "$label" olarak ayarla',
           style: IconButton.styleFrom(
-            backgroundColor:
-                AppColors.primary.withValues(alpha: 0.1),
+            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8)),
           ),
@@ -1264,7 +1950,7 @@ class _MovieImportTabState extends State<_MovieImportTab> {
         setState(() {
           _processing = false;
           _resultSuccess = true;
-          _resultMsg = '✓ $count klip çıkarıldı. Aşağıdan aktifleştirin.';
+          _resultMsg = '✓ $count klip çıkarıldı. Sağdan onaylayın.';
         });
         widget.onVideosChanged();
       }
@@ -1313,13 +1999,12 @@ class _MovieImportTabState extends State<_MovieImportTab> {
             ),
           ],
           const SizedBox(height: 16),
-
           GestureDetector(
             onTap: _pickFile,
             child: Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 20),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
               decoration: BoxDecoration(
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(10),
@@ -1369,7 +2054,6 @@ class _MovieImportTabState extends State<_MovieImportTab> {
             ),
           ),
           const SizedBox(height: 12),
-
           Text(
               'Max klip: $_maxClips${_maxClips == 0 ? " (sınırsız)" : ""}',
               style: const TextStyle(
@@ -1378,27 +2062,26 @@ class _MovieImportTabState extends State<_MovieImportTab> {
                   fontWeight: FontWeight.w600)),
           Slider(
             value: _maxClips.toDouble(),
-            min: 0, max: 200, divisions: 40,
+            min: 0,
+            max: 200,
+            divisions: 40,
             activeColor: AppColors.primary,
             label: _maxClips == 0 ? '∞' : '$_maxClips',
-            onChanged: (v) =>
-                setState(() => _maxClips = v.round()),
+            onChanged: (v) => setState(() => _maxClips = v.round()),
           ),
           const Text(
             'Pipeline sunucusu + ffmpeg gerektirir.',
-            style: TextStyle(
-                color: AppColors.onSurfaceMuted, fontSize: 11),
+            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 11),
           ),
           const SizedBox(height: 14),
-
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed:
-                  (ready && _selectedFile != null) ? _process : null,
+              onPressed: (ready && _selectedFile != null) ? _process : null,
               icon: _processing
                   ? const SizedBox(
-                      width: 16, height: 16,
+                      width: 16,
+                      height: 16,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.movie_filter_outlined, size: 18),
@@ -1413,7 +2096,6 @@ class _MovieImportTabState extends State<_MovieImportTab> {
               ),
             ),
           ),
-
           if (_resultMsg != null) ...[
             const SizedBox(height: 12),
             _ResultBox(msg: _resultMsg!, success: _resultSuccess),
@@ -1438,7 +2120,8 @@ class _StatusRow extends StatelessWidget {
     return Row(children: [
       checking
           ? const SizedBox(
-              width: 10, height: 10,
+              width: 10,
+              height: 10,
               child: CircularProgressIndicator(strokeWidth: 1.5))
           : Icon(
               ok ? Icons.check_circle_outline : Icons.cancel_outlined,
@@ -1469,8 +2152,7 @@ class _ResultBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color =
-        success ? AppColors.correctAnswer : AppColors.wrongAnswer;
+    final color = success ? AppColors.correctAnswer : AppColors.wrongAnswer;
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),

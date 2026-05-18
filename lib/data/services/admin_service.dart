@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/hsk1_words.dart';
+import '../../core/constants/hsk2_words.dart';
+import '../../core/constants/hsk3_words.dart';
 
 class AdminService {
   SupabaseClient get _db => Supabase.instance.client;
@@ -110,6 +112,37 @@ class AdminService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  Future<List<Map<String, dynamic>>> listVideosByStatus(String status) async {
+    final data = await _db
+        .from('videos')
+        .select()
+        .eq('status', status)
+        .order('created_at', ascending: false)
+        .limit(500);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> approveVideos(List<String> ids) async {
+    await _db
+        .from('videos')
+        .update({'status': 'active', 'is_active': true})
+        .inFilter('id', ids);
+  }
+
+  Future<void> softDeleteVideos(List<String> ids) async {
+    await _db
+        .from('videos')
+        .update({'status': 'deleted', 'is_active': false})
+        .inFilter('id', ids);
+  }
+
+  Future<void> restoreVideos(List<String> ids) async {
+    await _db
+        .from('videos')
+        .update({'status': 'pending', 'is_active': false})
+        .inFilter('id', ids);
+  }
+
   Future<void> setVideo(String docId, Map<String, dynamic> data) async {
     await _db.from('videos').upsert({'id': docId, ...data});
   }
@@ -166,6 +199,22 @@ class AdminService {
     return body;
   }
 
+  Future<List<Map<String, dynamic>>> searchDictionary(String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return [];
+    try {
+      final data = await _db
+          .from('dictionary')
+          .select('id, simplified, pinyin, hsk_level')
+          .or('simplified.ilike.%$q%,pinyin.ilike.%$q%,pinyin_ascii.ilike.%$q%')
+          .order('hsk_level')
+          .limit(8);
+      return List<Map<String, dynamic>>.from(data);
+    } catch (_) {
+      return [];
+    }
+  }
+
   /// Seeds all 300 HSK Level 1 words into the dictionary table.
   /// Returns the number of words upserted.
   Future<int> seedHsk1Dictionary() async {
@@ -190,6 +239,61 @@ class AdminService {
       }).toList();
       await _db.from('dictionary').upsert(rows);
       total += rows.length;
+    }
+    return total;
+  }
+
+  /// Seeds all 198 HSK Level 2 words into the dictionary table.
+  Future<int> seedHsk2Dictionary() async {
+    const batchSize = 50;
+    var total = 0;
+    for (var i = 0; i < kHsk2Words.length; i += batchSize) {
+      final batch = kHsk2Words.sublist(
+        i,
+        (i + batchSize).clamp(0, kHsk2Words.length),
+      );
+      final rows = batch.map((w) => {
+        'id': w[0],
+        'simplified': w[0],
+        'traditional': w[0],
+        'pinyin': w[1],
+        'pinyin_ascii': _stripAccents(w[1]),
+        'hsk_level': 2,
+        'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+        'ai_context_cache': <String, dynamic>{},
+        'radicals': <String>[],
+        'stroke_count': 0,
+      }).toList();
+      await _db.from('dictionary').upsert(rows);
+      total += rows.length;
+    }
+    return total;
+  }
+
+  /// Seeds HSK Level 3 words into the dictionary table.
+  Future<int> seedHsk3Dictionary() async {
+    const batchSize = 50;
+    var total = 0;
+    final seen = <String>{};
+    final allRows = kHsk3Words
+        .where((w) => seen.add(w[0]))
+        .map((w) => {
+              'id': w[0],
+              'simplified': w[0],
+              'traditional': w[0],
+              'pinyin': w[1],
+              'pinyin_ascii': _stripAccents(w[1]),
+              'hsk_level': 3,
+              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'ai_context_cache': <String, dynamic>{},
+              'radicals': <String>[],
+              'stroke_count': 0,
+            })
+        .toList();
+    for (var i = 0; i < allRows.length; i += batchSize) {
+      final batch = allRows.sublist(i, (i + batchSize).clamp(0, allRows.length));
+      await _db.from('dictionary').upsert(batch);
+      total += batch.length;
     }
     return total;
   }
