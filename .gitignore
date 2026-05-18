@@ -83,3 +83,6 @@ pipeline.log
 *.log
 
 .vercel
+
+# Local deploy config
+.deploy.env

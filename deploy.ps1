@@ -1,12 +1,19 @@
 $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
-# Vercel token: set as env var or pass as argument
-# Usage: .\deploy.ps1                         (reads $env:VERCEL_TOKEN)
-#        .\deploy.ps1 -Token "vcp_..."
-param([string]$Token = $env:VERCEL_TOKEN)
+# Reads token from .deploy.env (gitignored) or $env:VERCEL_TOKEN
+param([string]$Token = "")
 if (-not $Token) {
-  Write-Error "VERCEL_TOKEN not set. Run: `$env:VERCEL_TOKEN='vcp_...' ; .\deploy.ps1"
+  $envFile = Join-Path $PSScriptRoot ".deploy.env"
+  if (Test-Path $envFile) {
+    Get-Content $envFile | ForEach-Object {
+      if ($_ -match "^VERCEL_TOKEN=(.+)$") { $Token = $Matches[1] }
+    }
+  }
+  if (-not $Token) { $Token = $env:VERCEL_TOKEN }
+}
+if (-not $Token) {
+  Write-Error "Token bulunamadı. .deploy.env dosyasına VERCEL_TOKEN= satırı ekle."
   exit 1
 }
 
