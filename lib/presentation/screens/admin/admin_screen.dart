@@ -585,6 +585,10 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   String? _resultMsg;
   bool _resultSuccess = false;
 
+  // Local pipeline ASR
+  bool _serverRunning = false;
+  bool _asrProcessing = false;
+
   // Segment builder
   String _ytId = '';
   YoutubePlayerController? _ytCtrl;
@@ -596,6 +600,17 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   QuizCategory _category = QuizCategory.general;
   bool _saving = false;
   bool _playerReady = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkServer();
+  }
+
+  Future<void> _checkServer() async {
+    final running = await _service.isPipelineServerRunning();
+    if (mounted) setState(() => _serverRunning = running);
+  }
 
   @override
   void dispose() {
@@ -690,6 +705,33 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     }
   }
 
+  Future<void> _processAsr() async {
+    final url = _urlCtrl.text.trim();
+    if (url.isEmpty) return;
+    setState(() { _asrProcessing = true; _resultMsg = null; });
+    try {
+      final result = await _service.processYoutubeVideoAsr(url, active: false);
+      final count = result['segmentsWritten'] as int? ?? 0;
+      final method = result['method'] as String? ?? 'whisper';
+      if (mounted) {
+        setState(() {
+          _asrProcessing = false;
+          _resultSuccess = true;
+          _resultMsg = '✓ $count klip içe aktarıldı ($method). Aşağıdan aktifleştirin.';
+        });
+        widget.onVideosChanged();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _asrProcessing = false;
+          _resultSuccess = false;
+          _resultMsg = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    }
+  }
+
   Future<void> _saveSegment() async {
     final start = double.tryParse(_startCtrl.text) ?? 0;
     final end = double.tryParse(_endCtrl.text) ?? 10;
@@ -750,15 +792,33 @@ class _YouTubeTabState extends State<_YouTubeTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Cloud status ──────────────────────────────────────────────────
+          // ── Status row ───────────────────────────────────────────────────
           Row(children: [
             const Icon(Icons.cloud_done_outlined,
                 size: 14, color: AppColors.correctAnswer),
             const SizedBox(width: 6),
             const Expanded(
               child: Text(
-                'Bulut işleme aktif — altyazılı videolar otomatik parçalanır',
+                'Bulut: altyazılı videolar otomatik parçalanır',
                 style: TextStyle(color: AppColors.correctAnswer, fontSize: 12),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Icon(
+              _serverRunning ? Icons.memory : Icons.memory_outlined,
+              size: 14,
+              color: _serverRunning
+                  ? AppColors.correctAnswer
+                  : AppColors.onSurfaceMuted,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              _serverRunning ? 'Pipeline: Whisper ASR hazır' : 'Pipeline çevrimdışı',
+              style: TextStyle(
+                color: _serverRunning
+                    ? AppColors.correctAnswer
+                    : AppColors.onSurfaceMuted,
+                fontSize: 12,
               ),
             ),
           ]),
@@ -806,7 +866,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             width: double.infinity,
             child: FilledButton.icon(
               onPressed:
-                  (_urlCtrl.text.trim().isNotEmpty && !_processing)
+                  (_urlCtrl.text.trim().isNotEmpty && !_processing && !_asrProcessing)
                       ? _process
                       : null,
               icon: _processing
@@ -826,6 +886,35 @@ class _YouTubeTabState extends State<_YouTubeTab> {
               ),
             ),
           ),
+
+          // ── Whisper ASR button (local pipeline only) ──────────────────────
+          if (_serverRunning) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed:
+                    (_urlCtrl.text.trim().isNotEmpty && !_processing && !_asrProcessing)
+                        ? _processAsr
+                        : null,
+                icon: _asrProcessing
+                    ? const SizedBox(
+                        width: 16, height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.graphic_eq, size: 18),
+                label: Text(_asrProcessing
+                    ? 'Whisper transkripsiyon yapıyor…'
+                    : 'Whisper ASR — Sesden Transkripsiyon'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+            ),
+          ],
 
           if (_resultMsg != null) ...[
             const SizedBox(height: 10),

@@ -65,6 +65,24 @@ class AdminService {
     return body;
   }
 
+  Future<Map<String, dynamic>> processYoutubeVideoAsr(
+    String url, {
+    bool active = false,
+  }) async {
+    final res = await http
+        .post(
+          Uri.parse('$_pipelineBase/process-youtube-asr'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'url': url, 'active': active}),
+        )
+        .timeout(const Duration(minutes: 30));
+    final body = jsonDecode(res.body) as Map<String, dynamic>;
+    if (res.statusCode >= 300) {
+      throw Exception(body['error'] ?? 'ASR işlemi başarısız (${res.statusCode})');
+    }
+    return body;
+  }
+
   Future<Map<String, dynamic>> processYoutubeVideo(
     String url, {
     bool active = true,

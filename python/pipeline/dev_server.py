@@ -63,6 +63,8 @@ class _Handler(BaseHTTPRequestHandler):
             self._process_video()
         elif self.path == "/process-movie":
             self._process_movie()
+        elif self.path == "/process-youtube-asr":
+            self._process_youtube_asr()
         else:
             self.send_response(404)
             self._cors()
@@ -157,6 +159,31 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(500, {"success": False, "error": err})
             print(f"❌ Failed: {err[:300]}\n")
 
+    def _process_youtube_asr(self) -> None:
+        try:
+            body = self._read_json()
+        except Exception as e:
+            self._json(400, {"error": f"Invalid JSON: {e}"})
+            return
+
+        url: str = body.get("url", "").strip()
+        active: bool = body.get("active", False)
+
+        if not url:
+            self._json(400, {"error": "url zorunlu"})
+            return
+
+        print(f"\n▶ YouTube ASR: {url}")
+        try:
+            from youtube_asr_pipeline import run as asr_run
+            result = asr_run(url, active=active)
+            self._json(200, result)
+            print(f"✅ ASR done — {result.get('segmentsWritten', 0)} segments\n")
+        except Exception as e:
+            err = str(e)
+            self._json(500, {"error": err})
+            print(f"❌ ASR failed: {err[:300]}\n")
+
     def _serve_clip(self) -> None:
         filename = self.path[len("/clips/"):]
         # Prevent path traversal
@@ -226,9 +253,10 @@ class _Handler(BaseHTTPRequestHandler):
 def main() -> None:
     server = HTTPServer(("localhost", PORT), _Handler)
     print(f"🚀 Pipeline dev server  →  http://localhost:{PORT}")
-    print(f"   POST /process-video   {{\"url\": \"...\"}}")
-    print(f"   POST /process-movie   {{\"video_path\": \"C:\\\\...\", \"sub_path\": \"...\"}}")
-    print(f"   GET  /clips/<file>    static movie clips")
+    print(f"   POST /process-video        {{\"url\": \"...\"}}")
+    print(f"   POST /process-youtube-asr  {{\"url\": \"...\", \"active\": false}}")
+    print(f"   POST /process-movie        {{\"video_path\": \"C:\\\\...\", \"sub_path\": \"...\"}}")
+    print(f"   GET  /clips/<file>         static movie clips")
     print(f"   GET  /ffmpeg-check")
     print("   Press Ctrl+C to stop\n")
     try:
