@@ -69,19 +69,16 @@ class AdminService {
     String url, {
     bool active = true,
   }) async {
-    final res = await http
-        .post(
-          Uri.parse('$_pipelineBase/process-video'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({'url': url, 'active': active}),
-        )
-        .timeout(const Duration(minutes: 12));
-
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode >= 300) {
-      throw Exception(body['error'] ?? 'Processing failed (${res.statusCode})');
+    final res = await _db.functions.invoke(
+      'process-youtube',
+      body: {'url': url, 'active': active},
+    );
+    if (res.status >= 300) {
+      final err = (res.data as Map<String, dynamic>?)?['error']
+          ?? 'İşlem başarısız (${res.status})';
+      throw Exception(err);
     }
-    return body;
+    return res.data as Map<String, dynamic>;
   }
 
   // ── Supabase CRUD ───────────────────────────────────────────────────────────

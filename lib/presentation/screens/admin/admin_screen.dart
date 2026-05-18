@@ -212,8 +212,8 @@ class _AdminScreenState extends State<AdminScreen>
       ),
       body: Column(
         children: [
-          SizedBox(
-            height: 520,
+          Expanded(
+            flex: 2,
             child: TabBarView(
               controller: _tabs,
               children: [
@@ -580,9 +580,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   final _service = AdminService();
   final _urlCtrl = TextEditingController();
 
-  // Pipeline
-  bool _serverRunning = false;
-  bool _checking = true;
+  // Cloud processing
   bool _processing = false;
   String? _resultMsg;
   bool _resultSuccess = false;
@@ -600,12 +598,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   bool _playerReady = false;
 
   @override
-  void initState() {
-    super.initState();
-    _checkServer();
-  }
-
-  @override
   void dispose() {
     _urlCtrl.dispose();
     _startCtrl.dispose();
@@ -614,12 +606,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     _pinyinCtrl.dispose();
     _ytCtrl?.close();
     super.dispose();
-  }
-
-  Future<void> _checkServer() async {
-    setState(() => _checking = true);
-    final ok = await _service.isPipelineServerRunning();
-    if (mounted) setState(() { _serverRunning = ok; _checking = false; });
   }
 
   static String _extractYtId(String input) {
@@ -764,48 +750,17 @@ class _YouTubeTabState extends State<_YouTubeTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── Pipeline status ───────────────────────────────────────────────
+          // ── Cloud status ──────────────────────────────────────────────────
           Row(children: [
-            _checking
-                ? const SizedBox(
-                    width: 10, height: 10,
-                    child: CircularProgressIndicator(strokeWidth: 1.5))
-                : Icon(
-                    _serverRunning
-                        ? Icons.circle
-                        : Icons.circle_outlined,
-                    size: 10,
-                    color: _serverRunning
-                        ? AppColors.correctAnswer
-                        : AppColors.wrongAnswer),
+            const Icon(Icons.cloud_done_outlined,
+                size: 14, color: AppColors.correctAnswer),
             const SizedBox(width: 6),
-            Expanded(
+            const Expanded(
               child: Text(
-                _checking
-                    ? 'Pipeline sunucusu kontrol ediliyor…'
-                    : _serverRunning
-                        ? 'Pipeline çalışıyor (localhost:9302) — otomatik parçalama aktif'
-                        : 'Pipeline çevrimdışı — aşağıdan manuel segment oluşturun',
-                style: TextStyle(
-                  color: _checking
-                      ? AppColors.onSurfaceMuted
-                      : _serverRunning
-                          ? AppColors.correctAnswer
-                          : AppColors.onSurfaceMuted,
-                  fontSize: 12,
-                ),
+                'Bulut işleme aktif — altyazılı videolar otomatik parçalanır',
+                style: TextStyle(color: AppColors.correctAnswer, fontSize: 12),
               ),
             ),
-            if (!_checking)
-              TextButton(
-                onPressed: _checkServer,
-                style: TextButton.styleFrom(
-                    padding: EdgeInsets.zero,
-                    minimumSize: Size.zero,
-                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                child: const Text('Tekrar Dene',
-                    style: TextStyle(fontSize: 11)),
-              ),
           ]),
           const SizedBox(height: 10),
 
@@ -845,32 +800,31 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           ]),
           const SizedBox(height: 10),
 
-          // ── Pipeline process button ───────────────────────────────────────
-          if (_serverRunning)
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed:
-                    (_urlCtrl.text.trim().isNotEmpty && !_processing)
-                        ? _process
-                        : null,
-                icon: _processing
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.auto_awesome, size: 18),
-                label: Text(_processing
-                    ? 'İşleniyor… (1–10 dk)'
-                    : 'Pipeline ile Otomatik Parçala — Tüm Klipleri İçe Aktar'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
+          // ── Cloud process button ──────────────────────────────────────────
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
+              onPressed:
+                  (_urlCtrl.text.trim().isNotEmpty && !_processing)
+                      ? _process
+                      : null,
+              icon: _processing
+                  ? const SizedBox(
+                      width: 16, height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.auto_awesome, size: 18),
+              label: Text(_processing
+                  ? 'İşleniyor…'
+                  : 'Otomatik Parçala — Tüm Klipleri İçe Aktar'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
               ),
             ),
+          ),
 
           if (_resultMsg != null) ...[
             const SizedBox(height: 10),
