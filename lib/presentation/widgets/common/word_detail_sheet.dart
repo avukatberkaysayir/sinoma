@@ -11,6 +11,7 @@ import '../../../data/models/dictionary_model.dart';
 import '../../providers/ai_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/dictionary_provider.dart';
+import '../../providers/user_provider.dart';
 import '../ads/reward_ad_widget.dart';
 
 enum _AiStatus { idle, loading, cached, fresh, error }
@@ -84,7 +85,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
     });
 
     final word = _word!;
-    final locale = Localizations.localeOf(context).languageCode;
+    final lang = ref.read(currentLanguageProvider);
 
     try {
       // Call Gemini first; decrement credit only on success to preserve UX.
@@ -92,7 +93,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
             simplified: word.simplified,
             transcription: widget.transcription,
             hskLevel: word.hskLevel,
-            userLanguage: locale,
+            userLanguage: lang,
           );
 
       // Decrement credit via Cloud Function (server-side validation).
@@ -158,8 +159,8 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
 
   Widget _buildContent(ScrollController controller, bool canUseAi) {
     final word = _word!;
-    final locale = Localizations.localeOf(context).languageCode;
-    final definition = TranslationHelper.getDefinition(word, locale);
+    final lang = ref.watch(currentLanguageProvider);
+    final definition = TranslationHelper.getDefinition(word, lang);
 
     return ListView(
       controller: controller,

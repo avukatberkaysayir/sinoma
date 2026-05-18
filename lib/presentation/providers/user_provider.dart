@@ -18,3 +18,8 @@ final isPremiumProvider = Provider<bool>((ref) {
 final currentHskLevelProvider = Provider<int>((ref) {
   return ref.watch(currentUserProvider).valueOrNull?.hskLevel ?? 1;
 });
+
+// The user's chosen definition language ('tr', 'en', 'vi'). Falls back to 'tr'.
+final currentLanguageProvider = Provider<String>((ref) {
+  return ref.watch(currentUserProvider).valueOrNull?.motherTongue ?? 'tr';
+});

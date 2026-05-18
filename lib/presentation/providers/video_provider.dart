@@ -40,8 +40,16 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
 
 // Multilingual search over the already-fetched feed.
 // CJK query  → filter by transcription / targetWords (character match).
-// Latin query → resolve to Chinese via dictionary definitions, then filter targetWords.
+// Latin query → resolve to Chinese via dictionary definitions (whole-word match only),
+//               then filter by targetWords.
 final _cjkRegex = RegExp(r'[一-鿿]');
+
+// Checks if [word] appears as a whole token in [text] (splits on whitespace / punctuation).
+bool _isWholeWordMatch(String text, String word) {
+  final lw = word.toLowerCase();
+  final tokens = text.toLowerCase().split(RegExp(r'[\s,;/()\-\.·]+'));
+  return tokens.any((t) => t == lw);
+}
 
 final filteredVideoFeedProvider =
     FutureProvider<List<VideoSegmentModel>>((ref) async {
@@ -59,12 +67,19 @@ final filteredVideoFeedProvider =
     ).toList();
   }
 
-  // Latin (EN / TR) query: look up matching dictionary entries by definition.
+  // Latin (EN / TR) query: look up by definition, then keep only whole-word matches
+  // to avoid "ot" matching "not", "robot", etc.
   final DictionaryRepository dictRepo = ref.read(dictionaryRepositoryProvider);
-  final matches = await dictRepo.searchWords(q, limit: 30);
-  if (matches.isEmpty) return [];
+  final candidates = await dictRepo.searchWords(q, limit: 50);
 
-  final matchedChars = matches.map((m) => m.simplified).toSet();
+  final matchedChars = candidates
+      .where((m) =>
+          _isWholeWordMatch(m.definitions.en, q) ||
+          _isWholeWordMatch(m.definitions.tr, q))
+      .map((m) => m.simplified)
+      .toSet();
+
+  if (matchedChars.isEmpty) return [];
   return segments.where((s) =>
     s.targetWords.any(matchedChars.contains)
   ).toList();

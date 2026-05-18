@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/translation_helper.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../providers/dictionary_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/section_sidebar.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 
@@ -98,7 +100,8 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   @override
   Widget build(BuildContext context) {
     final searchState = ref.watch(_dictionarySearchProvider);
-    final notifier = ref.read(_dictionarySearchProvider.notifier);
+    final notifier    = ref.read(_dictionarySearchProvider.notifier);
+    final lang        = ref.watch(currentLanguageProvider);
 
     return Stack(
       children: [
@@ -142,7 +145,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   },
                 ),
               ),
-              Expanded(child: _buildBody(searchState)),
+              Expanded(child: _buildBody(searchState, lang)),
             ],
           ),
         ),
@@ -151,7 +154,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     );
   }
 
-  Widget _buildBody(_SearchState state) {
+  Widget _buildBody(_SearchState state, String lang) {
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -201,16 +204,17 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
         indent: 56,
       ),
       itemBuilder: (context, i) =>
-          _WordTile(word: state.results[i], onTap: _openWordDetail),
+          _WordTile(word: state.results[i], lang: lang, onTap: _openWordDetail),
     );
   }
 }
 
 class _WordTile extends StatelessWidget {
   final DictionaryModel word;
+  final String lang;
   final void Function(String wordId) onTap;
 
-  const _WordTile({required this.word, required this.onTap});
+  const _WordTile({required this.word, required this.lang, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -256,9 +260,7 @@ class _WordTile extends StatelessWidget {
         ],
       ),
       subtitle: Text(
-        word.definitions.tr.isNotEmpty
-            ? '${word.definitions.tr} · ${word.definitions.en}'
-            : word.definitions.en,
+        TranslationHelper.getDefinition(word, lang),
         style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
