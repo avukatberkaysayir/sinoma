@@ -93,9 +93,6 @@ final _router = GoRouter(
     GoRoute(path: '/games/hanzi',   builder: (_, __) => const HanziBuildScreen()),
     GoRoute(path: '/legal/terms',   builder: (_, __) => const TermsScreen()),
     GoRoute(path: '/legal/privacy', builder: (_, __) => const PrivacyPolicyScreen()),
-    GoRoute(path: '/admin',            builder: (_, __) => const AdminScreen()),
-    GoRoute(path: '/admin/add-video',  builder: (_, __) => const AddVideoScreen()),
-
     // ── Shell routes (persistent SinomaTopBar) ────────────────────────────────
     ShellRoute(
       builder: (context, state, child) => _AppShell(child: child),
@@ -104,6 +101,8 @@ final _router = GoRouter(
         GoRoute(path: '/home',  builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
+        GoRoute(path: '/admin',           builder: (_, __) => const AdminScreen()),
+        GoRoute(path: '/admin/add-video', builder: (_, __) => const AddVideoScreen()),
         GoRoute(
           path: '/dictionary',
           builder: (_, __) => const DictionaryScreen(),

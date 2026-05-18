@@ -37,7 +37,8 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
     final showBack = loc.startsWith('/profile') ||
         loc == '/settings' ||
         loc == '/subscription' ||
-        loc.startsWith('/dictionary');
+        loc.startsWith('/dictionary') ||
+        loc.startsWith('/admin');
     return Container(
       height: 60,
       decoration: BoxDecoration(
@@ -534,7 +535,7 @@ class _DropdownCard extends ConsumerWidget {
                 isDark: isDark,
                 onTap: () {
                   onClose();
-                  context.push('/admin');
+                  context.go('/admin');
                 },
               ),
             ],
