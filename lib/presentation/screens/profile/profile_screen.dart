@@ -64,9 +64,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _emailCtrl.text      = user.email;
     _birthday            = user.birthday;
     _gender              = user.gender.isEmpty ? null : user.gender;
-    _motherTongue        = user.motherTongue;
+    _motherTongue        = user.motherTongue == 'en' ? 'en' : 'tr';
     _notificationsEnabled = user.notificationsEnabled;
     _initialized = true;
+
+    // Sync app locale to the user's saved language (e.g. fresh browser)
+    final code = _motherTongue;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(localeProvider).languageCode != code) {
+        ref.read(localeProvider.notifier).setLocale(Locale(code));
+      }
+    });
   }
 
   // ── Photo picker ─────────────────────────────────────────────────────────────
@@ -409,22 +418,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             ),
                             const SizedBox(height: 14),
                             _DropdownField<String>(
-                              label: 'Ana Dil',
-                              value: _motherTongue,
+                              label: 'Dil',
+                              value: _motherTongue == 'en' ? 'en' : 'tr',
                               items: const [
                                 DropdownMenuItem(
-                                    value: 'tr', child: Text('Türkçe')),
+                                    value: 'tr', child: Text('Türkçe 🇹🇷')),
                                 DropdownMenuItem(
-                                    value: 'en', child: Text('İngilizce')),
-                                DropdownMenuItem(
-                                    value: 'vi', child: Text('Vietnamca')),
-                                DropdownMenuItem(
-                                    value: 'zh', child: Text('Çince')),
-                                DropdownMenuItem(
-                                    value: 'other', child: Text('Diğer')),
+                                    value: 'en', child: Text('English 🇬🇧')),
                               ],
-                              onChanged: (v) =>
-                                  setState(() => _motherTongue = v ?? 'tr'),
+                              onChanged: (v) {
+                                final code = v ?? 'tr';
+                                setState(() => _motherTongue = code);
+                                ref.read(localeProvider.notifier)
+                                    .setLocale(Locale(code));
+                              },
                             ),
                           ],
                         ),
@@ -531,8 +538,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
-                      const Divider(color: AppColors.surface, height: 16),
-                      _LanguageRow(),
                       const Divider(color: AppColors.surface, height: 20),
                       _ActionRow(
                         icon: Icons.logout,
@@ -837,42 +842,6 @@ class _DropdownField<T> extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.surface)),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-// ── Language row ──────────────────────────────────────────────────────────────
-
-class _LanguageRow extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final current = ref.watch(localeProvider).languageCode;
-    return Row(
-      children: [
-        const Icon(Icons.language, size: 18, color: AppColors.onSurfaceMuted),
-        const SizedBox(width: 12),
-        const Expanded(
-          child: Text(
-            'Uygulama Dili',
-            style: TextStyle(color: AppColors.onSurface, fontSize: 14),
-          ),
-        ),
-        DropdownButton<String>(
-          value: current,
-          underline: const SizedBox(),
-          dropdownColor: AppColors.surfaceVariant,
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 14),
-          items: const [
-            DropdownMenuItem(value: 'tr', child: Text('Türkçe 🇹🇷')),
-            DropdownMenuItem(value: 'en', child: Text('English 🇬🇧')),
-          ],
-          onChanged: (code) {
-            if (code != null) {
-              ref.read(localeProvider.notifier).setLocale(Locale(code));
-            }
-          },
         ),
       ],
     );

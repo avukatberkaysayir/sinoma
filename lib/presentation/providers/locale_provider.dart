@@ -72,6 +72,25 @@ class AppL10n {
     3 => _isTr ? 'Orta'            : 'Intermediate',
     4 => _isTr ? 'Orta-İleri'      : 'Upper-Intermediate',
     5 => _isTr ? 'İleri'           : 'Advanced',
+    6 => _isTr ? 'Uzman'           : 'Expert',
     _ => '',
   };
+
+  // ── Sidebar ──────────────────────────────────────────────────────────────────
+  String get videoTab       => _isTr ? 'Video'     : 'Video';
+  String get dictionaryTab  => _isTr ? 'Sözlük'    : 'Dictionary';
+  String get socialTab      => _isTr ? 'Sosyal'     : 'Social';
+  String get gamesTab       => _isTr ? 'Oyun'       : 'Games';
+
+  // ── Home filter panel ────────────────────────────────────────────────────────
+  String get filterAll      => _isTr ? 'Tümü'              : 'All';
+  String get filterActive   => _isTr ? 'Filtre aktif'       : 'Filter active';
+  String get filterLabel    => _isTr ? 'Filtrele'           : 'Filter';
+  String get lifeSection    => _isTr ? 'Hayat'              : 'Life';
+  String get dailyLife      => _isTr ? 'Günlük Hayat'       : 'Daily Life';
+  String get levelSection   => _isTr ? 'Adım'               : 'Level';
+  String get grammarSection => _isTr ? 'Gramer Kuralları'   : 'Grammar Patterns';
+  String get retryBtn       => _isTr ? 'Tekrar Dene'        : 'Retry';
+  String get noVideosLevel  => _isTr ? 'Seviyenizde video bulunamadı.' : 'No videos at your level.';
+  String get noVideosFilter => _isTr ? 'Seçili filtrelere uygun video yok.' : 'No videos match filters.';
 }

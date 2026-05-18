@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +9,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/ai_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/common/section_sidebar.dart';
@@ -48,6 +51,30 @@ class _VideoFeedTab extends ConsumerStatefulWidget {
 
 class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
   bool _panelOpen = false;
+  final _searchCtrl = TextEditingController();
+  Timer? _searchDebounce;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchCtrl.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.removeListener(_onSearchChanged);
+    _searchCtrl.dispose();
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+      final q = _searchCtrl.text.trim();
+      ref.read(selectedSearchProvider.notifier).state = q.isEmpty ? null : q;
+    });
+  }
 
   void _togglePanel() => setState(() => _panelOpen = !_panelOpen);
   void _closePanel()  => setState(() => _panelOpen = false);
@@ -56,16 +83,19 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
     ref.read(selectedCategoryProvider.notifier).state  = null;
     ref.read(selectedLengthProvider.notifier).state    = null;
     ref.read(selectedHskFilterProvider.notifier).state = null;
+    ref.read(selectedSearchProvider.notifier).state    = null;
+    _searchCtrl.clear();
     ref.invalidate(videoFeedProvider);
     setState(() => _panelOpen = false);
   }
 
   @override
   Widget build(BuildContext context) {
-    final feedAsync        = ref.watch(videoFeedProvider);
+    final feedAsync        = ref.watch(filteredVideoFeedProvider);
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedLength   = ref.watch(selectedLengthProvider);
     final hskFilter        = ref.watch(selectedHskFilterProvider);
+    final search           = ref.watch(selectedSearchProvider);
 
     return Column(
       children: [
@@ -73,6 +103,7 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
           panelOpen: _panelOpen,
           onToggle: _togglePanel,
           onReset: _resetAll,
+          searchCtrl: _searchCtrl,
         ),
         Expanded(
           child: Stack(
@@ -102,6 +133,8 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                 ),
                 data: (segments) {
                   if (segments.isEmpty) {
+                    final l10n = AppL10n.fromCode(
+                        ref.watch(localeProvider).languageCode);
                     return Center(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
@@ -114,9 +147,10 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                           Text(
                             selectedCategory != null ||
                                     selectedLength != null ||
-                                    hskFilter != null
-                                ? 'Seçili filtrelere uygun video yok.'
-                                : 'Seviyenizde video bulunamadı.',
+                                    hskFilter != null ||
+                                    search != null
+                                ? l10n.noVideosFilter
+                                : l10n.noVideosLevel,
                             style: const TextStyle(
                                 color: AppColors.onSurfaceMuted),
                             textAlign: TextAlign.center,
@@ -127,7 +161,8 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                   }
                   final hasFilter = selectedCategory != null ||
                       selectedLength != null ||
-                      hskFilter != null;
+                      hskFilter != null ||
+                      search != null;
                   return hasFilter
                       ? _FlatFeed(segments: segments)
                       : _GroupedFeed(segments: segments);
@@ -150,17 +185,19 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
   }
 }
 
-// ── Filter header — click-based, VoScreen-style ───────────────────────────────
+// ── Filter header ─────────────────────────────────────────────────────────────
 
 class _FilterHeader extends ConsumerWidget {
   final bool panelOpen;
   final VoidCallback onToggle;
   final VoidCallback onReset;
+  final TextEditingController searchCtrl;
 
   const _FilterHeader({
     required this.panelOpen,
     required this.onToggle,
     required this.onReset,
+    required this.searchCtrl,
   });
 
   @override
@@ -168,10 +205,12 @@ class _FilterHeader extends ConsumerWidget {
     final hskFilter = ref.watch(selectedHskFilterProvider);
     final category  = ref.watch(selectedCategoryProvider);
     final length    = ref.watch(selectedLengthProvider);
+    final search    = ref.watch(selectedSearchProvider);
     final user      = ref.watch(currentUserProvider).valueOrNull;
+    final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
 
     final hasFilter =
-        hskFilter != null || category != null || length != null;
+        hskFilter != null || category != null || length != null || search != null;
 
     final label = hasFilter
         ? [
@@ -184,8 +223,9 @@ class _FilterHeader extends ConsumerWidget {
                   )
                   .displayName,
             if (length != null) length,
+            if (search != null && search.isNotEmpty) '🔍 $search',
           ].join(' · ')
-        : 'Tümü';
+        : l10n.filterAll;
 
     return Container(
       color: AppColors.surfaceVariant,
@@ -216,7 +256,7 @@ class _FilterHeader extends ConsumerWidget {
                         ),
                       ),
                       Text(
-                        hasFilter ? 'Filtre aktif' : 'Filtrele',
+                        hasFilter ? l10n.filterActive : l10n.filterLabel,
                         style: const TextStyle(
                           color: AppColors.onSurfaceMuted,
                           fontSize: 11,
@@ -249,6 +289,44 @@ class _FilterHeader extends ConsumerWidget {
             ),
           ],
           const Spacer(),
+          // ── Search field ─────────────────────────────────────────────────
+          SizedBox(
+            width: 190,
+            height: 34,
+            child: TextField(
+              controller: searchCtrl,
+              style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Ara…',
+                hintStyle:
+                    const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+                filled: true,
+                fillColor: AppColors.surface,
+                isDense: true,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: BorderSide.none),
+                focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: AppColors.primary)),
+                prefixIcon: const Icon(Icons.search,
+                    color: AppColors.onSurfaceMuted, size: 16),
+                suffixIcon: search != null && search.isNotEmpty
+                    ? GestureDetector(
+                        onTap: () {
+                          searchCtrl.clear();
+                          ref.read(selectedSearchProvider.notifier).state = null;
+                        },
+                        child: const Icon(Icons.close,
+                            color: AppColors.onSurfaceMuted, size: 14),
+                      )
+                    : null,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
           // ── Stats ────────────────────────────────────────────────────────
           if (user != null) ...[
             _StatChip(
@@ -334,6 +412,7 @@ class _MegaPanel extends ConsumerWidget {
     final hskFilter = ref.watch(selectedHskFilterProvider);
     final category  = ref.watch(selectedCategoryProvider);
     final length    = ref.watch(selectedLengthProvider);
+    final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
 
     void setHsk(int? level) {
       ref.read(selectedHskFilterProvider.notifier).state = level;
@@ -371,12 +450,12 @@ class _MegaPanel extends ConsumerWidget {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ① Hayat
+                // ① Life
                 _PanelColumn(
-                  title: 'Hayat',
+                  title: l10n.lifeSection,
                   children: [
                     _PanelItem(
-                      label: 'Günlük Hayat',
+                      label: l10n.dailyLife,
                       selected: hskFilter == null &&
                           category == null &&
                           length == null,
@@ -385,19 +464,13 @@ class _MegaPanel extends ConsumerWidget {
                   ],
                 ),
                 const _ColumnDivider(),
-                // ② Adım
+                // ② Level
                 _PanelColumn(
-                  title: 'Adım',
+                  title: l10n.levelSection,
                   children: [
-                    for (final (lbl, lvl) in [
-                      ('Başlangıç',  1),
-                      ('Temel',      2),
-                      ('Orta',       3),
-                      ('Orta-İleri', 4),
-                      ('İleri',      5),
-                    ])
+                    for (int lvl = 1; lvl <= 6; lvl++)
                       _PanelItem(
-                        label: lbl,
+                        label: l10n.hskSublabel(lvl),
                         selected: hskFilter == lvl,
                         onTap: () => setHsk(hskFilter == lvl ? null : lvl),
                       ),
@@ -408,7 +481,7 @@ class _MegaPanel extends ConsumerWidget {
                 _PanelColumn(
                   title: 'HSK',
                   children: [
-                    for (int i = 1; i <= 5; i++)
+                    for (int i = 1; i <= 6; i++)
                       _PanelItem(
                         label: 'HSK $i',
                         selected: hskFilter == i,
@@ -418,9 +491,9 @@ class _MegaPanel extends ConsumerWidget {
                   ],
                 ),
                 const _ColumnDivider(),
-                // ④ Gramer Kuralları
+                // ④ Grammar
                 _PanelColumn(
-                  title: 'Gramer Kuralları',
+                  title: l10n.grammarSection,
                   children: [
                     for (final cat in QuizCategory.values)
                       _PanelItem(
@@ -501,7 +574,6 @@ class _PanelColumn extends StatelessWidget {
 class _ColumnDivider extends StatelessWidget {
   const _ColumnDivider();
 
-  // matches title line-height (~16) + spacing (10) + list (232)
   static const double _height = 258.0;
 
   @override
@@ -830,21 +902,39 @@ class _VideoCard extends ConsumerWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 6),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(
-                      '${segment.quizCategory.emoji} ${segment.quizCategory.displayName}',
-                      style: const TextStyle(
-                        color: AppColors.primary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w500,
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          '${segment.quizCategory.emoji} ${segment.quizCategory.displayName}',
+                          style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
+                      if (segment.targetWords.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            segment.targetWords.take(3).join(' · '),
+                            style: const TextStyle(
+                              color: AppColors.onSurfaceMuted,
+                              fontSize: 11,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                 ],
               ),
