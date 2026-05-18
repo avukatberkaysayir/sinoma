@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/video_segment_model.dart';
+import '../../data/repositories/dictionary_repository.dart';
 import '../../data/repositories/video_repository.dart';
 import '../../data/services/analytics_service.dart';
 import 'ai_provider.dart';
@@ -15,6 +16,7 @@ final videoRepositoryProvider = Provider<VideoRepository>((ref) {
 final selectedCategoryProvider  = StateProvider<String?>((ref) => null);
 final selectedLengthProvider    = StateProvider<String?>((ref) => null);
 final selectedHskFilterProvider = StateProvider<int?>((ref) => null);
+final selectedSearchProvider    = StateProvider<String?>((ref) => null);
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   final userHskLevel = ref.watch(currentHskLevelProvider);
@@ -34,6 +36,38 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
     segments = segments.where((s) => s.sentenceLength == length).toList();
   }
   return segments;
+});
+
+// Multilingual search over the already-fetched feed.
+// CJK query  → filter by transcription / targetWords (character match).
+// Latin query → resolve to Chinese via dictionary definitions, then filter targetWords.
+final _cjkRegex = RegExp(r'[一-鿿]');
+
+final filteredVideoFeedProvider =
+    FutureProvider<List<VideoSegmentModel>>((ref) async {
+  final search   = ref.watch(selectedSearchProvider);
+  final segments = await ref.watch(videoFeedProvider.future);
+
+  if (search == null || search.isEmpty) return segments;
+  final q = search.trim();
+  if (q.isEmpty) return segments;
+
+  if (_cjkRegex.hasMatch(q)) {
+    return segments.where((s) =>
+      s.transcription.contains(q) ||
+      s.targetWords.any((w) => w.contains(q))
+    ).toList();
+  }
+
+  // Latin (EN / TR) query: look up matching dictionary entries by definition.
+  final DictionaryRepository dictRepo = ref.read(dictionaryRepositoryProvider);
+  final matches = await dictRepo.searchWords(q, limit: 30);
+  if (matches.isEmpty) return [];
+
+  final matchedChars = matches.map((m) => m.simplified).toSet();
+  return segments.where((s) =>
+    s.targetWords.any(matchedChars.contains)
+  ).toList();
 });
 
 // ---------------------------------------------------------------------------
