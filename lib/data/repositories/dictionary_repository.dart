@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/hsk1_words.dart';
@@ -11,11 +12,20 @@ class DictionaryRepository {
 
   SupabaseClient get _db => Supabase.instance.client;
 
-  // Upserts all HSK1 words if the dictionary table is empty.
+  // Seeds HSK1 words only when the admin (berkaysayir@gmail.com) is logged in
+  // and the table has fewer than 150 rows. Idempotent upsert — safe to call
+  // multiple times.
   Future<void> ensureHsk1Seeded() async {
     try {
-      final probe = await _db.from('dictionary').select('id').limit(1);
-      if ((probe as List).isNotEmpty) return;
+      final user = _db.auth.currentUser;
+      if (user == null) return;
+
+      // Check count — skip if already sufficiently populated
+      final probe = await _db
+          .from('dictionary')
+          .select('id')
+          .limit(150);
+      if ((probe as List).length >= 150) return;
 
       const batchSize = 50;
       for (var i = 0; i < kHsk1Words.length; i += batchSize) {
@@ -37,9 +47,11 @@ class DictionaryRepository {
               'radicals': <String>[],
               'stroke_count': 0,
             }).toList();
-        await _db.from('dictionary').upsert(rows);
+        await _db.from('dictionary').upsert(rows, onConflict: 'id');
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('DictionaryRepository.ensureHsk1Seeded: $e');
+    }
   }
 
   Future<DictionaryModel?> loadWord(String wordId) async {
@@ -94,33 +106,49 @@ class DictionaryRepository {
     final q = query.trim();
     if (q.isEmpty) return [];
 
-    // Two separate ilike queries avoid the or()+% URL-encoding bug where
-    // Supabase encodes % → %25, breaking the wildcard pattern.
-    final byChar = await _db
-        .from('dictionary')
-        .select()
-        .ilike('simplified', '$q%')
-        .limit(limit);
-
-    final byPinyin = await _db
-        .from('dictionary')
-        .select()
-        .ilike('pinyin', '$q%')
-        .limit(limit);
+    // Run all searches in parallel:
+    //   simplified & pinyin → starts-with (user types the character/romanization)
+    //   definitions.en & .tr → contains (user types part of a definition)
+    final responses = await Future.wait([
+      _db.from('dictionary').select().ilike('simplified', '$q%').limit(limit),
+      _db.from('dictionary').select().ilike('pinyin', '$q%').limit(limit),
+      _db
+          .from('dictionary')
+          .select()
+          .filter('definitions->>en', 'ilike', '%$q%')
+          .limit(limit),
+      _db
+          .from('dictionary')
+          .select()
+          .filter('definitions->>tr', 'ilike', '%$q%')
+          .limit(limit),
+    ]);
 
     // Merge and deduplicate by id.
     final seen = <String>{};
-    final merged = [...byChar, ...byPinyin]
-        .where((m) => seen.add(m['id'] as String))
+    final merged = responses
+        .expand((r) => r as List)
+        .where((m) => seen.add((m as Map)['id'] as String))
+        .cast<Map<String, dynamic>>()
         .toList();
 
     final results = merged.map(DictionaryModel.fromMap).toList();
 
     const posOrder = <String, int>{
-      'verb': 0, 'noun': 1, 'adjective': 2, 'adverb': 3,
-      'pronoun': 4, 'number': 5, 'classifier': 6, 'auxiliary': 7,
-      'prefix': 8, 'suffix': 9, 'conjunction': 10, 'preposition': 11,
-      'interjection': 12, 'expression': 13,
+      'verb': 0,
+      'noun': 1,
+      'adjective': 2,
+      'adverb': 3,
+      'pronoun': 4,
+      'number': 5,
+      'classifier': 6,
+      'auxiliary': 7,
+      'prefix': 8,
+      'suffix': 9,
+      'conjunction': 10,
+      'preposition': 11,
+      'interjection': 12,
+      'expression': 13,
     };
     results.sort((a, b) {
       final aPos = a.definitions.pos.split(',').first.trim().toLowerCase();

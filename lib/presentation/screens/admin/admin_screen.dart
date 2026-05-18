@@ -33,6 +33,8 @@ class _AdminScreenState extends State<AdminScreen>
     super.initState();
     _tabs = TabController(length: 2, vsync: this, initialIndex: 0);
     _loadVideos();
+    // Auto-seed dictionary on every admin panel open if < 150 words exist.
+    _service.seedHsk1Dictionary();
   }
 
   @override

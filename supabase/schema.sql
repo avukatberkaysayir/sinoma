@@ -97,7 +97,10 @@ CREATE POLICY "Authenticated users can read dictionary"
 
 CREATE POLICY "Only admins can modify dictionary"
   ON public.dictionary FOR ALL TO authenticated
-  USING ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+  USING ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com')
+  WITH CHECK ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+
+CREATE INDEX IF NOT EXISTS idx_dictionary_pinyin ON public.dictionary (pinyin);
 
 CREATE INDEX IF NOT EXISTS idx_dictionary_simplified ON public.dictionary (simplified);
 CREATE INDEX IF NOT EXISTS idx_dictionary_hsk        ON public.dictionary (hsk_level);
