@@ -1,8 +1,8 @@
-$ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
-
 # Reads token from .deploy.env (gitignored) or $env:VERCEL_TOKEN
 param([string]$Token = "")
+
+$ErrorActionPreference = "Stop"
+Set-Location $PSScriptRoot
 if (-not $Token) {
   $envFile = Join-Path $PSScriptRoot ".deploy.env"
   if (Test-Path $envFile) {

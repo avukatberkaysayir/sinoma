@@ -215,9 +215,8 @@ async function analyzeText(
   if (!data?.length) return { words: [], hskLevel: 1 };
 
   const words = data.map((r: { id: string; hsk_level: number }) => r.id);
-  const hskLevel = Math.max(
-    ...data.map((r: { id: string; hsk_level: number }) => r.hsk_level ?? 1)
-  );
+  const raw = Math.max(...data.map((r: { id: string; hsk_level: number }) => r.hsk_level ?? 1));
+  const hskLevel = Math.min(6, Math.max(1, raw));
   return { words, hskLevel };
 }
 
@@ -275,23 +274,20 @@ serve(async (req) => {
 
     const db = createClient(supabaseUrl, serviceKey);
 
-    const rows = [];
-    for (const seg of segments) {
-      const { words, hskLevel } = await analyzeText(db, seg.text);
-      rows.push({
-        source_type: "youtube",
-        youtube_id: videoId,
-        start_time: seg.start,
-        end_time: seg.end,
-        transcription: seg.text,
-        pinyin: "",
-        hsk_level: hskLevel,
-        target_words: words,
-        quiz_category: "general",
-        quiz: { question: "", correctAnswer: "", wrongAnswer: "" },
-        is_active: active,
-      });
-    }
+    const analyses = await Promise.all(segments.map((seg) => analyzeText(db, seg.text)));
+    const rows = segments.map((seg, i) => ({
+      source_type: "youtube",
+      youtube_id: videoId,
+      start_time: seg.start,
+      end_time: seg.end,
+      transcription: seg.text,
+      pinyin: "",
+      hsk_level: analyses[i].hskLevel,
+      target_words: analyses[i].words,
+      quiz_category: "general",
+      quiz: { question: "", correctAnswer: "", wrongAnswer: "" },
+      is_active: active,
+    }));
 
     const { error: insertErr } = await db.from("videos").insert(rows);
     if (insertErr) throw new Error(insertErr.message);

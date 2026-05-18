@@ -769,6 +769,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             Expanded(
               child: TextField(
                 controller: _urlCtrl,
+                onChanged: (_) => setState(() {}),
                 style: const TextStyle(color: AppColors.onSurface),
                 decoration: InputDecoration(
                   hintText: 'https://www.youtube.com/watch?v=...',
