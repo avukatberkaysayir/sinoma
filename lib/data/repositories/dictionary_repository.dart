@@ -148,7 +148,22 @@ class DictionaryRepository {
         .cast<Map<String, dynamic>>()
         .toList();
 
-    final results = merged.map(DictionaryModel.fromMap).toList();
+    final qL = q.toLowerCase();
+    // Client-side verification: Supabase JSONB ->> filters can return false
+    // positives. Keep only rows where q genuinely appears in at least one field.
+    final verified = merged.where((m) {
+      final simplified = (m['simplified'] as String? ?? '').toLowerCase();
+      final pinyinAscii = (m['pinyin_ascii'] as String? ?? '').toLowerCase();
+      final defs = m['definitions'] as Map<String, dynamic>? ?? {};
+      final en = (defs['en'] as String? ?? '').toLowerCase();
+      final tr = (defs['tr'] as String? ?? '').toLowerCase();
+      return simplified.startsWith(qL) ||
+             pinyinAscii.startsWith(qAscii) ||
+             en.contains(qL) ||
+             tr.contains(qL);
+    }).toList();
+
+    final results = verified.map(DictionaryModel.fromMap).toList();
 
     const posOrder = <String, int>{
       'verb': 0,
