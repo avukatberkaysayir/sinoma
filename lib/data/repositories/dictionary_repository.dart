@@ -176,6 +176,40 @@ class DictionaryRepository {
     return results;
   }
 
+  // Finds Chinese characters whose TR or EN definition contains [query] as a
+  // whole comma-separated token. Returns a map of simplified → relevance score:
+  //   3 = the entire definition is just the query word (exact match)
+  //   2 = query is the first/primary token ("word, ...")
+  //   1 = query is a secondary token ("..., word" or "..., word, ...")
+  // Uses targeted ILIKE patterns so "ot" never matches "otobüs" or "otel".
+  Future<Map<String, int>> findCharsForDefinitionToken(String query) async {
+    final q = query.toLowerCase();
+    final responses = await Future.wait([
+      _db.from('dictionary').select('simplified').filter('definitions->>tr', 'eq',    q       ).limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>en', 'eq',    q       ).limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>tr', 'ilike', '$q, %' ).limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>en', 'ilike', '$q, %' ).limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>tr', 'ilike', '%, $q' ).limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>en', 'ilike', '%, $q' ).limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>tr', 'ilike', '%, $q, %').limit(30),
+      _db.from('dictionary').select('simplified').filter('definitions->>en', 'ilike', '%, $q, %').limit(30),
+    ]);
+
+    final scores = <String, int>{};
+    void add(dynamic rows, int score) {
+      for (final row in rows as List) {
+        final s = (row as Map<String, dynamic>)['simplified'] as String? ?? '';
+        if (s.isNotEmpty && (scores[s] ?? 0) < score) scores[s] = score;
+      }
+    }
+
+    add(responses[0], 3); add(responses[1], 3); // exact
+    add(responses[2], 2); add(responses[3], 2); // primary
+    add(responses[4], 1); add(responses[5], 1); // secondary end
+    add(responses[6], 1); add(responses[7], 1); // secondary middle
+    return scores;
+  }
+
   Future<List<DictionaryModel>> loadWordsForLevel(
     int hskLevel, {
     int limit = 20,

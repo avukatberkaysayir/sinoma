@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/user_model.dart';
 import '../../data/repositories/user_repository.dart';
+import 'locale_provider.dart';
 
 final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository();
@@ -19,7 +20,8 @@ final currentHskLevelProvider = Provider<int>((ref) {
   return ref.watch(currentUserProvider).valueOrNull?.hskLevel ?? 1;
 });
 
-// The user's chosen definition language ('tr', 'en', 'vi'). Falls back to 'tr'.
+// Definition language — follows the app locale ("Uygulama Dili" in profile).
+// Changing the locale dropdown takes effect immediately without a save.
 final currentLanguageProvider = Provider<String>((ref) {
-  return ref.watch(currentUserProvider).valueOrNull?.motherTongue ?? 'tr';
+  return ref.watch(localeProvider).languageCode;
 });
