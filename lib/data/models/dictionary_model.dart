@@ -3,6 +3,7 @@ class DictionaryModel {
   final String simplified;
   final String traditional;
   final String pinyin;
+  final String pinyinAscii;
   final int hskLevel;
   final WordDefinitions definitions;
   final Map<String, AiContextCache> aiContextCache;
@@ -14,6 +15,7 @@ class DictionaryModel {
     required this.simplified,
     required this.traditional,
     required this.pinyin,
+    this.pinyinAscii = '',
     required this.hskLevel,
     required this.definitions,
     this.aiContextCache = const {},
@@ -28,6 +30,7 @@ class DictionaryModel {
       simplified: data['simplified'] as String? ?? '',
       traditional: data['traditional'] as String? ?? '',
       pinyin: data['pinyin'] as String? ?? '',
+      pinyinAscii: data['pinyin_ascii'] as String? ?? '',
       hskLevel: (data['hsk_level'] as num?)?.toInt() ?? 0,
       definitions: WordDefinitions.fromMap(
           data['definitions'] as Map<String, dynamic>? ?? {}),
@@ -59,6 +62,7 @@ class DictionaryModel {
         'simplified': simplified,
         'traditional': traditional,
         'pinyin': pinyin,
+        'pinyin_ascii': pinyinAscii,
         'hsk_level': hskLevel,
         'definitions': definitions.toMap(),
         'ai_context_cache':
@@ -89,6 +93,7 @@ class DictionaryModel {
         simplified: simplified,
         traditional: traditional,
         pinyin: pinyin,
+        pinyinAscii: pinyinAscii,
         hskLevel: hskLevel,
         definitions: definitions,
         aiContextCache: {...aiContextCache, hash: cache},

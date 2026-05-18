@@ -20,11 +20,7 @@ class DictionaryRepository {
       final user = _db.auth.currentUser;
       if (user == null) return;
 
-      // Check count — skip if already sufficiently populated
-      final probe = await _db
-          .from('dictionary')
-          .select('id')
-          .limit(150);
+      final probe = await _db.from('dictionary').select('id').limit(150);
       if ((probe as List).length >= 150) return;
 
       const batchSize = 50;
@@ -36,6 +32,7 @@ class DictionaryRepository {
               'simplified': w[0],
               'traditional': w[0],
               'pinyin': w[1],
+              'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 1,
               'definitions': {
                 'en': w[3],
@@ -52,6 +49,23 @@ class DictionaryRepository {
     } catch (e) {
       debugPrint('DictionaryRepository.ensureHsk1Seeded: $e');
     }
+  }
+
+  // Maps accented pinyin vowels to their plain ASCII equivalents.
+  static String _stripAccents(String pinyin) {
+    const accentMap = {
+      'ā': 'a', 'á': 'a', 'ǎ': 'a', 'à': 'a',
+      'ē': 'e', 'é': 'e', 'ě': 'e', 'è': 'e',
+      'ī': 'i', 'í': 'i', 'ǐ': 'i', 'ì': 'i',
+      'ō': 'o', 'ó': 'o', 'ǒ': 'o', 'ò': 'o',
+      'ū': 'u', 'ú': 'u', 'ǔ': 'u', 'ù': 'u',
+      'ǖ': 'v', 'ǘ': 'v', 'ǚ': 'v', 'ǜ': 'v', 'ü': 'v',
+    };
+    var result = pinyin.toLowerCase();
+    for (final entry in accentMap.entries) {
+      result = result.replaceAll(entry.key, entry.value);
+    }
+    return result;
   }
 
   Future<DictionaryModel?> loadWord(String wordId) async {
@@ -106,12 +120,14 @@ class DictionaryRepository {
     final q = query.trim();
     if (q.isEmpty) return [];
 
+    final qAscii = _stripAccents(q);
     // Run all searches in parallel:
-    //   simplified & pinyin → starts-with (user types the character/romanization)
+    //   simplified → starts-with Chinese character
+    //   pinyin_ascii → starts-with accent-stripped romanization (hao → hǎo)
     //   definitions.en & .tr → contains (user types part of a definition)
     final responses = await Future.wait([
       _db.from('dictionary').select().ilike('simplified', '$q%').limit(limit),
-      _db.from('dictionary').select().ilike('pinyin', '$q%').limit(limit),
+      _db.from('dictionary').select().ilike('pinyin_ascii', '$qAscii%').limit(limit),
       _db
           .from('dictionary')
           .select()

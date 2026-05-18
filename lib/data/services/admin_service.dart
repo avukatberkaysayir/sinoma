@@ -166,6 +166,7 @@ class AdminService {
         'simplified': w[0],
         'traditional': w[0],
         'pinyin': w[1],
+        'pinyin_ascii': _stripAccents(w[1]),
         'hsk_level': 1,
         'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
         'ai_context_cache': <String, dynamic>{},
@@ -176,5 +177,21 @@ class AdminService {
       total += rows.length;
     }
     return total;
+  }
+
+  static String _stripAccents(String pinyin) {
+    const accentMap = {
+      'ā': 'a', 'á': 'a', 'ǎ': 'a', 'à': 'a',
+      'ē': 'e', 'é': 'e', 'ě': 'e', 'è': 'e',
+      'ī': 'i', 'í': 'i', 'ǐ': 'i', 'ì': 'i',
+      'ō': 'o', 'ó': 'o', 'ǒ': 'o', 'ò': 'o',
+      'ū': 'u', 'ú': 'u', 'ǔ': 'u', 'ù': 'u',
+      'ǖ': 'v', 'ǘ': 'v', 'ǚ': 'v', 'ǜ': 'v', 'ü': 'v',
+    };
+    var result = pinyin.toLowerCase();
+    for (final entry in accentMap.entries) {
+      result = result.replaceAll(entry.key, entry.value);
+    }
+    return result;
   }
 }

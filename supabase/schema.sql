@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS public.dictionary (
   simplified       TEXT NOT NULL DEFAULT '',
   traditional      TEXT NOT NULL DEFAULT '',
   pinyin           TEXT NOT NULL DEFAULT '',
+  pinyin_ascii     TEXT NOT NULL DEFAULT '',
   hsk_level        INTEGER NOT NULL DEFAULT 0,
   definitions      JSONB NOT NULL DEFAULT '{"tr":"","en":"","vi":""}',
   ai_context_cache JSONB NOT NULL DEFAULT '{}',
@@ -100,7 +101,8 @@ CREATE POLICY "Only admins can modify dictionary"
   USING ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com')
   WITH CHECK ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
 
-CREATE INDEX IF NOT EXISTS idx_dictionary_pinyin ON public.dictionary (pinyin);
+CREATE INDEX IF NOT EXISTS idx_dictionary_pinyin       ON public.dictionary (pinyin);
+CREATE INDEX IF NOT EXISTS idx_dictionary_pinyin_ascii ON public.dictionary (pinyin_ascii);
 
 CREATE INDEX IF NOT EXISTS idx_dictionary_simplified ON public.dictionary (simplified);
 CREATE INDEX IF NOT EXISTS idx_dictionary_hsk        ON public.dictionary (hsk_level);
