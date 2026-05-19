@@ -9,6 +9,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/user_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 
@@ -32,12 +33,13 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
       final hskLevel = ref.watch(currentHskLevelProvider);
       final isAdmin = ref.watch(isAdminProvider);
       final isDark  = Theme.of(context).brightness == Brightness.dark;
-      return _buildBar(context, ref, user, hskLevel, isAdmin, isDark);
+      final l10n    = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+      return _buildBar(context, ref, user, hskLevel, isAdmin, isDark, l10n);
     });
   }
 
   Widget _buildBar(BuildContext context, WidgetRef ref, UserModel? user,
-      int hskLevel, bool isAdmin, bool isDark) {
+      int hskLevel, bool isAdmin, bool isDark, AppL10n l10n) {
     final loc = GoRouterState.of(context).matchedLocation;
     final showBack = loc.startsWith('/profile') ||
         loc == '/settings' ||
@@ -94,11 +96,11 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
               icon: Icons.star_outline_rounded,
               color: const Color(0xFFFFC107),
               value: _fmtScore(user.stats.totalScore),
-              label: 'Skor',
+              label: l10n.scoreLabel,
             ),
           ],
           const Spacer(),
-          _ProfileDropdown(user: user, isAdmin: isAdmin),
+          _ProfileDropdown(user: user, isAdmin: isAdmin, l10n: l10n),
         ],
       ),
     );
@@ -218,8 +220,9 @@ class _StatChip extends StatelessWidget {
 class _ProfileDropdown extends ConsumerStatefulWidget {
   final UserModel? user;
   final bool isAdmin;
+  final AppL10n l10n;
 
-  const _ProfileDropdown({required this.user, required this.isAdmin});
+  const _ProfileDropdown({required this.user, required this.isAdmin, required this.l10n});
 
   @override
   ConsumerState<_ProfileDropdown> createState() => _ProfileDropdownState();
@@ -238,6 +241,7 @@ class _ProfileDropdownState extends ConsumerState<_ProfileDropdown> {
         link: _layerLink,
         user: widget.user,
         isAdmin: widget.isAdmin,
+        l10n: widget.l10n,
         onClose: _close,
       ),
     );
@@ -295,7 +299,7 @@ class _ProfileDropdownState extends ConsumerState<_ProfileDropdown> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      user?.displayName ?? 'Kullanıcı',
+                      user?.displayName ?? widget.l10n.userFallback,
                       style: TextStyle(
                         color: isDark ? Colors.white : Colors.black87,
                         fontSize: 13,
@@ -393,12 +397,14 @@ class _DropdownOverlay extends ConsumerWidget {
   final LayerLink link;
   final UserModel? user;
   final bool isAdmin;
+  final AppL10n l10n;
   final VoidCallback onClose;
 
   const _DropdownOverlay({
     required this.link,
     required this.user,
     required this.isAdmin,
+    required this.l10n,
     required this.onClose,
   });
 
@@ -423,6 +429,7 @@ class _DropdownOverlay extends ConsumerWidget {
             child: _DropdownCard(
               user: user,
               isAdmin: isAdmin,
+              l10n: l10n,
               onClose: onClose,
             ),
           ),
@@ -435,11 +442,13 @@ class _DropdownOverlay extends ConsumerWidget {
 class _DropdownCard extends ConsumerWidget {
   final UserModel? user;
   final bool isAdmin;
+  final AppL10n l10n;
   final VoidCallback onClose;
 
   const _DropdownCard({
     required this.user,
     required this.isAdmin,
+    required this.l10n,
     required this.onClose,
   });
 
@@ -484,7 +493,7 @@ class _DropdownCard extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          user?.displayName ?? 'Kullanıcı',
+                          user?.displayName ?? l10n.userFallback,
                           style: TextStyle(
                             color: isDark ? Colors.white : Colors.black87,
                             fontWeight: FontWeight.bold,
@@ -510,7 +519,7 @@ class _DropdownCard extends ConsumerWidget {
 
             _DropdownItem(
               icon: Icons.person_outline_rounded,
-              label: 'Profil',
+              label: l10n.profileSection,
               isDark: isDark,
               onTap: () {
                 onClose();
@@ -519,7 +528,7 @@ class _DropdownCard extends ConsumerWidget {
             ),
             _DropdownItem(
               icon: Icons.quiz_outlined,
-              label: 'HSK Seviye Testi',
+              label: l10n.hskLevelTest,
               isDark: isDark,
               onTap: () {
                 onClose();
@@ -528,7 +537,7 @@ class _DropdownCard extends ConsumerWidget {
             ),
             _DropdownItem(
               icon: Icons.settings_outlined,
-              label: 'Ayarlar',
+              label: l10n.settingsLabel,
               isDark: isDark,
               onTap: () {
                 onClose();
@@ -540,7 +549,7 @@ class _DropdownCard extends ConsumerWidget {
               Divider(height: 1, thickness: 1, color: divColor),
               _DropdownItem(
                 icon: Icons.admin_panel_settings_outlined,
-                label: 'Admin Paneli',
+                label: l10n.adminPanel,
                 isDark: isDark,
                 onTap: () {
                   onClose();
@@ -564,7 +573,7 @@ class _DropdownCard extends ConsumerWidget {
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      'Koyu Tema',
+                      l10n.darkTheme,
                       style: TextStyle(
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.87)
@@ -590,7 +599,7 @@ class _DropdownCard extends ConsumerWidget {
 
             _DropdownItem(
               icon: Icons.logout_rounded,
-              label: 'Çıkış Yap',
+              label: l10n.signOut,
               color: Colors.red.shade400,
               isDark: isDark,
               onTap: () async {

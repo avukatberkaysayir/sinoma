@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../providers/locale_provider.dart';
 import '../../widgets/common/section_sidebar.dart';
 
-class GamesSectionScreen extends StatelessWidget {
+class GamesSectionScreen extends ConsumerWidget {
   const GamesSectionScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
     return Stack(
       children: [
         Scaffold(
@@ -17,34 +20,34 @@ class GamesSectionScreen extends StatelessWidget {
             child: ListView(
               padding: const EdgeInsets.fromLTRB(64, 24, 24, 24),
               children: [
-                const Text(
-                  'Oyunlar',
-                  style: TextStyle(
+                Text(
+                  l10n.gamesTitle,
+                  style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 const SizedBox(height: 6),
-                const Text(
-                  'Kendini sına ve arkadaşlarınla yarış',
-                  style: TextStyle(color: AppColors.onSurfaceMuted),
+                Text(
+                  l10n.gamesSubtitle,
+                  style: const TextStyle(color: AppColors.onSurfaceMuted),
                 ),
                 const SizedBox(height: 24),
                 _GameCard(
                   icon: Icons.psychology,
                   title: 'Mandarin Duel',
-                  subtitle: 'Gerçek zamanlı 1v1 soru yarışması — 6 kategori',
+                  subtitle: l10n.duelSubtitle,
                   color: const Color(0xFF6C63FF),
-                  detail: '10 tur • 10s süre • 3 can',
+                  detail: l10n.duelDetail,
                   onTap: () => context.push('/games/duel'),
                 ),
                 const SizedBox(height: 16),
                 _GameCard(
                   icon: Icons.auto_awesome_mosaic,
                   title: 'Hanzi Build',
-                  subtitle: 'Kökenlerden karakter yeniden oluştur',
+                  subtitle: l10n.hanziBuildSubtitle,
                   color: const Color(0xFFFF6B6B),
-                  detail: '10 kelime • 20s süre • ipuçları mevcut',
+                  detail: l10n.hanziBuildDetail,
                   onTap: () => context.push('/games/hanzi'),
                 ),
               ],

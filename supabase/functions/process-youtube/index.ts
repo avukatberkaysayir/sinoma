@@ -286,7 +286,8 @@ serve(async (req) => {
       target_words: analyses[i].words,
       quiz_category: "general",
       quiz: { question: "", correctAnswer: "", wrongAnswer: "" },
-      is_active: active,
+      status: "pending",
+      is_active: false,
     }));
 
     const { error: insertErr } = await db.from("videos").insert(rows);

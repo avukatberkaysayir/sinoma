@@ -93,4 +93,69 @@ class AppL10n {
   String get retryBtn       => _isTr ? 'Tekrar Dene'        : 'Retry';
   String get noVideosLevel  => _isTr ? 'Seviyenizde video bulunamadı.' : 'No videos at your level.';
   String get noVideosFilter => _isTr ? 'Seçili filtrelere uygun video yok.' : 'No videos match filters.';
+
+  // ── Home screen stats ────────────────────────────────────────────────────────
+  String get statsWatched   => _isTr ? 'izlendi'  : 'watched';
+  String get statsPoints    => _isTr ? 'puan'     : 'points';
+  String get statsDays      => _isTr ? 'gün'      : 'days';
+  String get searchHint     => _isTr ? 'Ara…'     : 'Search…';
+
+  // ── Games section ────────────────────────────────────────────────────────────
+  String get gamesTitle         => _isTr ? 'Oyunlar'                                    : 'Games';
+  String get gamesSubtitle      => _isTr ? 'Kendini sına ve arkadaşlarınla yarış'        : 'Test yourself and compete with friends';
+  String get duelSubtitle       => _isTr ? 'Gerçek zamanlı 1v1 soru yarışması — 6 kategori' : 'Real-time 1v1 quiz — 6 categories';
+  String get duelDetail         => _isTr ? '10 tur • 10s süre • 3 can'                  : '10 rounds • 10s each • 3 lives';
+  String get hanziBuildSubtitle => _isTr ? 'Kökenlerden karakter yeniden oluştur'        : 'Reconstruct characters from radicals';
+  String get hanziBuildDetail   => _isTr ? '10 kelime • 20s süre • ipuçları mevcut'     : '10 words • 20s each • hints available';
+
+  // ── Hub screen ──────────────────────────────────────────────────────────────
+  String get hubDictionary  => _isTr ? 'Sözlük'   : 'Dictionary';
+  String get hubSocial      => _isTr ? 'Sosyal'   : 'Social';
+  String get hubGames       => _isTr ? 'Oyun'     : 'Games';
+
+  // ── Top bar ──────────────────────────────────────────────────────────────────
+  String get userFallback   => _isTr ? 'Kullanıcı'        : 'User';
+  String get scoreLabel     => _isTr ? 'Skor'             : 'Score';
+  String get hskLevelTest   => _isTr ? 'HSK Seviye Testi' : 'HSK Level Test';
+  String get settingsLabel  => _isTr ? 'Ayarlar'          : 'Settings';
+  String get adminPanel     => _isTr ? 'Admin Paneli'     : 'Admin Panel';
+  String get darkTheme      => _isTr ? 'Koyu Tema'        : 'Dark Theme';
+  String get signOut        => _isTr ? 'Çıkış Yap'        : 'Sign Out';
+
+  // ── Profile screen ───────────────────────────────────────────────────────────
+  String get profilePhoto       => _isTr ? 'Profil Fotoğrafı'    : 'Profile Photo';
+  String get changePhoto        => _isTr ? 'Fotoğrafı Değiştir'  : 'Change Photo';
+  String get photoSelected      => _isTr ? 'Fotoğraf seçildi ✓'  : 'Photo selected ✓';
+  String get profileSection     => _isTr ? 'Profil'               : 'Profile';
+  String get firstName          => _isTr ? 'Ad'                   : 'First Name';
+  String get lastName           => _isTr ? 'Soyad'                : 'Last Name';
+  String get selectHint         => _isTr ? 'Seçiniz'              : 'Select';
+  String get dateOfBirth        => _isTr ? 'Doğum Tarihi'         : 'Date of Birth';
+  String get genderLabel        => _isTr ? 'Cinsiyet'             : 'Gender';
+  String get male               => _isTr ? 'Erkek'                : 'Male';
+  String get female             => _isTr ? 'Kadın'                : 'Female';
+  String get otherGender        => _isTr ? 'Diğer'                : 'Other';
+  String get languageLabel      => _isTr ? 'Dil'                  : 'Language';
+  String get saveChanges        => _isTr ? 'Değişiklikleri Kaydet': 'Save Changes';
+  String get profileSaved       => _isTr ? 'Profil kaydedildi.'   : 'Profile saved.';
+  String get saveError          => _isTr ? 'Kayıt hatası: '       : 'Save error: ';
+  String get accountSection     => _isTr ? 'Hesap'                : 'Account';
+  String get darkThemeToggle    => _isTr ? 'Karanlık Tema'        : 'Dark Theme';
+  String get deleteAccount      => _isTr ? 'Hesabı Sil'           : 'Delete Account';
+  String get passwordSection    => _isTr ? 'Şifre'                : 'Password';
+  String get currentPassword    => _isTr ? 'Mevcut Şifre'         : 'Current Password';
+  String get newPassword        => _isTr ? 'Yeni Şifre'           : 'New Password';
+  String get confirmPassword    => _isTr ? 'Yeni Şifre Tekrar'    : 'Confirm Password';
+  String get updatePassword     => _isTr ? 'Şifreyi Güncelle'     : 'Update Password';
+  String get passwordUpdated    => _isTr ? 'Şifre güncellendi.'   : 'Password updated.';
+  String get fillAllPassFields  => _isTr ? 'Tüm şifre alanlarını doldurun.'   : 'Fill in all password fields.';
+  String get passwordMismatch   => _isTr ? 'Yeni şifreler eşleşmiyor.'        : 'New passwords don\'t match.';
+  String get passwordTooShort   => _isTr ? 'Şifre en az 6 karakter olmalıdır.': 'Password must be at least 6 characters.';
+  String get guestCannotEdit    => _isTr ? 'Misafir kullanıcılar profil düzenleyemez.' : 'Guest users cannot edit their profile.';
+  String get signUpOrIn         => _isTr ? 'Hesap Oluştur / Giriş Yap' : 'Sign Up / Sign In';
+  String get cancel             => _isTr ? 'İptal'   : 'Cancel';
+  String get signOutConfirmMsg  => _isTr ? 'Hesabınızdan çıkmak istediğinizden emin misiniz?'
+                                         : 'Are you sure you want to sign out?';
+  String get deleteAccountMsg   => _isTr ? 'Hesabınız ve tüm verileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz.'
+                                         : 'Your account and all your data will be permanently deleted. This action cannot be undone.';
 }

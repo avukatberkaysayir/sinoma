@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../providers/locale_provider.dart';
 
 // ── Hub Screen ────────────────────────────────────────────────────────────────
 
@@ -11,6 +12,7 @@ class HubScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
     return SafeArea(
       child: Column(
         children: [
@@ -63,21 +65,21 @@ class HubScreen extends ConsumerWidget {
                         _HubCard(
                           size: cardSize,
                           icon: Icons.menu_book_outlined,
-                          label: 'Sözlük',
+                          label: l10n.hubDictionary,
                           color: const Color(0xFF2196F3),
                           onTap: () => context.go('/dictionary/search'),
                         ),
                         _HubCard(
                           size: cardSize,
                           icon: Icons.group_outlined,
-                          label: 'Sosyal',
+                          label: l10n.hubSocial,
                           color: const Color(0xFF4CAF50),
                           onTap: () => context.go('/social'),
                         ),
                         _HubCard(
                           size: cardSize,
                           icon: Icons.sports_esports_outlined,
-                          label: 'Oyun',
+                          label: l10n.hubGames,
                           color: const Color(0xFF9C27B0),
                           onTap: () => context.go('/games'),
                         ),

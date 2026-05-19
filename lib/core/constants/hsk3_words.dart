@@ -48,7 +48,7 @@ const List<List<String>> kHsk3Words = [
   ['菜单','càidān','noun','menu','menü'],
   ['参加','cānjiā','verb','to join, to attend','katılmak'],
   ['草','cǎo','noun','grass','çimen, ot'],
-  ['草地','cǎodì','noun','grassland','çayırlık'],
+  ['草地','cǎodì','noun','grassland','çayırlık, ot, çimen'],
   ['层','céng','classifier','measure word for layer, floor','kat sayı sözcüğü'],
   ['查','chá','verb','to check','kontrol etmek'],
   ['差','chà','adjective','bad, poor; to lack','kötü, yetersiz'],

@@ -139,12 +139,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _save() async {
     final uid = ref.read(currentUidProvider);
     if (uid == null) return;
+    final l10n = AppL10n.fromCode(ref.read(localeProvider).languageCode);
     setState(() => _saving = true);
     try {
       if (_pendingPhotoBytes != null) {
         final dataUrl = await _makeThumbnailDataUrl(_pendingPhotoBytes!);
         await ref.read(userRepositoryProvider).updatePhotoUrl(uid, dataUrl);
-        // Clear pending bytes so avatar switches to the saved DB url.
         if (mounted) setState(() => _pendingPhotoBytes = null);
         ref.invalidate(currentUserProvider);
       }
@@ -159,9 +159,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         notificationsEnabled: _notificationsEnabled,
       );
 
-      if (mounted) _snack('Profil kaydedildi.', success: true);
+      if (mounted) _snack(l10n.profileSaved, success: true);
     } catch (e) {
-      if (mounted) _snack('Kayıt hatası: $e', error: true);
+      if (mounted) _snack('${l10n.saveError}$e', error: true);
     } finally {
       if (mounted) setState(() => _saving = false);
     }
@@ -170,15 +170,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Password save ─────────────────────────────────────────────────────────────
 
   Future<void> _savePassword() async {
+    final l10n    = AppL10n.fromCode(ref.read(localeProvider).languageCode);
     final current = _currPassCtrl.text.trim();
     final next    = _newPassCtrl.text.trim();
     final confirm = _confirmPassCtrl.text.trim();
     if (current.isEmpty || next.isEmpty || confirm.isEmpty) {
-      _snack('Tüm şifre alanlarını doldurun.');
-      return;
+      _snack(l10n.fillAllPassFields); return;
     }
-    if (next != confirm) { _snack('Yeni şifreler eşleşmiyor.'); return; }
-    if (next.length < 6) { _snack('Şifre en az 6 karakter olmalıdır.'); return; }
+    if (next != confirm) { _snack(l10n.passwordMismatch); return; }
+    if (next.length < 6) { _snack(l10n.passwordTooShort); return; }
     setState(() => _passSaving = true);
     try {
       await ref.read(userRepositoryProvider).changePassword(
@@ -189,7 +189,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         _currPassCtrl.clear();
         _newPassCtrl.clear();
         _confirmPassCtrl.clear();
-        _snack('Şifre güncellendi.', success: true);
+        _snack(l10n.passwordUpdated, success: true);
       }
     } catch (e) {
       if (mounted) _snack(e.toString(), error: true);
@@ -201,12 +201,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // ── Account actions ───────────────────────────────────────────────────────────
 
   Future<void> _confirmSignOut() async {
+    final l10n = AppL10n.fromCode(ref.read(localeProvider).languageCode);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => const _ConfirmDialog(
-        title: 'Çıkış Yap',
-        message: 'Hesabınızdan çıkmak istediğinizden emin misiniz?',
-        confirmLabel: 'Çıkış Yap',
+      builder: (_) => _ConfirmDialog(
+        title: l10n.signOut,
+        message: l10n.signOutConfirmMsg,
+        confirmLabel: l10n.signOut,
         danger: true,
       ),
     );
@@ -219,15 +220,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 
   Future<void> _confirmDeleteAccount() async {
-    final uid = ref.read(currentUidProvider);
+    final uid  = ref.read(currentUidProvider);
     if (uid == null) return;
+    final l10n = AppL10n.fromCode(ref.read(localeProvider).languageCode);
     final ok = await showDialog<bool>(
       context: context,
-      builder: (_) => const _ConfirmDialog(
-        title: 'Hesabı Sil',
-        message:
-            'Hesabınız ve tüm verileriniz kalıcı olarak silinecek. Bu işlem geri alınamaz.',
-        confirmLabel: 'Hesabı Sil',
+      builder: (_) => _ConfirmDialog(
+        title: l10n.deleteAccount,
+        message: l10n.deleteAccountMsg,
+        confirmLabel: l10n.deleteAccount,
         danger: true,
       ),
     );
@@ -268,6 +269,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final userAsync = ref.watch(currentUserProvider);
     final user      = userAsync.valueOrNull;
     final isDark    = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
 
     if (user != null) {
       _initFromUser(user);
@@ -285,7 +287,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               children: [
                 // ── Profil Fotoğrafı card ──────────────────────────────────
                 _ProfileCard(
-                  title: 'Profil Fotoğrafı',
+                  title: l10n.profilePhoto,
                   child: Row(
                     children: [
                       GestureDetector(
@@ -326,8 +328,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               onTap: _pickPhoto,
                               child: Text(
                                 _pendingPhotoBytes != null
-                                    ? 'Fotoğraf seçildi ✓'
-                                    : 'Fotoğrafı Değiştir',
+                                    ? l10n.photoSelected
+                                    : l10n.changePhoto,
                                 style: TextStyle(
                                   color: _pendingPhotoBytes != null
                                       ? Colors.green
@@ -353,83 +355,61 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
                 // ── Profil card ────────────────────────────────────────────
                 _ProfileCard(
-                  title: 'Profil',
+                  title: l10n.profileSection,
                   child: isGuest
-                      ? _GuestNotice()
+                      ? _GuestNotice(l10n: l10n)
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             const SizedBox(height: 4),
                             Row(
                               children: [
-                                Expanded(
-                                    child: _Field(
-                                        label: 'Ad',
-                                        controller: _firstNameCtrl)),
+                                Expanded(child: _Field(label: l10n.firstName, controller: _firstNameCtrl)),
                                 const SizedBox(width: 12),
-                                Expanded(
-                                    child: _Field(
-                                        label: 'Soyad',
-                                        controller: _lastNameCtrl)),
+                                Expanded(child: _Field(label: l10n.lastName,  controller: _lastNameCtrl)),
                               ],
                             ),
                             const SizedBox(height: 14),
-                            _Field(
-                              label: 'Email',
-                              controller: _emailCtrl,
-                              readOnly: true,
-                            ),
+                            _Field(label: 'Email', controller: _emailCtrl, readOnly: true),
                             const SizedBox(height: 14),
                             Row(
                               children: [
                                 Expanded(
                                   child: _DateField(
-                                    label: 'Doğum Tarihi',
+                                    label: l10n.dateOfBirth,
+                                    hint:  l10n.selectHint,
                                     value: _birthday,
-                                    onPicked: (d) =>
-                                        setState(() => _birthday = d),
+                                    onPicked: (d) => setState(() => _birthday = d),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: _DropdownField<String?>(
-                                    label: 'Cinsiyet',
+                                    label: l10n.genderLabel,
                                     value: _gender,
-                                    items: const [
-                                      DropdownMenuItem(
-                                          value: null,
-                                          child: Text('Seçiniz')),
-                                      DropdownMenuItem(
-                                          value: 'male',
-                                          child: Text('Erkek')),
-                                      DropdownMenuItem(
-                                          value: 'female',
-                                          child: Text('Kadın')),
-                                      DropdownMenuItem(
-                                          value: 'other',
-                                          child: Text('Diğer')),
+                                    items: [
+                                      DropdownMenuItem(value: null,     child: Text(l10n.selectHint)),
+                                      DropdownMenuItem(value: 'male',   child: Text(l10n.male)),
+                                      DropdownMenuItem(value: 'female', child: Text(l10n.female)),
+                                      DropdownMenuItem(value: 'other',  child: Text(l10n.otherGender)),
                                     ],
-                                    onChanged: (v) =>
-                                        setState(() => _gender = v),
+                                    onChanged: (v) => setState(() => _gender = v),
                                   ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 14),
                             _DropdownField<String>(
-                              label: 'Dil',
+                              label: l10n.languageLabel,
                               value: _motherTongue == 'en' ? 'en' : 'tr',
                               items: const [
-                                DropdownMenuItem(
-                                    value: 'tr', child: Text('Türkçe 🇹🇷')),
-                                DropdownMenuItem(
-                                    value: 'en', child: Text('English 🇬🇧')),
+                                DropdownMenuItem(value: 'tr', child: Text('Türkçe 🇹🇷')),
+                                DropdownMenuItem(value: 'en', child: Text('English 🇬🇧')),
                               ],
                               onChanged: (v) {
                                 final code = v ?? 'tr';
                                 setState(() => _motherTongue = code);
-                                ref.read(localeProvider.notifier)
-                                    .setLocale(Locale(code));
+                                ref.read(localeProvider.notifier).setLocale(Locale(code));
                               },
                             ),
                           ],
@@ -455,8 +435,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             child: CircularProgressIndicator(
                                 color: Colors.white, strokeWidth: 2),
                           )
-                        : const Text('Değişiklikleri Kaydet',
-                            style: TextStyle(fontSize: 15)),
+                        : Text(l10n.saveChanges,
+                            style: const TextStyle(fontSize: 15)),
                   ),
                 ],
 
@@ -464,29 +444,18 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 if (!isGuest && _hasEmailProvider) ...[
                   const SizedBox(height: 16),
                   _ProfileCard(
-                    title: 'Şifre',
+                    title: l10n.passwordSection,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const SizedBox(height: 4),
-                        _Field(
-                            label: 'Mevcut Şifre',
-                            controller: _currPassCtrl,
-                            obscure: true),
+                        _Field(label: l10n.currentPassword, controller: _currPassCtrl, obscure: true),
                         const SizedBox(height: 14),
                         Row(
                           children: [
-                            Expanded(
-                                child: _Field(
-                                    label: 'Yeni Şifre',
-                                    controller: _newPassCtrl,
-                                    obscure: true)),
+                            Expanded(child: _Field(label: l10n.newPassword,     controller: _newPassCtrl,     obscure: true)),
                             const SizedBox(width: 12),
-                            Expanded(
-                                child: _Field(
-                                    label: 'Yeni Şifre Tekrar',
-                                    controller: _confirmPassCtrl,
-                                    obscure: true)),
+                            Expanded(child: _Field(label: l10n.confirmPassword, controller: _confirmPassCtrl, obscure: true)),
                           ],
                         ),
                         const SizedBox(height: 16),
@@ -494,16 +463,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           alignment: Alignment.centerRight,
                           child: FilledButton(
                             onPressed: _passSaving ? null : _savePassword,
-                            style: FilledButton.styleFrom(
-                                backgroundColor: AppColors.primary),
+                            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
                             child: _passSaving
-                                ? const SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                        color: Colors.white, strokeWidth: 2),
-                                  )
-                                : const Text('Şifreyi Güncelle'),
+                                ? const SizedBox(width: 18, height: 18,
+                                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                : Text(l10n.updatePassword),
                           ),
                         ),
                       ],
@@ -514,7 +478,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 // ── Hesap card ─────────────────────────────────────────────
                 const SizedBox(height: 16),
                 _ProfileCard(
-                  title: 'Hesap',
+                  title: l10n.accountSection,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -524,9 +488,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           const Icon(Icons.dark_mode_outlined,
                               size: 18, color: AppColors.onSurfaceMuted),
                           const SizedBox(width: 12),
-                          const Expanded(
-                            child: Text('Karanlık Tema',
-                                style: TextStyle(
+                          Expanded(
+                            child: Text(l10n.darkThemeToggle,
+                                style: const TextStyle(
                                     color: AppColors.onSurface, fontSize: 14)),
                           ),
                           Switch(
@@ -540,13 +504,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const Divider(color: AppColors.surface, height: 20),
                       _ActionRow(
                         icon: Icons.logout,
-                        label: 'Çıkış Yap',
+                        label: l10n.signOut,
                         onTap: _confirmSignOut,
                       ),
                       const SizedBox(height: 4),
                       _ActionRow(
                         icon: Icons.delete_outline,
-                        label: 'Hesabı Sil',
+                        label: l10n.deleteAccount,
                         color: AppColors.wrongAnswer,
                         onTap: _confirmDeleteAccount,
                       ),
@@ -741,10 +705,11 @@ class _Field extends StatelessWidget {
 
 class _DateField extends StatelessWidget {
   final String label;
+  final String hint;
   final DateTime? value;
   final void Function(DateTime) onPicked;
   const _DateField(
-      {required this.label, required this.value, required this.onPicked});
+      {required this.label, required this.hint, required this.value, required this.onPicked});
 
   @override
   Widget build(BuildContext context) {
@@ -788,7 +753,7 @@ class _DateField extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    text.isEmpty ? 'Seçiniz' : text,
+                    text.isEmpty ? hint : text,
                     style: TextStyle(
                         color: text.isEmpty
                             ? AppColors.onSurfaceMuted
@@ -893,23 +858,25 @@ class _ActionRow extends StatelessWidget {
 // ── Guest notice ──────────────────────────────────────────────────────────────
 
 class _GuestNotice extends StatelessWidget {
+  final AppL10n l10n;
+  const _GuestNotice({required this.l10n});
+
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(Icons.person_outline,
-            size: 40, color: AppColors.onSurfaceMuted),
+        const Icon(Icons.person_outline, size: 40, color: AppColors.onSurfaceMuted),
         const SizedBox(height: 10),
-        const Text(
-          'Misafir kullanıcılar profil düzenleyemez.',
-          style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
+        Text(
+          l10n.guestCannotEdit,
+          style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 14),
         FilledButton.icon(
           onPressed: () => GoRouter.of(context).go('/onboarding'),
           icon: const Icon(Icons.login),
-          label: const Text('Hesap Oluştur / Giriş Yap'),
+          label: Text(l10n.signUpOrIn),
           style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
         ),
       ],
@@ -940,7 +907,7 @@ class _ConfirmDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),
-          child: const Text('İptal'),
+          child: Text(AppL10n.of(context).cancel),
         ),
         TextButton(
           onPressed: () => Navigator.pop(context, true),

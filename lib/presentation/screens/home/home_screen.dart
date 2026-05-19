@@ -297,7 +297,7 @@ class _FilterHeader extends ConsumerWidget {
               controller: searchCtrl,
               style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Ara…',
+                hintText: l10n.searchHint,
                 hintStyle:
                     const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
                 filled: true,
@@ -332,19 +332,19 @@ class _FilterHeader extends ConsumerWidget {
             _StatChip(
               icon: Icons.play_circle_outline,
               value: '${user.stats.videosWatched}',
-              label: 'izlendi',
+              label: l10n.statsWatched,
             ),
             const SizedBox(width: 16),
             _StatChip(
               icon: Icons.emoji_events_outlined,
               value: _fmt(user.stats.totalScore),
-              label: 'puan',
+              label: l10n.statsPoints,
             ),
             const SizedBox(width: 16),
             _StatChip(
               icon: Icons.local_fire_department,
               value: '${user.stats.currentStreak}',
-              label: 'gün',
+              label: l10n.statsDays,
             ),
           ],
         ],

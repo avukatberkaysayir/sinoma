@@ -116,27 +116,20 @@ class DictionaryRepository {
   }
 
   Future<List<DictionaryModel>> searchWords(String query,
-      {int limit = 50}) async {
+      {int limit = 50, String lang = 'tr'}) async {
     final q = query.trim();
     if (q.isEmpty) return [];
 
     final qAscii = _stripAccents(q);
-    // Run all searches in parallel:
-    //   simplified → starts-with Chinese character
-    //   pinyin_ascii → starts-with accent-stripped romanization (hao → hǎo)
-    //   definitions.en & .tr → contains (user types part of a definition)
+    // Three parallel queries — definition search is scoped to the active locale
+    // only, which prevents false positives from the other language's words.
     final responses = await Future.wait([
       _db.from('dictionary').select().ilike('simplified', '$q%').limit(limit),
       _db.from('dictionary').select().ilike('pinyin_ascii', '$qAscii%').limit(limit),
       _db
           .from('dictionary')
           .select()
-          .filter('definitions->>en', 'ilike', '%$q%')
-          .limit(limit),
-      _db
-          .from('dictionary')
-          .select()
-          .filter('definitions->>tr', 'ilike', '%$q%')
+          .filter('definitions->>$lang', 'ilike', '%$q%')
           .limit(limit),
     ]);
 
@@ -149,46 +142,57 @@ class DictionaryRepository {
         .toList();
 
     final qL = q.toLowerCase();
-    // Client-side verification: Supabase JSONB ->> filters can return false
-    // positives. Keep only rows where q genuinely appears in at least one field.
+    // Client-side verification scoped to active locale.
     final verified = merged.where((m) {
       final simplified = (m['simplified'] as String? ?? '').toLowerCase();
       final pinyinAscii = (m['pinyin_ascii'] as String? ?? '').toLowerCase();
       final defs = m['definitions'] as Map<String, dynamic>? ?? {};
-      final en = (defs['en'] as String? ?? '').toLowerCase();
-      final tr = (defs['tr'] as String? ?? '').toLowerCase();
+      final langDef = (defs[lang] as String? ?? '').toLowerCase();
       return simplified.startsWith(qL) ||
              pinyinAscii.startsWith(qAscii) ||
-             en.contains(qL) ||
-             tr.contains(qL);
+             langDef.contains(qL);
     }).toList();
 
     final results = verified.map(DictionaryModel.fromMap).toList();
 
-    const posOrder = <String, int>{
-      'verb': 0,
-      'noun': 1,
-      'adjective': 2,
-      'adverb': 3,
-      'pronoun': 4,
-      'number': 5,
-      'classifier': 6,
-      'auxiliary': 7,
-      'prefix': 8,
-      'suffix': 9,
-      'conjunction': 10,
-      'preposition': 11,
-      'interjection': 12,
-      'expression': 13,
-    };
-    results.sort((a, b) {
-      final aPos = a.definitions.pos.split(',').first.trim().toLowerCase();
-      final bPos = b.definitions.pos.split(',').first.trim().toLowerCase();
-      return (posOrder[aPos] ?? 99).compareTo(posOrder[bPos] ?? 99);
-    });
+    // Sort by relevance: exact match first, then starts-with, then substring.
+    results.sort((a, b) =>
+        _relevanceScore(b, qL, qAscii, lang).compareTo(_relevanceScore(a, qL, qAscii, lang)));
 
     await _cache.cacheWords(results);
     return results;
+  }
+
+  // Relevance tiers — higher wins:
+  //   7  user typed the Chinese character directly
+  //   6  DIRECT TRANSLATION   — entire definition equals query   ("okul" → 学校 def:"okul")
+  //   5  SYNONYM              — query is one token among several ("ot"   → 草  def:"çimen, ot")
+  //   4  CHINESE PREFIX       — simplified starts with query
+  //   3  NEAR SYNONYM         — primary definition token starts with query ("otel" for "ot")
+  //   2  PINYIN PREFIX        — accent-stripped pinyin starts with query
+  //   1  LOOSE MATCH          — query appears as substring in definition
+  static int _relevanceScore(DictionaryModel w, String qL, String qAscii, String lang) {
+    final simplified = w.simplified.toLowerCase();
+    final pa         = w.pinyinAscii.toLowerCase();
+    final langDef    = switch (lang) {
+      'en' => w.definitions.en,
+      'vi' => w.definitions.vi,
+      _    => w.definitions.tr,
+    }.toLowerCase();
+
+    final tokens = langDef
+        .split(',')
+        .map((t) => t.trim())
+        .where((t) => t.isNotEmpty)
+        .toList();
+
+    if (simplified == qL)                                          return 7;
+    if (langDef == qL)                                             return 6;
+    if (tokens.any((t) => t == qL))                               return 5;
+    if (simplified.startsWith(qL))                                 return 4;
+    if (tokens.isNotEmpty && tokens.first.startsWith(qL))         return 3;
+    if (pa.startsWith(qAscii))                                     return 2;
+    return 1;
   }
 
   // Finds Chinese characters whose TR or EN definition contains [query] as a

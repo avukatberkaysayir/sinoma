@@ -7,6 +7,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/constants/hsk1_words.dart';
 import '../../core/constants/hsk2_words.dart';
 import '../../core/constants/hsk3_words.dart';
+import '../../core/constants/hsk4_words.dart';
+import '../../core/constants/hsk5_words.dart';
 
 class AdminService {
   SupabaseClient get _db => Supabase.instance.client;
@@ -270,6 +272,22 @@ class AdminService {
     return total;
   }
 
+  /// Applies targeted definition corrections to the dictionary table.
+  /// Called automatically on admin screen open. Add new corrections here
+  /// whenever a constant file definition is updated.
+  Future<void> applyDefinitionPatches() async {
+    const patches = [
+      // 草地: "grassland" — added ot/çimen so it appears in grass-related searches
+      {
+        'id': '草地', 'simplified': '草地', 'traditional': '草地',
+        'pinyin': 'cǎodì', 'pinyin_ascii': 'caodi', 'hsk_level': 3,
+        'definitions': {'en': 'grassland', 'tr': 'çayırlık, ot, çimen', 'vi': '', 'pos': 'noun'},
+        'ai_context_cache': <String, dynamic>{}, 'radicals': <String>[], 'stroke_count': 0,
+      },
+    ];
+    await _db.from('dictionary').upsert(patches);
+  }
+
   /// Seeds HSK Level 3 words into the dictionary table.
   Future<int> seedHsk3Dictionary() async {
     const batchSize = 50;
@@ -284,6 +302,111 @@ class AdminService {
               'pinyin': w[1],
               'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 3,
+              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'ai_context_cache': <String, dynamic>{},
+              'radicals': <String>[],
+              'stroke_count': 0,
+            })
+        .toList();
+    for (var i = 0; i < allRows.length; i += batchSize) {
+      final batch = allRows.sublist(i, (i + batchSize).clamp(0, allRows.length));
+      await _db.from('dictionary').upsert(batch);
+      total += batch.length;
+    }
+    return total;
+  }
+
+  // ── Dictionary CRUD ───────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> listDictionaryWords({
+    List<int> hskLevels = const [],
+    int offset = 0,
+    int limit = 100,
+  }) async {
+    var base = _db
+        .from('dictionary')
+        .select('id,simplified,pinyin,hsk_level,definitions');
+    final filtered = hskLevels.isNotEmpty
+        ? base.inFilter('hsk_level', hskLevels)
+        : base;
+    final data = await filtered
+        .order('hsk_level')
+        .order('simplified')
+        .range(offset, offset + limit - 1);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> saveDictionaryWord(Map<String, dynamic> word) async {
+    final simplified = word['simplified'] as String;
+    await _db.from('dictionary').upsert({
+      'id': simplified,
+      'simplified': simplified,
+      'traditional': simplified,
+      'pinyin': word['pinyin'] as String? ?? '',
+      'pinyin_ascii': _stripAccents(word['pinyin'] as String? ?? ''),
+      'hsk_level': (word['hsk_level'] as num?)?.toInt() ?? 1,
+      'definitions': word['definitions'] ?? {'en': '', 'tr': '', 'vi': '', 'pos': ''},
+      'ai_context_cache': <String, dynamic>{},
+      'radicals': <String>[],
+      'stroke_count': 0,
+    });
+  }
+
+  Future<void> deleteDictionaryWord(String id) async {
+    await _db.from('dictionary').delete().eq('id', id);
+  }
+
+  Future<void> updateDictionaryWord(String id, Map<String, dynamic> fields) async {
+    if (fields.containsKey('pinyin')) {
+      fields['pinyin_ascii'] = _stripAccents(fields['pinyin'] as String);
+    }
+    await _db.from('dictionary').update(fields).eq('id', id);
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /// Seeds HSK Level 4 words into the dictionary table.
+  Future<int> seedHsk4Dictionary() async {
+    const batchSize = 50;
+    var total = 0;
+    final seen = <String>{};
+    final allRows = kHsk4Words
+        .where((w) => seen.add(w[0]))
+        .map((w) => {
+              'id': w[0],
+              'simplified': w[0],
+              'traditional': w[0],
+              'pinyin': w[1],
+              'pinyin_ascii': _stripAccents(w[1]),
+              'hsk_level': 4,
+              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'ai_context_cache': <String, dynamic>{},
+              'radicals': <String>[],
+              'stroke_count': 0,
+            })
+        .toList();
+    for (var i = 0; i < allRows.length; i += batchSize) {
+      final batch = allRows.sublist(i, (i + batchSize).clamp(0, allRows.length));
+      await _db.from('dictionary').upsert(batch);
+      total += batch.length;
+    }
+    return total;
+  }
+
+  /// Seeds HSK Level 5 words into the dictionary table.
+  Future<int> seedHsk5Dictionary() async {
+    const batchSize = 50;
+    var total = 0;
+    final seen = <String>{};
+    final allRows = kHsk5Words
+        .where((w) => seen.add(w[0]))
+        .map((w) => {
+              'id': w[0],
+              'simplified': w[0],
+              'traditional': w[0],
+              'pinyin': w[1],
+              'pinyin_ascii': _stripAccents(w[1]),
+              'hsk_level': 5,
               'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
               'ai_context_cache': <String, dynamic>{},
               'radicals': <String>[],

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -38,19 +40,36 @@ class _SearchState {
 
 class _SearchNotifier extends StateNotifier<_SearchState> {
   final dynamic _repo;
+  Timer? _debounce;
+  int _seq = 0;
+
   _SearchNotifier(this._repo) : super(const _SearchState());
 
-  Future<void> search(String query) async {
-    if (query.trim().isEmpty) {
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void search(String query, {String lang = 'tr'}) {
+    _debounce?.cancel();
+    final q = query.trim();
+    if (q.isEmpty) {
+      _seq++;
       state = const _SearchState();
       return;
     }
     state = state.copyWith(isLoading: true, error: null);
+    _debounce = Timer(const Duration(milliseconds: 300), () => _run(q, lang));
+  }
+
+  Future<void> _run(String q, String lang) async {
+    final seq = ++_seq;
     try {
-      final results = await _repo.searchWords(query.trim());
-      state = _SearchState(results: results);
+      final results = await _repo.searchWords(q, lang: lang);
+      if (seq == _seq) state = _SearchState(results: results);
     } catch (e) {
-      state = _SearchState(error: e.toString());
+      if (seq == _seq) state = _SearchState(error: e.toString());
     }
   }
 }
@@ -126,7 +145,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                                 color: AppColors.onSurfaceMuted, size: 18),
                             onPressed: () {
                               _controller.clear();
-                              notifier.search('');
+                              notifier.search('', lang: lang);
                             },
                           )
                         : null,
@@ -141,7 +160,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   ),
                   onChanged: (v) {
                     setState(() {});
-                    notifier.search(v);
+                    notifier.search(v, lang: lang);
                   },
                 ),
               ),
@@ -259,12 +278,7 @@ class _WordTile extends StatelessWidget {
             ),
         ],
       ),
-      subtitle: Text(
-        TranslationHelper.getDefinition(word, lang),
-        style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
+      subtitle: _buildDefinitionText(TranslationHelper.getDefinition(word, lang)),
       trailing: word.hskLevel > 0
           ? Container(
               padding:
@@ -289,6 +303,35 @@ class _WordTile extends StatelessWidget {
             )
           : null,
       onTap: () => onTap(word.wordId),
+    );
+  }
+
+  static Widget _buildDefinitionText(String definition) {
+    // "1) first meaning 2) second meaning" → two lines
+    final match = RegExp(r'^1\)\s*(.+?)\s+2\)\s*(.+)$').firstMatch(definition);
+    if (match != null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text('1) ${match.group(1)!}',
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          Text('2) ${match.group(2)!}',
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 12),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+        ],
+      );
+    }
+    return Text(
+      definition,
+      style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
     );
   }
 }
