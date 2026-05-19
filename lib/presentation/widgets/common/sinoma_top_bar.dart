@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,6 +11,10 @@ import '../../../data/models/user_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
+
+// Stable Uint8List references keyed by data URL.
+// Same URL → same object → MemoryImage never reloads → no flash on rebuild.
+final Map<String, Uint8List> _avatarByteCache = {};
 
 // ── Top Bar ───────────────────────────────────────────────────────────────────
 
@@ -23,7 +28,7 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     GoRouterState.of(context); // subscribe to route changes → rebuilds when route changes
     return Consumer(builder: (context, ref, _) {
-      final user    = ref.watch(currentUserProvider).valueOrNull;
+      final user    = ref.watch(stableCurrentUserProvider);
       final hskLevel = ref.watch(currentHskLevelProvider);
       final isAdmin = ref.watch(isAdminProvider);
       final isDark  = Theme.of(context).brightness == Brightness.dark;
@@ -349,7 +354,11 @@ class UserAvatar extends StatelessWidget {
       img = NetworkImage(photoUrl);
     } else if (photoUrl.startsWith('data:image')) {
       try {
-        img = MemoryImage(base64Decode(photoUrl.split(',').last));
+        final bytes = _avatarByteCache.putIfAbsent(
+          photoUrl,
+          () => base64Decode(photoUrl.split(',').last),
+        );
+        img = MemoryImage(bytes);
       } catch (_) {}
     }
 
