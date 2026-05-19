@@ -67,15 +67,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _motherTongue        = user.motherTongue == 'en' ? 'en' : 'tr';
     _notificationsEnabled = user.notificationsEnabled;
     _initialized = true;
-
-    // Sync app locale to the user's saved language (e.g. fresh browser)
-    final code = _motherTongue;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      if (ref.read(localeProvider).languageCode != code) {
-        ref.read(localeProvider.notifier).setLocale(Locale(code));
-      }
-    });
   }
 
   // ── Photo picker ─────────────────────────────────────────────────────────────
