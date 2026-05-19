@@ -38,6 +38,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _confirmPassCtrl = TextEditingController();
 
   Uint8List? _pendingPhotoBytes;
+  String     _cachedPhotoUrl       = '';
   DateTime?  _birthday;
   String?    _gender;
   String     _motherTongue        = 'tr';
@@ -66,6 +67,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _gender              = user.gender.isEmpty ? null : user.gender;
     _motherTongue        = user.motherTongue == 'en' ? 'en' : 'tr';
     _notificationsEnabled = user.notificationsEnabled;
+    _cachedPhotoUrl      = user.photoUrl;
     _initialized = true;
   }
 
@@ -263,7 +265,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user      = userAsync.valueOrNull;
     final isDark    = ref.watch(themeModeProvider) == ThemeMode.dark;
 
-    if (user != null) _initFromUser(user);
+    if (user != null) {
+      _initFromUser(user);
+      if (user.photoUrl.isNotEmpty) _cachedPhotoUrl = user.photoUrl;
+    }
 
     return Scaffold(
       body: SingleChildScrollView(
@@ -570,9 +575,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    final photoUrl = user?.photoUrl ?? '';
+    // Prefer live value; fall back to cached URL so the photo survives
+    // any transient null emission from the user stream (locale change,
+    // auth token refresh, WebSocket reconnect, etc.).
+    final photoUrl = (user?.photoUrl.isNotEmpty == true)
+        ? user!.photoUrl
+        : _cachedPhotoUrl;
+
     if (photoUrl.isNotEmpty) {
-      // Base64 data URL stored in Firestore — no network request needed
       if (photoUrl.startsWith('data:')) {
         final b64 = photoUrl.contains(',') ? photoUrl.split(',').last : photoUrl;
         try {
