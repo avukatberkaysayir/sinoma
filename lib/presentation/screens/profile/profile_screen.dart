@@ -138,6 +138,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       if (_pendingPhotoBytes != null) {
         final dataUrl = await _makeThumbnailDataUrl(_pendingPhotoBytes!);
         await ref.read(userRepositoryProvider).updatePhotoUrl(uid, dataUrl);
+        // Clear pending bytes so avatar switches to the saved DB url.
+        if (mounted) setState(() => _pendingPhotoBytes = null);
         ref.invalidate(currentUserProvider);
       }
 
@@ -151,10 +153,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         notificationsEnabled: _notificationsEnabled,
       );
 
-      if (mounted) {
-        _initialized = false;
-        _snack('Profil kaydedildi.', success: true);
-      }
+      if (mounted) _snack('Profil kaydedildi.', success: true);
     } catch (e) {
       if (mounted) _snack('Kayıt hatası: $e', error: true);
     } finally {
