@@ -49,7 +49,6 @@ class UserRepository {
 
   Future<void> updateDisplayName(String uid, String newName) async {
     await _db.from('users').update({'display_name': newName}).eq('id', uid);
-    await _db.auth.updateUser(UserAttributes(data: {'display_name': newName}));
   }
 
   Future<void> updateProfileDetails({
@@ -69,7 +68,9 @@ class UserRepository {
       'mother_tongue': motherTongue,
       'notifications_enabled': notificationsEnabled,
     }).eq('id', uid);
-    await _db.auth.updateUser(UserAttributes(data: {'display_name': displayName}));
+    // auth.updateUser() deliberately omitted: it triggers onAuthStateChange →
+    // GoRouter rebuild → WebSocket reconnect → stream briefly emits null → photo disappears.
+    // displayName is read from the users table, not auth metadata.
   }
 
   Future<void> changePassword({

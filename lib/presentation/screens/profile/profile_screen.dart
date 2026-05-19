@@ -19,6 +19,12 @@ import '../../providers/social_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 
+// ── File-level photo cache ─────────────────────────────────────────────────────
+// Survives State recreation (locale change causes full tree rebuild in SinomaApp).
+// Same data URL → always same Uint8List reference → MemoryImage never reloads.
+final Map<String, Uint8List> _photoByteCache = {};
+var _lastKnownPhotoUrl = ''; // last non-empty URL seen, for null-user frames
+
 // ── Profile Screen ────────────────────────────────────────────────────────────
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -38,7 +44,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _confirmPassCtrl = TextEditingController();
 
   Uint8List? _pendingPhotoBytes;
-  String     _cachedPhotoUrl       = '';
   DateTime?  _birthday;
   String?    _gender;
   String     _motherTongue        = 'tr';
@@ -67,7 +72,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _gender              = user.gender.isEmpty ? null : user.gender;
     _motherTongue        = user.motherTongue == 'en' ? 'en' : 'tr';
     _notificationsEnabled = user.notificationsEnabled;
-    _cachedPhotoUrl      = user.photoUrl;
     _initialized = true;
   }
 
@@ -267,7 +271,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     if (user != null) {
       _initFromUser(user);
-      if (user.photoUrl.isNotEmpty) _cachedPhotoUrl = user.photoUrl;
+      if (user.photoUrl.isNotEmpty) _lastKnownPhotoUrl = user.photoUrl;
     }
 
     return Scaffold(
@@ -562,7 +566,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget _buildAvatar(UserModel? user) {
     final initials = _initials(user?.displayName ?? '', user?.lastName ?? '');
 
-    // In-session preview: bytes from picker (before save)
+    // In-session preview: bytes from picker (before save).
     if (_pendingPhotoBytes != null) {
       return ClipOval(
         child: Image.memory(
@@ -575,44 +579,48 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       );
     }
 
-    // Prefer live value; fall back to cached URL so the photo survives
-    // any transient null emission from the user stream (locale change,
-    // auth token refresh, WebSocket reconnect, etc.).
+    // Use live URL when available; fall back to file-level global so the photo
+    // survives any transient null user emission AND State recreation caused by
+    // SinomaApp rebuilding on locale change.
     final photoUrl = (user?.photoUrl.isNotEmpty == true)
         ? user!.photoUrl
-        : _cachedPhotoUrl;
+        : _lastKnownPhotoUrl;
 
-    if (photoUrl.isNotEmpty) {
-      if (photoUrl.startsWith('data:')) {
-        final b64 = photoUrl.contains(',') ? photoUrl.split(',').last : photoUrl;
-        try {
-          final bytes = base64Decode(b64);
-          return ClipOval(
-            child: Image.memory(
-              bytes,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-              gaplessPlayback: true,
-            ),
-          );
-        } catch (_) {
-          return _initialsCircle(initials);
-        }
+    if (photoUrl.isEmpty) return _initialsCircle(initials);
+
+    if (photoUrl.startsWith('data:')) {
+      try {
+        // putIfAbsent guarantees the same Uint8List instance for the same URL
+        // so MemoryImage never considers it "new" and never reloads/blanks.
+        final bytes = _photoByteCache.putIfAbsent(photoUrl, () {
+          final b64 =
+              photoUrl.contains(',') ? photoUrl.split(',').last : photoUrl;
+          return base64Decode(b64);
+        });
+        return ClipOval(
+          child: Image.memory(
+            bytes,
+            width: 80,
+            height: 80,
+            fit: BoxFit.cover,
+            gaplessPlayback: true,
+          ),
+        );
+      } catch (_) {
+        return _initialsCircle(initials);
       }
-      // Legacy: plain HTTPS URL (old uploads)
-      return ClipOval(
-        child: Image.network(
-          photoUrl,
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _initialsCircle(initials),
-        ),
-      );
     }
 
-    return _initialsCircle(initials);
+    // Legacy: plain HTTPS URL (old uploads).
+    return ClipOval(
+      child: Image.network(
+        photoUrl,
+        width: 80,
+        height: 80,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => _initialsCircle(initials),
+      ),
+    );
   }
 
   Widget _initialsCircle(String initials) => Container(
