@@ -9,6 +9,7 @@ import '../../core/constants/hsk2_words.dart';
 import '../../core/constants/hsk3_words.dart';
 import '../../core/constants/hsk4_words.dart';
 import '../../core/constants/hsk5_words.dart';
+import '../../core/constants/hsk6_words.dart';
 
 class AdminService {
   SupabaseClient get _db => Supabase.instance.client;
@@ -407,6 +408,34 @@ class AdminService {
               'pinyin': w[1],
               'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 5,
+              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'ai_context_cache': <String, dynamic>{},
+              'radicals': <String>[],
+              'stroke_count': 0,
+            })
+        .toList();
+    for (var i = 0; i < allRows.length; i += batchSize) {
+      final batch = allRows.sublist(i, (i + batchSize).clamp(0, allRows.length));
+      await _db.from('dictionary').upsert(batch);
+      total += batch.length;
+    }
+    return total;
+  }
+
+  /// Seeds HSK Level 6 words into the dictionary table.
+  Future<int> seedHsk6Dictionary() async {
+    const batchSize = 50;
+    var total = 0;
+    final seen = <String>{};
+    final allRows = kHsk6Words
+        .where((w) => seen.add(w[0]))
+        .map((w) => {
+              'id': w[0],
+              'simplified': w[0],
+              'traditional': w[0],
+              'pinyin': w[1],
+              'pinyin_ascii': _stripAccents(w[1]),
+              'hsk_level': 6,
               'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
               'ai_context_cache': <String, dynamic>{},
               'radicals': <String>[],
