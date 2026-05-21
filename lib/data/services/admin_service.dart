@@ -450,6 +450,22 @@ class AdminService {
     return total;
   }
 
+  // Word suggestions are stored as posts with post_type='text' and
+  // metadata.is_word_suggestion=true. The posts table allows authenticated
+  // INSERT; admin can SELECT all and DELETE via their RLS policy.
+  Future<List<Map<String, dynamic>>> listWordSuggestions() async {
+    final data = await _db
+        .from('posts')
+        .select('id, content, metadata, timestamp')
+        .filter('metadata->>is_word_suggestion', 'eq', 'true')
+        .order('timestamp', ascending: false);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> deleteWordSuggestion(String id) async {
+    await _db.from('posts').delete().eq('id', id);
+  }
+
   static String _stripAccents(String pinyin) {
     const accentMap = {
       'ā': 'a', 'á': 'a', 'ǎ': 'a', 'à': 'a',

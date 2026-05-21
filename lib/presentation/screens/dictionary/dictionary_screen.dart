@@ -85,6 +85,8 @@ class DictionaryScreen extends ConsumerStatefulWidget {
 
 class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   final _controller = TextEditingController();
+  bool _suggesting = false;
+  final Set<String> _suggestedWords = {};
 
   @override
   void initState() {
@@ -101,6 +103,23 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _suggestWord(String word) async {
+    if (word.isEmpty) return;
+    setState(() => _suggesting = true);
+    try {
+      await ref.read(dictionaryRepositoryProvider).suggestWord(word);
+      if (mounted) setState(() { _suggesting = false; _suggestedWords.add(word); });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _suggesting = false);
+        final msg = e.toString().contains('login_required')
+            ? 'Öneri yapmak için giriş yapınız'
+            : 'Bir hata oluştu';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+      }
+    }
   }
 
   void _openWordDetail(String wordId) {
@@ -206,10 +225,50 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     }
 
     if (state.results.isEmpty) {
-      return const Center(
-        child: Text(
-          'No results found',
-          style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 15),
+      final q = _controller.text.trim();
+      final alreadySuggested = _suggestedWords.contains(q);
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'No results found',
+              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 15),
+            ),
+            const SizedBox(height: 20),
+            if (alreadySuggested)
+              const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.check_circle_outline,
+                      color: AppColors.correctAnswer, size: 20),
+                  SizedBox(width: 8),
+                  Text('Önerildi',
+                      style: TextStyle(
+                          color: AppColors.correctAnswer, fontSize: 14)),
+                ],
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: _suggesting ? null : () => _suggestWord(q),
+                icon: _suggesting
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: AppColors.primary))
+                    : const Icon(Icons.lightbulb_outline, size: 18),
+                label: const Text('Bu kelimeyi öner'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 20, vertical: 12),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+          ],
         ),
       );
     }

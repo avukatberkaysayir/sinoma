@@ -427,12 +427,24 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
   int _offset = 0;
   static const _pageSize = 100;
 
+  bool _seeding = false;
+  String? _seedMsg;
+
+  List<Map<String, dynamic>> _suggestions = [];
+  bool _loadingSugg = false;
+  String? _suggError;
+
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
+    _tabs = TabController(length: 3, vsync: this);
     _tabs.addListener(() {
-      if (!_tabs.indexIsChanging) setState(() {});
+      if (!_tabs.indexIsChanging) {
+        setState(() {});
+        if (_tabs.index == 2 && _suggestions.isEmpty && !_loadingSugg) {
+          _loadSuggestions();
+        }
+      }
     });
     _load();
   }
@@ -530,6 +542,121 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
     );
   }
 
+  Future<void> _seedHsk6() async {
+    setState(() { _seeding = true; _seedMsg = null; });
+    try {
+      final count = await widget.service.seedHsk6Dictionary();
+      if (mounted) {
+        setState(() { _seeding = false; _seedMsg = '✓ $count kelime eklendi'; });
+        _load();
+      }
+    } catch (e) {
+      if (mounted) setState(() { _seeding = false; _seedMsg = 'Hata: $e'; });
+    }
+  }
+
+  Future<void> _loadSuggestions() async {
+    setState(() { _loadingSugg = true; _suggError = null; });
+    try {
+      final result = await widget.service.listWordSuggestions();
+      if (mounted) setState(() { _suggestions = result; _loadingSugg = false; });
+    } catch (e) {
+      if (mounted) setState(() { _suggError = e.toString(); _loadingSugg = false; });
+    }
+  }
+
+  Future<void> _deleteSuggestion(String id) async {
+    try {
+      await widget.service.deleteWordSuggestion(id);
+      _snack('Silindi');
+      _loadSuggestions();
+    } catch (e) {
+      _snack('Hata: $e');
+    }
+  }
+
+  Widget _buildSuggestionsPanel() {
+    if (_loadingSugg) return const Center(child: CircularProgressIndicator());
+    if (_suggError != null) {
+      return Center(
+        child: Text(_suggError!,
+            style: const TextStyle(color: AppColors.wrongAnswer),
+            textAlign: TextAlign.center),
+      );
+    }
+    if (_suggestions.isEmpty) {
+      return const Center(
+        child: Text('Henüz öneri yok',
+            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
+      );
+    }
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          color: AppColors.surfaceVariant,
+          child: Row(
+            children: [
+              Text('${_suggestions.length} öneri',
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 13)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+            itemCount: _suggestions.length,
+            separatorBuilder: (_, __) => const Divider(
+                height: 1, color: AppColors.surfaceVariant, indent: 56),
+            itemBuilder: (_, i) {
+              final s = _suggestions[i];
+              // posts row: content=word, metadata.suggested_by_email, timestamp
+              final word = s['content'] as String? ?? '';
+              final meta = s['metadata'] as Map<String, dynamic>? ?? {};
+              final by = meta['suggested_by_email'] as String? ?? '';
+              final ts = s['timestamp'] as String? ?? '';
+              final shortDate = ts.length >= 10 ? ts.substring(0, 10) : ts;
+              return ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(word,
+                      style: const TextStyle(
+                          color: AppColors.onSurface,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                ),
+                title: Text(word,
+                    style: const TextStyle(
+                        color: AppColors.onSurface, fontSize: 14)),
+                subtitle: Text(
+                    '${by.isNotEmpty ? by : 'Anonim'} • $shortDate',
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+                trailing: IconButton(
+                  icon: const Icon(Icons.delete_outline,
+                      size: 18, color: AppColors.wrongAnswer),
+                  onPressed: () => _deleteSuggestion(s['id'] as String),
+                  tooltip: 'Sil',
+                  style: IconButton.styleFrom(
+                      minimumSize: const Size(32, 32), padding: EdgeInsets.zero),
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Row(
@@ -551,6 +678,7 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                   tabs: const [
                     Tab(text: 'Aktif'),
                     Tab(text: 'Pasif'),
+                    Tab(text: 'Önerilen'),
                   ],
                 ),
               ),
@@ -622,6 +750,69 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                     ),
                   ),
                 ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _seeding ? null : _seedHsk6,
+                      icon: _seeding
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: AppColors.primary))
+                          : const Icon(Icons.upload_outlined, size: 16),
+                      label: Text(
+                        _seeding ? 'Yükleniyor…' : 'Seed HSK 6',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ),
+                if (_seedMsg != null)
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                    child: Text(
+                      _seedMsg!,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: _seedMsg!.startsWith('Hata')
+                            ? AppColors.wrongAnswer
+                            : AppColors.correctAnswer,
+                      ),
+                    ),
+                  ),
+              ] else if (_tabs.index == 2) ...[
+                const SizedBox(height: 12),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _loadSuggestions,
+                      icon: const Icon(Icons.refresh, size: 16),
+                      label: const Text('Yenile',
+                          style: TextStyle(fontSize: 13)),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding:
+                            const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                ),
               ] else
                 const Expanded(
                   child: Center(
@@ -634,45 +825,56 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
           ),
         ),
         Container(width: 1, color: AppColors.surfaceVariant),
-        // ── Right: word list ─────────────────────────────────────────────
+        // ── Right: word list / suggestions ──────────────────────────────
         Expanded(
-          child: Column(
-            children: [
-              // Header
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                color: AppColors.surfaceVariant,
-                child: Row(
+          child: _tabs.index == 2
+              ? _buildSuggestionsPanel()
+              : Column(
                   children: [
-                    Text(
-                      _loading
-                          ? 'Yükleniyor…'
-                          : '${_words.length} kelime',
-                      style: const TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 13),
-                    ),
-                    const Spacer(),
-                    FilledButton.icon(
-                      onPressed: _openAddDialog,
-                      icon: const Icon(Icons.add, size: 16),
-                      label: const Text('Yeni Kelime Ekle',
-                          style: TextStyle(fontSize: 13)),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.primary,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                    // Header
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      color: AppColors.surfaceVariant,
+                      child: Row(
+                        children: [
+                          Text(
+                            _loading
+                                ? 'Yükleniyor…'
+                                : '${_words.length} kelime',
+                            style: const TextStyle(
+                                color: AppColors.onSurfaceMuted, fontSize: 13),
+                          ),
+                          const Spacer(),
+                          FilledButton.icon(
+                            onPressed: _openAddDialog,
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('Yeni Kelime Ekle',
+                                style: TextStyle(fontSize: 13)),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 8),
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8)),
+                            ),
+                          ),
+                        ],
                       ),
+                    ),
+                    // Body
+                    Expanded(
+                      child: _tabs.index == 0
+                          ? _buildWordList()
+                          : const Center(
+                              child: Text('Pasif kelimeler yakında',
+                                  style: TextStyle(
+                                      color: AppColors.onSurfaceMuted,
+                                      fontSize: 13)),
+                            ),
                     ),
                   ],
                 ),
-              ),
-              // Body
-              Expanded(child: _buildWordList()),
-            ],
-          ),
         ),
       ],
     );

@@ -124,12 +124,13 @@ class DictionaryRepository {
     // Three parallel queries — definition search is scoped to the active locale
     // only, which prevents false positives from the other language's words.
     final responses = await Future.wait([
-      _db.from('dictionary').select().ilike('simplified', '$q%').limit(limit),
-      _db.from('dictionary').select().ilike('pinyin_ascii', '$qAscii%').limit(limit),
+      _db.from('dictionary').select().ilike('simplified', '$q%').gt('hsk_level', 0).limit(limit),
+      _db.from('dictionary').select().ilike('pinyin_ascii', '$qAscii%').gt('hsk_level', 0).limit(limit),
       _db
           .from('dictionary')
           .select()
           .filter('definitions->>$lang', 'ilike', '%$q%')
+          .gt('hsk_level', 0)
           .limit(limit),
     ]);
 
@@ -247,5 +248,25 @@ class DictionaryRepository {
       ..shuffle();
     await _cache.cacheWords(words);
     return words;
+  }
+
+  Future<void> suggestWord(String word) async {
+    final user = _db.auth.currentUser;
+    if (user == null) throw Exception('login_required');
+    // Stored as a regular 'text' post with is_word_suggestion flag in metadata.
+    // The posts table allows authenticated INSERT and admin can SELECT/DELETE
+    // via the RLS policy that includes the admin's email.
+    await _db.from('posts').insert({
+      'author_id': user.id,
+      'content': word.trim(),
+      'post_type': 'text',
+      'likes': [],
+      'metadata': {
+        'is_word_suggestion': true,
+        'word': word.trim(),
+        'suggested_by_uid': user.id,
+        'suggested_by_email': user.email ?? '',
+      },
+    });
   }
 }
