@@ -70,7 +70,7 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
               padding: EdgeInsets.zero,
             ),
           GestureDetector(
-            onTap: () => context.go('/hub'),
+            onTap: () => context.go('/home'),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: _LogoSection(hskLevel: hskLevel),

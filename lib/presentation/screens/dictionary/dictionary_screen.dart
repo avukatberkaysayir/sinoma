@@ -8,7 +8,6 @@ import '../../../core/utils/translation_helper.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../providers/dictionary_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../widgets/common/section_sidebar.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 
 // Transient search state — auto-disposed when screen leaves the tree.
@@ -187,7 +186,6 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
             ],
           ),
         ),
-        const SectionSidebarOverlay(current: AppSection.dictionary),
       ],
     );
   }

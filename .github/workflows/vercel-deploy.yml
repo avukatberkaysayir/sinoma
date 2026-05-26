@@ -25,9 +25,12 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Build web (CanvasKit)
+      - name: Analyze
+        run: flutter analyze --no-fatal-infos
+
+      - name: Build web
         run: |
-          flutter build web --release --web-renderer canvaskit \
+          flutter build web --release \
             --dart-define=SUPABASE_URL=${{ secrets.SUPABASE_URL }} \
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
             --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}

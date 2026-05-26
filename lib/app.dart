@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/constants/app_colors.dart';
+import 'core/utils/responsive_layout.dart';
 import 'presentation/providers/auth_provider.dart' show adminEmail;
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/theme_provider.dart';
@@ -16,7 +17,7 @@ import 'presentation/screens/games/games_section_screen.dart';
 import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
-import 'presentation/screens/hub/hub_screen.dart';
+import 'presentation/widgets/common/section_sidebar.dart';
 import 'presentation/screens/language/language_selection_screen.dart';
 import 'presentation/screens/legal/privacy_policy_screen.dart';
 import 'presentation/screens/legal/terms_screen.dart';
@@ -29,6 +30,7 @@ import 'presentation/screens/splash/splash_screen.dart';
 import 'presentation/screens/subscription/subscription_screen.dart';
 import 'presentation/screens/video_player/video_player_screen.dart';
 import 'presentation/screens/video_player/voscreen_player_screen.dart';
+import 'presentation/widgets/common/connectivity_banner.dart';
 import 'presentation/widgets/common/sinoma_top_bar.dart';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
@@ -37,11 +39,39 @@ class _AppShell extends StatelessWidget {
   final Widget child;
   const _AppShell({required this.child});
 
+  static const _sectionRoutes = {'/video', '/home', '/dictionary', '/social', '/games'};
+
+  static AppSection _sectionFromRoute(String loc) => switch (loc) {
+    '/dictionary' => AppSection.dictionary,
+    '/social'     => AppSection.social,
+    '/games'      => AppSection.games,
+    _             => AppSection.video,
+  };
+
   @override
   Widget build(BuildContext context) {
+    final loc      = GoRouterState.of(context).matchedLocation;
+    final showTabs = _sectionRoutes.contains(loc);
+    final isWide   = ResponsiveLayout.isWide(context);
+
     return Scaffold(
       appBar: const SinomaTopBar(),
-      body: child,
+      body: ConnectivityBanner(
+        child: showTabs && isWide
+            ? Row(
+                children: [
+                  SectionNavRail(current: _sectionFromRoute(loc)),
+                  const VerticalDivider(width: 1, thickness: 1),
+                  Expanded(child: child),
+                ],
+              )
+            : Column(
+                children: [
+                  if (showTabs) SectionTabBar(current: _sectionFromRoute(loc)),
+                  Expanded(child: child),
+                ],
+              ),
+      ),
     );
   }
 }
@@ -97,8 +127,9 @@ final _router = GoRouter(
     ShellRoute(
       builder: (context, state, child) => _AppShell(child: child),
       routes: [
-        GoRoute(path: '/hub',   builder: (_, __) => const HubScreen()),
+        GoRoute(path: '/hub',   redirect: (_, __) => '/home'),
         GoRoute(path: '/home',  builder: (_, __) => const HomeScreen()),
+        GoRoute(path: '/video', builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
         GoRoute(path: '/admin',           builder: (_, __) => const AdminScreen()),

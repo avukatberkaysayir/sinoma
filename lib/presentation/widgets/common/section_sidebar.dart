@@ -23,8 +23,8 @@ extension AppSectionX on AppSection {
   };
 
   String get route => switch (this) {
-    AppSection.video       => '/home',
-    AppSection.dictionary  => '/dictionary/search',
+    AppSection.video       => '/video',
+    AppSection.dictionary  => '/dictionary',
     AppSection.social      => '/social',
     AppSection.games       => '/games',
   };
@@ -132,6 +132,156 @@ class _SidebarItem extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Left navigation rail (wide screens ≥ 900px) ──────────────────────────────
+
+class SectionNavRail extends ConsumerWidget {
+  final AppSection current;
+  const SectionNavRail({super.key, required this.current});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n   = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final idx    = AppSection.values.indexOf(current);
+
+    return NavigationRail(
+      selectedIndex: idx < 0 ? 0 : idx,
+      onDestinationSelected: (i) {
+        final section = AppSection.values[i];
+        if (section != current) context.go(section.route);
+      },
+      labelType: NavigationRailLabelType.all,
+      backgroundColor: isDark ? AppColors.surfaceVariant : Colors.white,
+      selectedIconTheme: const IconThemeData(color: AppColors.primary, size: 22),
+      unselectedIconTheme: IconThemeData(
+        color: isDark ? Colors.white38 : Colors.black38,
+        size: 22,
+      ),
+      selectedLabelTextStyle: const TextStyle(
+        color: AppColors.primary,
+        fontSize: 11,
+        fontWeight: FontWeight.w600,
+      ),
+      unselectedLabelTextStyle: TextStyle(
+        color: isDark ? Colors.white38 : Colors.black38,
+        fontSize: 11,
+      ),
+      destinations: AppSection.values.map((s) => NavigationRailDestination(
+        icon: Icon(s.icon),
+        label: Text(s.localizedLabel(l10n)),
+      )).toList(),
+    );
+  }
+}
+
+// ── Horizontal section tab bar ────────────────────────────────────────────────
+
+class SectionTabBar extends ConsumerWidget {
+  final AppSection current;
+  const SectionTabBar({super.key, required this.current});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n   = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
+      height: 44,
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceVariant : Colors.white,
+        border: Border(
+          bottom: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+        ),
+      ),
+      child: Row(
+        children: AppSection.values.map((section) {
+          return _SectionTab(
+            section: section,
+            label: section.localizedLabel(l10n),
+            isActive: section == current,
+            isDark: isDark,
+            onTap: section == current ? null : () => context.go(section.route),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
+class _SectionTab extends StatefulWidget {
+  final AppSection section;
+  final String label;
+  final bool isActive;
+  final bool isDark;
+  final VoidCallback? onTap;
+
+  const _SectionTab({
+    required this.section,
+    required this.label,
+    required this.isActive,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  State<_SectionTab> createState() => _SectionTabState();
+}
+
+class _SectionTabState extends State<_SectionTab> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    const activeColor   = AppColors.primary;
+    final inactiveColor = widget.isDark ? Colors.white54 : Colors.black45;
+    final fg            = widget.isActive ? activeColor : inactiveColor;
+
+    return MouseRegion(
+      cursor: widget.isActive
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit:  (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(
+                color: widget.isActive ? activeColor : Colors.transparent,
+                width: 2,
+              ),
+            ),
+            color: _hovered && !widget.isActive
+                ? (widget.isDark
+                    ? Colors.white.withValues(alpha: 0.06)
+                    : Colors.black.withValues(alpha: 0.04))
+                : Colors.transparent,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.section.icon, size: 16, color: fg),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  color: fg,
+                  fontSize: 14,
+                  fontWeight: widget.isActive
+                      ? FontWeight.w600
+                      : FontWeight.normal,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

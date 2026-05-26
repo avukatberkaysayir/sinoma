@@ -3,6 +3,7 @@ import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
@@ -12,7 +13,7 @@ import '../../../data/services/admin_service.dart';
 
 // ── Navigation sections ───────────────────────────────────────────────────────
 
-enum _Section { video, dictionary, social, game }
+enum _Section { video, dictionary, users, social, game }
 enum _VideoSub { youtube, movie }
 enum _VideoAction { add, manage }
 
@@ -92,10 +93,11 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Widget _buildBody() {
     return switch (_section) {
-      _Section.video => _buildVideoBody(),
+      _Section.video      => _buildVideoBody(),
       _Section.dictionary => _DictionaryPanel(service: _service),
-      _Section.social => const _PlaceholderSection(icon: Icons.people_outline, label: 'Sosyal'),
-      _Section.game => const _PlaceholderSection(icon: Icons.sports_esports_outlined, label: 'Oyun'),
+      _Section.users      => const _UsersPanel(),
+      _Section.social     => const _SocialPanel(),
+      _Section.game       => const _GamePanel(),
     };
   }
 
@@ -212,6 +214,14 @@ class _NavRail extends StatelessWidget {
             open: false,
             hasChildren: false,
             onTap: () => onSection(_Section.dictionary),
+          ),
+          _TopItem(
+            icon: Icons.manage_accounts_outlined,
+            label: 'Kullanıcılar',
+            selected: section == _Section.users,
+            open: false,
+            hasChildren: false,
+            onTap: () => onSection(_Section.users),
           ),
           _TopItem(
             icon: Icons.people_outline,
@@ -382,29 +392,6 @@ class _LeafItem extends StatelessWidget {
   }
 }
 
-// ── Placeholder section ───────────────────────────────────────────────────────
-
-class _PlaceholderSection extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  const _PlaceholderSection({required this.icon, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: AppColors.onSurfaceMuted),
-          const SizedBox(height: 12),
-          Text('$label yakında',
-              style: const TextStyle(
-                  color: AppColors.onSurfaceMuted, fontSize: 16)),
-        ],
-      ),
-    );
-  }
-}
 
 // ── Dictionary Panel ──────────────────────────────────────────────────────────
 
@@ -1600,6 +1587,46 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     }
   }
 
+  Future<void> _bulkHardDelete() async {
+    if (_selected.isEmpty) return;
+    final count = _selected.length;
+    final ids = _selected.toList();
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: Text('$count videoyu tamamen sil?',
+            style: const TextStyle(color: AppColors.onSurface)),
+        content: const Text(
+            'Bu işlem geri alınamaz. Videolar hiçbir listede görünmeyecek.',
+            style: TextStyle(color: AppColors.onSurfaceMuted)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('İptal')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Tamamen Sil',
+                  style: TextStyle(color: AppColors.wrongAnswer))),
+        ],
+      ),
+    );
+    if (!mounted || ok != true) return;
+    setState(() => _bulkLoading = true);
+    try {
+      await widget.service.hardDeleteVideos(ids);
+      if (mounted) {
+        _snack('$count video kalıcı olarak silindi');
+        widget.onRefresh();
+      }
+    } catch (e) {
+      if (mounted) _snack('Silme hatası: $e');
+    } finally {
+      if (mounted) setState(() => _bulkLoading = false);
+    }
+  }
+
   void _snack(String msg) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
@@ -1666,6 +1693,9 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
             if (widget.status == 'deleted') ...[
               _actionBtn('Geri Yükle', AppColors.primary, filled: true,
                   onPressed: disabled ? null : _bulkRestore),
+              const SizedBox(width: 6),
+              _actionBtn('Tamamen Sil', AppColors.wrongAnswer,
+                  onPressed: disabled ? null : _bulkHardDelete),
             ],
           ],
           const SizedBox(width: 4),
@@ -1810,6 +1840,8 @@ class _VideoCardState extends State<_VideoCard> {
   late final TextEditingController _wrongCtrl;
   bool _saving = false;
 
+  YoutubePlayerController? _ytController;
+
   @override
   void initState() {
     super.initState();
@@ -1828,8 +1860,37 @@ class _VideoCardState extends State<_VideoCard> {
         TextEditingController(text: quiz['wrongAnswer'] as String? ?? '');
   }
 
+  void _openInlinePlayer() {
+    final v = widget.data;
+    final ytId = v['youtube_id'] as String?;
+    if (ytId == null || ytId.isEmpty) return;
+    final start = (v['start_time'] as num?)?.toDouble() ?? 0.0;
+    setState(() {
+      _ytController?.close();
+      _ytController = YoutubePlayerController.fromVideoId(
+        videoId: ytId,
+        startSeconds: start,
+        autoPlay: true,
+        params: const YoutubePlayerParams(
+          showControls: true,
+          showFullscreenButton: true,
+          mute: false,
+          loop: false,
+          playsInline: true,
+        ),
+      );
+      if (!_expanded) _expanded = true;
+    });
+  }
+
+  void _closeInlinePlayer() {
+    _ytController?.close();
+    setState(() => _ytController = null);
+  }
+
   @override
   void dispose() {
+    _ytController?.close();
     _questionCtrl.dispose();
     _correctCtrl.dispose();
     _wrongCtrl.dispose();
@@ -1928,9 +1989,29 @@ class _VideoCardState extends State<_VideoCard> {
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
-                Text('YouTube: ${ytId ?? "—"}',
-                    style: const TextStyle(
-                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+                if (ytId != null && ytId.isNotEmpty)
+                  GestureDetector(
+                    onTap: _openInlinePlayer,
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.play_circle_outline,
+                            size: 12, color: AppColors.primary),
+                        const SizedBox(width: 3),
+                        Text(
+                          '$ytId  (${(v['start_time'] as num?)?.toInt() ?? 0}s)',
+                          style: const TextStyle(
+                              color: AppColors.primary,
+                              fontSize: 11,
+                              decoration: TextDecoration.underline),
+                        ),
+                      ],
+                    ),
+                  )
+                else
+                  const Text('—',
+                      style: TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 11)),
               ],
             ),
             trailing: IconButton(
@@ -1950,20 +2031,93 @@ class _VideoCardState extends State<_VideoCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  if (ytId != null && ytId.isNotEmpty)
-                    OutlinedButton.icon(
-                      onPressed: _openPreview,
-                      icon: const Icon(Icons.play_circle_outline, size: 16),
-                      label: Text(
-                          'YouTube\'da Oynat (t=${(v['start_time'] as num?)?.toInt() ?? 0}s)'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        textStyle: const TextStyle(fontSize: 12),
+                  if (ytId != null && ytId.isNotEmpty) ...[
+                    // Inline player or clickable thumbnail
+                    if (_ytController != null) ...[
+                      // Fixed 400×225 box — same proportions as home-screen cards
+                      SizedBox(
+                        width: 400,
+                        height: 225,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: YoutubePlayerScaffold(
+                            controller: _ytController!,
+                            builder: (_, player) => player,
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Row(
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: _closeInlinePlayer,
+                            icon: const Icon(Icons.close, size: 14),
+                            label: const Text('Kapat'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.onSurfaceMuted,
+                              side: const BorderSide(
+                                  color: AppColors.onSurfaceMuted),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              textStyle: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          OutlinedButton.icon(
+                            onPressed: _openPreview,
+                            icon: const Icon(Icons.open_in_new, size: 14),
+                            label: const Text("YouTube'da Aç"),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side:
+                                  const BorderSide(color: AppColors.primary),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              textStyle: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ] else ...[
+                      // Thumbnail with play overlay → click to embed
+                      GestureDetector(
+                        onTap: _openInlinePlayer,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              Image.network(
+                                'https://img.youtube.com/vi/$ytId/mqdefault.jpg',
+                                height: 140,
+                                width: double.infinity,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => Container(
+                                  height: 140,
+                                  color: AppColors.surface,
+                                  child: const Center(
+                                    child: Icon(Icons.play_circle_outline,
+                                        color: AppColors.onSurfaceMuted,
+                                        size: 48),
+                                  ),
+                                ),
+                              ),
+                              Container(
+                                width: 52,
+                                height: 52,
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(Icons.play_arrow,
+                                    color: Colors.white, size: 32),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                   const SizedBox(height: 14),
                   Text('HSK Seviye: $_hskLevel',
                       style: const TextStyle(
@@ -2305,31 +2459,71 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   bool _processing = false;
   String? _resultMsg;
   bool _resultSuccess = false;
-
-  bool _asrProcessing = false;
   Timer? _jobPollTimer;
 
-  String _ytId = '';
-  YoutubePlayerController? _ytCtrl;
-  final _startCtrl = TextEditingController(text: '0');
-  final _endCtrl = TextEditingController(text: '10');
-  final _transcriptionCtrl = TextEditingController();
-  final _pinyinCtrl = TextEditingController();
-  int _hskLevel = 1;
-  QuizCategory _category = QuizCategory.general;
-  bool _saving = false;
-  bool _playerReady = false;
+  String _asrJobYoutubeId = '';
+  List<int>? _asrJobFilter;
+
+  final Set<int> _hskFilter = {};
+
+  // ── Elapsed timer + live import stream ────────────────────────────────────
+  DateTime? _processingStart;
+  Timer? _elapsedTimer;
+  int _partialCount = 0;
+  List<Map<String, dynamic>> _liveVideos = [];
+  Timer? _liveVideoTimer;
+
+  void _toggleHskFilter(int lvl) {
+    setState(() {
+      if (_hskFilter.contains(lvl)) {
+        _hskFilter.remove(lvl);
+      } else {
+        _hskFilter.add(lvl);
+      }
+    });
+  }
 
   @override
   void dispose() {
     _jobPollTimer?.cancel();
+    _elapsedTimer?.cancel();
+    _liveVideoTimer?.cancel();
     _urlCtrl.dispose();
-    _startCtrl.dispose();
-    _endCtrl.dispose();
-    _transcriptionCtrl.dispose();
-    _pinyinCtrl.dispose();
-    _ytCtrl?.close();
     super.dispose();
+  }
+
+  String get _elapsedLabel {
+    if (_processingStart == null) return '';
+    final dur = DateTime.now().difference(_processingStart!);
+    final m = dur.inMinutes.toString().padLeft(2, '0');
+    final s = (dur.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
+
+  void _startTimers(String youtubeId) {
+    _processingStart = DateTime.now();
+    _partialCount = 0;
+    _liveVideos = [];
+    _elapsedTimer?.cancel();
+    _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+    _liveVideoTimer?.cancel();
+    _liveVideoTimer = Timer.periodic(const Duration(seconds: 5), (_) async {
+      if (!mounted || youtubeId.isEmpty) return;
+      try {
+        final vids = await _service.listVideosByYoutubeId(youtubeId);
+        if (mounted) setState(() => _liveVideos = vids);
+      } catch (_) {}
+    });
+  }
+
+  void _stopTimers() {
+    _elapsedTimer?.cancel();
+    _elapsedTimer = null;
+    _liveVideoTimer?.cancel();
+    _liveVideoTimer = null;
+    _processingStart = null;
   }
 
   static String _extractYtId(String input) {
@@ -2344,91 +2538,82 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     return input.trim();
   }
 
-  void _loadVideo() {
-    final id = _extractYtId(_urlCtrl.text);
-    if (id.isEmpty || id.length < 4) return;
-    _ytCtrl?.close();
-    final ctrl = YoutubePlayerController.fromVideoId(
-      videoId: id,
-      autoPlay: false,
-      params: const YoutubePlayerParams(
-        showControls: true,
-        showFullscreenButton: false,
-        mute: false,
-      ),
-    );
-    setState(() {
-      _ytId = id;
-      _ytCtrl = ctrl;
-      _playerReady = true;
-    });
+  static bool _isNoCaptionsError(String msg) {
+    return msg.contains('altyazı bulunamadı') ||
+        msg.contains("track'i bulunamadı") ||
+        msg.contains('Çince altyazı');
   }
 
-  Future<void> _playSegment() async {
-    if (_ytCtrl == null) return;
-    final start = double.tryParse(_startCtrl.text) ?? 0;
-    final end = double.tryParse(_endCtrl.text) ?? 10;
-    await _ytCtrl!.seekTo(seconds: start, allowSeekAhead: true);
-    await _ytCtrl!.playVideo();
-    Future.delayed(Duration(milliseconds: ((end - start) * 1000).round()), () {
-      if (mounted) _ytCtrl?.pauseVideo();
-    });
-  }
-
-  Future<void> _setStartToCurrent() async {
-    if (_ytCtrl == null) return;
-    final pos = await _ytCtrl!.currentTime;
-    setState(() => _startCtrl.text = pos.toStringAsFixed(1));
-  }
-
-  Future<void> _setEndToCurrent() async {
-    if (_ytCtrl == null) return;
-    final pos = await _ytCtrl!.currentTime;
-    setState(() => _endCtrl.text = pos.toStringAsFixed(1));
-  }
-
-  Future<void> _process() async {
+  Future<void> _processSmartImport() async {
     final url = _urlCtrl.text.trim();
     if (url.isEmpty) return;
-    setState(() { _processing = true; _resultMsg = null; });
+
+    final filter = _hskFilter.isEmpty ? null : (_hskFilter.toList()..sort());
+    final videoId = _extractYtId(url);
+
+    setState(() { _processing = true; _resultMsg = null; _liveVideos = []; });
+    _startTimers(videoId);
+
+    // Step 1: Try subtitle-based extraction via edge function
     try {
-      final result = await _service.processYoutubeVideo(url, active: false);
-      final count = result['segmentsWritten'] as int? ?? 0;
+      final result = await _service.processYoutubeVideo(
+        url,
+        active: false,
+        hskFilter: filter,
+      );
+      final written = result['segmentsWritten'] as int? ?? 0;
+      final deleted = await _service.deleteNonMatchingPendingVideos(videoId, filter);
+      final kept = written - deleted;
+      final vids = await _service.listVideosByYoutubeId(videoId);
       if (mounted) {
+        _stopTimers();
         setState(() {
           _processing = false;
           _resultSuccess = true;
-          _resultMsg = '✓ $count klip içe aktarıldı. Sağdan onaylayın.';
+          _resultMsg = '✓ $kept klip içe aktarıldı.'
+              '${deleted > 0 ? ' ($deleted segment sözlük/filtre dışı otomatik silindi.)' : ''}'
+              ' Sağdan onaylayın.';
+          _liveVideos = vids;
         });
         widget.onVideosChanged();
       }
+      return;
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _processing = false;
-          _resultSuccess = false;
-          _resultMsg = e.toString().replaceFirst('Exception: ', '');
-        });
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (!_isNoCaptionsError(msg)) {
+        _stopTimers();
+        if (mounted) {
+          setState(() {
+            _processing = false;
+            _resultSuccess = false;
+            _resultMsg = msg;
+          });
+        }
+        return;
       }
+      // No captions found → silently fall through to ASR
     }
-  }
 
-  Future<void> _processAsr() async {
-    final url = _urlCtrl.text.trim();
-    if (url.isEmpty) return;
-    setState(() { _asrProcessing = true; _resultMsg = null; });
+    // Step 2: Auto-fallback to ASR (transparent to user)
+    _asrJobYoutubeId = videoId;
+    _asrJobFilter = filter;
     try {
-      final jobId = await _service.createYoutubeAsrJob(url, active: false);
+      final jobId = await _service.createYoutubeAsrJob(
+        url,
+        active: false,
+        hskFilter: filter,
+      );
       if (!mounted) return;
       setState(() {
         _resultSuccess = true;
-        _resultMsg = '⏳ İşe alındı — pipeline arka planda çalışıyor…';
+        _resultMsg = '⏳ Ses tanıma başlatıldı (altyazı bulunamadı). Whisper işleniyor…';
       });
       _startJobPolling(jobId);
     } catch (e) {
+      _stopTimers();
       if (mounted) {
         setState(() {
-          _asrProcessing = false;
+          _processing = false;
           _resultSuccess = false;
           _resultMsg = e.toString().replaceFirst('Exception: ', '');
         });
@@ -2440,86 +2625,67 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     _jobPollTimer?.cancel();
     _jobPollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       if (!mounted) return;
+
+      // 15-minute hard timeout
+      if (_processingStart != null &&
+          DateTime.now().difference(_processingStart!) >
+              const Duration(minutes: 15)) {
+        _jobPollTimer?.cancel();
+        _stopTimers();
+        setState(() {
+          _processing = false;
+          _resultSuccess = false;
+          _resultMsg =
+              'İşlem zaman aşımına uğradı (15 dk). Pipeline sunucusu çalışıyor mu?';
+        });
+        return;
+      }
+
       try {
         final job = await _service.getJob(jobId);
         if (!mounted) return;
         final status = job['status'] as String? ?? '';
-        if (status == 'processing') {
-          setState(() => _resultMsg = '🔄 Whisper transkripsiyon yapıyor…');
-        } else if (status == 'done') {
-          final count =
+
+        // Live partial-progress update
+        final partial =
+            (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
+        if (partial > 0 && partial != _partialCount) {
+          _partialCount = partial;
+          widget.onVideosChanged();
+        }
+
+        if (status == 'done') {
+          final written =
               (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
-          setState(() {
-            _asrProcessing = false;
-            _resultSuccess = true;
-            _resultMsg = '✓ $count klip içe aktarıldı (Whisper). Sağdan onaylayın.';
-          });
+          final deleted = await _service.deleteNonMatchingPendingVideos(
+            _asrJobYoutubeId,
+            _asrJobFilter,
+          );
+          final kept = written - deleted;
+          if (!mounted) return;
+          final vids = await _service.listVideosByYoutubeId(_asrJobYoutubeId);
           _jobPollTimer?.cancel();
+          _stopTimers();
+          setState(() {
+            _processing = false;
+            _resultSuccess = true;
+            _resultMsg = '✓ $kept klip içe aktarıldı.'
+                '${deleted > 0 ? ' ($deleted segment sözlük/filtre dışı silindi.)' : ''}'
+                ' Sağdan onaylayın.';
+            _liveVideos = vids;
+          });
           widget.onVideosChanged();
         } else if (status == 'error') {
-          setState(() {
-            _asrProcessing = false;
-            _resultSuccess = false;
-            _resultMsg = job['error_text'] as String? ?? 'Bilinmeyen hata';
-          });
           _jobPollTimer?.cancel();
+          _stopTimers();
+          setState(() {
+            _processing = false;
+            _resultSuccess = false;
+            _resultMsg = job['error_text'] as String? ?? 'İşlem başarısız.';
+          });
         }
       } catch (_) {}
     });
-  }
-
-  Future<void> _saveSegment() async {
-    final start = double.tryParse(_startCtrl.text) ?? 0;
-    final end = double.tryParse(_endCtrl.text) ?? 10;
-    if (_ytId.isEmpty) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Önce videoyu yükleyin')));
-      return;
-    }
-    setState(() => _saving = true);
-    final id =
-        'video-hsk$_hskLevel-${_ytId.substring(0, 4).toLowerCase()}-${DateTime.now().millisecondsSinceEpoch}';
-    try {
-      await _service.setVideo(id, {
-        'id': id,
-        'source_type': 'youtube',
-        'youtube_id': _ytId,
-        'start_time': start,
-        'end_time': end,
-        'hsk_level': _hskLevel,
-        'transcription': _transcriptionCtrl.text.trim(),
-        'pinyin': _pinyinCtrl.text.trim(),
-        'target_words': <String>[],
-        'quiz_category': _category.name,
-        'quiz': <String, dynamic>{
-          'question': '',
-          'correctAnswer': '',
-          'wrongAnswer': '',
-        },
-        'status': 'pending',
-        'is_active': false,
-        'created_at': DateTime.now().toUtc().toIso8601String(),
-      });
-      if (mounted) {
-        _transcriptionCtrl.clear();
-        _pinyinCtrl.clear();
-        setState(() {
-          _hskLevel = 1;
-          _category = QuizCategory.general;
-          _saving = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✓ Segment kaydedildi! Onay bekleyenler sekmesine düştü.')));
-        widget.onVideosChanged();
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _saving = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Hata: $e'),
-            backgroundColor: AppColors.wrongAnswer));
-      }
-    }
   }
 
   @override
@@ -2535,63 +2701,115 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Bulut: altyazılı videolar otomatik parçalanır',
-                style:
-                    TextStyle(color: AppColors.correctAnswer, fontSize: 12),
+                'Bulut: önce altyazı aranır, bulunamazsa ses tanıma otomatik devreye girer',
+                style: TextStyle(color: AppColors.correctAnswer, fontSize: 12),
               ),
             ),
-            SizedBox(width: 12),
-            Icon(Icons.memory, size: 14, color: AppColors.correctAnswer),
-            SizedBox(width: 4),
-            Text('Whisper ASR aktif',
-                style:
-                    TextStyle(color: AppColors.correctAnswer, fontSize: 12)),
           ]),
           const SizedBox(height: 10),
 
-          Row(children: [
-            Expanded(
-              child: TextField(
-                controller: _urlCtrl,
-                onChanged: (_) => setState(() {}),
-                style: const TextStyle(color: AppColors.onSurface),
-                decoration: InputDecoration(
-                  hintText: 'https://www.youtube.com/watch?v=...',
-                  hintStyle:
-                      const TextStyle(color: AppColors.onSurfaceMuted),
-                  filled: true,
-                  fillColor: AppColors.surface,
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none),
-                  prefixIcon: const Icon(Icons.link,
-                      color: AppColors.onSurfaceMuted, size: 18),
+          TextField(
+            controller: _urlCtrl,
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(color: AppColors.onSurface),
+            decoration: InputDecoration(
+              hintText: 'https://www.youtube.com/watch?v=...',
+              hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.link,
+                  color: AppColors.onSurfaceMuted, size: 18),
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceVariant,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: _hskFilter.isNotEmpty
+                    ? AppColors.primary.withValues(alpha: 0.5)
+                    : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      Icons.filter_list,
+                      size: 14,
+                      color: _hskFilter.isNotEmpty
+                          ? AppColors.primary
+                          : AppColors.onSurfaceMuted,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Ön Filtre — Hangi HSK seviyelerini içe aktarayım?',
+                      style: TextStyle(
+                        color: _hskFilter.isNotEmpty
+                            ? AppColors.primary
+                            : AppColors.onSurfaceMuted,
+                        fontSize: 12,
+                        fontWeight: _hskFilter.isNotEmpty
+                            ? FontWeight.w600
+                            : FontWeight.normal,
+                      ),
+                    ),
+                    if (_hskFilter.isNotEmpty) ...[
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: () => setState(() => _hskFilter.clear()),
+                        child: const Text(
+                          'Tümü',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
-              ),
+                const SizedBox(height: 2),
+                Text(
+                  _hskFilter.isEmpty
+                      ? 'Boş = tüm seviyeleri aktar (sözlükte eşleşmeyen segmentler otomatik atlanır)'
+                      : 'Sadece HSK ${(_hskFilter.toList()..sort()).join(" + ")} segmentleri aktarılır',
+                  style: const TextStyle(
+                    color: AppColors.onSurfaceMuted,
+                    fontSize: 10,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
+                  children: [
+                    for (int i = 1; i <= 6; i++)
+                      _HskFilterChip(
+                        level: i,
+                        selected: _hskFilter.contains(i),
+                        onTap: () => _toggleHskFilter(i),
+                      ),
+                  ],
+                ),
+              ],
             ),
-            const SizedBox(width: 8),
-            FilledButton.icon(
-              onPressed: _loadVideo,
-              icon: const Icon(Icons.play_arrow, size: 18),
-              label: const Text('Yükle'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 16, vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ]),
+          ),
           const SizedBox(height: 10),
 
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: (_urlCtrl.text.trim().isNotEmpty &&
-                      !_processing &&
-                      !_asrProcessing)
-                  ? _process
+              onPressed: (_urlCtrl.text.trim().isNotEmpty && !_processing)
+                  ? _processSmartImport
                   : null,
               icon: _processing
                   ? const SizedBox(
@@ -2602,37 +2820,11 @@ class _YouTubeTabState extends State<_YouTubeTab> {
                   : const Icon(Icons.auto_awesome, size: 18),
               label: Text(_processing
                   ? 'İşleniyor…'
-                  : 'Otomatik Parçala — Tüm Klipleri İçe Aktar'),
+                  : _hskFilter.isEmpty
+                      ? 'Otomatik Parçala — Tüm Seviyeleri İçe Aktar'
+                      : 'Otomatik Parçala — Yalnızca HSK ${(_hskFilter.toList()..sort()).join("+")}'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10)),
-              ),
-            ),
-          ),
-
-          const SizedBox(height: 8),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: (_urlCtrl.text.trim().isNotEmpty &&
-                      !_processing &&
-                      !_asrProcessing)
-                  ? _processAsr
-                  : null,
-              icon: _asrProcessing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.graphic_eq, size: 18),
-              label: Text(_asrProcessing
-                  ? 'İşe alındı — pipeline çalışıyor…'
-                  : 'Whisper ASR — Altyazısız Videolar İçin'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                side: const BorderSide(color: AppColors.primary),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
@@ -2643,234 +2835,166 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           if (_resultMsg != null) ...[
             const SizedBox(height: 10),
             _ResultBox(msg: _resultMsg!, success: _resultSuccess),
+            if (_processing && _processingStart != null) ...[
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.timer_outlined,
+                      size: 13, color: AppColors.onSurfaceMuted),
+                  const SizedBox(width: 4),
+                  Text(_elapsedLabel,
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 12)),
+                  if (_partialCount > 0) ...[
+                    const Text(' · ',
+                        style: TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 12)),
+                    Text('$_partialCount klip bulundu',
+                        style: const TextStyle(
+                            color: AppColors.onSurface,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ],
+              ),
+            ],
           ],
 
-          const SizedBox(height: 16),
-
-          if (_playerReady && _ytCtrl != null) ...[
-            Container(
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.25)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(12)),
-                    child: AspectRatio(
-                      aspectRatio: 16 / 9,
-                      child: YoutubePlayer(
-                        controller: _ytCtrl!,
-                        aspectRatio: 16 / 9,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(children: [
-                          Expanded(
-                              child: _timeField(_startCtrl, 'Başlangıç (sn)')),
-                          const SizedBox(width: 8),
-                          Expanded(child: _timeField(_endCtrl, 'Bitiş (sn)')),
-                          const SizedBox(width: 8),
-                          _timeBtn(
-                              icon: Icons.flag_outlined,
-                              label: 'Başlangıç',
-                              onTap: _setStartToCurrent),
-                          const SizedBox(width: 4),
-                          _timeBtn(
-                              icon: Icons.sports_score_outlined,
-                              label: 'Bitiş',
-                              onTap: _setEndToCurrent),
-                        ]),
-                        const SizedBox(height: 10),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _playSegment,
-                            icon: const Icon(Icons.play_circle_outline,
-                                size: 18, color: AppColors.primary),
-                            label: const Text('Segmenti Oynat',
-                                style: TextStyle(color: AppColors.primary)),
-                            style: OutlinedButton.styleFrom(
-                              side: const BorderSide(color: AppColors.primary),
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 10),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        _segField(_transcriptionCtrl, 'Çince metin (汉字)'),
-                        const SizedBox(height: 8),
-                        _segField(_pinyinCtrl, 'Pinyin'),
-                        const SizedBox(height: 10),
-                        Text('HSK Seviye: $_hskLevel',
-                            style: const TextStyle(
-                                color: AppColors.onSurface,
-                                fontWeight: FontWeight.w600,
-                                fontSize: 13)),
-                        Slider(
-                          value: _hskLevel.toDouble(),
-                          min: 1,
-                          max: 6,
-                          divisions: 5,
-                          activeColor: AppColors.forHskLevel(_hskLevel),
-                          label: 'HSK $_hskLevel',
-                          onChanged: (v) =>
-                              setState(() => _hskLevel = v.round()),
-                        ),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: QuizCategory.values.map((cat) {
-                            final sel = _category == cat;
-                            return ChoiceChip(
-                              label: Text('${cat.emoji} ${cat.displayName}',
-                                  style: TextStyle(
-                                      fontSize: 11,
-                                      color: sel
-                                          ? AppColors.primary
-                                          : AppColors.onSurfaceMuted)),
-                              selected: sel,
-                              selectedColor:
-                                  AppColors.primary.withValues(alpha: 0.15),
-                              onSelected: (_) =>
-                                  setState(() => _category = cat),
-                            );
-                          }).toList(),
-                        ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            onPressed: _saving ? null : _saveSegment,
-                            icon: _saving
-                                ? const SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                        strokeWidth: 2, color: Colors.white))
-                                : const Icon(Icons.save_outlined, size: 18),
-                            label: const Text('Segmenti Kaydet'),
-                            style: FilledButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              padding:
-                                  const EdgeInsets.symmetric(vertical: 12),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ] else ...[
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceVariant,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.2)),
-              ),
-              child: const Column(
-                children: [
-                  Icon(Icons.smart_display_outlined,
-                      size: 40, color: AppColors.onSurfaceMuted),
-                  SizedBox(height: 12),
-                  Text(
-                    'YouTube linki girip "Yükle" butonuna basın.\n'
-                    'Video yüklendikten sonra başlangıç/bitiş sürelerini\n'
-                    'ayarlayıp segmentleri kaydedebilirsiniz.',
-                    textAlign: TextAlign.center,
-                    style:
-                        TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
-                  ),
-                ],
-              ),
-            ),
+          if (_liveVideos.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            Row(children: [
+              const Icon(Icons.playlist_play,
+                  size: 15, color: AppColors.onSurfaceMuted),
+              const SizedBox(width: 6),
+              Text('${_liveVideos.length} klip — önizleme',
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 12)),
+            ]),
+            const SizedBox(height: 6),
+            ..._liveVideos.map((v) => _LiveImportCard(data: v)),
           ],
         ],
       ),
     );
   }
+}
 
-  Widget _timeField(TextEditingController ctrl, String label) {
-    return TextField(
-      controller: ctrl,
-      keyboardType: TextInputType.number,
-      style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle:
-            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
-        filled: true,
-        fillColor: AppColors.surface,
-        isDense: true,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.primary)),
-      ),
-    );
-  }
+// ── Live Import Card (shown below button during/after import) ─────────────────
 
-  Widget _timeBtn(
-      {required IconData icon,
-      required String label,
-      required VoidCallback onTap}) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        IconButton(
-          icon: Icon(icon, size: 20, color: AppColors.primary),
-          onPressed: onTap,
-          tooltip: 'Mevcut süreyi "$label" olarak ayarla',
-          style: IconButton.styleFrom(
-            backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8)),
-          ),
+class _LiveImportCard extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _LiveImportCard({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final ytId = data['youtube_id'] as String? ?? '';
+    final start = (data['start_time'] as num?)?.toInt() ?? 0;
+    final end = (data['end_time'] as num?)?.toInt() ?? 0;
+    final hsk = (data['hsk_level'] as int?) ?? 1;
+    final text = data['transcription'] as String? ?? '';
+    final pinyin = data['pinyin'] as String? ?? '';
+    final status = data['status'] as String? ?? 'pending';
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: status == 'active'
+              ? AppColors.primary.withValues(alpha: 0.4)
+              : AppColors.onSurfaceMuted.withValues(alpha: 0.15),
         ),
-        Text(label,
-            style: const TextStyle(
-                color: AppColors.onSurfaceMuted, fontSize: 9)),
-      ],
-    );
-  }
-
-  Widget _segField(TextEditingController ctrl, String label) {
-    return TextField(
-      controller: ctrl,
-      style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
-      decoration: InputDecoration(
-        labelText: label,
-        labelStyle:
-            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
-        filled: true,
-        fillColor: AppColors.surface,
-        isDense: true,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: const BorderSide(color: AppColors.primary)),
+      ),
+      child: Row(
+        children: [
+          // Thumbnail
+          if (ytId.isNotEmpty)
+            ClipRRect(
+              borderRadius:
+                  const BorderRadius.horizontal(left: Radius.circular(10)),
+              child: Image.network(
+                'https://img.youtube.com/vi/$ytId/mqdefault.jpg',
+                width: 80,
+                height: 54,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => Container(
+                    width: 80,
+                    height: 54,
+                    color: AppColors.surface,
+                    child: const Icon(Icons.play_circle_outline,
+                        color: AppColors.onSurfaceMuted, size: 24)),
+              ),
+            ),
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.forHskLevel(hsk),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text('HSK $hsk',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold)),
+                      ),
+                      const SizedBox(width: 6),
+                      Text('${start}s–${end}s',
+                          style: const TextStyle(
+                              color: AppColors.onSurfaceMuted, fontSize: 10)),
+                      const Spacer(),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 4, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: status == 'active'
+                              ? AppColors.primary.withValues(alpha: 0.15)
+                              : AppColors.onSurfaceMuted.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          status == 'active'
+                              ? 'Aktif'
+                              : status == 'pending'
+                                  ? 'Onay bekliyor'
+                                  : status,
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: status == 'active'
+                                ? AppColors.primary
+                                : AppColors.onSurfaceMuted,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(text,
+                      style: const TextStyle(
+                          color: AppColors.onSurface, fontSize: 13),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis),
+                  if (pinyin.isNotEmpty)
+                    Text(pinyin,
+                        style: const TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 10),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                ],
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -3169,6 +3293,826 @@ class _ResultBox extends StatelessWidget {
         border: Border.all(color: color, width: 0.5),
       ),
       child: Text(msg, style: TextStyle(color: color, fontSize: 13)),
+    );
+  }
+}
+
+// ── HSK filter chip (admin import pre-filter) ─────────────────────────────────
+
+class _HskFilterChip extends StatelessWidget {
+  final int level;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _HskFilterChip({
+    required this.level,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = AppColors.forHskLevel(level);
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 120),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: 0.18) : AppColors.surface,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? color : color.withValues(alpha: 0.35),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (selected)
+              Padding(
+                padding: const EdgeInsets.only(right: 4),
+                child: Icon(Icons.check, size: 11, color: color),
+              ),
+            Text(
+              'HSK $level',
+              style: TextStyle(
+                color: selected ? color : color.withValues(alpha: 0.7),
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Users Panel ───────────────────────────────────────────────────────────────
+
+class _UsersPanel extends StatefulWidget {
+  const _UsersPanel();
+
+  @override
+  State<_UsersPanel> createState() => _UsersPanelState();
+}
+
+class _UsersPanelState extends State<_UsersPanel> {
+  static final _db = Supabase.instance.client;
+
+  List<Map<String, dynamic>> _users = [];
+  List<Map<String, dynamic>> _filtered = [];
+  bool _loading = false;
+  String? _error;
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+    _searchCtrl.addListener(_applyFilter);
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final rows = await _db
+          .from('users')
+          .select('id, display_name, email, hsk_level, is_premium, ai_credits, created_at')
+          .order('created_at', ascending: false)
+          .limit(500);
+      if (mounted) {
+        setState(() {
+          _users = List<Map<String, dynamic>>.from(rows as List);
+          _loading = false;
+        });
+        _applyFilter();
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  void _applyFilter() {
+    final q = _searchCtrl.text.trim().toLowerCase();
+    setState(() {
+      _filtered = q.isEmpty
+          ? List.from(_users)
+          : _users.where((u) {
+              final name = (u['display_name'] as String? ?? '').toLowerCase();
+              final email = (u['email'] as String? ?? '').toLowerCase();
+              return name.contains(q) || email.contains(q);
+            }).toList();
+    });
+  }
+
+  void _snack(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _togglePremium(Map<String, dynamic> user) async {
+    final id = user['id'] as String;
+    final current = user['is_premium'] as bool? ?? false;
+    try {
+      await _db.from('users').update({'is_premium': !current}).eq('id', id);
+      _snack(!current ? '✓ Premium aktif edildi' : '✓ Premium kaldırıldı');
+      _load();
+    } catch (e) {
+      _snack('Hata: $e');
+    }
+  }
+
+  Future<void> _grantCredits(Map<String, dynamic> user) async {
+    final id = user['id'] as String;
+    final current = user['ai_credits'] as int? ?? 0;
+    final ctrl = TextEditingController(text: current.toString());
+
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: Text(
+          'Kredi Düzenle — ${user['display_name'] ?? user['email']}',
+          style: const TextStyle(color: AppColors.onSurface, fontSize: 15),
+        ),
+        content: SizedBox(
+          width: 280,
+          child: TextField(
+            controller: ctrl,
+            autofocus: true,
+            keyboardType: TextInputType.number,
+            style: const TextStyle(color: AppColors.onSurface),
+            decoration: InputDecoration(
+              labelText: 'AI Kredi (mevcut: $current)',
+              labelStyle: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none),
+              focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.primary)),
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('İptal')),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            child: const Text('Kaydet'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final newVal = int.tryParse(ctrl.text.trim());
+    if (newVal == null) return;
+    try {
+      await _db.from('users').update({'ai_credits': newVal}).eq('id', id);
+      _snack('✓ Kredi güncellendi → $newVal');
+      _load();
+    } catch (e) {
+      _snack('Hata: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final premiumCount = _users.where((u) => u['is_premium'] == true).length;
+
+    return Column(
+      children: [
+        // ── Stats + search bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          color: AppColors.surfaceVariant,
+          child: Row(
+            children: [
+              _StatBadge(label: 'Toplam', value: '${_users.length}'),
+              const SizedBox(width: 24),
+              _StatBadge(
+                  label: 'Premium',
+                  value: '$premiumCount',
+                  color: AppColors.premiumGold),
+              const SizedBox(width: 24),
+              _StatBadge(
+                  label: 'Ücretsiz',
+                  value: '${_users.length - premiumCount}'),
+              const Spacer(),
+              SizedBox(
+                width: 220,
+                height: 34,
+                child: TextField(
+                  controller: _searchCtrl,
+                  style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: 'İsim veya e-posta ara…',
+                    hintStyle: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 12),
+                    filled: true,
+                    fillColor: AppColors.surface,
+                    isDense: true,
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    prefixIcon: const Icon(Icons.search,
+                        size: 16, color: AppColors.onSurfaceMuted),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(8),
+                        borderSide: BorderSide.none),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
+                onPressed: _load,
+                tooltip: 'Yenile',
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: AppColors.surface),
+        // ── User list
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(
+                      child: Text(_error!,
+                          style: const TextStyle(color: AppColors.wrongAnswer),
+                          textAlign: TextAlign.center))
+                  : _filtered.isEmpty
+                      ? const Center(
+                          child: Text('Kullanıcı bulunamadı',
+                              style: TextStyle(
+                                  color: AppColors.onSurfaceMuted)))
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+                          itemCount: _filtered.length,
+                          separatorBuilder: (_, __) => const Divider(
+                              height: 1, color: AppColors.surfaceVariant),
+                          itemBuilder: (_, i) =>
+                              _UserRow(
+                                user: _filtered[i],
+                                onTogglePremium: () =>
+                                    _togglePremium(_filtered[i]),
+                                onGrantCredits: () =>
+                                    _grantCredits(_filtered[i]),
+                              ),
+                        ),
+        ),
+      ],
+    );
+  }
+}
+
+class _UserRow extends StatelessWidget {
+  final Map<String, dynamic> user;
+  final VoidCallback onTogglePremium;
+  final VoidCallback onGrantCredits;
+
+  const _UserRow({
+    required this.user,
+    required this.onTogglePremium,
+    required this.onGrantCredits,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final name = user['display_name'] as String? ?? '—';
+    final email = user['email'] as String? ?? '';
+    final hsk = user['hsk_level'] as int? ?? 1;
+    final isPremium = user['is_premium'] as bool? ?? false;
+    final credits = user['ai_credits'] as int? ?? 0;
+    final raw = user['created_at'] as String? ?? '';
+    final createdAt = raw.length >= 10 ? raw.substring(0, 10) : raw;
+
+    return ListTile(
+      contentPadding:
+          const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+      leading: CircleAvatar(
+        radius: 20,
+        backgroundColor: isPremium
+            ? AppColors.premiumGold.withValues(alpha: 0.2)
+            : AppColors.onSurfaceMuted.withValues(alpha: 0.15),
+        child: Text(
+          name.isNotEmpty ? name[0].toUpperCase() : '?',
+          style: TextStyle(
+            color: isPremium ? AppColors.premiumGold : AppColors.onSurface,
+            fontWeight: FontWeight.bold,
+            fontSize: 15,
+          ),
+        ),
+      ),
+      title: Row(
+        children: [
+          Expanded(
+            child: Text(name,
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 13),
+                overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+            decoration: BoxDecoration(
+              color: AppColors.forHskLevel(hsk).withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text('HSK $hsk',
+                style: TextStyle(
+                    color: AppColors.forHskLevel(hsk),
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+      subtitle: Text(
+        '$email · $createdAt',
+        style: const TextStyle(
+            color: AppColors.onSurfaceMuted, fontSize: 11),
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Credits badge + edit
+          GestureDetector(
+            onTap: onGrantCredits,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.bolt,
+                      size: 13, color: AppColors.primary),
+                  const SizedBox(width: 2),
+                  Text('$credits',
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          // Premium toggle chip
+          GestureDetector(
+            onTap: onTogglePremium,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: isPremium
+                    ? AppColors.premiumGold.withValues(alpha: 0.15)
+                    : AppColors.onSurfaceMuted.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isPremium
+                      ? AppColors.premiumGold.withValues(alpha: 0.5)
+                      : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+                ),
+              ),
+              child: Text(
+                isPremium ? '★ Premium' : 'Ücretsiz',
+                style: TextStyle(
+                  color: isPremium
+                      ? AppColors.premiumGold
+                      : AppColors.onSurfaceMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Social Panel ─────────────────────────────────────────────────────────────
+
+class _SocialPanel extends StatefulWidget {
+  const _SocialPanel();
+
+  @override
+  State<_SocialPanel> createState() => _SocialPanelState();
+}
+
+class _SocialPanelState extends State<_SocialPanel> {
+  static final _db = Supabase.instance.client;
+  List<Map<String, dynamic>> _posts = [];
+  bool _loading = false;
+  String? _error;
+  int _totalUsers = 0;
+  int _onlineUsers = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final posts = await _db
+          .from('posts')
+          .select('id, author_id, content, post_type, timestamp, likes')
+          .order('timestamp', ascending: false)
+          .limit(100);
+
+      final userCount = await _db
+          .from('users')
+          .select('id, is_online')
+          .limit(1000);
+
+      if (mounted) {
+        setState(() {
+          _posts = List<Map<String, dynamic>>.from(posts as List);
+          final users = List<Map<String, dynamic>>.from(userCount as List);
+          _totalUsers = users.length;
+          _onlineUsers = users.where((u) => u['is_online'] == true).length;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _deletePost(String id) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: const Text('Postu sil?',
+            style: TextStyle(color: AppColors.onSurface)),
+        content: const Text('Bu işlem geri alınamaz.',
+            style: TextStyle(color: AppColors.onSurfaceMuted)),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('İptal')),
+          TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Sil',
+                  style: TextStyle(color: AppColors.wrongAnswer))),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _db.from('posts').delete().eq('id', id);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✓ Post silindi')));
+        _load();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Hata: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Stats bar
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          color: AppColors.surfaceVariant,
+          child: Row(
+            children: [
+              _StatBadge(label: 'Toplam Kullanıcı', value: '$_totalUsers'),
+              const SizedBox(width: 24),
+              _StatBadge(label: 'Çevrimiçi', value: '$_onlineUsers', color: AppColors.correctAnswer),
+              const SizedBox(width: 24),
+              _StatBadge(label: 'Post (son 100)', value: '${_posts.length}'),
+              const Spacer(),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
+                onPressed: _load,
+                tooltip: 'Yenile',
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: AppColors.surfaceVariant),
+        // ── Post list
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.wrongAnswer)))
+                  : _posts.isEmpty
+                      ? const Center(
+                          child: Text('Post yok', style: TextStyle(color: AppColors.onSurfaceMuted)))
+                      : ListView.separated(
+                          itemCount: _posts.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1, color: AppColors.surfaceVariant),
+                          itemBuilder: (_, i) {
+                            final p = _posts[i];
+                            final likes = (p['likes'] as List?)?.length ?? 0;
+                            final ts = p['timestamp'] as String? ?? '';
+                            final date = ts.isNotEmpty
+                                ? ts.substring(0, 10)
+                                : '';
+                            return ListTile(
+                              dense: true,
+                              leading: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  p['post_type'] as String? ?? 'text',
+                                  style: const TextStyle(
+                                      color: AppColors.primary, fontSize: 10),
+                                ),
+                              ),
+                              title: Text(
+                                (p['content'] as String? ?? '').length > 80
+                                    ? '${(p['content'] as String).substring(0, 80)}…'
+                                    : (p['content'] as String? ?? ''),
+                                style: const TextStyle(
+                                    color: AppColors.onSurface, fontSize: 13),
+                              ),
+                              subtitle: Text(
+                                '$date · ❤ $likes · ${(p['author_id'] as String).substring(0, 8)}…',
+                                style: const TextStyle(
+                                    color: AppColors.onSurfaceMuted, fontSize: 11),
+                              ),
+                              trailing: IconButton(
+                                icon: const Icon(Icons.delete_outline,
+                                    color: AppColors.wrongAnswer, size: 18),
+                                onPressed: () => _deletePost(p['id'] as String),
+                                tooltip: 'Sil',
+                              ),
+                            );
+                          },
+                        ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Game Panel ────────────────────────────────────────────────────────────────
+
+class _GamePanel extends StatefulWidget {
+  const _GamePanel();
+
+  @override
+  State<_GamePanel> createState() => _GamePanelState();
+}
+
+class _GamePanelState extends State<_GamePanel>
+    with SingleTickerProviderStateMixin {
+  static final _db = Supabase.instance.client;
+  late final TabController _tabs;
+  List<Map<String, dynamic>> _requests = [];
+  List<Map<String, dynamic>> _leaderboard = [];
+  bool _loading = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+    _tabs.addListener(() {
+      if (!_tabs.indexIsChanging) setState(() {});
+    });
+    _load();
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final requests = await _db
+          .from('game_requests')
+          .select('id, from_uid, to_uid, hsk_level, status, created_at')
+          .order('created_at', ascending: false)
+          .limit(100);
+
+      final leaders = await _db
+          .from('users')
+          .select('display_name, hsk_level, stats')
+          .order('stats->totalScore', ascending: false)
+          .limit(20);
+
+      if (mounted) {
+        setState(() {
+          _requests = List<Map<String, dynamic>>.from(requests as List);
+          _leaderboard = List<Map<String, dynamic>>.from(leaders as List);
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Color _statusColor(String s) => switch (s) {
+    'pending' => Colors.orange,
+    'accepted' => AppColors.correctAnswer,
+    'declined' => AppColors.wrongAnswer,
+    'expired' => Colors.grey,
+    _ => AppColors.onSurfaceMuted,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // ── Tab bar + refresh
+        Container(
+          color: AppColors.surfaceVariant,
+          child: Row(
+            children: [
+              Expanded(
+                child: TabBar(
+                  controller: _tabs,
+                  indicatorColor: AppColors.primary,
+                  tabs: [
+                    Tab(text: 'İstekler (${_requests.length})'),
+                    const Tab(text: 'Liderboard'),
+                  ],
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
+                onPressed: _load,
+                tooltip: 'Yenile',
+              ),
+            ],
+          ),
+        ),
+        const Divider(height: 1, color: AppColors.surface),
+        Expanded(
+          child: _loading
+              ? const Center(child: CircularProgressIndicator())
+              : _error != null
+                  ? Center(
+                      child: Text(_error!, style: const TextStyle(color: AppColors.wrongAnswer)))
+                  : TabBarView(
+                      controller: _tabs,
+                      children: [
+                        // ── Game requests
+                        _requests.isEmpty
+                            ? const Center(
+                                child: Text('İstek yok',
+                                    style: TextStyle(color: AppColors.onSurfaceMuted)))
+                            : ListView.separated(
+                                itemCount: _requests.length,
+                                separatorBuilder: (_, __) =>
+                                    const Divider(height: 1, color: AppColors.surfaceVariant),
+                                itemBuilder: (_, i) {
+                                  final r = _requests[i];
+                                  final status = r['status'] as String? ?? '';
+                                  final ts = (r['created_at'] as String? ?? '').substring(0, 10);
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.forHskLevel(r['hsk_level'] as int? ?? 1),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        'HSK ${r['hsk_level']}',
+                                        style: const TextStyle(
+                                            color: Colors.white, fontSize: 10),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      '${(r['from_uid'] as String).substring(0, 8)} → ${(r['to_uid'] as String).substring(0, 8)}',
+                                      style: const TextStyle(
+                                          color: AppColors.onSurface, fontSize: 13),
+                                    ),
+                                    subtitle: Text(ts,
+                                        style: const TextStyle(
+                                            color: AppColors.onSurfaceMuted, fontSize: 11)),
+                                    trailing: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                      decoration: BoxDecoration(
+                                        color: _statusColor(status).withValues(alpha: 0.15),
+                                        borderRadius: BorderRadius.circular(8),
+                                      ),
+                                      child: Text(
+                                        status,
+                                        style: TextStyle(
+                                            color: _statusColor(status), fontSize: 11),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                        // ── Leaderboard
+                        _leaderboard.isEmpty
+                            ? const Center(
+                                child: Text('Henüz skor yok',
+                                    style: TextStyle(color: AppColors.onSurfaceMuted)))
+                            : ListView.builder(
+                                itemCount: _leaderboard.length,
+                                itemBuilder: (_, i) {
+                                  final u = _leaderboard[i];
+                                  final stats = u['stats'] as Map<String, dynamic>? ?? {};
+                                  final score = stats['totalScore'] as int? ?? 0;
+                                  final streak = stats['currentStreak'] as int? ?? 0;
+                                  final name = u['display_name'] as String? ?? '—';
+                                  final medals = ['🥇', '🥈', '🥉'];
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Text(
+                                      i < 3 ? medals[i] : '${i + 1}.',
+                                      style: const TextStyle(fontSize: 18),
+                                    ),
+                                    title: Text(name,
+                                        style: const TextStyle(
+                                            color: AppColors.onSurface, fontSize: 13)),
+                                    subtitle: Text(
+                                      'HSK ${u['hsk_level']} · 🔥 $streak gün',
+                                      style: const TextStyle(
+                                          color: AppColors.onSurfaceMuted, fontSize: 11),
+                                    ),
+                                    trailing: Text(
+                                      '$score puan',
+                                      style: TextStyle(
+                                        color: i == 0
+                                            ? AppColors.premiumGold
+                                            : AppColors.onSurface,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ],
+                    ),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Stat Badge (shared helper) ─────────────────────────────────────────────────
+
+class _StatBadge extends StatelessWidget {
+  final String label;
+  final String value;
+  final Color? color;
+  const _StatBadge({required this.label, required this.value, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(label,
+            style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10)),
+        Text(value,
+            style: TextStyle(
+              color: color ?? AppColors.onSurface,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            )),
+      ],
     );
   }
 }

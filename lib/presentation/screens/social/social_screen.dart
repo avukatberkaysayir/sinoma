@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
-import '../../widgets/common/section_sidebar.dart';
 import '../../../data/models/game_request_model.dart';
 import '../../../data/models/post_model.dart';
 import '../../../data/models/user_model.dart';
@@ -39,92 +38,82 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
     final isWide = ResponsiveLayout.isWide(context);
 
     if (isWide) {
-      return Stack(
-        children: [
-          Scaffold(
-            body: ConstrainedPage(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Expanded(flex: 3, child: _FeedTab()),
-                  const VerticalDivider(width: 1, color: AppColors.surface),
-                  Expanded(
-                    flex: 2,
-                    child: DefaultTabController(
-                      length: 2,
-                      child: Column(
+      return Scaffold(
+        body: ConstrainedPage(
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Expanded(flex: 3, child: _FeedTab()),
+              const VerticalDivider(width: 1, color: AppColors.surface),
+              Expanded(
+                flex: 2,
+                child: DefaultTabController(
+                  length: 2,
+                  child: Column(
+                    children: [
+                      Row(
                         children: [
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: TabBar(
-                                  indicatorColor: AppColors.primary,
-                                  tabs: [
-                                    Tab(text: 'Leaderboard'),
-                                    Tab(text: 'Friends'),
-                                  ],
-                                ),
-                              ),
-                              _IncomingRequestsBadge(),
-                            ],
-                          ),
                           const Expanded(
-                            child: TabBarView(
-                              children: [
-                                _LeaderboardTab(),
-                                _FriendsTab(),
+                            child: TabBar(
+                              indicatorColor: AppColors.primary,
+                              tabs: [
+                                Tab(text: 'Leaderboard'),
+                                Tab(text: 'Friends'),
                               ],
                             ),
                           ),
+                          _IncomingRequestsBadge(),
                         ],
                       ),
-                    ),
+                      const Expanded(
+                        child: TabBarView(
+                          children: [
+                            _LeaderboardTab(),
+                            _FriendsTab(),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ),
-          const SectionSidebarOverlay(current: AppSection.social),
-        ],
-      );
-    }
-
-    return Stack(
-      children: [
-        Scaffold(
-          body: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: TabBar(
-                      controller: _tabs,
-                      indicatorColor: AppColors.primary,
-                      tabs: const [
-                        Tab(text: 'Feed'),
-                        Tab(text: 'Leaderboard'),
-                        Tab(text: 'Friends'),
-                      ],
-                    ),
-                  ),
-                  _IncomingRequestsBadge(),
-                ],
-              ),
-              Expanded(
-                child: TabBarView(
-                  controller: _tabs,
-                  children: const [
-                    _FeedTab(),
-                    _LeaderboardTab(),
-                    _FriendsTab(),
-                  ],
                 ),
               ),
             ],
           ),
         ),
-        const SectionSidebarOverlay(current: AppSection.social),
-      ],
+      );
+    }
+
+    return Scaffold(
+      body: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: TabBar(
+                  controller: _tabs,
+                  indicatorColor: AppColors.primary,
+                  tabs: const [
+                    Tab(text: 'Feed'),
+                    Tab(text: 'Leaderboard'),
+                    Tab(text: 'Friends'),
+                  ],
+                ),
+              ),
+              _IncomingRequestsBadge(),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabs,
+              children: const [
+                _FeedTab(),
+                _LeaderboardTab(),
+                _FriendsTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:html' as html;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -71,7 +73,7 @@ class SettingsScreen extends ConsumerWidget {
               value: '${user?.aiCredits ?? 0}',
             ),
             const Divider(color: AppColors.surfaceVariant, height: 1),
-            const _SectionHeader('Legal'),
+            const _SectionHeader('Legal & Privacy'),
             _InfoTile(
               icon: Icons.description,
               label: 'Terms of Service',
@@ -85,6 +87,21 @@ class SettingsScreen extends ConsumerWidget {
               onTap: () => context.push('/legal/privacy'),
               trailing: const Icon(Icons.chevron_right,
                   color: AppColors.onSurfaceMuted),
+            ),
+            _InfoTile(
+              icon: Icons.download_outlined,
+              label: 'Download My Data',
+              onTap: () => _exportUserData(context),
+              trailing: const Icon(Icons.chevron_right,
+                  color: AppColors.onSurfaceMuted),
+            ),
+            _InfoTile(
+              icon: Icons.delete_forever_outlined,
+              label: 'Delete Account',
+              labelColor: AppColors.wrongAnswer,
+              onTap: () => _confirmDeleteAccount(context, ref),
+              trailing: const Icon(Icons.chevron_right,
+                  color: AppColors.wrongAnswer),
             ),
             const Divider(color: AppColors.surfaceVariant, height: 1),
             if (kDebugMode) ...[
@@ -119,6 +136,91 @@ class SettingsScreen extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _exportUserData(BuildContext context) async {
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    if (session == null) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Verileriniz hazırlanıyor…')),
+    );
+
+    try {
+      final res = await client.functions.invoke(
+        'export-user-data',
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
+      );
+      if (res.status != 200) throw Exception('Sunucu hatası: ${res.status}');
+
+      final jsonStr = res.data is String
+          ? res.data as String
+          : res.data.toString();
+      final blob = html.Blob([jsonStr], 'application/json');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      (html.AnchorElement(href: url)
+            ..setAttribute('download', 'sinoma-data.json')
+            ..click())
+          .remove();
+      html.Url.revokeObjectUrl(url);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('İndirme hatası: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: const Text('Hesabı Sil',
+            style: TextStyle(color: AppColors.wrongAnswer)),
+        content: const Text(
+          'Tüm verileriniz (profil, postlar, ilerleme) kalıcı olarak silinecek. '
+          'Bu işlem geri alınamaz.',
+          style: TextStyle(color: AppColors.onSurface),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('İptal'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Hesabı Sil',
+                style: TextStyle(color: AppColors.wrongAnswer)),
+          ),
+        ],
+      ),
+    );
+    if (!context.mounted || confirmed != true) return;
+
+    final client = Supabase.instance.client;
+    final session = client.auth.currentSession;
+    if (session == null) return;
+
+    try {
+      await ref.read(socialRepositoryProvider).updateOnlineStatus(false);
+    } catch (_) {}
+
+    try {
+      await client.functions.invoke(
+        'delete-user',
+        headers: {'Authorization': 'Bearer ${session.accessToken}'},
+      );
+      // Auth state change will redirect to splash/onboarding automatically
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Silme hatası: $e')),
+        );
+      }
+    }
   }
 
   Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
@@ -243,6 +345,7 @@ class _SectionHeader extends StatelessWidget {
 class _InfoTile extends StatelessWidget {
   final IconData icon;
   final String label;
+  final Color? labelColor;
   final String? value;
   final Color? valueColor;
   final VoidCallback? onTap;
@@ -251,6 +354,7 @@ class _InfoTile extends StatelessWidget {
   const _InfoTile({
     required this.icon,
     required this.label,
+    this.labelColor,
     this.value,
     this.valueColor,
     this.onTap,
@@ -260,9 +364,9 @@ class _InfoTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: Icon(icon, color: AppColors.onSurfaceMuted, size: 22),
+      leading: Icon(icon, color: labelColor ?? AppColors.onSurfaceMuted, size: 22),
       title: Text(label,
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 15)),
+          style: TextStyle(color: labelColor ?? AppColors.onSurface, fontSize: 15)),
       trailing: trailing ??
           (value != null
               ? Text(

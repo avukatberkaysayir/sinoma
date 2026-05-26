@@ -70,10 +70,22 @@ class AdminService {
     return body;
   }
 
-  Future<String> createYoutubeAsrJob(String url, {bool active = false}) async {
+  Future<String> createYoutubeAsrJob(
+    String url, {
+    bool active = false,
+    List<int>? hskFilter,
+  }) async {
     final res = await _db
         .from('pipeline_jobs')
-        .insert({'job_type': 'youtube_asr', 'payload': {'url': url, 'active': active}})
+        .insert({
+          'job_type': 'youtube_asr',
+          'payload': {
+            'url': url,
+            'active': active,
+            if (hskFilter != null && hskFilter.isNotEmpty)
+              'hsk_filter': hskFilter,
+          },
+        })
         .select('id')
         .single();
     return res['id'] as String;
@@ -91,17 +103,41 @@ class AdminService {
   Future<Map<String, dynamic>> processYoutubeVideo(
     String url, {
     bool active = true,
+    List<int>? hskFilter,
   }) async {
-    final res = await _db.functions.invoke(
-      'process-youtube',
-      body: {'url': url, 'active': active},
-    );
-    if (res.status >= 300) {
-      final err = (res.data as Map<String, dynamic>?)?['error']
-          ?? 'İşlem başarısız (${res.status})';
-      throw Exception(err);
+    try {
+      final res = await _db.functions.invoke(
+        'process-youtube',
+        body: {
+          'url': url,
+          'active': active,
+          if (hskFilter != null && hskFilter.isNotEmpty)
+            'hsk_filter': hskFilter,
+        },
+      );
+      if (res.status >= 300) {
+        final err = (res.data as Map<String, dynamic>?)?['error']
+            ?? 'İşlem başarısız (${res.status})';
+        throw Exception(err);
+      }
+      return res.data as Map<String, dynamic>;
+    } on FunctionException catch (e) {
+      final details = e.details;
+      String msg;
+      if (details is Map) {
+        msg = details['error'] as String? ?? 'İşlem başarısız (${e.status})';
+      } else if (details is String) {
+        try {
+          final parsed = jsonDecode(details) as Map<String, dynamic>;
+          msg = parsed['error'] as String? ?? details;
+        } catch (_) {
+          msg = details;
+        }
+      } else {
+        msg = 'İşlem başarısız (${e.status})';
+      }
+      throw Exception(msg);
     }
-    return res.data as Map<String, dynamic>;
   }
 
   // ── Supabase CRUD ───────────────────────────────────────────────────────────
@@ -137,6 +173,20 @@ class AdminService {
         .from('videos')
         .update({'status': 'deleted', 'is_active': false})
         .inFilter('id', ids);
+  }
+
+  Future<void> hardDeleteVideos(List<String> ids) async {
+    await _db.from('videos').delete().inFilter('id', ids);
+  }
+
+  Future<List<Map<String, dynamic>>> listVideosByYoutubeId(String ytId) async {
+    final data = await _db
+        .from('videos')
+        .select()
+        .eq('youtube_id', ytId)
+        .order('start_time', ascending: true)
+        .limit(200);
+    return List<Map<String, dynamic>>.from(data);
   }
 
   Future<void> restoreVideos(List<String> ids) async {
@@ -200,6 +250,37 @@ class AdminService {
       throw Exception(body['error'] ?? 'Movie processing failed (${response.statusCode})');
     }
     return body;
+  }
+
+  /// After an auto-import, deletes pending segments for [youtubeId] that either
+  /// have no dictionary match (hsk_level = 0) or fall outside [hskFilter].
+  /// Safe to call regardless of whether the edge function already filtered.
+  Future<int> deleteNonMatchingPendingVideos(
+    String youtubeId,
+    List<int>? hskFilter,
+  ) async {
+    final data = await _db
+        .from('videos')
+        .select('id, hsk_level')
+        .eq('youtube_id', youtubeId)
+        .eq('status', 'pending');
+
+    final rows = List<Map<String, dynamic>>.from(data as List);
+    final idsToDelete = rows
+        .where((r) {
+          final level = (r['hsk_level'] as num?)?.toInt() ?? 0;
+          if (level == 0) return true; // no dictionary match — always purge
+          if (hskFilter != null && hskFilter.isNotEmpty) {
+            return !hskFilter.contains(level);
+          }
+          return false;
+        })
+        .map((r) => r['id'] as String)
+        .toList();
+
+    if (idsToDelete.isEmpty) return 0;
+    await _db.from('videos').delete().inFilter('id', idsToDelete);
+    return idsToDelete.length;
   }
 
   Future<List<Map<String, dynamic>>> searchDictionary(String query) async {

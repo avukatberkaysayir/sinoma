@@ -79,6 +79,7 @@ class VideoSegmentModel {
   final List<String> targetWords;
   final QuizData quiz;
   final QuizCategory quizCategory;
+  final String lifeCategory; // 'daily_life' | 'business' | 'children'
   final bool isActive;
   final DateTime createdAt;
 
@@ -95,6 +96,7 @@ class VideoSegmentModel {
     required this.targetWords,
     required this.quiz,
     this.quizCategory = QuizCategory.general,
+    this.lifeCategory = 'daily_life',
     this.isActive = true,
     required this.createdAt,
   });
@@ -116,6 +118,7 @@ class VideoSegmentModel {
       targetWords: List<String>.from(data['target_words'] ?? []),
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
       quizCategory: QuizCategory.fromString(data['quiz_category'] as String? ?? 'general'),
+      lifeCategory: data['life_category'] as String? ?? 'daily_life',
       isActive: data['is_active'] as bool? ?? true,
       createdAt: data['created_at'] != null
           ? DateTime.parse(data['created_at'] as String)
@@ -140,6 +143,7 @@ class VideoSegmentModel {
       targetWords: List<String>.from(data['targetWords'] ?? []),
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
       quizCategory: QuizCategory.fromString(data['quizCategory'] as String? ?? 'general'),
+      lifeCategory: data['lifeCategory'] as String? ?? 'daily_life',
       isActive: data['isActive'] as bool? ?? true,
       createdAt: data['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'] as int)
@@ -160,6 +164,7 @@ class VideoSegmentModel {
         'target_words': targetWords,
         'quiz': quiz.toMap(),
         'quiz_category': quizCategory.name,
+        'life_category': lifeCategory,
         'is_active': isActive,
         'created_at': createdAt.toIso8601String(),
       };
@@ -176,6 +181,7 @@ class VideoSegmentModel {
         'targetWords': targetWords,
         'quiz': quiz.toMap(),
         'quizCategory': quizCategory.name,
+        'lifeCategory': lifeCategory,
         'isActive': isActive,
         'createdAt': createdAt.millisecondsSinceEpoch,
       };

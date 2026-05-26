@@ -88,6 +88,8 @@ class AppL10n {
   String get filterLabel    => _isTr ? 'Filtrele'           : 'Filter';
   String get lifeSection    => _isTr ? 'Hayat'              : 'Life';
   String get dailyLife      => _isTr ? 'Günlük Hayat'       : 'Daily Life';
+  String get businessLife   => _isTr ? 'İş'                 : 'Business';
+  String get childrenLife   => _isTr ? 'Çocuk'              : 'Children';
   String get levelSection   => _isTr ? 'Adım'               : 'Level';
   String get grammarSection => _isTr ? 'Gramer Kuralları'   : 'Grammar Patterns';
   String get retryBtn       => _isTr ? 'Tekrar Dene'        : 'Retry';

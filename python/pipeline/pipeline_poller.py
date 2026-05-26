@@ -46,6 +46,19 @@ def _claim_pending(base_url: str, service_key: str) -> dict[str, Any] | None:
     return job if patch.status_code < 300 else None
 
 
+def _update_progress(base_url: str, service_key: str, job_id: str, n: int) -> None:
+    try:
+        requests.patch(
+            f"{base_url}/rest/v1/pipeline_jobs",
+            params={"id": f"eq.{job_id}"},
+            json={"result": {"segmentsWritten": n, "in_progress": True}},
+            headers=_headers(service_key),
+            timeout=5,
+        )
+    except Exception:
+        pass
+
+
 def _finish_job(
     base_url: str,
     service_key: str,
@@ -80,9 +93,12 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                 payload = job.get("payload") or {}
                 url = payload.get("url", "")
                 active = payload.get("active", False)
+                hsk_filter = payload.get("hsk_filter") or None
                 print(f"\n  [poller] İş alındı {job_id[:8]}… url={url}")
                 try:
-                    result = asr_run(url, active=active)
+                    def _progress(n: int) -> None:
+                        _update_progress(base_url, service_key, job_id, n)
+                    result = asr_run(url, active=active, hsk_filter=hsk_filter, on_progress=_progress)
                     _finish_job(base_url, service_key, job_id, "done", result=result)
                     print(f"  [poller] ✅ {result}")
                 except Exception as exc:

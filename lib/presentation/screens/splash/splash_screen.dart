@@ -51,7 +51,7 @@ class _SplashScreenState extends State<SplashScreen> {
     if (profile == null) {
       context.go('/onboarding');
     } else {
-      context.go('/hub');
+      context.go('/home');
     }
   }
 

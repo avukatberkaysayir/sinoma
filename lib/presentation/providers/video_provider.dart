@@ -12,28 +12,47 @@ final videoRepositoryProvider = Provider<VideoRepository>((ref) {
   return VideoRepository(cache: ref.read(cacheServiceProvider));
 });
 
-// null = show all
-final selectedCategoryProvider  = StateProvider<String?>((ref) => null);
-final selectedLengthProvider    = StateProvider<String?>((ref) => null);
-final selectedHskFilterProvider = StateProvider<int?>((ref) => null);
-final selectedSearchProvider    = StateProvider<String?>((ref) => null);
+// Empty set = show all
+final selectedCategoryProvider      = StateProvider<Set<String>>((ref) => {});
+final selectedLengthProvider        = StateProvider<Set<String>>((ref) => {});
+// Adım (level) tab — chips show descriptive names (Başlangıç/Temel/…)
+final selectedLevelFilterProvider   = StateProvider<Set<int>>((ref) => {});
+// HSK tab — chips show "HSK 1", "HSK 2" …
+final selectedHskFilterProvider     = StateProvider<Set<int>>((ref) => {});
+// Life category tab — 'daily_life' | 'business' | 'children'
+final selectedLifeCategoryProvider  = StateProvider<Set<String>>((ref) => {});
+final selectedSearchProvider        = StateProvider<String?>((ref) => null);
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
-  final userHskLevel = ref.watch(currentHskLevelProvider);
-  final hskFilter    = ref.watch(selectedHskFilterProvider);
-  final category     = ref.watch(selectedCategoryProvider);
-  final length       = ref.watch(selectedLengthProvider);
-  final repo         = ref.read(videoRepositoryProvider);
+  final userHskLevel   = ref.watch(currentHskLevelProvider);
+  final levelFilters   = ref.watch(selectedLevelFilterProvider);
+  final hskFilters     = ref.watch(selectedHskFilterProvider);
+  final categories     = ref.watch(selectedCategoryProvider);
+  final lengths        = ref.watch(selectedLengthProvider);
+  final lifeCategories = ref.watch(selectedLifeCategoryProvider);
+  final repo           = ref.read(videoRepositoryProvider);
 
-  var segments = category != null
-      ? await repo.loadSegmentsByCategory(userHskLevel, category)
-      : await repo.loadSegmentsForLevel(userHskLevel);
+  var segments = await repo.loadSegmentsForLevel(userHskLevel);
 
-  if (hskFilter != null) {
-    segments = segments.where((s) => s.hskLevel == hskFilter).toList();
+  // Level and HSK both filter by hskLevel — combine as union (OR within group)
+  final combinedHsk = {...levelFilters, ...hskFilters};
+  if (combinedHsk.isNotEmpty) {
+    segments = segments.where((s) => combinedHsk.contains(s.hskLevel)).toList();
   }
-  if (length != null) {
-    segments = segments.where((s) => s.sentenceLength == length).toList();
+  if (categories.isNotEmpty) {
+    segments = segments
+        .where((s) => categories.contains(s.quizCategory.name))
+        .toList();
+  }
+  if (lengths.isNotEmpty) {
+    segments = segments
+        .where((s) => lengths.contains(s.sentenceLength))
+        .toList();
+  }
+  if (lifeCategories.isNotEmpty) {
+    segments = segments
+        .where((s) => lifeCategories.contains(s.lifeCategory))
+        .toList();
   }
   return segments;
 });

@@ -1,18 +1,14 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/utils/responsive_layout.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/ai_provider.dart';
 import '../../providers/locale_provider.dart';
-import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
-import '../../widgets/common/section_sidebar.dart';
+import 'inline_player_section.dart';
 
 // ── Home Screen ───────────────────────────────────────────────────────────────
 
@@ -50,7 +46,7 @@ class _VideoFeedTab extends ConsumerStatefulWidget {
 }
 
 class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
-  bool _panelOpen = false;
+  String? _expandedGroup;
   final _searchCtrl = TextEditingController();
   Timer? _searchDebounce;
 
@@ -76,17 +72,18 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
     });
   }
 
-  void _togglePanel() => setState(() => _panelOpen = !_panelOpen);
-  void _closePanel()  => setState(() => _panelOpen = false);
+  void _toggleGroup(String id) =>
+      setState(() => _expandedGroup = _expandedGroup == id ? null : id);
 
   void _resetAll() {
-    ref.read(selectedCategoryProvider.notifier).state  = null;
-    ref.read(selectedLengthProvider.notifier).state    = null;
-    ref.read(selectedHskFilterProvider.notifier).state = null;
-    ref.read(selectedSearchProvider.notifier).state    = null;
+    ref.read(selectedCategoryProvider.notifier).state     = {};
+    ref.read(selectedLengthProvider.notifier).state       = {};
+    ref.read(selectedHskFilterProvider.notifier).state    = {};
+    ref.read(selectedLevelFilterProvider.notifier).state  = {};
+    ref.read(selectedLifeCategoryProvider.notifier).state = {};
+    ref.read(selectedSearchProvider.notifier).state       = null;
     _searchCtrl.clear();
     ref.invalidate(videoFeedProvider);
-    setState(() => _panelOpen = false);
   }
 
   @override
@@ -95,508 +92,636 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedLength   = ref.watch(selectedLengthProvider);
     final hskFilter        = ref.watch(selectedHskFilterProvider);
+    final levelFilter      = ref.watch(selectedLevelFilterProvider);
+    final lifeCategories   = ref.watch(selectedLifeCategoryProvider);
     final search           = ref.watch(selectedSearchProvider);
 
-    return Column(
-      children: [
-        _FilterHeader(
-          panelOpen: _panelOpen,
-          onToggle: _togglePanel,
-          onReset: _resetAll,
-          searchCtrl: _searchCtrl,
+    final feedWidget = feedAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline,
+                color: AppColors.wrongAnswer, size: 40),
+            const SizedBox(height: 12),
+            Text('Failed to load videos\n$e',
+                style: const TextStyle(color: AppColors.onSurface),
+                textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            FilledButton(
+              onPressed: () => ref.invalidate(videoFeedProvider),
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+              child: const Text('Retry'),
+            ),
+          ],
         ),
-        Expanded(
-          child: Stack(
-            children: [
-              feedAsync.when(
-                loading: () =>
-                    const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.error_outline,
-                          color: AppColors.wrongAnswer, size: 40),
-                      const SizedBox(height: 12),
-                      Text('Failed to load videos\n$e',
-                          style: const TextStyle(color: AppColors.onSurface),
-                          textAlign: TextAlign.center),
-                      const SizedBox(height: 16),
-                      FilledButton(
-                        onPressed: () => ref.invalidate(videoFeedProvider),
-                        style: FilledButton.styleFrom(
-                            backgroundColor: AppColors.primary),
-                        child: const Text('Retry'),
-                      ),
-                    ],
-                  ),
+      ),
+      data: (segments) {
+        if (segments.isEmpty) {
+          final l10n =
+              AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+          return Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.video_library_outlined,
+                    size: 56,
+                    color: AppColors.primary.withValues(alpha: 0.4)),
+                const SizedBox(height: 16),
+                Text(
+                  selectedCategory.isNotEmpty ||
+                          selectedLength.isNotEmpty ||
+                          hskFilter.isNotEmpty ||
+                          levelFilter.isNotEmpty ||
+                          lifeCategories.isNotEmpty ||
+                          search != null
+                      ? l10n.noVideosFilter
+                      : l10n.noVideosLevel,
+                  style: const TextStyle(color: AppColors.onSurfaceMuted),
+                  textAlign: TextAlign.center,
                 ),
-                data: (segments) {
-                  if (segments.isEmpty) {
-                    final l10n = AppL10n.fromCode(
-                        ref.watch(localeProvider).languageCode);
-                    return Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.video_library_outlined,
-                              size: 56,
-                              color:
-                                  AppColors.primary.withValues(alpha: 0.4)),
-                          const SizedBox(height: 16),
-                          Text(
-                            selectedCategory != null ||
-                                    selectedLength != null ||
-                                    hskFilter != null ||
-                                    search != null
-                                ? l10n.noVideosFilter
-                                : l10n.noVideosLevel,
-                            style: const TextStyle(
-                                color: AppColors.onSurfaceMuted),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-                  final hasFilter = selectedCategory != null ||
-                      selectedLength != null ||
-                      hskFilter != null ||
-                      search != null;
-                  return hasFilter
-                      ? _FlatFeed(segments: segments)
-                      : _GroupedFeed(segments: segments);
-                },
-              ),
-              const SectionSidebarOverlay(current: AppSection.video),
-              if (_panelOpen)
-                Positioned.fill(
-                  child: GestureDetector(
-                    behavior: HitTestBehavior.translucent,
-                    onTap: _closePanel,
-                  ),
-                ),
-              if (_panelOpen) _MegaPanel(onClose: _closePanel),
-            ],
+              ],
+            ),
+          );
+        }
+        return InlinePlayerSection(segments: segments);
+      },
+    );
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 200,
+          child: _FilterSidebar(
+            expandedGroup: _expandedGroup,
+            onGroupToggle: _toggleGroup,
+            onReset: _resetAll,
+            searchCtrl: _searchCtrl,
           ),
         ),
+        Expanded(child: feedWidget),
       ],
     );
   }
 }
 
-// ── Filter header ─────────────────────────────────────────────────────────────
+// ── Filter sidebar (vertical left accordion, multi-select) ────────────────────
 
-class _FilterHeader extends ConsumerWidget {
-  final bool panelOpen;
-  final VoidCallback onToggle;
+class _FilterSidebar extends ConsumerWidget {
+  final String? expandedGroup;
+  final void Function(String) onGroupToggle;
   final VoidCallback onReset;
   final TextEditingController searchCtrl;
 
-  const _FilterHeader({
-    required this.panelOpen,
-    required this.onToggle,
+  const _FilterSidebar({
+    required this.expandedGroup,
+    required this.onGroupToggle,
     required this.onReset,
     required this.searchCtrl,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final hskFilter = ref.watch(selectedHskFilterProvider);
-    final category  = ref.watch(selectedCategoryProvider);
-    final length    = ref.watch(selectedLengthProvider);
-    final search    = ref.watch(selectedSearchProvider);
-    final user      = ref.watch(currentUserProvider).valueOrNull;
-    final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final l10n          = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final hskFilters    = ref.watch(selectedHskFilterProvider);
+    final levelFilters  = ref.watch(selectedLevelFilterProvider);
+    final categories    = ref.watch(selectedCategoryProvider);
+    final lengths       = ref.watch(selectedLengthProvider);
+    final lifeCategories = ref.watch(selectedLifeCategoryProvider);
+    final search        = ref.watch(selectedSearchProvider);
+    final isDark        = Theme.of(context).brightness == Brightness.dark;
+    final hasFilter     = hskFilters.isNotEmpty || levelFilters.isNotEmpty ||
+        categories.isNotEmpty || lengths.isNotEmpty ||
+        lifeCategories.isNotEmpty || search != null;
 
-    final hasFilter =
-        hskFilter != null || category != null || length != null || search != null;
+    void toggleHsk(int level) {
+      final next = Set<int>.from(hskFilters);
+      next.contains(level) ? next.remove(level) : next.add(level);
+      ref.read(selectedHskFilterProvider.notifier).state = next;
+      ref.invalidate(videoFeedProvider);
+    }
 
-    final label = hasFilter
-        ? [
-            if (hskFilter != null) 'HSK $hskFilter',
-            if (category != null)
-              QuizCategory.values
-                  .firstWhere(
-                    (c) => c.name == category,
-                    orElse: () => QuizCategory.general,
-                  )
-                  .displayName,
-            if (length != null) length,
-            if (search != null && search.isNotEmpty) '🔍 $search',
-          ].join(' · ')
-        : l10n.filterAll;
+    void toggleLevel(int level) {
+      final next = Set<int>.from(levelFilters);
+      next.contains(level) ? next.remove(level) : next.add(level);
+      ref.read(selectedLevelFilterProvider.notifier).state = next;
+      ref.invalidate(videoFeedProvider);
+    }
+
+    void toggleLife(String cat) {
+      final next = Set<String>.from(lifeCategories);
+      next.contains(cat) ? next.remove(cat) : next.add(cat);
+      ref.read(selectedLifeCategoryProvider.notifier).state = next;
+      ref.invalidate(videoFeedProvider);
+    }
+
+    void toggleCategory(String cat) {
+      final next = Set<String>.from(categories);
+      next.contains(cat) ? next.remove(cat) : next.add(cat);
+      ref.read(selectedCategoryProvider.notifier).state = next;
+      ref.invalidate(videoFeedProvider);
+    }
+
+    void toggleLength(String len) {
+      final next = Set<String>.from(lengths);
+      next.contains(len) ? next.remove(len) : next.add(len);
+      ref.read(selectedLengthProvider.notifier).state = next;
+      ref.invalidate(videoFeedProvider);
+    }
 
     return Container(
-      color: AppColors.surfaceVariant,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Row(
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.surfaceVariant : Colors.white,
+        border: Border(
+          right: BorderSide(color: isDark ? Colors.white10 : Colors.black12),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── Filter toggle ────────────────────────────────────────────────
-          InkWell(
-            onTap: onToggle,
-            borderRadius: BorderRadius.circular(6),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
+          // ── Search field ─────────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 8),
+            child: SizedBox(
+              height: 34,
+              child: TextField(
+                controller: searchCtrl,
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: l10n.searchHint,
+                  hintStyle: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 12),
+                  filled: true,
+                  fillColor: isDark
+                      ? AppColors.surface
+                      : const Color(0xFFF2F3F7),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 8),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide: BorderSide.none),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: AppColors.primary)),
+                  prefixIcon: const Icon(Icons.search,
+                      color: AppColors.onSurfaceMuted, size: 16),
+                  suffixIcon: search != null && search.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () {
+                            searchCtrl.clear();
+                            ref
+                                .read(selectedSearchProvider.notifier)
+                                .state = null;
+                          },
+                          child: const Icon(Icons.close,
+                              color: AppColors.onSurfaceMuted, size: 14),
+                        )
+                      : null,
+                ),
+              ),
+            ),
+          ),
+          // ── Active filter chips ───────────────────────────────────────────
+          if (hasFilter)
+            _ActiveFilterChips(
+              hskFilters: hskFilters,
+              levelFilters: levelFilters,
+              categories: categories,
+              lengths: lengths,
+              lifeCategories: lifeCategories,
+              onRemoveHsk: (lvl) {
+                final next = Set<int>.from(hskFilters)..remove(lvl);
+                ref.read(selectedHskFilterProvider.notifier).state = next;
+                ref.invalidate(videoFeedProvider);
+              },
+              onRemoveLevel: (lvl) {
+                final next = Set<int>.from(levelFilters)..remove(lvl);
+                ref.read(selectedLevelFilterProvider.notifier).state = next;
+                ref.invalidate(videoFeedProvider);
+              },
+              onRemoveCategory: (cat) {
+                final next = Set<String>.from(categories)..remove(cat);
+                ref.read(selectedCategoryProvider.notifier).state = next;
+                ref.invalidate(videoFeedProvider);
+              },
+              onRemoveLength: (len) {
+                final next = Set<String>.from(lengths)..remove(len);
+                ref.read(selectedLengthProvider.notifier).state = next;
+                ref.invalidate(videoFeedProvider);
+              },
+              onRemoveLifeCategory: (cat) {
+                final next = Set<String>.from(lifeCategories)..remove(cat);
+                ref.read(selectedLifeCategoryProvider.notifier).state = next;
+                ref.invalidate(videoFeedProvider);
+              },
+              onClearAll: onReset,
+              isDark: isDark,
+            ),
+          Divider(
+              height: 1,
+              thickness: 1,
+              color: isDark ? Colors.white10 : Colors.black12),
+          // ── Accordion groups ──────────────────────────────────────────────
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
+                  _SidebarGroup(
+                    id: 'life',
+                    label: l10n.lifeSection,
+                    expandedGroup: expandedGroup,
+                    onToggle: onGroupToggle,
+                    hasActive: lifeCategories.isNotEmpty,
+                    isDark: isDark,
                     children: [
-                      Text(
-                        label,
-                        style: TextStyle(
-                          color: hasFilter
-                              ? AppColors.primary
-                              : AppColors.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
-                        ),
+                      _SidebarItem(
+                        label: l10n.dailyLife,
+                        selected: lifeCategories.contains('daily_life'),
+                        onTap: () => toggleLife('daily_life'),
+                        isDark: isDark,
                       ),
-                      Text(
-                        hasFilter ? l10n.filterActive : l10n.filterLabel,
-                        style: const TextStyle(
-                          color: AppColors.onSurfaceMuted,
-                          fontSize: 11,
-                        ),
+                      _SidebarItem(
+                        label: l10n.businessLife,
+                        selected: lifeCategories.contains('business'),
+                        onTap: () => toggleLife('business'),
+                        isDark: isDark,
+                      ),
+                      _SidebarItem(
+                        label: l10n.childrenLife,
+                        selected: lifeCategories.contains('children'),
+                        onTap: () => toggleLife('children'),
+                        isDark: isDark,
                       ),
                     ],
                   ),
-                  const SizedBox(width: 6),
-                  Icon(
-                    panelOpen
-                        ? Icons.keyboard_arrow_up
-                        : Icons.keyboard_arrow_down,
-                    color: AppColors.onSurfaceMuted,
-                    size: 18,
+                  _SidebarGroup(
+                    id: 'level',
+                    label: l10n.levelSection,
+                    expandedGroup: expandedGroup,
+                    onToggle: onGroupToggle,
+                    hasActive: levelFilters.isNotEmpty,
+                    isDark: isDark,
+                    children: [
+                      for (int lvl = 1; lvl <= 6; lvl++)
+                        _SidebarItem(
+                          label: l10n.hskSublabel(lvl),
+                          selected: levelFilters.contains(lvl),
+                          onTap: () => toggleLevel(lvl),
+                          isDark: isDark,
+                        ),
+                    ],
+                  ),
+                  _SidebarGroup(
+                    id: 'hsk',
+                    label: 'HSK',
+                    expandedGroup: expandedGroup,
+                    onToggle: onGroupToggle,
+                    hasActive: hskFilters.isNotEmpty,
+                    isDark: isDark,
+                    children: [
+                      for (int i = 1; i <= 6; i++)
+                        _SidebarItem(
+                          label: 'HSK $i',
+                          selected: hskFilters.contains(i),
+                          color: AppColors.forHskLevel(i),
+                          onTap: () => toggleHsk(i),
+                          isDark: isDark,
+                        ),
+                    ],
+                  ),
+                  _SidebarGroup(
+                    id: 'grammar',
+                    label: l10n.grammarSection,
+                    expandedGroup: expandedGroup,
+                    onToggle: onGroupToggle,
+                    hasActive: categories.isNotEmpty,
+                    isDark: isDark,
+                    children: [
+                      for (final cat in QuizCategory.values)
+                        _SidebarItem(
+                          label: '${cat.emoji} ${cat.displayName}',
+                          selected: categories.contains(cat.name),
+                          onTap: () => toggleCategory(cat.name),
+                          isDark: isDark,
+                        ),
+                    ],
+                  ),
+                  _SidebarGroup(
+                    id: 'sinorhythm',
+                    label: 'SinoRhythm',
+                    expandedGroup: expandedGroup,
+                    onToggle: onGroupToggle,
+                    hasActive: lengths.isNotEmpty,
+                    isDark: isDark,
+                    children: [
+                      for (final len in [
+                        '1-5字',
+                        '6-10字',
+                        '11-15字',
+                        '16-20字',
+                        '21字+',
+                      ])
+                        _SidebarItem(
+                          label: len,
+                          selected: lengths.contains(len),
+                          onTap: () => toggleLength(len),
+                          isDark: isDark,
+                        ),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
-          if (hasFilter) ...[
-            const SizedBox(width: 4),
-            InkWell(
-              onTap: onReset,
-              borderRadius: BorderRadius.circular(12),
-              child: const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(Icons.close,
-                    color: AppColors.onSurfaceMuted, size: 16),
-              ),
-            ),
-          ],
-          const Spacer(),
-          // ── Search field ─────────────────────────────────────────────────
-          SizedBox(
-            width: 190,
-            height: 34,
-            child: TextField(
-              controller: searchCtrl,
-              style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
-              decoration: InputDecoration(
-                hintText: l10n.searchHint,
-                hintStyle:
-                    const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
-                filled: true,
-                fillColor: AppColors.surface,
-                isDense: true,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: BorderSide.none),
-                focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColors.primary)),
-                prefixIcon: const Icon(Icons.search,
-                    color: AppColors.onSurfaceMuted, size: 16),
-                suffixIcon: search != null && search.isNotEmpty
-                    ? GestureDetector(
-                        onTap: () {
-                          searchCtrl.clear();
-                          ref.read(selectedSearchProvider.notifier).state = null;
-                        },
-                        child: const Icon(Icons.close,
-                            color: AppColors.onSurfaceMuted, size: 14),
-                      )
-                    : null,
-              ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // ── Stats ────────────────────────────────────────────────────────
-          if (user != null) ...[
-            _StatChip(
-              icon: Icons.play_circle_outline,
-              value: '${user.stats.videosWatched}',
-              label: l10n.statsWatched,
-            ),
-            const SizedBox(width: 16),
-            _StatChip(
-              icon: Icons.emoji_events_outlined,
-              value: _fmt(user.stats.totalScore),
-              label: l10n.statsPoints,
-            ),
-            const SizedBox(width: 16),
-            _StatChip(
-              icon: Icons.local_fire_department,
-              value: '${user.stats.currentStreak}',
-              label: l10n.statsDays,
-            ),
-          ],
         ],
       ),
     );
   }
-
-  static String _fmt(int n) {
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return '$n';
-  }
 }
 
-class _StatChip extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
+// ── Active filter chips ───────────────────────────────────────────────────────
 
-  const _StatChip({
-    required this.icon,
-    required this.value,
-    required this.label,
+class _ActiveFilterChips extends ConsumerWidget {
+  final Set<int> hskFilters;
+  final Set<int> levelFilters;
+  final Set<String> categories;
+  final Set<String> lengths;
+  final Set<String> lifeCategories;
+  final void Function(int) onRemoveHsk;
+  final void Function(int) onRemoveLevel;
+  final void Function(String) onRemoveCategory;
+  final void Function(String) onRemoveLength;
+  final void Function(String) onRemoveLifeCategory;
+  final VoidCallback onClearAll;
+  final bool isDark;
+
+  const _ActiveFilterChips({
+    required this.hskFilters,
+    required this.levelFilters,
+    required this.categories,
+    required this.lengths,
+    required this.lifeCategories,
+    required this.onRemoveHsk,
+    required this.onRemoveLevel,
+    required this.onRemoveCategory,
+    required this.onRemoveLength,
+    required this.onRemoveLifeCategory,
+    required this.onClearAll,
+    required this.isDark,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: AppColors.onSurfaceMuted),
-            const SizedBox(width: 3),
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 14,
-                fontWeight: FontWeight.bold,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n  = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final chips = <Widget>[];
+
+    for (final lvl in (levelFilters.toList()..sort())) {
+      chips.add(_RemovableChip(
+        label: l10n.hskSublabel(lvl),
+        color: AppColors.forHskLevel(lvl),
+        onRemove: () => onRemoveLevel(lvl),
+        isDark: isDark,
+      ));
+    }
+
+    for (final lvl in (hskFilters.toList()..sort())) {
+      chips.add(_RemovableChip(
+        label: 'HSK $lvl',
+        color: AppColors.forHskLevel(lvl),
+        onRemove: () => onRemoveHsk(lvl),
+        isDark: isDark,
+      ));
+    }
+
+    for (final cat in lifeCategories) {
+      final label = switch (cat) {
+        'daily_life' => l10n.dailyLife,
+        'business'   => l10n.businessLife,
+        'children'   => l10n.childrenLife,
+        _            => cat,
+      };
+      chips.add(_RemovableChip(
+        label: label,
+        onRemove: () => onRemoveLifeCategory(cat),
+        isDark: isDark,
+      ));
+    }
+
+    for (final cat in categories) {
+      final qc = QuizCategory.values.firstWhere(
+        (c) => c.name == cat,
+        orElse: () => QuizCategory.general,
+      );
+      chips.add(_RemovableChip(
+        label: '${qc.emoji} ${qc.displayName}',
+        onRemove: () => onRemoveCategory(cat),
+        isDark: isDark,
+      ));
+    }
+
+    for (final len in lengths) {
+      chips.add(_RemovableChip(
+        label: len,
+        onRemove: () => onRemoveLength(len),
+        isDark: isDark,
+      ));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Text(
+                'Aktif filtreler',
+                style: TextStyle(
+                  color: isDark ? Colors.white38 : Colors.black38,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
               ),
-            ),
-          ],
-        ),
-        Text(
-          label,
-          style: const TextStyle(
-            color: AppColors.onSurfaceMuted,
-            fontSize: 10,
+              const Spacer(),
+              GestureDetector(
+                onTap: onClearAll,
+                child: const Text(
+                  'Tümünü temizle',
+                  style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 4,
+            children: chips,
+          ),
+        ],
+      ),
     );
   }
 }
 
-// ── Mega panel — 5 columns, click-based ──────────────────────────────────────
+class _RemovableChip extends StatelessWidget {
+  final String label;
+  final Color? color;
+  final VoidCallback onRemove;
+  final bool isDark;
 
-class _MegaPanel extends ConsumerWidget {
-  final VoidCallback onClose;
-  const _MegaPanel({required this.onClose});
+  const _RemovableChip({
+    required this.label,
+    required this.onRemove,
+    required this.isDark,
+    this.color,
+  });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hskFilter = ref.watch(selectedHskFilterProvider);
-    final category  = ref.watch(selectedCategoryProvider);
-    final length    = ref.watch(selectedLengthProvider);
-    final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+  Widget build(BuildContext context) {
+    final c = color ?? AppColors.primary;
+    return Container(
+      padding: const EdgeInsets.only(left: 8, right: 4, top: 4, bottom: 4),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: c.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: c,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(width: 3),
+          GestureDetector(
+            onTap: onRemove,
+            child: Icon(Icons.close, size: 12, color: c),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-    void setHsk(int? level) {
-      ref.read(selectedHskFilterProvider.notifier).state = level;
-      ref.invalidate(videoFeedProvider);
-      onClose();
-    }
+// ── Sidebar accordion group ───────────────────────────────────────────────────
 
-    void setCategory(String? cat) {
-      ref.read(selectedCategoryProvider.notifier).state = cat;
-      ref.invalidate(videoFeedProvider);
-      onClose();
-    }
+class _SidebarGroup extends StatelessWidget {
+  final String id;
+  final String label;
+  final String? expandedGroup;
+  final void Function(String) onToggle;
+  final bool hasActive;
+  final bool isDark;
+  final List<Widget> children;
 
-    void setLength(String? len) {
-      ref.read(selectedLengthProvider.notifier).state = len;
-      ref.invalidate(videoFeedProvider);
-      onClose();
-    }
+  const _SidebarGroup({
+    required this.id,
+    required this.label,
+    required this.expandedGroup,
+    required this.onToggle,
+    required this.hasActive,
+    required this.isDark,
+    required this.children,
+  });
 
-    return Positioned(
-      top: 0,
-      left: 0,
-      right: 0,
-      child: Material(
-        elevation: 12,
-        color: AppColors.surfaceVariant,
-        borderRadius: const BorderRadius.only(
-          bottomLeft: Radius.circular(12),
-          bottomRight: Radius.circular(12),
-        ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+  @override
+  Widget build(BuildContext context) {
+    final isOpen = expandedGroup == id;
+    final fg = hasActive
+        ? AppColors.primary
+        : (isDark ? Colors.white70 : Colors.black54);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        InkWell(
+          onTap: () => onToggle(id),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ① Life
-                _PanelColumn(
-                  title: l10n.lifeSection,
-                  children: [
-                    _PanelItem(
-                      label: l10n.dailyLife,
-                      selected: hskFilter == null &&
-                          category == null &&
-                          length == null,
-                      onTap: onClose,
+                if (hasActive)
+                  Container(
+                    width: 6,
+                    height: 6,
+                    margin: const EdgeInsets.only(right: 6),
+                    decoration: const BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
                     ),
-                  ],
+                  ),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: TextStyle(
+                      color: fg,
+                      fontSize: 13,
+                      fontWeight:
+                          hasActive ? FontWeight.w600 : FontWeight.normal,
+                    ),
+                  ),
                 ),
-                const _ColumnDivider(),
-                // ② Level
-                _PanelColumn(
-                  title: l10n.levelSection,
-                  children: [
-                    for (int lvl = 1; lvl <= 6; lvl++)
-                      _PanelItem(
-                        label: l10n.hskSublabel(lvl),
-                        selected: hskFilter == lvl,
-                        onTap: () => setHsk(hskFilter == lvl ? null : lvl),
-                      ),
-                  ],
-                ),
-                const _ColumnDivider(),
-                // ③ HSK
-                _PanelColumn(
-                  title: 'HSK',
-                  children: [
-                    for (int i = 1; i <= 6; i++)
-                      _PanelItem(
-                        label: 'HSK $i',
-                        selected: hskFilter == i,
-                        color: AppColors.forHskLevel(i),
-                        onTap: () => setHsk(hskFilter == i ? null : i),
-                      ),
-                  ],
-                ),
-                const _ColumnDivider(),
-                // ④ Grammar
-                _PanelColumn(
-                  title: l10n.grammarSection,
-                  children: [
-                    for (final cat in QuizCategory.values)
-                      _PanelItem(
-                        label: '${cat.emoji}  ${cat.displayName}',
-                        selected: category == cat.name,
-                        onTap: () => setCategory(
-                          category == cat.name ? null : cat.name,
-                        ),
-                      ),
-                  ],
-                ),
-                const _ColumnDivider(),
-                // ⑤ SinoRhythm
-                _PanelColumn(
-                  title: 'SinoRhythm',
-                  children: [
-                    for (final len in [
-                      '1-5字',
-                      '6-10字',
-                      '11-15字',
-                      '16-20字',
-                      '21字+',
-                    ])
-                      _PanelItem(
-                        label: len,
-                        selected: length == len,
-                        onTap: () => setLength(length == len ? null : len),
-                      ),
-                  ],
+                AnimatedRotation(
+                  turns: isOpen ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 150),
+                  child: Icon(Icons.keyboard_arrow_down,
+                      size: 16,
+                      color: isDark ? Colors.white38 : Colors.black38),
                 ),
               ],
             ),
           ),
         ),
-      ),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 200),
+          curve: Curves.easeInOut,
+          child: isOpen
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: children,
+                )
+              : const SizedBox.shrink(),
+        ),
+        Divider(
+            height: 1,
+            thickness: 1,
+            color: isDark ? Colors.white10 : Colors.black12),
+      ],
     );
   }
 }
 
-class _PanelColumn extends StatelessWidget {
-  final String title;
-  final List<Widget> children;
-  const _PanelColumn({required this.title, required this.children});
+// ── Sidebar item (checkmark-style, multi-select) ──────────────────────────────
 
-  static const double _listHeight = 232.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      width: 160,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(
-            title.toUpperCase(),
-            style: const TextStyle(
-              color: AppColors.onSurfaceMuted,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: _listHeight,
-            child: ListView(
-              padding: EdgeInsets.zero,
-              children: children,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ColumnDivider extends StatelessWidget {
-  const _ColumnDivider();
-
-  static const double _height = 258.0;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 1,
-      height: _height,
-      margin: const EdgeInsets.symmetric(horizontal: 16),
-      color: AppColors.surface,
-    );
-  }
-}
-
-class _PanelItem extends StatelessWidget {
+class _SidebarItem extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
   final Color? color;
+  final bool isDark;
 
-  const _PanelItem({
+  const _SidebarItem({
     required this.label,
     required this.selected,
     required this.onTap,
+    required this.isDark,
     this.color,
   });
 
@@ -605,9 +730,9 @@ class _PanelItem extends StatelessWidget {
     final c = color ?? AppColors.primary;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        color: selected ? c.withValues(alpha: 0.10) : Colors.transparent,
         child: Row(
           children: [
             SizedBox(
@@ -621,8 +746,10 @@ class _PanelItem extends StatelessWidget {
               child: Text(
                 label,
                 style: TextStyle(
-                  color: selected ? c : AppColors.onSurfaceMuted,
-                  fontSize: 14,
+                  color: selected
+                      ? c
+                      : (isDark ? Colors.white70 : Colors.black54),
+                  fontSize: 13,
                   fontWeight:
                       selected ? FontWeight.w600 : FontWeight.normal,
                 ),
@@ -635,313 +762,3 @@ class _PanelItem extends StatelessWidget {
   }
 }
 
-// ── Grouped feed (no filter active) ──────────────────────────────────────────
-
-class _GroupedFeed extends StatelessWidget {
-  final List<VideoSegmentModel> segments;
-  const _GroupedFeed({required this.segments});
-
-  @override
-  Widget build(BuildContext context) {
-    final grouped = <QuizCategory, List<VideoSegmentModel>>{};
-    for (final s in segments) {
-      grouped.putIfAbsent(s.quizCategory, () => []).add(s);
-    }
-
-    final columns = ResponsiveLayout.feedColumnCount(context);
-    final padding = ResponsiveLayout.pagePadding(context);
-
-    final sections = <Widget>[];
-    for (final cat in QuizCategory.values) {
-      final list = grouped[cat];
-      if (list == null || list.isEmpty) continue;
-
-      sections.add(
-        Padding(
-          padding: EdgeInsets.fromLTRB(padding, 16, padding, 8),
-          child: Row(
-            children: [
-              Text(cat.emoji, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Text(
-                cat.displayName,
-                style: const TextStyle(
-                  color: AppColors.onSurface,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(width: 8),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Text(
-                  '${list.length}',
-                  style: const TextStyle(
-                      color: AppColors.onSurfaceMuted, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-
-      if (columns == 1) {
-        for (final seg in list) {
-          sections.add(
-            Padding(
-              padding: EdgeInsets.fromLTRB(padding, 0, padding, 10),
-              child: _VideoCard(segment: seg, feed: segments),
-            ),
-          );
-        }
-      } else {
-        sections.add(
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: padding),
-            child: GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.6,
-              ),
-              itemCount: list.length,
-              itemBuilder: (_, i) =>
-                  _VideoCard(segment: list[i], feed: segments),
-            ),
-          ),
-        );
-      }
-    }
-
-    return ConstrainedPage(
-      child: ListView(
-        padding: EdgeInsets.only(bottom: padding),
-        children: sections,
-      ),
-    );
-  }
-}
-
-// ── Flat feed (filter active) ─────────────────────────────────────────────────
-
-class _FlatFeed extends StatelessWidget {
-  final List<VideoSegmentModel> segments;
-  const _FlatFeed({required this.segments});
-
-  @override
-  Widget build(BuildContext context) {
-    final columns = ResponsiveLayout.feedColumnCount(context);
-    final padding = ResponsiveLayout.pagePadding(context);
-
-    return ConstrainedPage(
-      child: columns == 1
-          ? ListView.separated(
-              padding: EdgeInsets.all(padding),
-              itemCount: segments.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) =>
-                  _VideoCard(segment: segments[i], feed: segments),
-            )
-          : GridView.builder(
-              padding: EdgeInsets.all(padding),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 1.6,
-              ),
-              itemCount: segments.length,
-              itemBuilder: (_, i) =>
-                  _VideoCard(segment: segments[i], feed: segments),
-            ),
-    );
-  }
-}
-
-// ── Video Card ────────────────────────────────────────────────────────────────
-
-class _VideoCard extends ConsumerWidget {
-  final VideoSegmentModel segment;
-  final List<VideoSegmentModel> feed;
-
-  const _VideoCard({required this.segment, required this.feed});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final thumbUrl = segment.isYouTube
-        ? 'https://img.youtube.com/vi/${segment.youtubeId}/mqdefault.jpg'
-        : null;
-
-    return InkWell(
-      onTap: () {
-        final index = feed.indexOf(segment);
-        ref
-            .read(videoPlaylistProvider.notifier)
-            .loadFeed(feed, index < 0 ? 0 : index);
-        context.push('/play');
-      },
-      borderRadius: BorderRadius.circular(14),
-      child: Container(
-        decoration: BoxDecoration(
-          color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            AspectRatio(
-              aspectRatio: 16 / 9,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  if (thumbUrl != null)
-                    CachedNetworkImage(
-                      imageUrl: thumbUrl,
-                      fit: BoxFit.cover,
-                      placeholder: (_, __) => Container(
-                        color: const Color(0xFF0F0F0F),
-                        child: const Icon(Icons.play_circle_outline,
-                            color: Colors.white38, size: 40),
-                      ),
-                      errorWidget: (_, __, ___) => Container(
-                        color: const Color(0xFF0F0F0F),
-                        child: const Icon(Icons.play_circle_outline,
-                            color: Colors.white38, size: 40),
-                      ),
-                    )
-                  else
-                    Container(
-                      color: const Color(0xFF0F0F0F),
-                      child: const Icon(Icons.play_circle_outline,
-                          color: Colors.white38, size: 40),
-                    ),
-                  Center(
-                    child: Container(
-                      width: 44,
-                      height: 44,
-                      decoration: const BoxDecoration(
-                        color: Colors.black54,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.play_arrow,
-                          color: Colors.white, size: 28),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 6,
-                    right: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        '${segment.durationSeconds.toInt()}s',
-                        style: const TextStyle(
-                            color: Colors.white, fontSize: 11),
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    top: 6,
-                    left: 6,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.forHskLevel(segment.hskLevel),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'HSK ${segment.hskLevel}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    segment.transcription,
-                    style: const TextStyle(
-                      color: AppColors.onSurface,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    segment.pinyin,
-                    style: const TextStyle(
-                      color: AppColors.onSurfaceMuted,
-                      fontSize: 12,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: AppColors.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          '${segment.quizCategory.emoji} ${segment.quizCategory.displayName}',
-                          style: const TextStyle(
-                            color: AppColors.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                      if (segment.targetWords.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        Expanded(
-                          child: Text(
-                            segment.targetWords.take(3).join(' · '),
-                            style: const TextStyle(
-                              color: AppColors.onSurfaceMuted,
-                              fontSize: 11,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}

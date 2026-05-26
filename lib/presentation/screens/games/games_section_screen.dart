@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../providers/locale_provider.dart';
-import '../../widgets/common/section_sidebar.dart';
 
 class GamesSectionScreen extends ConsumerWidget {
   const GamesSectionScreen({super.key});
@@ -13,49 +12,44 @@ class GamesSectionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
-    return Stack(
-      children: [
-        Scaffold(
-          body: ConstrainedPage(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(64, 24, 24, 24),
-              children: [
-                Text(
-                  l10n.gamesTitle,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  l10n.gamesSubtitle,
-                  style: const TextStyle(color: AppColors.onSurfaceMuted),
-                ),
-                const SizedBox(height: 24),
-                _GameCard(
-                  icon: Icons.psychology,
-                  title: 'Mandarin Duel',
-                  subtitle: l10n.duelSubtitle,
-                  color: const Color(0xFF6C63FF),
-                  detail: l10n.duelDetail,
-                  onTap: () => context.push('/games/duel'),
-                ),
-                const SizedBox(height: 16),
-                _GameCard(
-                  icon: Icons.auto_awesome_mosaic,
-                  title: 'Hanzi Build',
-                  subtitle: l10n.hanziBuildSubtitle,
-                  color: const Color(0xFFFF6B6B),
-                  detail: l10n.hanziBuildDetail,
-                  onTap: () => context.push('/games/hanzi'),
-                ),
-              ],
+    return Scaffold(
+      body: ConstrainedPage(
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text(
+              l10n.gamesTitle,
+              style: const TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
+            const SizedBox(height: 6),
+            Text(
+              l10n.gamesSubtitle,
+              style: const TextStyle(color: AppColors.onSurfaceMuted),
+            ),
+            const SizedBox(height: 24),
+            _GameCard(
+              icon: Icons.psychology,
+              title: 'Mandarin Duel',
+              subtitle: l10n.duelSubtitle,
+              color: const Color(0xFF6C63FF),
+              detail: l10n.duelDetail,
+              onTap: () => context.push('/games/duel'),
+            ),
+            const SizedBox(height: 16),
+            _GameCard(
+              icon: Icons.auto_awesome_mosaic,
+              title: 'Hanzi Build',
+              subtitle: l10n.hanziBuildSubtitle,
+              color: const Color(0xFFFF6B6B),
+              detail: l10n.hanziBuildDetail,
+              onTap: () => context.push('/games/hanzi'),
+            ),
+          ],
         ),
-        const SectionSidebarOverlay(current: AppSection.games),
-      ],
+      ),
     );
   }
 }

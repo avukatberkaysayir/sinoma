@@ -15,7 +15,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 
@@ -81,16 +81,16 @@ def _query_dictionary(candidates: list[str]) -> list[dict[str, Any]]:
 
 
 def analyze_segment(text: str) -> tuple[list[str], int]:
-    """Return (word_ids, hsk_level) for a segment text."""
+    """Return (word_ids, hsk_level) for a segment text. hsk_level=0 means no match."""
     candidates = _extract_candidates(text)
     if not candidates:
-        return [], 1
+        return [], 0
     rows = _query_dictionary(candidates)
     if not rows:
-        return [], 1
+        return [], 0
     word_ids = [r["id"] for r in rows]
     levels = [r["hsk_level"] for r in rows if r.get("hsk_level")]
-    hsk_level = min(6, max(1, max(levels))) if levels else 1
+    hsk_level = min(6, max(1, max(levels))) if levels else 0
     return word_ids, hsk_level
 
 
@@ -111,10 +111,16 @@ def insert_segments(rows: list[dict[str, Any]]) -> None:
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
 
-def run(url: str, active: bool = False) -> dict[str, Any]:
+def run(
+    url: str,
+    active: bool = False,
+    hsk_filter: list[int] | None = None,
+    on_progress: Callable[[int], None] | None = None,
+) -> dict[str, Any]:
     """Full pipeline: YouTube URL → audio → Whisper → Supabase.
 
     Returns {"segmentsWritten": N, "method": "subtitles"|"whisper"}.
+    hsk_filter: if set, only segments whose hsk_level is in this list are inserted.
     """
     if not SUPABASE_SERVICE_KEY:
         raise RuntimeError(
@@ -156,18 +162,14 @@ def run(url: str, active: bool = False) -> dict[str, Any]:
             method = "whisper"
             print("  Altyazı yok → ses indiriliyor (Whisper ASR)…")
             audio_path = download_audio(url, tmp)
-            if not audio_path:
-                raise RuntimeError(
-                    "Ses indirme başarısız. yt-dlp hatası — "
-                    "video kısıtlı veya yalnızca üyelere özel olabilir."
-                )
+            # download_audio raises RuntimeError on failure — audio_path is always valid here
             size_kb = audio_path.stat().st_size // 1024
             print(f"  Ses: {audio_path.name} ({size_kb} KB)")
             entries = transcribe_with_whisper(audio_path)
             if not entries:
                 raise RuntimeError(
-                    "Whisper Çince metin üretemedi. "
-                    "Video Mandarin içermiyor olabilir."
+                    "Whisper Çince metin üretemedi — "
+                    "video Mandarin içermiyor veya ses kalitesi yetersiz."
                 )
 
     print(f"  {len(entries)} giriş → segmentler oluşturuluyor…")
@@ -194,10 +196,27 @@ def run(url: str, active: bool = False) -> dict[str, Any]:
             "is_active": active,
         })
 
-    print(f"  Supabase'e {len(rows)} satır yazılıyor…")
-    insert_segments(rows)
-    print(f"  ✓ {len(rows)} segment yazıldı (method={method})")
-    return {"segmentsWritten": len(rows), "method": method}
+    # Filter out hsk_level=0 (no dictionary match) and apply hsk_filter if set
+    rows = [r for r in rows if r["hsk_level"] != 0]
+    if hsk_filter:
+        rows = [r for r in rows if r["hsk_level"] in hsk_filter]
+
+    if not rows:
+        raise RuntimeError(
+            "Hiçbir segment sözlükle eşleşmedi veya filtre kapsamında değil. "
+            "Farklı bir HSK filtresi deneyin ya da filtreyi kaldırın."
+        )
+
+    _BATCH = 10
+    total = 0
+    for i in range(0, len(rows), _BATCH):
+        chunk = rows[i : i + _BATCH]
+        insert_segments(chunk)
+        total += len(chunk)
+        print(f"  ✓ {total}/{len(rows)} segment yazıldı")
+        if on_progress:
+            on_progress(total)
+    return {"segmentsWritten": total, "method": method}
 
 
 if __name__ == "__main__":

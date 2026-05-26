@@ -21,6 +21,7 @@ CREATE TABLE IF NOT EXISTS public.users (
   following             TEXT[] NOT NULL DEFAULT '{}',
   learned_words         TEXT[] NOT NULL DEFAULT '{}',
   stats                 JSONB NOT NULL DEFAULT '{"totalScore":0,"videosWatched":0,"questionsAnswered":0,"currentStreak":0}',
+  stripe_customer_id    TEXT,
   is_online             BOOLEAN NOT NULL DEFAULT FALSE,
   birthday              TIMESTAMPTZ,
   gender                TEXT NOT NULL DEFAULT '',
@@ -231,6 +232,62 @@ BEGIN
   RETURN new_credits;
 END;
 $$;
+
+-- ── Daily credit refresh ──────────────────────────────────────────────────────
+-- Requires pg_cron extension: Dashboard → Database → Extensions → pg_cron
+
+CREATE OR REPLACE FUNCTION public.refresh_daily_credits()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.users
+  SET ai_credits = 5
+  WHERE is_premium = FALSE AND ai_credits < 5;
+END;
+$$;
+
+-- Uncomment after enabling pg_cron:
+-- SELECT cron.schedule(
+--   'sinoma-daily-credit-refresh',
+--   '0 0 * * *',
+--   'SELECT public.refresh_daily_credits()'
+-- );
+
+-- ── GDPR helper ───────────────────────────────────────────────────────────────
+-- Removes a deleted user from all followers/following arrays
+
+CREATE OR REPLACE FUNCTION public.remove_user_from_social_arrays(p_uid TEXT)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.users
+  SET
+    followers = array_remove(followers, p_uid),
+    following = array_remove(following, p_uid)
+  WHERE p_uid = ANY(followers) OR p_uid = ANY(following);
+END;
+$$;
+
+-- ── Remote Config ────────────────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS public.app_config (
+  key   TEXT PRIMARY KEY,
+  value JSONB NOT NULL DEFAULT 'null'
+);
+
+ALTER TABLE public.app_config ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated users can read config"
+  ON public.app_config FOR SELECT TO authenticated USING (TRUE);
+
+CREATE POLICY "Only admins can modify config"
+  ON public.app_config FOR ALL TO authenticated
+  USING  ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com')
+  WITH CHECK ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
 
 -- ── Realtime ──────────────────────────────────────────────────────────────────
 -- Enable realtime for tables that use .stream() subscriptions.
