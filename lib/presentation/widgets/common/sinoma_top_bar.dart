@@ -12,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
+import 'auth_dialog.dart';
 
 // Stable Uint8List references keyed by data URL.
 // Same URL → same object → MemoryImage never reloads → no flash on rebuild.
@@ -77,6 +78,7 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           ),
           const Spacer(),
+          // Stats — only shown when logged in
           if (user != null) ...[
             _StatChip(
               icon: Icons.bolt_rounded,
@@ -98,9 +100,12 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
               value: _fmtScore(user.stats.totalScore),
               label: l10n.scoreLabel,
             ),
+            const SizedBox(width: 8),
           ],
-          const Spacer(),
-          _ProfileDropdown(user: user, isAdmin: isAdmin, l10n: l10n),
+          if (user != null)
+            _ProfileDropdown(user: user, isAdmin: isAdmin, l10n: l10n)
+          else
+            _AuthButtons(l10n: l10n),
         ],
       ),
     );
@@ -605,7 +610,7 @@ class _DropdownCard extends ConsumerWidget {
               onTap: () async {
                 onClose();
                 await Supabase.instance.client.auth.signOut();
-                if (context.mounted) context.go('/onboarding');
+                if (context.mounted) context.go('/home');
               },
             ),
             const SizedBox(height: 4),
@@ -663,6 +668,99 @@ class _DropdownItemState extends State<_DropdownItem> {
               const SizedBox(width: 14),
               Text(widget.label, style: TextStyle(color: fg, fontSize: 14)),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Auth Buttons (unauthenticated state) ──────────────────────────────────────
+
+class _AuthButtons extends StatelessWidget {
+  final AppL10n l10n;
+  const _AuthButtons({required this.l10n});
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _AuthBtn(
+          label: l10n.loginBtn,
+          filled: false,
+          isDark: isDark,
+          onTap: () => showAuthDialog(context),
+        ),
+        const SizedBox(width: 8),
+        _AuthBtn(
+          label: l10n.signUpBtn,
+          filled: true,
+          isDark: isDark,
+          onTap: () => showAuthDialog(context, startWithRegister: true),
+        ),
+      ],
+    );
+  }
+}
+
+class _AuthBtn extends StatefulWidget {
+  final String label;
+  final bool filled;
+  final bool isDark;
+  final VoidCallback onTap;
+
+  const _AuthBtn({
+    required this.label,
+    required this.filled,
+    required this.isDark,
+    required this.onTap,
+  });
+
+  @override
+  State<_AuthBtn> createState() => _AuthBtnState();
+}
+
+class _AuthBtnState extends State<_AuthBtn> {
+  bool _hovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _hovered = true),
+      onExit: (_) => setState(() => _hovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: widget.filled
+                ? (_hovered
+                    ? AppColors.primary.withValues(alpha: 0.85)
+                    : AppColors.primary)
+                : (_hovered
+                    ? (widget.isDark
+                        ? Colors.white.withValues(alpha: 0.08)
+                        : Colors.black.withValues(alpha: 0.05))
+                    : Colors.transparent),
+            borderRadius: BorderRadius.circular(20),
+            border: widget.filled
+                ? null
+                : Border.all(
+                    color: widget.isDark ? Colors.white24 : Colors.black26),
+          ),
+          child: Text(
+            widget.label,
+            style: TextStyle(
+              color: widget.filled
+                  ? Colors.white
+                  : (widget.isDark ? Colors.white70 : Colors.black87),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ),

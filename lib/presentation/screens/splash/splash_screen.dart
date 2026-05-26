@@ -20,7 +20,8 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _route() async {
-    // Give Supabase time to restore session from local storage
+    // PKCE OAuth callback: Supabase.initialize() exchanges the code before main()
+    // finishes, but give a short buffer for session propagation.
     await Future.delayed(const Duration(milliseconds: 400));
     if (!mounted) return;
 
@@ -33,9 +34,23 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    final user = Supabase.instance.client.auth.currentUser;
+    // If the URL still has a PKCE code param, the exchange may still be
+    // in progress — wait for the auth state to settle (up to 4 s).
+    var user = Supabase.instance.client.auth.currentUser;
+    if (user == null && Uri.base.queryParameters.containsKey('code')) {
+      try {
+        final event = await Supabase.instance.client.auth.onAuthStateChange
+            .where((s) => s.event == AuthChangeEvent.signedIn ||
+                s.event == AuthChangeEvent.initialSession)
+            .first
+            .timeout(const Duration(seconds: 4));
+        user = event.session?.user;
+      } catch (_) {}
+      if (!mounted) return;
+    }
+
     if (user == null) {
-      context.go('/onboarding');
+      context.go('/home');
       return;
     }
 

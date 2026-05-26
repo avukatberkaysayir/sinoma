@@ -14,8 +14,23 @@ class SubscriptionScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isPremium = ref.watch(isPremiumProvider);
+    final queryParams = GoRouterState.of(context).uri.queryParameters;
+    final justPurchased = queryParams['success'] == '1';
 
     ref.read(analyticsServiceProvider).logSubscriptionScreenViewed();
+
+    if (justPurchased && !isPremium) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Payment successful! Your premium access is being activated.'),
+              duration: Duration(seconds: 5),
+            ),
+          );
+        }
+      });
+    }
 
     return Scaffold(
       body: ConstrainedPage(
@@ -59,13 +74,27 @@ class _PremiumActiveView extends StatelessWidget {
             const SizedBox(height: 32),
             ..._features.map((f) => _FeatureRow(feature: f, unlocked: true)),
             const SizedBox(height: 32),
-            OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.onSurfaceMuted),
-              ),
-              child: const Text('Manage Subscription',
-                  style: TextStyle(color: AppColors.onSurfaceMuted)),
+            Consumer(
+              builder: (context, ref, _) {
+                final status = ref.watch(purchaseProvider).status;
+                final loading = status == PurchaseStatus.loading;
+                return OutlinedButton(
+                  onPressed: loading
+                      ? null
+                      : () => ref.read(purchaseProvider.notifier).openBillingPortal(),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.onSurfaceMuted),
+                  ),
+                  child: loading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Manage Subscription',
+                          style: TextStyle(color: AppColors.onSurfaceMuted)),
+                );
+              },
             ),
           ],
         ),
@@ -547,7 +576,7 @@ class _Footer extends StatelessWidget {
       child: Column(
         children: [
           const Text(
-            'Subscription auto-renews. Cancel any time in Google Play.',
+            'Subscription auto-renews. Cancel any time via Manage Subscription.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: AppColors.onSurfaceMuted),
           ),

@@ -123,6 +123,18 @@ class AppL10n {
   String get adminPanel     => _isTr ? 'Admin Paneli'     : 'Admin Panel';
   String get darkTheme      => _isTr ? 'Koyu Tema'        : 'Dark Theme';
   String get signOut        => _isTr ? 'Çıkış Yap'        : 'Sign Out';
+  String get loginBtn       => _isTr ? 'Giriş Yap'        : 'Log In';
+  String get signUpBtn      => _isTr ? 'Kayıt Ol'         : 'Sign Up';
+
+  // ── Auth dialog ──────────────────────────────────────────────────────────────
+  String get emailLabel          => _isTr ? 'E-posta'          : 'Email';
+  String get passwordLabel       => _isTr ? 'Şifre'            : 'Password';
+  String get googleSignIn        => _isTr ? 'Google ile Giriş' : 'Sign in with Google';
+  String get authSubmitLogin     => _isTr ? 'Giriş Yap'        : 'Log In';
+  String get authSubmitRegister  => _isTr ? 'Hesap Oluştur'    : 'Create Account';
+  String get verifyEmailTitle    => _isTr ? 'E-postanı doğrula'         : 'Verify your email';
+  String get verifyEmailBody     => _isTr ? 'Doğrulama bağlantısı gönderildi. Gelen kutunuzu kontrol edin.'
+                                          : 'A verification link has been sent. Check your inbox.';
 
   // ── Profile screen ───────────────────────────────────────────────────────────
   String get profilePhoto       => _isTr ? 'Profil Fotoğrafı'    : 'Profile Photo';

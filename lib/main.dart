@@ -19,6 +19,9 @@ Future<void> main() async {
   await Supabase.initialize(
     url: SupabaseOptions.url,
     anonKey: SupabaseOptions.anonKey,
+    authOptions: const FlutterAuthClientOptions(
+      authFlowType: AuthFlowType.pkce,
+    ),
   );
 
   await CacheService.initialize();

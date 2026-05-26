@@ -7,7 +7,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/constants/app_colors.dart';
-import 'core/utils/responsive_layout.dart';
 import 'presentation/providers/auth_provider.dart' show adminEmail;
 import 'presentation/providers/locale_provider.dart';
 import 'presentation/providers/theme_provider.dart';
@@ -52,26 +51,20 @@ class _AppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final loc      = GoRouterState.of(context).matchedLocation;
     final showTabs = _sectionRoutes.contains(loc);
-    final isWide   = ResponsiveLayout.isWide(context);
+    final section  = _sectionFromRoute(loc);
 
     return Scaffold(
-      appBar: const SinomaTopBar(),
-      body: ConnectivityBanner(
-        child: showTabs && isWide
-            ? Row(
-                children: [
-                  SectionNavRail(current: _sectionFromRoute(loc)),
-                  const VerticalDivider(width: 1, thickness: 1),
-                  Expanded(child: child),
-                ],
-              )
-            : Column(
-                children: [
-                  if (showTabs) SectionTabBar(current: _sectionFromRoute(loc)),
-                  Expanded(child: child),
-                ],
-              ),
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(showTabs ? 104 : 60),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SinomaTopBar(),
+            if (showTabs) SectionTabBar(current: section),
+          ],
+        ),
       ),
+      body: ConnectivityBanner(child: child),
     );
   }
 }
