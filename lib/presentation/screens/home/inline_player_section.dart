@@ -22,11 +22,13 @@ class InlinePlayerSection extends StatefulWidget {
 
 class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   late int _index;
-  bool _subtitleVisible = true;
   bool _isPlaying = true;
   bool _clipEnded = false;
+  // null = choice not made, true = with subtitle, false = without subtitle
+  bool? _subtitleChoice;
   bool _quizAnswered = false;
   double _speed = 1.0;
+  int _replayCount = 0;
   YoutubePlayerController? _ctrl;
   String? _activeWordId;
 
@@ -48,12 +50,13 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   }
 
   void _resetState() {
-    _subtitleVisible = true;
     _isPlaying = true;
     _clipEnded = false;
+    _subtitleChoice = null;
     _quizAnswered = false;
     _ctrl = null;
     _activeWordId = null;
+    _replayCount = 0;
   }
 
   VideoSegmentModel get _seg => widget.segments[_index];
@@ -89,7 +92,9 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     setState(() {
       _isPlaying = true;
       _clipEnded = false;
+      _subtitleChoice = null;
       _quizAnswered = false;
+      _replayCount++;   // signals _InlineYoutubePlayerState to reset _ended
     });
   }
 
@@ -112,57 +117,65 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     Future.delayed(const Duration(milliseconds: 900), _goNext);
   }
 
+  void _pickWithSubtitle() => setState(() => _subtitleChoice = true);
+
+  void _pickWithoutSubtitle() {
+    setState(() => _subtitleChoice = false);
+    Future.delayed(const Duration(milliseconds: 350), _goNext);
+  }
+
   @override
   Widget build(BuildContext context) {
     final seg = _seg;
-    final hasQuiz = seg.quiz.correctAnswer.isNotEmpty &&
-        seg.quiz.wrongAnswer.isNotEmpty;
+    final hasQuiz =
+        seg.quiz.correctAnswer.isNotEmpty && seg.quiz.wrongAnswer.isNotEmpty;
     final isWide = ResponsiveLayout.isWide(context);
 
     final playerPanel = SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // ── YouTube IFrame player ─────────────────────────────────────────
+          // ── YouTube player ────────────────────────────────────────────────
           _InlineYoutubePlayer(
             key: ValueKey(seg.videoId),
             segment: seg,
             speed: _speed,
+            replayCount: _replayCount,
             onSegmentEnded: _onSegmentEnded,
             onControllerReady: _onControllerReady,
-          ),
-
-          // ── Red-bordered subtitle box (always rendered) ───────────────────
-          _SubtitleBox(
-            segment: seg,
-            visible: _subtitleVisible,
-            onWordTapped: isWide
-                ? (w) => setState(() => _activeWordId = w)
-                : (w) => _showWordSheet(context, w, seg),
           ),
 
           // ── Controls bar ──────────────────────────────────────────────────
           _ControlsBar(
             isPlaying: _isPlaying,
             speed: _speed,
-            subtitleVisible: _subtitleVisible,
             onPrev: _goPrev,
             onReplay: _replay,
             onTogglePlay: _togglePlayPause,
             onNext: _goNext,
             onSpeedChanged: _setSpeed,
-            onToggleSubtitle: () =>
-                setState(() => _subtitleVisible = !_subtitleVisible),
           ),
 
-          // ── VoScreen-style answer buttons (post-clip) ─────────────────────
+          // ── Post-clip area ────────────────────────────────────────────────
           if (_clipEnded && !_quizAnswered) ...[
-            const SizedBox(height: 12),
-            _VoscreenAnswerRow(
-              quiz: hasQuiz ? seg.quiz : null,
-              onAnswered: _onQuizAnswered,
-              onNext: _goNext,
-            ),
+            const SizedBox(height: 14),
+
+            // Step 1: VoScreen-style choice (Altyazılı | Altyazısız)
+            if (_subtitleChoice == null)
+              _SubtitleChoiceButtons(
+                onWithSubtitle: _pickWithSubtitle,
+                onWithoutSubtitle: _pickWithoutSubtitle,
+              ),
+
+            // Step 2: subtitle chosen → Chinese bar + answer buttons
+            if (_subtitleChoice == true) ...[
+              _ChineseSubtitleBar(transcription: seg.transcription),
+              const SizedBox(height: 14),
+              if (hasQuiz)
+                _AnswerRow(quiz: seg.quiz, onAnswered: _onQuizAnswered)
+              else
+                _NextButton(onNext: _goNext),
+            ],
           ],
 
           if (_quizAnswered)
@@ -217,27 +230,14 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
       ],
     );
   }
-
-  void _showWordSheet(
-      BuildContext ctx, String wordId, VideoSegmentModel seg) {
-    showModalBottomSheet(
-      context: ctx,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => WordDetailSheet(
-        wordId: wordId,
-        transcription: seg.transcription,
-        hskLevel: seg.hskLevel,
-      ),
-    );
-  }
 }
 
-// ── Inline YouTube player with controller exposure ────────────────────────────
+// ── Inline YouTube player ─────────────────────────────────────────────────────
 
 class _InlineYoutubePlayer extends StatefulWidget {
   final VideoSegmentModel segment;
   final double speed;
+  final int replayCount;
   final VoidCallback onSegmentEnded;
   final void Function(YoutubePlayerController) onControllerReady;
 
@@ -245,6 +245,7 @@ class _InlineYoutubePlayer extends StatefulWidget {
     super.key,
     required this.segment,
     required this.speed,
+    required this.replayCount,
     required this.onSegmentEnded,
     required this.onControllerReady,
   });
@@ -275,6 +276,15 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     );
     widget.onControllerReady(_ctrl);
     _timer = Timer.periodic(const Duration(milliseconds: 500), _tick);
+
+    // Force play when iframe signals ready — handles browser autoplay policy
+    _ctrl.listen((value) {
+      if (!_ended &&
+          (value.playerState == PlayerState.cued ||
+              value.playerState == PlayerState.unStarted)) {
+        _ctrl.playVideo();
+      }
+    });
   }
 
   Future<void> _tick(Timer _) async {
@@ -295,6 +305,10 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     super.didUpdateWidget(old);
     if (widget.speed != old.speed) {
       _ctrl.setPlaybackRate(widget.speed);
+    }
+    // Replay pressed: reset so timer can detect endTime again
+    if (widget.replayCount != old.replayCount) {
+      _ended = false;
     }
   }
 
@@ -363,161 +377,25 @@ class _HskBadge extends StatelessWidget {
   }
 }
 
-// ── Red-bordered subtitle box ─────────────────────────────────────────────────
-
-class _SubtitleBox extends StatelessWidget {
-  final VideoSegmentModel segment;
-  final bool visible;
-  final void Function(String) onWordTapped;
-
-  const _SubtitleBox({
-    required this.segment,
-    required this.visible,
-    required this.onWordTapped,
-  });
-
-  static const _salmonColor = Color(0xFFFA8072);
-  static const _redBorder = Color(0xFFD32F2F);
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.fromLTRB(12, 10, 12, 2),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.black.withValues(alpha: 0.35)
-            : Colors.white.withValues(alpha: 0.9),
-        border: Border.all(color: _redBorder, width: 2),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: visible
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _TappableTranscription(
-                  transcription: segment.transcription,
-                  targetWords: segment.targetWords,
-                  onWordTapped: onWordTapped,
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  segment.pinyin,
-                  style: const TextStyle(color: _salmonColor, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            )
-          : const SizedBox(
-              height: 24,
-              child: Center(
-                child: Text(
-                  '• • •',
-                  style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 16),
-                ),
-              ),
-            ),
-    );
-  }
-}
-
-class _TappableTranscription extends StatelessWidget {
-  final String transcription;
-  final List<String> targetWords;
-  final void Function(String) onWordTapped;
-
-  const _TappableTranscription({
-    required this.transcription,
-    required this.targetWords,
-    required this.onWordTapped,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final plainColor = isDark ? Colors.white : Colors.black87;
-
-    if (targetWords.isEmpty) {
-      return Text(
-        transcription,
-        style: TextStyle(color: plainColor, fontSize: 22),
-        textAlign: TextAlign.center,
-      );
-    }
-
-    final positioned = targetWords
-        .where(transcription.contains)
-        .toList()
-      ..sort((a, b) =>
-          transcription.indexOf(a).compareTo(transcription.indexOf(b)));
-
-    final spans = <Widget>[];
-    int cursor = 0;
-    for (final word in positioned) {
-      final start = transcription.indexOf(word, cursor);
-      if (start == -1) continue;
-      if (start > cursor) {
-        spans.add(_plain(transcription.substring(cursor, start), plainColor));
-      }
-      spans.add(_highlighted(word));
-      cursor = start + word.length;
-    }
-    if (cursor < transcription.length) {
-      spans.add(_plain(transcription.substring(cursor), plainColor));
-    }
-
-    return Wrap(alignment: WrapAlignment.center, children: spans);
-  }
-
-  Widget _plain(String t, Color color) =>
-      Text(t, style: TextStyle(color: color, fontSize: 22));
-
-  Widget _highlighted(String word) => GestureDetector(
-        onTap: () => onWordTapped(word),
-        child: Container(
-          margin: const EdgeInsets.symmetric(horizontal: 1),
-          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
-          decoration: BoxDecoration(
-            color: Colors.yellow.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(3),
-          ),
-          child: Text(
-            word,
-            style: const TextStyle(
-              color: Colors.black,
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      );
-}
-
 // ── Controls bar ──────────────────────────────────────────────────────────────
 
 class _ControlsBar extends StatelessWidget {
   final bool isPlaying;
   final double speed;
-  final bool subtitleVisible;
   final VoidCallback onPrev;
   final VoidCallback onReplay;
   final VoidCallback onTogglePlay;
   final VoidCallback onNext;
   final void Function(double) onSpeedChanged;
-  final VoidCallback onToggleSubtitle;
 
   const _ControlsBar({
     required this.isPlaying,
     required this.speed,
-    required this.subtitleVisible,
     required this.onPrev,
     required this.onReplay,
     required this.onTogglePlay,
     required this.onNext,
     required this.onSpeedChanged,
-    required this.onToggleSubtitle,
   });
 
   static const _speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
@@ -561,19 +439,6 @@ class _ControlsBar extends StatelessWidget {
               selected: speed == s,
               onTap: () => onSpeedChanged(s),
             ),
-
-          const SizedBox(width: 8),
-
-          _CtrlBtn(
-            icon: subtitleVisible
-                ? Icons.closed_caption_rounded
-                : Icons.closed_caption_off_outlined,
-            onTap: onToggleSubtitle,
-            size: 22,
-            tooltip: subtitleVisible ? 'Altyazıyı gizle' : 'Altyazıyı göster',
-            color:
-                subtitleVisible ? AppColors.primary : AppColors.onSurfaceMuted,
-          ),
         ],
       ),
     );
@@ -604,9 +469,7 @@ class _CtrlBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-          child: Icon(icon,
-              color: color ?? AppColors.onSurface,
-              size: size),
+          child: Icon(icon, color: color ?? AppColors.onSurface, size: size),
         ),
       ),
     );
@@ -649,38 +512,165 @@ class _SpeedChip extends StatelessWidget {
   }
 }
 
-// ── VoScreen-style answer buttons ─────────────────────────────────────────────
+// ── VoScreen subtitle choice (Altyazılı | Altyazısız) ────────────────────────
 
-class _VoscreenAnswerRow extends StatefulWidget {
-  final QuizData? quiz;
-  final VoidCallback onAnswered;
-  final VoidCallback onNext;
+class _SubtitleChoiceButtons extends StatelessWidget {
+  final VoidCallback onWithSubtitle;
+  final VoidCallback onWithoutSubtitle;
 
-  const _VoscreenAnswerRow({
-    required this.quiz,
-    required this.onAnswered,
-    required this.onNext,
+  const _SubtitleChoiceButtons({
+    required this.onWithSubtitle,
+    required this.onWithoutSubtitle,
   });
 
   @override
-  State<_VoscreenAnswerRow> createState() => _VoscreenAnswerRowState();
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg = isDark ? AppColors.surfaceVariant : Colors.white;
+    final border = isDark ? Colors.white24 : Colors.black12;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: _ChoiceBtn(
+              label: 'Altyazılı',
+              icon: Icons.closed_caption_rounded,
+              bg: bg,
+              border: border,
+              textColor: textColor,
+              onTap: onWithSubtitle,
+              filled: true,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: _ChoiceBtn(
+              label: 'Altyazısız',
+              icon: Icons.closed_caption_off_outlined,
+              bg: bg,
+              border: border,
+              textColor: textColor,
+              onTap: onWithoutSubtitle,
+              filled: false,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-class _VoscreenAnswerRowState extends State<_VoscreenAnswerRow> {
+class _ChoiceBtn extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color bg;
+  final Color border;
+  final Color textColor;
+  final VoidCallback onTap;
+  final bool filled;
+
+  const _ChoiceBtn({
+    required this.label,
+    required this.icon,
+    required this.bg,
+    required this.border,
+    required this.textColor,
+    required this.onTap,
+    required this.filled,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: filled ? AppColors.primary : bg,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: filled ? AppColors.primary : border, width: 1.5),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon,
+                  size: 20, color: filled ? Colors.white : textColor),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: filled ? Colors.white : textColor,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Chinese subtitle bar (VoScreen style, appears when Altyazılı chosen) ─────
+
+class _ChineseSubtitleBar extends StatelessWidget {
+  final String transcription;
+  const _ChineseSubtitleBar({required this.transcription});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C2E),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Text(
+        transcription,
+        textAlign: TextAlign.center,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 20,
+          fontWeight: FontWeight.w500,
+          height: 1.4,
+        ),
+      ),
+    );
+  }
+}
+
+// ── Answer buttons (correct / wrong, shuffled) ────────────────────────────────
+
+class _AnswerRow extends StatefulWidget {
+  final QuizData quiz;
+  final VoidCallback onAnswered;
+
+  const _AnswerRow({required this.quiz, required this.onAnswered});
+
+  @override
+  State<_AnswerRow> createState() => _AnswerRowState();
+}
+
+class _AnswerRowState extends State<_AnswerRow> {
   String? _selected;
   late List<_Opt> _opts;
 
   @override
   void initState() {
     super.initState();
-    if (widget.quiz != null) {
-      _opts = [
-        _Opt(widget.quiz!.correctAnswer, true),
-        _Opt(widget.quiz!.wrongAnswer, false),
-      ]..shuffle();
-    } else {
-      _opts = [];
-    }
+    _opts = [
+      _Opt(widget.quiz.correctAnswer, true),
+      _Opt(widget.quiz.wrongAnswer, false),
+    ]..shuffle();
   }
 
   void _pick(_Opt opt) {
@@ -691,40 +681,20 @@ class _VoscreenAnswerRowState extends State<_VoscreenAnswerRow> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.quiz == null) {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-        child: SizedBox(
-          height: 56,
-          child: FilledButton.icon(
-            onPressed: widget.onNext,
-            icon: const Icon(Icons.skip_next_rounded, size: 20),
-            label: const Text('Sonraki Klip',
-                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-            ),
-          ),
-        ),
-      );
-    }
-
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
       child: Row(
         children: _opts
-            .map(
-              (opt) => Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: _VoscreenButton(
-                    opt: opt,
-                    selected: _selected,
-                    onTap: () => _pick(opt),
+            .map((opt) => Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: _AnswerButton(
+                      opt: opt,
+                      selected: _selected,
+                      onTap: () => _pick(opt),
+                    ),
                   ),
-                ),
-              ),
-            )
+                ))
             .toList(),
       ),
     );
@@ -737,12 +707,12 @@ class _Opt {
   const _Opt(this.text, this.correct);
 }
 
-class _VoscreenButton extends StatelessWidget {
+class _AnswerButton extends StatelessWidget {
   final _Opt opt;
   final String? selected;
   final VoidCallback onTap;
 
-  const _VoscreenButton(
+  const _AnswerButton(
       {required this.opt, required this.selected, required this.onTap});
 
   @override
@@ -757,11 +727,11 @@ class _VoscreenButton extends StatelessWidget {
       borderColor = AppColors.onSurfaceMuted;
       textColor = AppColors.onSurface;
     } else if (opt.correct) {
-      bg = AppColors.correctAnswer.withValues(alpha: 0.18);
+      bg = AppColors.correctAnswer.withValues(alpha: 0.15);
       borderColor = AppColors.correctAnswer;
       textColor = AppColors.correctAnswer;
     } else if (selected == opt.text) {
-      bg = AppColors.wrongAnswer.withValues(alpha: 0.18);
+      bg = AppColors.wrongAnswer.withValues(alpha: 0.15);
       borderColor = AppColors.wrongAnswer;
       textColor = AppColors.wrongAnswer;
     } else {
@@ -781,7 +751,7 @@ class _VoscreenButton extends StatelessWidget {
         onTap: revealed ? null : onTap,
         borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 10),
           child: Text(
             opt.text,
             textAlign: TextAlign.center,
@@ -791,6 +761,30 @@ class _VoscreenButton extends StatelessWidget {
               color: textColor,
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── No-quiz fallback ──────────────────────────────────────────────────────────
+
+class _NextButton extends StatelessWidget {
+  final VoidCallback onNext;
+  const _NextButton({required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: SizedBox(
+        height: 52,
+        child: FilledButton.icon(
+          onPressed: onNext,
+          icon: const Icon(Icons.skip_next_rounded, size: 20),
+          label: const Text('Sonraki Klip',
+              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
         ),
       ),
     );
