@@ -35,6 +35,9 @@ jobs:
             --dart-define=SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }} \
             --dart-define=GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
 
+      - name: Copy vercel.json to build output
+        run: cp vercel.json build/web/vercel.json
+
       - name: Install Vercel CLI
         run: npm install --global vercel@latest
 
