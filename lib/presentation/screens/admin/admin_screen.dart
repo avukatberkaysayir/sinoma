@@ -1,7 +1,8 @@
 import 'dart:async';
-import 'dart:html' as html;
+import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
+import 'package:web/web.dart' as web;
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -3013,7 +3014,7 @@ class _MovieImportTab extends StatefulWidget {
 class _MovieImportTabState extends State<_MovieImportTab> {
   final _service = AdminService();
 
-  html.File? _selectedFile;
+  web.File? _selectedFile;
   Uint8List? _fileBytes;
   String? _fileName;
 
@@ -3045,25 +3046,33 @@ class _MovieImportTabState extends State<_MovieImportTab> {
   }
 
   void _pickFile() {
-    final input = html.InputElement(type: 'file')
-      ..accept = '.mp4,video/mp4'
-      ..click();
-    input.onChange.listen((_) {
-      final file = input.files?.first;
-      if (file == null) return;
-      final reader = html.FileReader();
-      reader.readAsArrayBuffer(file);
-      reader.onLoad.listen((_) {
-        if (mounted) {
-          setState(() {
-            _selectedFile = file;
-            _fileName = file.name;
-            _fileBytes = Uint8List.fromList(
-                (reader.result as List<dynamic>).cast<int>());
-          });
-        }
-      });
-    });
+    final input = web.document.createElement('input') as web.HTMLInputElement;
+    input.type = 'file';
+    input.accept = '.mp4,video/mp4';
+    input.addEventListener(
+      'change',
+      (web.Event _) {
+        final file = input.files?.item(0);
+        if (file == null) return;
+        final reader = web.FileReader();
+        reader.addEventListener(
+          'load',
+          (web.Event _) {
+            if (mounted) {
+              final bytes =
+                  (reader.result as JSArrayBuffer).toDart.asUint8List();
+              setState(() {
+                _selectedFile = file;
+                _fileName = file.name;
+                _fileBytes = bytes;
+              });
+            }
+          }.toJS,
+        );
+        reader.readAsArrayBuffer(file);
+      }.toJS,
+    );
+    input.click();
   }
 
   Future<void> _process() async {

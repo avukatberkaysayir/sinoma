@@ -1,6 +1,7 @@
-import 'dart:html' as html;
+import 'dart:js_interop';
 
 import 'package:flutter/foundation.dart';
+import 'package:web/web.dart' as web;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -157,13 +158,16 @@ class SettingsScreen extends ConsumerWidget {
       final jsonStr = res.data is String
           ? res.data as String
           : res.data.toString();
-      final blob = html.Blob([jsonStr], 'application/json');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      (html.AnchorElement(href: url)
-            ..setAttribute('download', 'sinoma-data.json')
-            ..click())
-          .remove();
-      html.Url.revokeObjectUrl(url);
+      final blob = web.Blob(
+        [jsonStr.toJS].toJS,
+        web.BlobPropertyBag(type: 'application/json'),
+      );
+      final url = web.URL.createObjectURL(blob);
+      final anchor = web.document.createElement('a') as web.HTMLAnchorElement;
+      anchor.href = url;
+      anchor.download = 'sinoma-data.json';
+      anchor.click();
+      web.URL.revokeObjectURL(url);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

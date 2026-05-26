@@ -1,9 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
-// ignore: avoid_web_libraries_in_flutter, deprecated_member_use
-import 'dart:html' as html;
+import 'dart:js_interop';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
+
+import 'package:web/web.dart' as web;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,31 +82,42 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   // direct user-gesture. Element must be in the DOM or the click is blocked.
 
   void _pickPhoto() {
-    final input = html.FileUploadInputElement()
-      ..accept = 'image/jpeg,image/png,image/webp'
-      ..style.display = 'none';
-    html.document.body!.append(input);
-    input.onChange.listen((_) async {
-      final file = input.files?.first;
-      input.remove();
-      if (file == null) return;
-      await _readAndPreviewFile(file);
-    });
+    final input = web.document.createElement('input') as web.HTMLInputElement;
+    input.type = 'file';
+    input.accept = 'image/jpeg,image/png,image/webp';
+    input.style.display = 'none';
+    web.document.body!.append(input);
+    input.addEventListener(
+      'change',
+      (web.Event _) {
+        final file = input.files?.item(0);
+        input.remove();
+        if (file == null) return;
+        _readAndPreviewFile(file);
+      }.toJS,
+    );
     input.click();
   }
 
-  Future<void> _readAndPreviewFile(html.File file) async {
+  Future<void> _readAndPreviewFile(web.File file) async {
     final completer = Completer<String?>();
-    final reader   = html.FileReader();
-    reader.readAsDataUrl(file);
-    reader.onLoad.listen((_) {
-      debugPrint('[Photo] FileReader onLoad');
-      completer.complete(reader.result as String?);
-    });
-    reader.onError.listen((_) {
-      debugPrint('[Photo] FileReader error: ${reader.error}');
-      completer.complete(null);
-    });
+    final reader = web.FileReader();
+    reader.addEventListener(
+      'load',
+      (web.Event _) {
+        debugPrint('[Photo] FileReader onLoad');
+        final result = reader.result;
+        completer.complete(result != null ? (result as JSString).toDart : null);
+      }.toJS,
+    );
+    reader.addEventListener(
+      'error',
+      (web.Event _) {
+        debugPrint('[Photo] FileReader error');
+        completer.complete(null);
+      }.toJS,
+    );
+    reader.readAsDataURL(file);
     final dataUrl = await completer.future;
     if (dataUrl == null || !mounted) {
       debugPrint('[Photo] dataUrl null, aborting');
