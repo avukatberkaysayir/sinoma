@@ -55,18 +55,18 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // Check if the user has completed onboarding (has a DB profile)
-    final profile = await Supabase.instance.client
-        .from('users')
-        .select('id')
-        .eq('id', user.id)
-        .maybeSingle();
+    try {
+      final profile = await Supabase.instance.client
+          .from('users')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
+          .timeout(const Duration(seconds: 5));
 
-    if (!mounted) return;
-
-    if (profile == null) {
-      context.go('/onboarding');
-    } else {
-      context.go('/home');
+      if (!mounted) return;
+      context.go(profile == null ? '/onboarding' : '/home');
+    } catch (_) {
+      if (mounted) context.go('/home');
     }
   }
 
