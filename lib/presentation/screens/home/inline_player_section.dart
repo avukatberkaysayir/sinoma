@@ -22,7 +22,7 @@ class InlinePlayerSection extends StatefulWidget {
 
 class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   late int _index;
-  bool _subtitleVisible = false;
+  bool _subtitleVisible = true;
   bool _isPlaying = true;
   bool _clipEnded = false;
   bool _quizAnswered = false;
@@ -39,7 +39,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   @override
   void didUpdateWidget(InlinePlayerSection old) {
     super.didUpdateWidget(old);
-    // Filters changed → pick new random video
     if (widget.segments != old.segments && widget.segments.isNotEmpty) {
       setState(() {
         _index = Random().nextInt(widget.segments.length);
@@ -49,7 +48,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   }
 
   void _resetState() {
-    _subtitleVisible = false;
+    _subtitleVisible = true;
     _isPlaying = true;
     _clipEnded = false;
     _quizAnswered = false;
@@ -90,7 +89,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     setState(() {
       _isPlaying = true;
       _clipEnded = false;
-      _subtitleVisible = false;
       _quizAnswered = false;
     });
   }
@@ -134,8 +132,8 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
             onControllerReady: _onControllerReady,
           ),
 
-          // ── Subtitle reveal (VoScreen style) ─────────────────────────────
-          _SubtitleReveal(
+          // ── Red-bordered subtitle box (always rendered) ───────────────────
+          _SubtitleBox(
             segment: seg,
             visible: _subtitleVisible,
             onWordTapped: isWide
@@ -143,7 +141,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 : (w) => _showWordSheet(context, w, seg),
           ),
 
-          // ── Controls bar (YouGlish style) ─────────────────────────────────
+          // ── Controls bar ──────────────────────────────────────────────────
           _ControlsBar(
             isPlaying: _isPlaying,
             speed: _speed,
@@ -157,18 +155,14 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 setState(() => _subtitleVisible = !_subtitleVisible),
           ),
 
-          // ── Post-clip area: quiz OR subtitle toggle ───────────────────────
+          // ── VoScreen-style answer buttons (post-clip) ─────────────────────
           if (_clipEnded && !_quizAnswered) ...[
             const SizedBox(height: 12),
-            if (hasQuiz)
-              _InlineQuiz(quiz: seg.quiz, onAnswered: _onQuizAnswered)
-            else
-              _SubtitleChoiceRow(
-                subtitleVisible: _subtitleVisible,
-                onShowSubtitle: () => setState(() => _subtitleVisible = true),
-                onHideSubtitle: () => setState(() => _subtitleVisible = false),
-                onNext: _goNext,
-              ),
+            _VoscreenAnswerRow(
+              quiz: hasQuiz ? seg.quiz : null,
+              onAnswered: _onQuizAnswered,
+              onNext: _goNext,
+            ),
           ],
 
           if (_quizAnswered)
@@ -369,40 +363,50 @@ class _HskBadge extends StatelessWidget {
   }
 }
 
-// ── Subtitle reveal panel (VoScreen style) ────────────────────────────────────
+// ── Red-bordered subtitle box ─────────────────────────────────────────────────
 
-class _SubtitleReveal extends StatelessWidget {
+class _SubtitleBox extends StatelessWidget {
   final VideoSegmentModel segment;
   final bool visible;
   final void Function(String) onWordTapped;
 
-  const _SubtitleReveal({
+  const _SubtitleBox({
     required this.segment,
     required this.visible,
     required this.onWordTapped,
   });
 
+  static const _salmonColor = Color(0xFFFA8072);
+  static const _redBorder = Color(0xFFD32F2F);
+
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Container(
       width: double.infinity,
-      color: AppColors.surfaceVariant,
+      margin: const EdgeInsets.fromLTRB(12, 10, 12, 2),
+      decoration: BoxDecoration(
+        color: isDark
+            ? Colors.black.withValues(alpha: 0.35)
+            : Colors.white.withValues(alpha: 0.9),
+        border: Border.all(color: _redBorder, width: 2),
+        borderRadius: BorderRadius.circular(6),
+      ),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: visible
           ? Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  segment.pinyin,
-                  style: const TextStyle(
-                      color: AppColors.onSurfaceMuted, fontSize: 13),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 6),
                 _TappableTranscription(
                   transcription: segment.transcription,
                   targetWords: segment.targetWords,
                   onWordTapped: onWordTapped,
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  segment.pinyin,
+                  style: const TextStyle(color: _salmonColor, fontSize: 13),
+                  textAlign: TextAlign.center,
                 ),
               ],
             )
@@ -432,13 +436,17 @@ class _TappableTranscription extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final plainColor = isDark ? Colors.white : Colors.black87;
+
     if (targetWords.isEmpty) {
       return Text(
         transcription,
-        style: const TextStyle(color: AppColors.onSurface, fontSize: 22),
+        style: TextStyle(color: plainColor, fontSize: 22),
         textAlign: TextAlign.center,
       );
     }
+
     final positioned = targetWords
         .where(transcription.contains)
         .toList()
@@ -451,41 +459,43 @@ class _TappableTranscription extends StatelessWidget {
       final start = transcription.indexOf(word, cursor);
       if (start == -1) continue;
       if (start > cursor) {
-        spans.add(_plain(transcription.substring(cursor, start)));
+        spans.add(_plain(transcription.substring(cursor, start), plainColor));
       }
-      spans.add(_tappable(word));
+      spans.add(_highlighted(word));
       cursor = start + word.length;
     }
     if (cursor < transcription.length) {
-      spans.add(_plain(transcription.substring(cursor)));
+      spans.add(_plain(transcription.substring(cursor), plainColor));
     }
 
     return Wrap(alignment: WrapAlignment.center, children: spans);
   }
 
-  Widget _plain(String t) =>
-      Text(t, style: const TextStyle(color: AppColors.onSurface, fontSize: 22));
+  Widget _plain(String t, Color color) =>
+      Text(t, style: TextStyle(color: color, fontSize: 22));
 
-  Widget _tappable(String word) => GestureDetector(
+  Widget _highlighted(String word) => GestureDetector(
         onTap: () => onWordTapped(word),
         child: Container(
-          decoration: const BoxDecoration(
-            border:
-                Border(bottom: BorderSide(color: AppColors.primary, width: 2)),
+          margin: const EdgeInsets.symmetric(horizontal: 1),
+          padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
+          decoration: BoxDecoration(
+            color: Colors.yellow.withValues(alpha: 0.75),
+            borderRadius: BorderRadius.circular(3),
           ),
           child: Text(
             word,
             style: const TextStyle(
-              color: AppColors.primary,
+              color: Colors.black,
               fontSize: 22,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),
       );
 }
 
-// ── YouGlish-style controls bar ───────────────────────────────────────────────
+// ── Controls bar ──────────────────────────────────────────────────────────────
 
 class _ControlsBar extends StatelessWidget {
   final bool isPlaying;
@@ -519,19 +529,16 @@ class _ControlsBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       child: Row(
         children: [
-          // ← prev
           _CtrlBtn(
               icon: Icons.skip_previous_rounded,
               onTap: onPrev,
               size: 28,
               tooltip: 'Önceki'),
-          // ↺ replay
           _CtrlBtn(
               icon: Icons.replay_rounded,
               onTap: onReplay,
               size: 24,
               tooltip: 'Tekrar oynat'),
-          // ⏸ / ▶
           _CtrlBtn(
               icon: isPlaying
                   ? Icons.pause_circle_filled_rounded
@@ -540,7 +547,6 @@ class _ControlsBar extends StatelessWidget {
               size: 34,
               tooltip: isPlaying ? 'Duraklat' : 'Oynat',
               color: AppColors.primary),
-          // → next
           _CtrlBtn(
               icon: Icons.skip_next_rounded,
               onTap: onNext,
@@ -549,7 +555,6 @@ class _ControlsBar extends StatelessWidget {
 
           const Spacer(),
 
-          // Speed chips
           for (final s in _speeds)
             _SpeedChip(
               label: s == 1.0 ? '1×' : '$s×',
@@ -559,7 +564,6 @@ class _ControlsBar extends StatelessWidget {
 
           const SizedBox(width: 8),
 
-          // CC toggle
           _CtrlBtn(
             icon: subtitleVisible
                 ? Icons.closed_caption_rounded
@@ -645,130 +649,83 @@ class _SpeedChip extends StatelessWidget {
   }
 }
 
-// ── Post-clip: subtitle choice (VoScreen style) ───────────────────────────────
+// ── VoScreen-style answer buttons ─────────────────────────────────────────────
 
-class _SubtitleChoiceRow extends StatelessWidget {
-  final bool subtitleVisible;
-  final VoidCallback onShowSubtitle;
-  final VoidCallback onHideSubtitle;
+class _VoscreenAnswerRow extends StatefulWidget {
+  final QuizData? quiz;
+  final VoidCallback onAnswered;
   final VoidCallback onNext;
 
-  const _SubtitleChoiceRow({
-    required this.subtitleVisible,
-    required this.onShowSubtitle,
-    required this.onHideSubtitle,
+  const _VoscreenAnswerRow({
+    required this.quiz,
+    required this.onAnswered,
     required this.onNext,
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Row(
-        children: [
-          Expanded(
-            child: OutlinedButton.icon(
-              onPressed: subtitleVisible ? onHideSubtitle : onShowSubtitle,
-              icon: Icon(
-                subtitleVisible
-                    ? Icons.closed_caption_off_outlined
-                    : Icons.closed_caption_rounded,
-                size: 18,
-              ),
-              label: Text(subtitleVisible ? 'Altyazıyı Gizle' : 'Altyazıyı Göster'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.onSurface,
-                side: const BorderSide(color: AppColors.onSurfaceMuted),
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: onNext,
-              icon: const Icon(Icons.skip_next_rounded, size: 18),
-              label: const Text('Sonraki Klip'),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_VoscreenAnswerRow> createState() => _VoscreenAnswerRowState();
 }
 
-// ── Inline quiz (for videos with real quiz data) ──────────────────────────────
-
-class _InlineQuiz extends StatefulWidget {
-  final QuizData quiz;
-  final VoidCallback onAnswered;
-
-  const _InlineQuiz({required this.quiz, required this.onAnswered});
-
-  @override
-  State<_InlineQuiz> createState() => _InlineQuizState();
-}
-
-class _InlineQuizState extends State<_InlineQuiz> {
+class _VoscreenAnswerRowState extends State<_VoscreenAnswerRow> {
   String? _selected;
   late List<_Opt> _opts;
 
   @override
   void initState() {
     super.initState();
-    _opts = [
-      _Opt(widget.quiz.correctAnswer, true),
-      _Opt(widget.quiz.wrongAnswer, false),
-    ]..shuffle();
+    if (widget.quiz != null) {
+      _opts = [
+        _Opt(widget.quiz!.correctAnswer, true),
+        _Opt(widget.quiz!.wrongAnswer, false),
+      ]..shuffle();
+    } else {
+      _opts = [];
+    }
   }
 
   void _pick(_Opt opt) {
     if (_selected != null) return;
     setState(() => _selected = opt.text);
-    Future.delayed(const Duration(milliseconds: 800), widget.onAnswered);
+    Future.delayed(const Duration(milliseconds: 850), widget.onAnswered);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          if (widget.quiz.question.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                widget.quiz.question,
-                style: const TextStyle(
-                  color: AppColors.onSurface,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
+    if (widget.quiz == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        child: SizedBox(
+          height: 56,
+          child: FilledButton.icon(
+            onPressed: widget.onNext,
+            icon: const Icon(Icons.skip_next_rounded, size: 20),
+            label: const Text('Sonraki Klip',
+                style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
             ),
-          Row(
-            children: _opts
-                .map(
-                  (opt) => Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 6),
-                      child: _QuizButton(
-                        opt: opt,
-                        selected: _selected,
-                        onTap: () => _pick(opt),
-                      ),
-                    ),
-                  ),
-                )
-                .toList(),
           ),
-        ],
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      child: Row(
+        children: _opts
+            .map(
+              (opt) => Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: _VoscreenButton(
+                    opt: opt,
+                    selected: _selected,
+                    onTap: () => _pick(opt),
+                  ),
+                ),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -780,41 +737,58 @@ class _Opt {
   const _Opt(this.text, this.correct);
 }
 
-class _QuizButton extends StatelessWidget {
+class _VoscreenButton extends StatelessWidget {
   final _Opt opt;
   final String? selected;
   final VoidCallback onTap;
 
-  const _QuizButton(
+  const _VoscreenButton(
       {required this.opt, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    Color bg = AppColors.surfaceVariant;
-    if (selected != null) {
-      if (opt.correct) bg = AppColors.correctAnswer;
-      if (!opt.correct && selected == opt.text) bg = AppColors.wrongAnswer;
+    final revealed = selected != null;
+    Color bg;
+    Color borderColor;
+    Color textColor;
+
+    if (!revealed) {
+      bg = AppColors.surfaceVariant;
+      borderColor = AppColors.onSurfaceMuted;
+      textColor = AppColors.onSurface;
+    } else if (opt.correct) {
+      bg = AppColors.correctAnswer.withValues(alpha: 0.18);
+      borderColor = AppColors.correctAnswer;
+      textColor = AppColors.correctAnswer;
+    } else if (selected == opt.text) {
+      bg = AppColors.wrongAnswer.withValues(alpha: 0.18);
+      borderColor = AppColors.wrongAnswer;
+      textColor = AppColors.wrongAnswer;
+    } else {
+      bg = AppColors.surfaceVariant;
+      borderColor = AppColors.onSurfaceMuted;
+      textColor = AppColors.onSurfaceMuted;
     }
 
     return AnimatedContainer(
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 280),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.onSurfaceMuted),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: borderColor, width: 1.5),
       ),
       child: InkWell(
-        onTap: selected == null ? onTap : null,
-        borderRadius: BorderRadius.circular(12),
+        onTap: revealed ? null : onTap,
+        borderRadius: BorderRadius.circular(10),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
+          padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 12),
           child: Text(
             opt.text,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 14,
-              fontWeight: FontWeight.w500,
-              color: AppColors.onSurface,
+              fontWeight: FontWeight.w600,
+              color: textColor,
             ),
           ),
         ),
