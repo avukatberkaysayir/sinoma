@@ -16,7 +16,9 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _route();
+    _route().timeout(const Duration(seconds: 10)).catchError((_) {
+      if (mounted) context.go('/home');
+    });
   }
 
   Future<void> _route() async {
