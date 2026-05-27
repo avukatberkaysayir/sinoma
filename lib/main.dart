@@ -26,7 +26,13 @@ Future<void> main() async {
 
   await CacheService.initialize();
   final cache = CacheService();
-  await cache.openBoxes();
+  // openBoxes uses IndexedDB — can hang if another tab holds a lock.
+  // 4-second timeout + catch ensures app always reaches runApp().
+  try {
+    await cache.openBoxes().timeout(const Duration(seconds: 4));
+  } catch (_) {
+    // Cache unavailable — app runs fine without it (network fallback).
+  }
 
   final remoteConfig = RemoteConfigService();
   await remoteConfig.initialize();

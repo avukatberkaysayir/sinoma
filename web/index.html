@@ -51,42 +51,43 @@
     });
   </script>
 
-  <!-- SW update enforcement: always check for new version on load, reload when new SW activates -->
+  <!-- SW update enforcement: detect new deploy → skipWaiting → auto-reload once -->
   <script>
     (function () {
       if (!('serviceWorker' in navigator)) return;
 
-      // Track whether a SW was already controlling this page BEFORE this load.
-      // If hadController=false, this is a first-install — don't reload (content
-      // was already fetched fresh from the network).
+      // hadController=false means first install — no reload needed (files already fresh).
       var hadController = !!navigator.serviceWorker.controller;
       var refreshing = false;
 
+      // When the new SW takes control, reload once to serve fresh assets.
       navigator.serviceWorker.addEventListener('controllerchange', function () {
         if (refreshing || !hadController) return;
         refreshing = true;
         window.location.reload();
       });
 
-      function activateWaiting(reg) {
-        if (!reg.waiting) return;
-        // Flutter's SW listens for this message to call skipWaiting()
-        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      // Flutter's generated SW expects the plain string 'SKIP_WAITING' (not an object).
+      function skipWaiting(reg) {
+        if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
       }
 
       navigator.serviceWorker.ready.then(function (reg) {
-        activateWaiting(reg);
-        // Check for a new SW version immediately on every page load.
-        // The browser always fetches flutter_service_worker.js from network
-        // (spec: SW scripts bypass the SW cache), so this detects new deploys
-        // within seconds — not after the 60-second interval.
-        reg.update().catch(function () { /* offline — silent fail */ });
+        // Handle a SW already waiting from a previous update check.
+        skipWaiting(reg);
+
+        // Force-fetch flutter_service_worker.js on every load (SW scripts bypass
+        // the HTTP cache per spec), so new deploys are detected within seconds.
+        reg.update().catch(function () {});
 
         reg.addEventListener('updatefound', function () {
           var sw = reg.installing;
           if (!sw) return;
           sw.addEventListener('statechange', function () {
-            if (sw.state === 'installed') activateWaiting(sw);
+            // 'installed' = download complete, now waiting to activate.
+            // Pass `reg` (the registration), not `sw` (the worker), because
+            // skipWaiting checks reg.waiting — ServiceWorker instances have no .waiting.
+            if (sw.state === 'installed') skipWaiting(reg);
           });
         });
       });
