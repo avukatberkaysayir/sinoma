@@ -31,6 +31,8 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   int _replayCount = 0;
   YoutubePlayerController? _ctrl;
   String? _activeWordId;
+  // Tracks whether the user has clicked once — after that, subsequent clips autoplay
+  bool _sessionStarted = false;
 
   @override
   void initState() {
@@ -62,6 +64,10 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   VideoSegmentModel get _seg => widget.segments[_index];
 
   void _onControllerReady(YoutubePlayerController ctrl) => _ctrl = ctrl;
+
+  void _onUserStarted() {
+    if (!_sessionStarted) setState(() => _sessionStarted = true);
+  }
 
   void _onSegmentEnded() {
     setState(() {
@@ -141,6 +147,8 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
             segment: seg,
             speed: _speed,
             replayCount: _replayCount,
+            needsUserGesture: !_sessionStarted,
+            onUserStarted: _onUserStarted,
             onSegmentEnded: _onSegmentEnded,
             onControllerReady: _onControllerReady,
           ),
@@ -238,6 +246,8 @@ class _InlineYoutubePlayer extends StatefulWidget {
   final VideoSegmentModel segment;
   final double speed;
   final int replayCount;
+  final bool needsUserGesture;
+  final VoidCallback onUserStarted;
   final VoidCallback onSegmentEnded;
   final void Function(YoutubePlayerController) onControllerReady;
 
@@ -246,6 +256,8 @@ class _InlineYoutubePlayer extends StatefulWidget {
     required this.segment,
     required this.speed,
     required this.replayCount,
+    required this.needsUserGesture,
+    required this.onUserStarted,
     required this.onSegmentEnded,
     required this.onControllerReady,
   });
@@ -258,6 +270,8 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
   late YoutubePlayerController _ctrl;
   Timer? _timer;
   bool _ended = false;
+  // True once currentTime > 0 — guards against seekTo during autoplay init
+  bool _hasPlayed = false;
 
   @override
   void initState() {
@@ -276,20 +290,17 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     );
     widget.onControllerReady(_ctrl);
     _timer = Timer.periodic(const Duration(milliseconds: 500), _tick);
-
-    // Force play when iframe signals ready — handles browser autoplay policy
-    _ctrl.listen((value) {
-      if (!_ended &&
-          (value.playerState == PlayerState.cued ||
-              value.playerState == PlayerState.unStarted)) {
-        _ctrl.playVideo();
-      }
-    });
   }
 
   Future<void> _tick(Timer _) async {
     if (_ended) return;
     final t = await _ctrl.currentTime;
+    // Don't act until the video has actually started (t > 0). Calling seekTo
+    // while t == 0 interrupts autoplay initialization and prevents the video
+    // from starting automatically.
+    if (t > 0) _hasPlayed = true;
+    if (!_hasPlayed) return;
+
     if (t >= widget.segment.endTime) {
       _ended = true;
       await _ctrl.pauseVideo();
@@ -306,9 +317,9 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     if (widget.speed != old.speed) {
       _ctrl.setPlaybackRate(widget.speed);
     }
-    // Replay pressed: reset so timer can detect endTime again
     if (widget.replayCount != old.replayCount) {
       _ended = false;
+      _hasPlayed = false;
     }
   }
 
@@ -345,6 +356,23 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
             ),
           ),
         ),
+        // Overlay for first load — ensures user gesture so audio can play
+        if (widget.needsUserGesture)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                widget.onUserStarted();
+                _ctrl.playVideo();
+              },
+              child: Container(
+                color: Colors.black38,
+                child: const Center(
+                  child: _PlayOverlayIcon(),
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -353,6 +381,26 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     final m = s ~/ 60;
     final sec = (s % 60).toInt();
     return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
+  }
+}
+
+class _PlayOverlayIcon extends StatelessWidget {
+  const _PlayOverlayIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.55),
+        shape: BoxShape.circle,
+      ),
+      padding: const EdgeInsets.all(20),
+      child: const Icon(
+        Icons.play_arrow_rounded,
+        color: Colors.white,
+        size: 52,
+      ),
+    );
   }
 }
 
