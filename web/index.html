@@ -51,47 +51,13 @@
     });
   </script>
 
-  <!-- SW update enforcement: detect new deploy → skipWaiting → auto-reload once -->
+  <!-- Unregister any stale service worker from previous deploys -->
   <script>
-    (function () {
-      if (!('serviceWorker' in navigator)) return;
-
-      // hadController=false means first install — no reload needed (files already fresh).
-      var hadController = !!navigator.serviceWorker.controller;
-      var refreshing = false;
-
-      // When the new SW takes control, reload once to serve fresh assets.
-      navigator.serviceWorker.addEventListener('controllerchange', function () {
-        if (refreshing || !hadController) return;
-        refreshing = true;
-        window.location.reload();
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function (regs) {
+        regs.forEach(function (r) { r.unregister(); });
       });
-
-      // Flutter's generated SW expects the plain string 'SKIP_WAITING' (not an object).
-      function skipWaiting(reg) {
-        if (reg.waiting) reg.waiting.postMessage('SKIP_WAITING');
-      }
-
-      navigator.serviceWorker.ready.then(function (reg) {
-        // Handle a SW already waiting from a previous update check.
-        skipWaiting(reg);
-
-        // Force-fetch flutter_service_worker.js on every load (SW scripts bypass
-        // the HTTP cache per spec), so new deploys are detected within seconds.
-        reg.update().catch(function () {});
-
-        reg.addEventListener('updatefound', function () {
-          var sw = reg.installing;
-          if (!sw) return;
-          sw.addEventListener('statechange', function () {
-            // 'installed' = download complete, now waiting to activate.
-            // Pass `reg` (the registration), not `sw` (the worker), because
-            // skipWaiting checks reg.waiting — ServiceWorker instances have no .waiting.
-            if (sw.state === 'installed') skipWaiting(reg);
-          });
-        });
-      });
-    })();
+    }
   </script>
 
   <!-- Vercel Analytics — page views + custom events (Pro plan) -->
