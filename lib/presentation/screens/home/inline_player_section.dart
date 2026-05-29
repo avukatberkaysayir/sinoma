@@ -293,13 +293,14 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     });
   }
 
-  // Called once the YouTube IFrame API reports the player is ready and the
-  // video has been cued. We call playVideo() exactly once — the player is
-  // muted so Chrome allows it without a user gesture.
+  // Called once the YouTube IFrame API signals the video is cued and ready.
+  // We intentionally ignore PlayerState.unStarted (-1) because that fires
+  // during player initialization before any video is loaded — calling
+  // playVideo() there is a no-op that consumes _playAttempted and prevents
+  // us from reacting to the real cued (5) event.
   void _onStateChanged(YoutubePlayerValue value) {
     if (_playAttempted) return;
-    if (value.playerState == PlayerState.cued ||
-        value.playerState == PlayerState.unStarted) {
+    if (value.playerState == PlayerState.cued) {
       _playAttempted = true;
       _ctrl.playVideo();
     }
