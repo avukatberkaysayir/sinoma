@@ -31,8 +31,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   int _replayCount = 0;
   YoutubePlayerController? _ctrl;
   String? _activeWordId;
-  // Tracks whether the user has clicked once — after that, subsequent clips autoplay
-  bool _sessionStarted = false;
 
   @override
   void initState() {
@@ -64,10 +62,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   VideoSegmentModel get _seg => widget.segments[_index];
 
   void _onControllerReady(YoutubePlayerController ctrl) => _ctrl = ctrl;
-
-  void _onUserStarted() {
-    if (!_sessionStarted) setState(() => _sessionStarted = true);
-  }
 
   void _onSegmentEnded() {
     setState(() {
@@ -147,8 +141,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
             segment: seg,
             speed: _speed,
             replayCount: _replayCount,
-            needsUserGesture: !_sessionStarted,
-            onUserStarted: _onUserStarted,
             onSegmentEnded: _onSegmentEnded,
             onControllerReady: _onControllerReady,
           ),
@@ -246,8 +238,6 @@ class _InlineYoutubePlayer extends StatefulWidget {
   final VideoSegmentModel segment;
   final double speed;
   final int replayCount;
-  final bool needsUserGesture;
-  final VoidCallback onUserStarted;
   final VoidCallback onSegmentEnded;
   final void Function(YoutubePlayerController) onControllerReady;
 
@@ -256,8 +246,6 @@ class _InlineYoutubePlayer extends StatefulWidget {
     required this.segment,
     required this.speed,
     required this.replayCount,
-    required this.needsUserGesture,
-    required this.onUserStarted,
     required this.onSegmentEnded,
     required this.onControllerReady,
   });
@@ -269,9 +257,12 @@ class _InlineYoutubePlayer extends StatefulWidget {
 class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
   late YoutubePlayerController _ctrl;
   Timer? _timer;
+  Timer? _overlayTimer;
   bool _ended = false;
   // True once currentTime > 0 — guards against seekTo during autoplay init
   bool _hasPlayed = false;
+  // Only shown as a fallback if autoplay hasn't fired after 2.5 s
+  bool _showOverlay = false;
 
   @override
   void initState() {
@@ -290,6 +281,11 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     );
     widget.onControllerReady(_ctrl);
     _timer = Timer.periodic(const Duration(milliseconds: 500), _tick);
+    // Show play overlay only if autoplay hasn't kicked in after 2.5 s
+    _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
+      if (!mounted || _hasPlayed || _ended) return;
+      setState(() => _showOverlay = true);
+    });
   }
 
   Future<void> _tick(Timer _) async {
@@ -298,7 +294,13 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     // Don't act until the video has actually started (t > 0). Calling seekTo
     // while t == 0 interrupts autoplay initialization and prevents the video
     // from starting automatically.
-    if (t > 0) _hasPlayed = true;
+    if (t > 0) {
+      if (!_hasPlayed) {
+        _hasPlayed = true;
+        // Autoplay succeeded — dismiss fallback overlay if it appeared
+        if (_showOverlay && mounted) setState(() => _showOverlay = false);
+      }
+    }
     if (!_hasPlayed) return;
 
     if (t >= widget.segment.endTime) {
@@ -320,12 +322,19 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     if (widget.replayCount != old.replayCount) {
       _ended = false;
       _hasPlayed = false;
+      _overlayTimer?.cancel();
+      _showOverlay = false;
+      _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
+        if (!mounted || _hasPlayed || _ended) return;
+        setState(() => _showOverlay = true);
+      });
     }
   }
 
   @override
   void dispose() {
     _timer?.cancel();
+    _overlayTimer?.cancel();
     _ctrl.close();
     super.dispose();
   }
@@ -356,13 +365,13 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
             ),
           ),
         ),
-        // Overlay for first load — ensures user gesture so audio can play
-        if (widget.needsUserGesture)
+        // Fallback overlay — only appears if autoplay didn't fire within 2.5 s
+        if (_showOverlay)
           Positioned.fill(
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
               onTap: () {
-                widget.onUserStarted();
+                setState(() => _showOverlay = false);
                 _ctrl.playVideo();
               },
               child: Container(
