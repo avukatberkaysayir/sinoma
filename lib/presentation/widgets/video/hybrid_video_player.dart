@@ -6,12 +6,10 @@ import '../../providers/subscription_provider.dart';
 import '../../providers/video_provider.dart';
 import '../ads/ad_banner_widget.dart';
 import '../quiz/quiz_overlay.dart';
+import 'direct_youtube_player.dart';
 import 'self_hosted_player.dart';
-import 'youtube_section_player.dart';
 
-/// Routes to the correct player based on VideoSegmentModel.sourceType.
-/// Handles quiz overlay, blur effect, and AdMob banner below player.
-class HybridVideoPlayer extends ConsumerWidget {
+class HybridVideoPlayer extends ConsumerStatefulWidget {
   final VideoSegmentModel segment;
   final VoidCallback onVideoCompleted;
 
@@ -22,7 +20,14 @@ class HybridVideoPlayer extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HybridVideoPlayer> createState() => _HybridVideoPlayerState();
+}
+
+class _HybridVideoPlayerState extends ConsumerState<HybridVideoPlayer> {
+  final DirectYouTubeController _ytCtrl = DirectYouTubeController();
+
+  @override
+  Widget build(BuildContext context) {
     final playbackState = ref.watch(videoPlaybackProvider);
     final isQuizVisible = playbackState.status == VideoPlaybackStatus.quizActive;
     final subscriptionState = ref.watch(subscriptionProvider);
@@ -31,7 +36,7 @@ class HybridVideoPlayer extends ConsumerWidget {
       children: [
         Stack(
           children: [
-            _buildPlayer(ref),
+            _buildPlayer(),
             if (isQuizVisible)
               const Positioned.fill(
                 child: ColoredBox(color: Color(0x66000000)),
@@ -42,8 +47,8 @@ class HybridVideoPlayer extends ConsumerWidget {
                 left: 0,
                 right: 0,
                 child: QuizOverlay(
-                  quiz: segment.quiz,
-                  onAnswered: onVideoCompleted,
+                  quiz: widget.segment.quiz,
+                  onAnswered: widget.onVideoCompleted,
                 ),
               ),
           ],
@@ -53,18 +58,24 @@ class HybridVideoPlayer extends ConsumerWidget {
     );
   }
 
-  Widget _buildPlayer(WidgetRef ref) {
+  Widget _buildPlayer() {
     void onEnded() {
       ref.read(videoPlaybackProvider.notifier).activateQuiz();
     }
 
-    return switch (segment.sourceType) {
-      VideoSourceType.youtube => YoutubeNativePlayer(
-          segment: segment,
+    return switch (widget.segment.sourceType) {
+      VideoSourceType.youtube => DirectYouTubePlayer(
+          key: ValueKey('${widget.segment.videoId}-${widget.segment.startTime}'),
+          videoId: widget.segment.youtubeId ?? '',
+          startTime: widget.segment.startTime,
+          endTime: widget.segment.endTime,
+          hskLevel: widget.segment.hskLevel,
+          replayCount: 0,
+          controller: _ytCtrl,
           onSegmentEnded: onEnded,
         ),
       VideoSourceType.selfHosted => SelfHostedPlayer(
-          segment: segment,
+          segment: widget.segment,
           onSegmentEnded: onEnded,
         ),
     };

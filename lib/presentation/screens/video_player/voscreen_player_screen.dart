@@ -6,7 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/common/word_detail_sheet.dart';
-import '../../widgets/video/youtube_section_player.dart';
+import '../../widgets/video/direct_youtube_player.dart';
 
 // Voscreen-style playlist player.
 // Reads from videoPlaylistProvider — call videoPlaylistProvider.notifier.loadFeed() before pushing /play.
@@ -171,14 +171,20 @@ class _PlayerColumn extends ConsumerStatefulWidget {
 
 class _PlayerColumnState extends ConsumerState<_PlayerColumn> {
   String? _selectedAnswer;
+  DirectYouTubeController _ytCtrl = DirectYouTubeController();
 
   @override
   void didUpdateWidget(_PlayerColumn old) {
     super.didUpdateWidget(old);
-    // Reset selected answer when clip changes
     if (old.segment.videoId != widget.segment.videoId ||
         old.feed.replayCounter != widget.feed.replayCounter) {
       _selectedAnswer = null;
+      // New video segment: fresh controller so the old iframe is fully released.
+      if (old.segment.videoId != widget.segment.videoId) {
+        _ytCtrl = DirectYouTubeController();
+      }
+      // Same segment replay: replayCount prop change triggers didUpdateWidget
+      // inside DirectYouTubePlayer → seekTo + playVideo, no overlay re-shown.
     }
   }
 
@@ -218,9 +224,14 @@ class _PlayerColumnState extends ConsumerState<_PlayerColumn> {
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
-            child: YoutubeNativePlayer(
-              key: ValueKey('${segment.videoId}-${feed.replayCounter}'),
-              segment: segment,
+            child: DirectYouTubePlayer(
+              key: ValueKey('${segment.videoId}-${segment.startTime}'),
+              videoId: segment.youtubeId ?? '',
+              startTime: segment.startTime,
+              endTime: segment.endTime,
+              hskLevel: segment.hskLevel,
+              replayCount: feed.replayCounter,
+              controller: _ytCtrl,
               onSegmentEnded: () =>
                   ref.read(videoPlaylistProvider.notifier).activateQuiz(),
             ),

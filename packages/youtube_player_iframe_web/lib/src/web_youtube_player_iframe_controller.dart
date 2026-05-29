@@ -33,7 +33,8 @@ class WebYoutubePlayerIframeControllerCreationParams
     ..width = '100%'
     ..height = '100%'
     ..style.border = 'none'
-    ..allow = 'autoplay;fullscreen';
+    ..allow = 'autoplay; fullscreen; encrypted-media'
+    ..setAttribute('allowfullscreen', '');
 }
 
 /// An implementation of [PlatformWebViewController] using Flutter for Web API.
@@ -52,7 +53,7 @@ class WebYoutubePlayerIframeController extends PlatformWebViewController {
     return params as WebYoutubePlayerIframeControllerCreationParams;
   }
 
-  late final JavaScriptChannelParams _javaScriptChannelParams;
+  JavaScriptChannelParams? _javaScriptChannelParams;
 
   @override
   Future<void> loadHtmlString(String html, {String? baseUrl}) {
@@ -114,6 +115,7 @@ class WebYoutubePlayerIframeController extends PlatformWebViewController {
     _javaScriptChannelParams = javaScriptChannelParams;
   }
 
+
   @override
   Future<void> setJavaScriptMode(JavaScriptMode javaScriptMode) async {
     // no-op
@@ -166,6 +168,7 @@ class YoutubePlayerIframeWeb extends PlatformWebViewWidget {
           .id,
       onPlatformViewCreated: (_) {
         final channelParams = _controller._javaScriptChannelParams;
+        if (channelParams == null) return;
         window.onMessage.listen(
           (event) {
             if (channelParams.name == 'YoutubePlayer') {

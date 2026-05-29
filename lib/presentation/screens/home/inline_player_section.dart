@@ -1,13 +1,12 @@
-import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../core/utils/responsive_layout.dart';
 import '../../widgets/common/word_detail_sheet.dart';
+import '../../widgets/video/direct_youtube_player.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -24,12 +23,11 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   late int _index;
   bool _isPlaying = true;
   bool _clipEnded = false;
-  // null = choice not made, true = with subtitle, false = without subtitle
   bool? _subtitleChoice;
   bool _quizAnswered = false;
   double _speed = 1.0;
   int _replayCount = 0;
-  YoutubePlayerController? _ctrl;
+  final DirectYouTubeController _playerCtrl = DirectYouTubeController();
   String? _activeWordId;
 
   @override
@@ -54,14 +52,11 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     _clipEnded = false;
     _subtitleChoice = null;
     _quizAnswered = false;
-    _ctrl = null;
     _activeWordId = null;
     _replayCount = 0;
   }
 
   VideoSegmentModel get _seg => widget.segments[_index];
-
-  void _onControllerReady(YoutubePlayerController ctrl) => _ctrl = ctrl;
 
   void _onSegmentEnded() {
     setState(() {
@@ -87,29 +82,33 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   }
 
   void _replay() {
-    _ctrl?.seekTo(seconds: _seg.startTime, allowSeekAhead: true);
-    _ctrl?.playVideo();
     setState(() {
       _isPlaying = true;
       _clipEnded = false;
       _subtitleChoice = null;
       _quizAnswered = false;
-      _replayCount++;   // signals _InlineYoutubePlayerState to reset _ended
+      _replayCount++;
     });
   }
 
   void _togglePlayPause() {
     if (_isPlaying) {
-      _ctrl?.pauseVideo();
+      _playerCtrl.pauseVideo();
     } else {
-      _ctrl?.playVideo();
+      _playerCtrl.playVideo();
     }
     setState(() => _isPlaying = !_isPlaying);
   }
 
   void _setSpeed(double speed) {
-    _ctrl?.setPlaybackRate(speed);
+    _playerCtrl.setPlaybackRate(speed);
     setState(() => _speed = speed);
+  }
+
+  String _fmtTime(double s) {
+    final m = s ~/ 60;
+    final sec = (s % 60).toInt();
+    return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
   }
 
   void _onQuizAnswered() {
@@ -136,13 +135,37 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── YouTube player ────────────────────────────────────────────────
-          _InlineYoutubePlayer(
-            key: ValueKey(seg.videoId),
-            segment: seg,
-            speed: _speed,
-            replayCount: _replayCount,
-            onSegmentEnded: _onSegmentEnded,
-            onControllerReady: _onControllerReady,
+          Stack(
+            children: [
+              DirectYouTubePlayer(
+                key: ValueKey('${seg.videoId}-${seg.startTime}'),
+                videoId: seg.youtubeId ?? '',
+                startTime: seg.startTime,
+                endTime: seg.endTime,
+                hskLevel: seg.hskLevel,
+                replayCount: _replayCount,
+                controller: _playerCtrl,
+                onSegmentEnded: _onSegmentEnded,
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: _HskBadge(level: seg.hskLevel),
+              ),
+              Positioned(
+                bottom: 8,
+                left: 8,
+                child: Text(
+                  '${seg.hskLevel >= 1 ? seg.quizCategory.emoji : ''} '
+                  '${_fmtTime(seg.startTime)}–${_fmtTime(seg.endTime)}',
+                  style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    shadows: [Shadow(blurRadius: 4)],
+                  ),
+                ),
+              ),
+            ],
           ),
 
           // ── Controls bar ──────────────────────────────────────────────────
@@ -228,219 +251,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
           ),
         ),
       ],
-    );
-  }
-}
-
-// ── Inline YouTube player ─────────────────────────────────────────────────────
-
-class _InlineYoutubePlayer extends StatefulWidget {
-  final VideoSegmentModel segment;
-  final double speed;
-  final int replayCount;
-  final VoidCallback onSegmentEnded;
-  final void Function(YoutubePlayerController) onControllerReady;
-
-  const _InlineYoutubePlayer({
-    super.key,
-    required this.segment,
-    required this.speed,
-    required this.replayCount,
-    required this.onSegmentEnded,
-    required this.onControllerReady,
-  });
-
-  @override
-  State<_InlineYoutubePlayer> createState() => _InlineYoutubePlayerState();
-}
-
-class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
-  late YoutubePlayerController _ctrl;
-  Timer? _timer;
-  Timer? _overlayTimer;
-  Timer? _fallbackPlayTimer;
-  StreamSubscription<YoutubePlayerValue>? _stateSub;
-  bool _ended = false;
-  bool _hasPlayed = false;
-  bool _showOverlay = false;
-  bool _playAttempted = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = YoutubePlayerController.fromVideoId(
-      videoId: widget.segment.youtubeId ?? '',
-      startSeconds: widget.segment.startTime,
-      // autoPlay: false → cueVideoById (load without playing).
-      // We trigger play from the stream listener once the player is cued.
-      // Starting muted guarantees Chrome allows the play() call — we unMute
-      // immediately after the first positive currentTime reading in _tick.
-      autoPlay: false,
-      params: const YoutubePlayerParams(
-        showControls: false,
-        showFullscreenButton: false,
-        mute: true,
-        loop: false,
-        playsInline: true,
-      ),
-    );
-    widget.onControllerReady(_ctrl);
-    _stateSub = _ctrl.stream.listen(_onStateChanged);
-    _timer = Timer.periodic(const Duration(milliseconds: 500), _tick);
-    // Belt-and-suspenders: if the cued event is missed or playVideo() was
-    // silently blocked, try once more at 1.2 s. Explicit mute() before play
-    // ensures video.muted = true at the JS API level — Chrome requires this
-    // even when mute: true is in playerVars (an undocumented param it ignores).
-    _fallbackPlayTimer = Timer(const Duration(milliseconds: 1200), () {
-      if (!mounted || _hasPlayed || _ended) return;
-      _ctrl.mute();
-      _ctrl.playVideo();
-    });
-    _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
-      if (!mounted || _hasPlayed || _ended) return;
-      setState(() => _showOverlay = true);
-    });
-  }
-
-  // Called once the YouTube IFrame API signals the video is cued and ready.
-  // We intentionally ignore PlayerState.unStarted (-1) because that fires
-  // during player initialization before any video is loaded — calling
-  // playVideo() there is a no-op that consumes _playAttempted and prevents
-  // us from reacting to the real cued (5) event.
-  void _onStateChanged(YoutubePlayerValue value) {
-    if (_playAttempted) return;
-    if (value.playerState == PlayerState.cued) {
-      _playAttempted = true;
-      // Explicitly call mute() via the YouTube JS API before playVideo().
-      // mute: true in playerVars may be ignored by the IFrame API; calling
-      // player.mute() sets video.muted = true on the actual <video> element,
-      // which is what Chrome checks before allowing autoplay without a gesture.
-      _ctrl.mute();
-      _ctrl.playVideo();
-    }
-  }
-
-  Future<void> _tick(Timer _) async {
-    if (_ended) return;
-    final t = await _ctrl.currentTime;
-    if (t > 0) {
-      if (!_hasPlayed) {
-        _hasPlayed = true;
-        _ctrl.unMute();
-        if (_showOverlay && mounted) setState(() => _showOverlay = false);
-      }
-    }
-    if (!_hasPlayed) return;
-
-    if (t >= widget.segment.endTime) {
-      _ended = true;
-      await _ctrl.pauseVideo();
-      widget.onSegmentEnded();
-    } else if (t < widget.segment.startTime - 1) {
-      await _ctrl.seekTo(
-          seconds: widget.segment.startTime, allowSeekAhead: true);
-    }
-  }
-
-  @override
-  void didUpdateWidget(_InlineYoutubePlayer old) {
-    super.didUpdateWidget(old);
-    if (widget.speed != old.speed) {
-      _ctrl.setPlaybackRate(widget.speed);
-    }
-    if (widget.replayCount != old.replayCount) {
-      _ended = false;
-      _hasPlayed = false;
-      _playAttempted = false;
-      _overlayTimer?.cancel();
-      _showOverlay = false;
-      _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
-        if (!mounted || _hasPlayed || _ended) return;
-        setState(() => _showOverlay = true);
-      });
-    }
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    _overlayTimer?.cancel();
-    _fallbackPlayTimer?.cancel();
-    _stateSub?.cancel();
-    _ctrl.close();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: YoutubePlayer(controller: _ctrl),
-        ),
-        Positioned(
-          top: 8,
-          right: 8,
-          child: _HskBadge(level: widget.segment.hskLevel),
-        ),
-        Positioned(
-          bottom: 8,
-          left: 8,
-          child: Text(
-            '${widget.segment.hskLevel >= 1 ? widget.segment.quizCategory.emoji : ''} '
-            '${_fmtTime(widget.segment.startTime)}–${_fmtTime(widget.segment.endTime)}',
-            style: const TextStyle(
-              color: Colors.white70,
-              fontSize: 11,
-              shadows: [Shadow(blurRadius: 4)],
-            ),
-          ),
-        ),
-        // Fallback overlay — only appears if autoplay didn't fire within 2.5 s
-        if (_showOverlay)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                setState(() => _showOverlay = false);
-                _ctrl.playVideo();
-              },
-              child: Container(
-                color: Colors.black38,
-                child: const Center(
-                  child: _PlayOverlayIcon(),
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  String _fmtTime(double s) {
-    final m = s ~/ 60;
-    final sec = (s % 60).toInt();
-    return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
-  }
-}
-
-class _PlayOverlayIcon extends StatelessWidget {
-  const _PlayOverlayIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.55),
-        shape: BoxShape.circle,
-      ),
-      padding: const EdgeInsets.all(20),
-      child: const Icon(
-        Icons.play_arrow_rounded,
-        color: Colors.white,
-        size: 52,
-      ),
     );
   }
 }

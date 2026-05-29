@@ -1237,10 +1237,9 @@ packages:
   youtube_player_iframe:
     dependency: "direct main"
     description:
-      name: youtube_player_iframe
-      sha256: d7aec9083430db4e5da83a3b5d7b7fcbb93cfa027d9f680ce3c7e7cd20724305
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/youtube_player_iframe"
+      relative: true
+    source: path
     version: "4.0.4"
   youtube_player_iframe_web:
     dependency: "direct overridden"

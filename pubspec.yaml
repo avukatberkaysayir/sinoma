@@ -55,6 +55,8 @@ dev_dependencies:
 dependency_overrides:
   youtube_player_iframe_web:
     path: packages/youtube_player_iframe_web
+  youtube_player_iframe:
+    path: packages/youtube_player_iframe
 
 flutter:
   uses-material-design: true
