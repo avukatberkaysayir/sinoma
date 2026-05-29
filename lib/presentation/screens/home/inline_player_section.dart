@@ -274,7 +274,9 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
       params: const YoutubePlayerParams(
         showControls: false,
         showFullscreenButton: false,
-        mute: false,
+        // Start muted — Chrome always allows muted autoplay; we unmute the
+        // instant we detect t > 0 in _tick so the silence is imperceptible.
+        mute: true,
         loop: false,
         playsInline: true,
       ),
@@ -297,6 +299,7 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     if (t > 0) {
       if (!_hasPlayed) {
         _hasPlayed = true;
+        _ctrl.unMute(); // video started — unmute immediately
         // Autoplay succeeded — dismiss fallback overlay if it appeared
         if (_showOverlay && mounted) setState(() => _showOverlay = false);
       }
