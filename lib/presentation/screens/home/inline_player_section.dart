@@ -258,11 +258,11 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
   late YoutubePlayerController _ctrl;
   Timer? _timer;
   Timer? _overlayTimer;
+  Timer? _fallbackPlayTimer;
   StreamSubscription<YoutubePlayerValue>? _stateSub;
   bool _ended = false;
   bool _hasPlayed = false;
   bool _showOverlay = false;
-  // Guards against calling playVideo() more than once from the stream listener.
   bool _playAttempted = false;
 
   @override
@@ -287,6 +287,15 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     widget.onControllerReady(_ctrl);
     _stateSub = _ctrl.stream.listen(_onStateChanged);
     _timer = Timer.periodic(const Duration(milliseconds: 500), _tick);
+    // Belt-and-suspenders: if the cued event is missed or playVideo() was
+    // silently blocked, try once more at 1.2 s. Explicit mute() before play
+    // ensures video.muted = true at the JS API level — Chrome requires this
+    // even when mute: true is in playerVars (an undocumented param it ignores).
+    _fallbackPlayTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted || _hasPlayed || _ended) return;
+      _ctrl.mute();
+      _ctrl.playVideo();
+    });
     _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
       if (!mounted || _hasPlayed || _ended) return;
       setState(() => _showOverlay = true);
@@ -302,6 +311,11 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     if (_playAttempted) return;
     if (value.playerState == PlayerState.cued) {
       _playAttempted = true;
+      // Explicitly call mute() via the YouTube JS API before playVideo().
+      // mute: true in playerVars may be ignored by the IFrame API; calling
+      // player.mute() sets video.muted = true on the actual <video> element,
+      // which is what Chrome checks before allowing autoplay without a gesture.
+      _ctrl.mute();
       _ctrl.playVideo();
     }
   }
@@ -351,6 +365,7 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
   void dispose() {
     _timer?.cancel();
     _overlayTimer?.cancel();
+    _fallbackPlayTimer?.cancel();
     _stateSub?.cancel();
     _ctrl.close();
     super.dispose();
