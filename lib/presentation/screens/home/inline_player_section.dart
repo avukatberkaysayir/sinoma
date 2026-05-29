@@ -258,11 +258,12 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
   late YoutubePlayerController _ctrl;
   Timer? _timer;
   Timer? _overlayTimer;
+  StreamSubscription<YoutubePlayerValue>? _stateSub;
   bool _ended = false;
-  // True once currentTime > 0 — guards against seekTo during autoplay init
   bool _hasPlayed = false;
-  // Only shown as a fallback if autoplay hasn't fired after 2.5 s
   bool _showOverlay = false;
+  // Guards against calling playVideo() more than once from the stream listener.
+  bool _playAttempted = false;
 
   @override
   void initState() {
@@ -270,37 +271,47 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     _ctrl = YoutubePlayerController.fromVideoId(
       videoId: widget.segment.youtubeId ?? '',
       startSeconds: widget.segment.startTime,
-      autoPlay: true,
+      // autoPlay: false → cueVideoById (load without playing).
+      // We trigger play from the stream listener once the player is cued.
+      // Starting muted guarantees Chrome allows the play() call — we unMute
+      // immediately after the first positive currentTime reading in _tick.
+      autoPlay: false,
       params: const YoutubePlayerParams(
         showControls: false,
         showFullscreenButton: false,
-        // Start muted — Chrome always allows muted autoplay; we unmute the
-        // instant we detect t > 0 in _tick so the silence is imperceptible.
         mute: true,
         loop: false,
         playsInline: true,
       ),
     );
     widget.onControllerReady(_ctrl);
+    _stateSub = _ctrl.stream.listen(_onStateChanged);
     _timer = Timer.periodic(const Duration(milliseconds: 500), _tick);
-    // Show play overlay only if autoplay hasn't kicked in after 2.5 s
     _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
       if (!mounted || _hasPlayed || _ended) return;
       setState(() => _showOverlay = true);
     });
   }
 
+  // Called once the YouTube IFrame API reports the player is ready and the
+  // video has been cued. We call playVideo() exactly once — the player is
+  // muted so Chrome allows it without a user gesture.
+  void _onStateChanged(YoutubePlayerValue value) {
+    if (_playAttempted) return;
+    if (value.playerState == PlayerState.cued ||
+        value.playerState == PlayerState.unStarted) {
+      _playAttempted = true;
+      _ctrl.playVideo();
+    }
+  }
+
   Future<void> _tick(Timer _) async {
     if (_ended) return;
     final t = await _ctrl.currentTime;
-    // Don't act until the video has actually started (t > 0). Calling seekTo
-    // while t == 0 interrupts autoplay initialization and prevents the video
-    // from starting automatically.
     if (t > 0) {
       if (!_hasPlayed) {
         _hasPlayed = true;
-        _ctrl.unMute(); // video started — unmute immediately
-        // Autoplay succeeded — dismiss fallback overlay if it appeared
+        _ctrl.unMute();
         if (_showOverlay && mounted) setState(() => _showOverlay = false);
       }
     }
@@ -325,6 +336,7 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
     if (widget.replayCount != old.replayCount) {
       _ended = false;
       _hasPlayed = false;
+      _playAttempted = false;
       _overlayTimer?.cancel();
       _showOverlay = false;
       _overlayTimer = Timer(const Duration(milliseconds: 2500), () {
@@ -338,6 +350,7 @@ class _InlineYoutubePlayerState extends State<_InlineYoutubePlayer> {
   void dispose() {
     _timer?.cancel();
     _overlayTimer?.cancel();
+    _stateSub?.cancel();
     _ctrl.close();
     super.dispose();
   }
