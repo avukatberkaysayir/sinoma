@@ -82,12 +82,13 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
   void _createAndAppendIframe() {
     final origin = Uri.encodeComponent(html.window.location.origin);
 
-    // autoplay=1 without mute=1: Chrome grants audio because this DOM
-    // operation executes within the browser's user-activation window
-    // opened by the tap gesture.
+    // mute=1 guarantees Chrome's muted-autoplay exception fires regardless of
+    // MEI. unMute() is sent in onReady while the tap's user-activation window
+    // is still open, restoring audio. Video always starts; audio follows.
     _iframe = html.IFrameElement()
       ..src = 'https://www.youtube.com/embed/${widget.videoId}'
           '?autoplay=1'
+          '&mute=1'
           '&controls=0'
           '&rel=0'
           '&playsinline=1'
@@ -140,9 +141,11 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     final event = data['event'] as String?;
 
     if (event == 'onReady') {
-      // Subscribe to periodic infoDelivery for time-boundary tracking.
       _iframe?.contentWindow
           ?.postMessage(jsonEncode({'event': 'listening', 'id': 1}), '*');
+      // Unmute while still within the tap's user-activation window.
+      _cmd('unMute', []);
+      _cmd('setVolume', [100]);
     } else if (event == 'infoDelivery') {
       final info = data['info'];
       if (info is Map) {
