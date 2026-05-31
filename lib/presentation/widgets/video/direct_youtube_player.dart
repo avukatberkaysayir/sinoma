@@ -83,8 +83,10 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     final origin = Uri.encodeComponent(html.window.location.origin);
 
     // mute=1 guarantees Chrome's muted-autoplay exception fires regardless of
-    // MEI. unMute() is sent in onReady while the tap's user-activation window
-    // is still open, restoring audio. Video always starts; audio follows.
+    // MEI. unMute() is sent in onReady (sticky user activation from the tap
+    // persists), restoring audio. CRITICAL: the iframe must be VISIBLE and
+    // properly sized the instant YouTube's player initialises — a hidden or
+    // 1px player makes YouTube abort autoplay and show its own play button.
     _iframe = html.IFrameElement()
       ..src = 'https://www.youtube.com/embed/${widget.videoId}'
           '?autoplay=1'
@@ -99,12 +101,11 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
       ..setAttribute('allowfullscreen', '')
       ..style.position = 'fixed'
       ..style.border = 'none'
-      ..style.zIndex = '5'
-      ..style.left = '0'
-      ..style.top = '0'
-      ..style.width = '100vw'
-      ..style.height = '56.25vw'
-      ..style.visibility = 'hidden';
+      ..style.zIndex = '5';
+
+    // Position over the (already laid-out) container BEFORE appending, so the
+    // player is visible and sized from the very first frame.
+    _applyGeometry();
 
     html.document.body!.append(_iframe!);
 
@@ -121,20 +122,31 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     html.window.addEventListener('message', _msgListener!);
   }
 
-  void _updatePosition() {
-    if (!mounted) return;
+  void _applyGeometry() {
     final box = _containerKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null || !box.hasSize) return;
-    final pos = box.localToGlobal(Offset.zero);
-    final size = box.size;
     final style = _iframe?.style;
     if (style == null) return;
+    if (box == null || !box.hasSize) {
+      // Fallback: full-width 16:9 so autoplay still has a visible player.
+      style
+        ..left = '0'
+        ..top = '0'
+        ..width = '100vw'
+        ..height = '56.25vw';
+      return;
+    }
+    final pos = box.localToGlobal(Offset.zero);
+    final size = box.size;
     style
       ..left = '${pos.dx}px'
       ..top = '${pos.dy}px'
       ..width = '${size.width}px'
-      ..height = '${size.height}px'
-      ..visibility = 'visible';
+      ..height = '${size.height}px';
+  }
+
+  void _updatePosition() {
+    if (!mounted) return;
+    _applyGeometry();
   }
 
   // ── YouTube postMessage protocol ───────────────────────────────────────────
