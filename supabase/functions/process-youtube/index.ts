@@ -243,11 +243,23 @@ interface Segment {
   text: string;
 }
 
-function buildSegments(events: CaptionEvent[], targetDuration = 7): Segment[] {
+// Finer, sentence-aware segmentation: close a segment at sentence-ending
+// punctuation or once it reaches maxDuration, and keep short utterances
+// (min 1s) so lines like "这个能吃" aren't merged away or dropped.
+function buildSegments(events: CaptionEvent[], maxDuration = 6): Segment[] {
   const segments: Segment[] = [];
   let segStart: number | null = null;
   let segEnd = 0;
   let segText = "";
+  const endsSentence = (t: string) => /[。！？!?…]\s*$/.test(t.trim());
+
+  const flush = () => {
+    if (segStart !== null && segText.trim() && segEnd - segStart >= 1) {
+      segments.push({ start: segStart, end: segEnd, text: segText.trim() });
+    }
+    segStart = null;
+    segText = "";
+  };
 
   for (const ev of events) {
     const start = ev.tStartMs / 1000;
@@ -259,22 +271,17 @@ function buildSegments(events: CaptionEvent[], targetDuration = 7): Segment[] {
       segStart = start;
       segEnd = end;
       segText = text;
-    } else if (end - segStart <= targetDuration + 3) {
+    } else {
       segEnd = end;
       segText += text;
-    } else {
-      if (segText.trim() && segEnd - segStart! >= 2) {
-        segments.push({ start: segStart!, end: segEnd, text: segText.trim() });
-      }
-      segStart = start;
-      segEnd = end;
-      segText = text;
+    }
+
+    // Split on a sentence boundary, or when the window gets long enough.
+    if (endsSentence(text) || segEnd - (segStart ?? segEnd) >= maxDuration) {
+      flush();
     }
   }
-
-  if (segStart !== null && segText.trim() && segEnd - segStart >= 2) {
-    segments.push({ start: segStart, end: segEnd, text: segText.trim() });
-  }
+  flush();
 
   return segments;
 }

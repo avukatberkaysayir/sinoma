@@ -35,8 +35,8 @@ except ImportError:
     _WHISPER_AVAILABLE = False
 
 WHISPER_MODEL_SIZE = "small"
-MIN_SEGMENT_SECONDS = 5.0
-MAX_SEGMENT_SECONDS = 10.0
+MIN_SEGMENT_SECONDS = 1.0
+MAX_SEGMENT_SECONDS = 6.0
 MAX_TARGET_WORDS = 3
 
 
@@ -465,36 +465,40 @@ def build_segments(
     min_sec: float = MIN_SEGMENT_SECONDS,
     max_sec: float = MAX_SEGMENT_SECONDS,
 ) -> list[dict[str, Any]]:
-    """Merge caption entries into segments of min_sec–max_sec duration."""
+    """Sentence-aware segmentation: close a segment at sentence-ending
+    punctuation or once it reaches max_sec, keeping short lines (>= min_sec)."""
+    import re
+
     segments: list[dict[str, Any]] = []
     current_text = ""
     current_start: float | None = None
+    last_end = 0.0
+
+    def ends_sentence(t: str) -> bool:
+        return bool(re.search(r"[。！？!?…]\s*$", t.strip()))
+
+    def flush() -> None:
+        nonlocal current_text, current_start
+        if (current_start is not None and current_text.strip()
+                and (last_end - current_start) >= min_sec):
+            segments.append({
+                "start": round(current_start, 3),
+                "end": round(last_end, 3),
+                "text": current_text.strip(),
+            })
+        current_text = ""
+        current_start = None
 
     for entry in entries:
         if current_start is None:
             current_start = entry["start"]
         current_text += entry["text"]
-        duration = entry["end"] - current_start
+        last_end = entry["end"]
+        if ends_sentence(entry["text"]) or (last_end - current_start) >= max_sec:
+            flush()
+    flush()
 
-        if duration >= min_sec:
-            segments.append({
-                "start": round(current_start, 3),
-                "end": round(entry["end"], 3),
-                "text": current_text,
-            })
-            current_text = ""
-            current_start = None
-
-    if current_text and current_start is not None and entries:
-        duration = entries[-1]["end"] - current_start
-        if duration >= min_sec:
-            segments.append({
-                "start": round(current_start, 3),
-                "end": round(entries[-1]["end"], 3),
-                "text": current_text,
-            })
-
-    return [s for s in segments if len(s["text"]) >= 3]
+    return [s for s in segments if len(s["text"]) >= 2]
 
 
 # ---------------------------------------------------------------------------
