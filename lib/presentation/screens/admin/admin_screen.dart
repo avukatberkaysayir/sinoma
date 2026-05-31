@@ -1844,6 +1844,8 @@ class _VideoCardState extends State<_VideoCard> {
   bool _generating = false;
 
   YoutubePlayerController? _ytController;
+  Timer? _segmentTimer; // restricts playback to start..end
+  bool _segEnded = false;
 
   @override
   void initState() {
@@ -1881,6 +1883,7 @@ class _VideoCardState extends State<_VideoCard> {
     final ytId = v['youtube_id'] as String?;
     if (ytId == null || ytId.isEmpty) return;
     final start = (v['start_time'] as num?)?.toDouble() ?? 0.0;
+    _segEnded = false;
     setState(() {
       _ytController?.close();
       _ytController = YoutubePlayerController.fromVideoId(
@@ -1897,15 +1900,48 @@ class _VideoCardState extends State<_VideoCard> {
       );
       if (!_expanded) _expanded = true;
     });
+    _startSegmentMonitor();
+  }
+
+  // Keep the preview inside [start, end] — same as the home player.
+  void _startSegmentMonitor() {
+    _segmentTimer?.cancel();
+    final v = widget.data;
+    final start = (v['start_time'] as num?)?.toDouble() ?? 0.0;
+    final end = (v['end_time'] as num?)?.toDouble() ?? 0.0;
+    if (end <= start) return;
+    _segmentTimer =
+        Timer.periodic(const Duration(milliseconds: 400), (_) async {
+      final c = _ytController;
+      if (c == null) return;
+      final t = await c.currentTime;
+      if (!_segEnded && t >= end) {
+        _segEnded = true;
+        await c.pauseVideo();
+      } else if (t < start - 1) {
+        await c.seekTo(seconds: start, allowSeekAhead: true);
+      }
+    });
+  }
+
+  Future<void> _replaySegment() async {
+    final c = _ytController;
+    if (c == null) return;
+    final start = (widget.data['start_time'] as num?)?.toDouble() ?? 0.0;
+    _segEnded = false;
+    await c.seekTo(seconds: start, allowSeekAhead: true);
+    await c.playVideo();
   }
 
   void _closeInlinePlayer() {
+    _segmentTimer?.cancel();
     _ytController?.close();
     setState(() => _ytController = null);
   }
 
   @override
   void dispose() {
+    _segmentTimer?.cancel();
     _ytController?.close();
     _pinyinCtrl.dispose();
     _questionCtrl.dispose();
@@ -2113,6 +2149,19 @@ class _VideoCardState extends State<_VideoCard> {
                       const SizedBox(height: 6),
                       Row(
                         children: [
+                          OutlinedButton.icon(
+                            onPressed: _replaySegment,
+                            icon: const Icon(Icons.replay, size: 14),
+                            label: const Text('Tekrar'),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 6),
+                              textStyle: const TextStyle(fontSize: 11),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           OutlinedButton.icon(
                             onPressed: _closeInlinePlayer,
                             icon: const Icon(Icons.close, size: 14),
