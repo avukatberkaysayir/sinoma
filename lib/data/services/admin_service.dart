@@ -308,6 +308,22 @@ class AdminService {
     return idsToDelete.length;
   }
 
+  // Which of these words exist in the dictionary (for green/red colouring).
+  Future<Set<String>> wordsInDictionary(List<String> words) async {
+    if (words.isEmpty) return {};
+    try {
+      final data = await _db
+          .from('dictionary')
+          .select('simplified')
+          .inFilter('simplified', words);
+      return List<Map<String, dynamic>>.from(data)
+          .map((e) => e['simplified'] as String)
+          .toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
   Future<List<Map<String, dynamic>>> searchDictionary(String query) async {
     final q = query.trim();
     if (q.isEmpty) return [];

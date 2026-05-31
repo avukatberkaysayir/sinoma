@@ -1854,6 +1854,18 @@ class _VideoCardState extends State<_VideoCard> {
         QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
+    // Start in the ASR sentence's order (words not in it go to the end).
+    final tr = v['transcription'] as String? ?? '';
+    if (tr.isNotEmpty) {
+      _targetWords.sort((a, b) {
+        final ia = tr.indexOf(a);
+        final ib = tr.indexOf(b);
+        if (ia == ib) return 0;
+        if (ia == -1) return 1;
+        if (ib == -1) return -1;
+        return ia.compareTo(ib);
+      });
+    }
     _pinyinCtrl = TextEditingController(text: v['pinyin'] as String? ?? '');
     final quiz = v['quiz'] as Map<String, dynamic>? ?? {};
     _questionCtrl =
@@ -2315,6 +2327,26 @@ class _WordTagEditorState extends State<_WordTagEditor> {
   Timer? _debounce;
   List<Map<String, dynamic>> _suggestions = [];
   bool _searching = false;
+  Set<String> _inDict = {}; // words that exist in the dictionary → green
+
+  @override
+  void initState() {
+    super.initState();
+    _refreshDict();
+  }
+
+  @override
+  void didUpdateWidget(_WordTagEditor old) {
+    super.didUpdateWidget(old);
+    final a = old.words.toSet();
+    final b = widget.words.toSet();
+    if (a.length != b.length || !a.containsAll(b)) _refreshDict();
+  }
+
+  Future<void> _refreshDict() async {
+    final res = await widget.service.wordsInDictionary(widget.words);
+    if (mounted) setState(() => _inDict = res);
+  }
 
   @override
   void dispose() {
@@ -2404,42 +2436,51 @@ class _WordTagEditorState extends State<_WordTagEditor> {
               onReorder: _onReorder,
               children: [
                 for (int i = 0; i < widget.words.length; i++)
-                  ReorderableDragStartListener(
+                  Builder(
                     key: ValueKey(widget.words[i]),
-                    index: i,
-                    child: Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: MouseRegion(
-                        cursor: SystemMouseCursors.grab,
-                        child: Container(
-                          padding: const EdgeInsets.only(left: 12, right: 6),
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.4)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(widget.words[i],
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600)),
-                              const SizedBox(width: 4),
-                              GestureDetector(
-                                onTap: () => _removeWord(widget.words[i]),
-                                child: const Icon(Icons.close,
-                                    size: 16, color: AppColors.primary),
+                    builder: (_) {
+                      final word = widget.words[i];
+                      // Green = in our dictionary, red = not in the lists.
+                      final c = _inDict.contains(word)
+                          ? AppColors.correctAnswer
+                          : AppColors.wrongAnswer;
+                      return ReorderableDragStartListener(
+                        index: i,
+                        child: Padding(
+                          padding: const EdgeInsets.only(right: 6),
+                          child: MouseRegion(
+                            cursor: SystemMouseCursors.grab,
+                            child: Container(
+                              padding:
+                                  const EdgeInsets.only(left: 12, right: 6),
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: c.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                                border:
+                                    Border.all(color: c.withValues(alpha: 0.5)),
                               ),
-                            ],
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Text(word,
+                                      style: TextStyle(
+                                          color: c,
+                                          fontSize: 15,
+                                          fontWeight: FontWeight.w600)),
+                                  const SizedBox(width: 4),
+                                  GestureDetector(
+                                    onTap: () => _removeWord(word),
+                                    child: Icon(Icons.close,
+                                        size: 16, color: c),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                      ),
-                    ),
+                      );
+                    },
                   ),
               ],
             ),
@@ -2472,9 +2513,12 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                 borderRadius: BorderRadius.circular(8),
                 borderSide: const BorderSide(color: AppColors.primary)),
           ),
-          onChanged: _onSearch,
+          onChanged: (q) {
+            setState(() {}); // refresh the "add anyway" row live
+            _onSearch(q);
+          },
         ),
-        if (_suggestions.isNotEmpty)
+        if (_ctrl.text.trim().isNotEmpty)
           Container(
             margin: const EdgeInsets.only(top: 4),
             decoration: BoxDecoration(
@@ -2484,40 +2528,58 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                   color: AppColors.primary.withValues(alpha: 0.3)),
             ),
             child: Column(
-              children: _suggestions.map((s) {
-                final word = s['simplified'] as String;
-                final pinyin = s['pinyin'] as String? ?? '';
-                final hsk = s['hsk_level'] as int? ?? 0;
-                final already = widget.words.contains(word);
-                return ListTile(
-                  dense: true,
-                  leading: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 5, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.forHskLevel(hsk),
-                      borderRadius: BorderRadius.circular(4),
+              children: [
+                ..._suggestions.map((s) {
+                  final word = s['simplified'] as String;
+                  final pinyin = s['pinyin'] as String? ?? '';
+                  final hsk = s['hsk_level'] as int? ?? 0;
+                  final already = widget.words.contains(word);
+                  return ListTile(
+                    dense: true,
+                    leading: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 5, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: AppColors.forHskLevel(hsk),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text('HSK$hsk',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold)),
                     ),
-                    child: Text('HSK$hsk',
+                    title: Text(word,
                         style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold)),
+                            color: AppColors.onSurface, fontSize: 13)),
+                    subtitle: Text(pinyin,
+                        style: const TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 11)),
+                    trailing: already
+                        ? const Icon(Icons.check,
+                            color: AppColors.correctAnswer, size: 16)
+                        : const Icon(Icons.add,
+                            color: AppColors.primary, size: 16),
+                    onTap: already ? null : () => _addWord(word),
+                  );
+                }),
+                // Add the typed text even when it isn't in the dictionary.
+                if (!_suggestions
+                        .any((s) => s['simplified'] == _ctrl.text.trim()) &&
+                    !widget.words.contains(_ctrl.text.trim()))
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(Icons.add_circle_outline,
+                        color: AppColors.primary, size: 20),
+                    title: Text('"${_ctrl.text.trim()}" ekle',
+                        style: const TextStyle(
+                            color: AppColors.onSurface, fontSize: 13)),
+                    subtitle: const Text('Sözlükte olmasa da ekle',
+                        style: TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 11)),
+                    onTap: () => _addWord(_ctrl.text.trim()),
                   ),
-                  title: Text(word,
-                      style: const TextStyle(
-                          color: AppColors.onSurface, fontSize: 13)),
-                  subtitle: Text(pinyin,
-                      style: const TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 11)),
-                  trailing: already
-                      ? const Icon(Icons.check,
-                          color: AppColors.correctAnswer, size: 16)
-                      : const Icon(Icons.add,
-                          color: AppColors.primary, size: 16),
-                  onTap: already ? null : () => _addWord(word),
-                );
-              }).toList(),
+              ],
             ),
           ),
       ],
