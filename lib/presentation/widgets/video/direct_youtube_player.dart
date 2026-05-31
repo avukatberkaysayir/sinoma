@@ -48,6 +48,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   // Set true once the user has interacted with the page in this session. After
   // that, Chrome allows autoplay WITH sound, so every later clip starts unmuted.
   static bool _pageInteracted = false;
+  // Persists the user's explicit choice across clips: if they tap to mute, auto-
+  // unmute (and the next clips) stay muted until they tap to turn sound back on.
+  static bool _mutedByUser = false;
 
   // Any of these on the page tries to turn sound on. The "hard" ones also count
   // as a real user activation (so the next clips start unmuted); the soft ones
@@ -112,8 +115,8 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
     // Cold first load (no interaction yet) → muted autoplay, the only kind
     // Chrome permits without a gesture. Any later clip (the user got here by
-    // clicking) → unmuted autoplay, so sound plays immediately with no delay.
-    final muted = !_pageInteracted;
+    // clicking) → unmuted autoplay. A manual mute choice is always respected.
+    final muted = !_pageInteracted || _mutedByUser;
     _soundOn = !muted;
 
     final origin = Uri.encodeComponent(html.window.location.origin);
@@ -133,15 +136,20 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       ..setAttribute('allowfullscreen', '')
       ..style.position = 'fixed'
       ..style.border = 'none'
-      ..style.zIndex = '5';
+      ..style.zIndex = '5'
+      // Let clicks/mouse-moves pass through to the page below so interaction
+      // anywhere (incl. over the video) is detected. Controls are ours, so the
+      // iframe itself never needs pointer input.
+      ..style.pointerEvents = 'none';
 
     _applyGeometry();
     html.document.body!.append(_iframe!);
   }
 
   // Attempt to unmute, throttled — mousemove fires constantly, so cap retries.
+  // Skipped if the user has explicitly muted (their choice wins).
   void _tryUnmute() {
-    if (_soundOn) return;
+    if (_soundOn || _mutedByUser) return;
     final now = DateTime.now();
     if (now.difference(_lastUnmuteTry).inMilliseconds < 400) return;
     _lastUnmuteTry = now;
@@ -153,6 +161,19 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     _pageInteracted = true;
     _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
     _tryUnmute();
+  }
+
+  // The persistent speaker button toggles sound and remembers the choice.
+  void _toggleSound() {
+    if (_soundOn) {
+      _mutedByUser = true;
+      _cmd('mute', []);
+      if (mounted) setState(() => _soundOn = false);
+    } else {
+      _mutedByUser = false;
+      _requestSound();
+      if (mounted) setState(() => _soundOn = true);
+    }
   }
 
   void _applyGeometry() {
@@ -284,37 +305,43 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
             color: Colors.black,
           ),
         ),
-        // Only ever appears on the very first (cold-load) clip, which must
-        // start muted. One tap turns sound on; later clips never show it.
-        if (!_soundOn)
-          Positioned(
-            bottom: 10,
-            right: 10,
-            child: GestureDetector(
-              onTap: _requestSound,
-              child: Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white24),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.volume_off_rounded,
-                        color: Colors.white, size: 16),
-                    SizedBox(width: 6),
-                    Text(
+        // Persistent sound toggle — always visible so the user knows where to
+        // tap. Shows the "Ses için dokun" hint while muted; just the speaker
+        // icon once sound is on (tap to mute again).
+        Positioned(
+          bottom: 10,
+          right: 10,
+          child: GestureDetector(
+            onTap: _toggleSound,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: Colors.black.withValues(alpha: 0.72),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _soundOn
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
+                    color: Colors.white,
+                    size: 16,
+                  ),
+                  if (!_soundOn) ...[
+                    const SizedBox(width: 6),
+                    const Text(
                       'Ses için dokun',
                       style: TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ],
-                ),
+                ],
               ),
             ),
           ),
+        ),
       ],
     );
   }
