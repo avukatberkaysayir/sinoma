@@ -1836,6 +1836,8 @@ class _VideoCardState extends State<_VideoCard> {
   late int _hskLevel;
   late QuizCategory _category;
   late List<String> _targetWords;
+  late final TextEditingController _transcriptionCtrl;
+  late final TextEditingController _pinyinCtrl;
   late final TextEditingController _questionCtrl;
   late final TextEditingController _correctCtrl;
   late final TextEditingController _wrongCtrl;
@@ -1853,6 +1855,9 @@ class _VideoCardState extends State<_VideoCard> {
         QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
+    _transcriptionCtrl =
+        TextEditingController(text: v['transcription'] as String? ?? '');
+    _pinyinCtrl = TextEditingController(text: v['pinyin'] as String? ?? '');
     final quiz = v['quiz'] as Map<String, dynamic>? ?? {};
     _questionCtrl =
         TextEditingController(text: quiz['question'] as String? ?? '');
@@ -1893,6 +1898,8 @@ class _VideoCardState extends State<_VideoCard> {
   @override
   void dispose() {
     _ytController?.close();
+    _transcriptionCtrl.dispose();
+    _pinyinCtrl.dispose();
     _questionCtrl.dispose();
     _correctCtrl.dispose();
     _wrongCtrl.dispose();
@@ -1936,10 +1943,22 @@ class _VideoCardState extends State<_VideoCard> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
+      final transcription = _transcriptionCtrl.text.trim();
+      // Keep target words in sentence order (words not found go to the end).
+      final orderedWords = [..._targetWords]..sort((a, b) {
+          final ia = transcription.indexOf(a);
+          final ib = transcription.indexOf(b);
+          if (ia == ib) return 0;
+          if (ia == -1) return 1;
+          if (ib == -1) return -1;
+          return ia.compareTo(ib);
+        });
       await widget.service.patchVideoFields(widget.data['id'] as String, {
+        'transcription': transcription,
+        'pinyin': _pinyinCtrl.text.trim(),
         'hsk_level': _hskLevel,
         'quiz_category': _category.name,
-        'target_words': _targetWords,
+        'target_words': orderedWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
           'correctAnswer': _correctCtrl.text.trim(),
@@ -2155,6 +2174,20 @@ class _VideoCardState extends State<_VideoCard> {
                     ],
                   ],
                   const SizedBox(height: 14),
+                  const Text('Cümle',
+                      style: TextStyle(
+                          color: AppColors.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
+                  const SizedBox(height: 6),
+                  _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
+                  _editField(_pinyinCtrl, 'Pinyin'),
+                  const Text(
+                    'Kelimeler kaydederken cümledeki sıraya göre dizilir.',
+                    style: TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11),
+                  ),
+                  const SizedBox(height: 14),
                   Text('HSK Seviye: $_hskLevel',
                       style: const TextStyle(
                           color: AppColors.onSurface,
@@ -2258,11 +2291,13 @@ class _VideoCardState extends State<_VideoCard> {
     );
   }
 
-  Widget _editField(TextEditingController ctrl, String label) {
+  Widget _editField(TextEditingController ctrl, String label,
+      {int maxLines = 1}) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: TextField(
         controller: ctrl,
+        maxLines: maxLines,
         style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
         decoration: InputDecoration(
           labelText: label,
