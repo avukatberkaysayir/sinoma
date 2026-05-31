@@ -8,7 +8,7 @@ const corsHeaders = {
 
 // Gemini does the work only here, at authoring time. The generated options are
 // stored on the video and served from the DB afterwards — no Gemini at runtime.
-const MODEL = "gemini-2.0-flash";
+const MODEL = "gemini-2.5-flash-lite";
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
