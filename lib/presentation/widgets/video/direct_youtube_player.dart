@@ -1,4 +1,5 @@
 // ignore_for_file: avoid_web_libraries_in_flutter, deprecated_member_use
+import 'dart:async';
 import 'dart:convert';
 import 'dart:html' as html;
 
@@ -6,16 +7,21 @@ import 'package:flutter/material.dart';
 
 // ── Controller ───────────────────────────────────────────────────────────────
 
-class DirectYouTubeController {
+class DirectYouTubeController extends ChangeNotifier {
   _DirectYouTubePlayerState? _state;
 
   void _attach(_DirectYouTubePlayerState s) => _state = s;
   void _detach() => _state = null;
 
+  bool get soundOn => _state?._soundOn ?? false;
+  void toggleSound() => _state?._toggleSound();
+
   void pauseVideo() => _state?._cmd('pauseVideo', []);
   void playVideo() => _state?._cmd('playVideo', []);
   void seekTo(double seconds) => _state?._cmd('seekTo', [seconds, true]);
   void setPlaybackRate(double rate) => _state?._cmd('setPlaybackRate', [rate]);
+
+  void _notify() => notifyListeners();
 }
 
 // ── Widget ───────────────────────────────────────────────────────────────────
@@ -48,14 +54,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   // Set true once the user has interacted with the page in this session. After
   // that, Chrome allows autoplay WITH sound, so every later clip starts unmuted.
   static bool _pageInteracted = false;
-  // Persists the user's explicit choice across clips: if they tap to mute, auto-
-  // unmute (and the next clips) stay muted until they tap to turn sound back on.
+  // Persists the user's explicit choice across clips.
   static bool _mutedByUser = false;
 
-  // Any of these on the page tries to turn sound on. The "hard" ones also count
-  // as a real user activation (so the next clips start unmuted); the soft ones
-  // (mousemove/wheel) only unmute when an activation already exists — Chrome
-  // never grants a NEW activation from mouse movement or scrolling.
   static const _gestureEvents = [
     'pointerdown', 'mousedown', 'keydown', 'touchstart', 'mousemove', 'wheel',
   ];
@@ -66,9 +67,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   final GlobalKey _containerKey = GlobalKey();
 
   html.IFrameElement? _iframe;
-  html.DivElement? _soundBtn; // DOM, sits ABOVE the iframe so it's always usable
   html.EventListener? _msgListener;
   html.EventListener? _gestureListener;
+
+  Timer? _listenTimer; // re-sends the listening handshake until events arrive
+  int _listenTries = 0;
+  bool _eventsFlowing = false;
 
   bool _soundOn = false;
   bool _hasPlayed = false;
@@ -94,8 +98,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     };
     html.window.addEventListener('message', _msgListener!);
 
-    // Turn sound on at the lightest interaction (incl. mouse movement). Capture
-    // phase so it runs before Flutter consumes the event.
     _gestureListener = (e) {
       if (_hardEvents.contains(e.type)) _pageInteracted = true;
       _tryUnmute();
@@ -115,15 +117,14 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (_iframe != null) return;
 
     // Cold first load (no interaction yet) → muted autoplay, the only kind
-    // Chrome permits without a gesture. Any later clip (the user got here by
-    // clicking) → unmuted autoplay. A manual mute choice is always respected.
+    // Chrome permits without a gesture. Any later clip → unmuted autoplay.
     final muted = !_pageInteracted || _mutedByUser;
     _soundOn = !muted;
 
     final origin = Uri.encodeComponent(html.window.location.origin);
     final muteParam = muted ? '&mute=1' : '';
 
-    _iframe = html.IFrameElement()
+    final frame = html.IFrameElement()
       ..src = 'https://www.youtube.com/embed/${widget.videoId}'
           '?autoplay=1'
           '$muteParam'
@@ -138,52 +139,70 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       ..style.position = 'fixed'
       ..style.border = 'none'
       ..style.zIndex = '5'
-      // Let clicks/mouse-moves pass through to the page below so interaction
-      // anywhere (incl. over the video) is detected. Controls are ours, so the
-      // iframe itself never needs pointer input.
+      // Pass clicks/mouse-moves through to the page so interaction anywhere
+      // (incl. over the video) is detected; our controls live below the video.
       ..style.pointerEvents = 'none';
 
-    html.document.body!.append(_iframe!);
-    _buildSoundButton();
+    // Subscribe to the player's event stream once the frame document loads.
+    frame.onLoad.listen((_) => _startListening());
+
+    _iframe = frame;
+    _applyGeometry();
+    html.document.body!.append(frame);
+    widget.controller._notify();
+  }
+
+  // The YouTube iframe only streams infoDelivery (currentTime / state / muted)
+  // to windows that registered with a 'listening' message that includes
+  // channel:'widget'. Re-send it until the first event confirms it took.
+  void _startListening() {
+    _sendListening();
+    _listenTimer?.cancel();
+    _listenTries = 0;
+    _listenTimer = Timer.periodic(const Duration(milliseconds: 700), (t) {
+      if (_eventsFlowing || _listenTries++ > 10) {
+        t.cancel();
+        return;
+      }
+      _sendListening();
+    });
+  }
+
+  void _sendListening() {
+    _iframe?.contentWindow?.postMessage(
+      jsonEncode({'event': 'listening', 'id': 1, 'channel': 'widget'}),
+      '*',
+    );
+  }
+
+  void _applyGeometry() {
+    final box = _containerKey.currentContext?.findRenderObject() as RenderBox?;
+    final style = _iframe?.style;
+    if (style == null) return;
+    if (box == null || !box.hasSize) {
+      style
+        ..left = '0'
+        ..top = '0'
+        ..width = '100vw'
+        ..height = '56.25vw';
+      return;
+    }
+    final pos = box.localToGlobal(Offset.zero);
+    final size = box.size;
+    style
+      ..left = '${pos.dx}px'
+      ..top = '${pos.dy}px'
+      ..width = '${size.width}px'
+      ..height = '${size.height}px';
+  }
+
+  void _updatePosition() {
+    if (!mounted) return;
     _applyGeometry();
   }
 
-  // Sound toggle as a DOM element at a higher z-index than the iframe, so it is
-  // always visible and clickable over the video (a Flutter widget would render
-  // behind the body-appended iframe and be unusable once the video loads).
-  void _buildSoundButton() {
-    if (_soundBtn != null) return;
-    final btn = html.DivElement()
-      ..style.position = 'fixed'
-      ..style.zIndex = '7'
-      ..style.cursor = 'pointer'
-      ..style.display = 'flex'
-      ..style.alignItems = 'center'
-      ..style.gap = '6px'
-      ..style.padding = '7px 12px'
-      ..style.borderRadius = '20px'
-      ..style.background = 'rgba(0,0,0,0.72)'
-      ..style.border = '1px solid rgba(255,255,255,0.24)'
-      ..style.color = 'white'
-      ..style.fontFamily = 'sans-serif'
-      ..style.fontSize = '12px'
-      ..style.userSelect = 'none'
-      ..style.whiteSpace = 'nowrap';
-    btn.onClick.listen((e) {
-      e.stopPropagation();
-      _toggleSound();
-    });
-    _soundBtn = btn;
-    html.document.body!.append(btn);
-    _refreshSoundButton();
-  }
+  // ── Sound ────────────────────────────────────────────────────────────────
 
-  void _refreshSoundButton() {
-    _soundBtn?.text = _soundOn ? '🔊' : '🔇 Ses için dokun';
-  }
-
-  // Attempt to unmute, throttled — mousemove fires constantly, so cap retries.
-  // Skipped if the user has explicitly muted (their choice wins).
   void _tryUnmute() {
     if (_soundOn || _mutedByUser) return;
     final now = DateTime.now();
@@ -193,13 +212,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     _cmd('setVolume', [100]);
   }
 
-  void _requestSound() {
-    _pageInteracted = true;
-    _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
-    _tryUnmute();
-  }
-
-  // The persistent speaker button toggles sound and remembers the choice.
   void _toggleSound() {
     if (_soundOn) {
       _mutedByUser = true;
@@ -207,56 +219,18 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _applySound(false);
     } else {
       _mutedByUser = false;
-      _requestSound();
+      _pageInteracted = true;
+      _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
+      _cmd('unMute', []);
+      _cmd('setVolume', [100]);
       _applySound(true);
     }
   }
 
   void _applySound(bool on) {
+    if (_soundOn == on) return;
     _soundOn = on;
-    _refreshSoundButton();
-  }
-
-  void _applyGeometry() {
-    final box = _containerKey.currentContext?.findRenderObject() as RenderBox?;
-    final haveBox = box != null && box.hasSize;
-    final iStyle = _iframe?.style;
-
-    if (iStyle != null) {
-      if (haveBox) {
-        final pos = box.localToGlobal(Offset.zero);
-        iStyle
-          ..left = '${pos.dx}px'
-          ..top = '${pos.dy}px'
-          ..width = '${box.size.width}px'
-          ..height = '${box.size.height}px';
-      } else {
-        iStyle
-          ..left = '0'
-          ..top = '0'
-          ..width = '100vw'
-          ..height = '56.25vw';
-      }
-    }
-
-    // Anchor the sound button to the iframe's bottom-right corner using
-    // right/bottom insets, so its own (variable) width doesn't matter.
-    final bStyle = _soundBtn?.style;
-    if (bStyle != null && haveBox) {
-      final pos = box.localToGlobal(Offset.zero);
-      final winW = html.window.innerWidth!.toDouble();
-      final winH = html.window.innerHeight!.toDouble();
-      bStyle
-        ..left = ''
-        ..top = ''
-        ..right = '${winW - (pos.dx + box.size.width) + 10}px'
-        ..bottom = '${winH - (pos.dy + box.size.height) + 10}px';
-    }
-  }
-
-  void _updatePosition() {
-    if (!mounted) return;
-    _applyGeometry();
+    widget.controller._notify();
   }
 
   // ── YouTube postMessage protocol ───────────────────────────────────────────
@@ -265,10 +239,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     final event = data['event'] as String?;
 
     if (event == 'onReady') {
-      _iframe?.contentWindow
-          ?.postMessage(jsonEncode({'event': 'listening', 'id': 1}), '*');
+      _startListening();
       _cmd('playVideo', []);
     } else if (event == 'infoDelivery') {
+      _eventsFlowing = true;
+      _listenTimer?.cancel();
+
       final info = data['info'];
       if (info is Map) {
         final state = (info['playerState'] as num?)?.toInt();
@@ -276,8 +252,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
         final muted = info['muted'];
         final volume = (info['volume'] as num?)?.toInt();
-        final soundNow = (muted == false) && (volume == null || volume > 0);
-        if (soundNow != _soundOn) _applySound(soundNow);
+        if (muted is bool) {
+          _applySound(!muted && (volume == null || volume > 0));
+        }
 
         final t = (info['currentTime'] as num?)?.toDouble();
         if (t != null && _hasPlayed) _handleTime(t);
@@ -333,6 +310,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   @override
   void dispose() {
     widget.controller._detach();
+    _listenTimer?.cancel();
     if (_msgListener != null) {
       html.window.removeEventListener('message', _msgListener!);
     }
@@ -342,7 +320,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       }
     }
     _iframe?.remove();
-    _soundBtn?.remove();
     super.dispose();
   }
 
@@ -352,8 +329,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
 
-    // The video (iframe) and the sound toggle are body-appended DOM elements
-    // layered above this; here we only reserve the 16:9 space for geometry.
+    // The video (iframe) is a body-appended DOM element layered above this;
+    // here we only reserve the 16:9 space for geometry. The sound toggle lives
+    // in the controls bar below the video (see InlinePlayerSection).
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: Container(

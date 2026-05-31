@@ -172,6 +172,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
           _ControlsBar(
             isPlaying: _isPlaying,
             speed: _speed,
+            soundController: _playerCtrl,
             onPrev: _goPrev,
             onReplay: _replay,
             onTogglePlay: _togglePlayPause,
@@ -281,6 +282,7 @@ class _HskBadge extends StatelessWidget {
 class _ControlsBar extends StatelessWidget {
   final bool isPlaying;
   final double speed;
+  final DirectYouTubeController soundController;
   final VoidCallback onPrev;
   final VoidCallback onReplay;
   final VoidCallback onTogglePlay;
@@ -290,6 +292,7 @@ class _ControlsBar extends StatelessWidget {
   const _ControlsBar({
     required this.isPlaying,
     required this.speed,
+    required this.soundController,
     required this.onPrev,
     required this.onReplay,
     required this.onTogglePlay,
@@ -329,6 +332,21 @@ class _ControlsBar extends StatelessWidget {
               onTap: onNext,
               size: 28,
               tooltip: 'Sonraki'),
+
+          // Sound toggle — rebuilds itself when the player's mute state changes.
+          ListenableBuilder(
+            listenable: soundController,
+            builder: (_, __) {
+              final on = soundController.soundOn;
+              return _CtrlBtn(
+                icon: on ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                onTap: soundController.toggleSound,
+                size: 26,
+                tooltip: on ? 'Sesi kapat' : 'Sesi aç',
+                color: on ? null : AppColors.primary,
+              );
+            },
+          ),
 
           const Spacer(),
 
