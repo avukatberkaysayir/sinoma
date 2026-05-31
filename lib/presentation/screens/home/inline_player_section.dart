@@ -152,9 +152,9 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   }
 
   void _pickWithoutSubtitle() {
+    // No auto-advance — the next arrow appears on the player; the user taps it.
     _stopCountdown();
     setState(() => _subtitleChoice = false);
-    Future.delayed(const Duration(milliseconds: 350), _goNext);
   }
 
   @override
@@ -186,6 +186,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 countdown: _countdown,
                 showCountdown: _countdownActive,
                 showReplay: _clipEnded && !_quizAnswered,
+                showNext: _subtitleChoice != null,
                 onReplayTap: _replay,
                 onNextTap: _goNext,
               ),

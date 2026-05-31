@@ -40,6 +40,7 @@ class DirectYouTubePlayer extends StatefulWidget {
   final int countdown; // seconds left to make a choice (e.g. 20..0)
   final bool showCountdown; // visible only during the choice window
   final bool showReplay; // segment ended, awaiting action
+  final bool showNext; // appears after a subtitle choice is made
   final VoidCallback? onReplayTap;
   final VoidCallback? onNextTap;
 
@@ -56,6 +57,7 @@ class DirectYouTubePlayer extends StatefulWidget {
     this.countdown = 0,
     this.showCountdown = false,
     this.showReplay = false,
+    this.showNext = false,
     this.onReplayTap,
     this.onNextTap,
   });
@@ -243,9 +245,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       e.stopPropagation();
       widget.onNextTap?.call();
     });
-    // Always visible — this is the "skip to next clip" control (it replaced the
-    // controls-bar next button).
-    _nextEl!.style.display = 'flex';
     html.document.body!.append(_nextEl!);
 
     _refreshOverlays();
@@ -258,6 +257,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     }
     _countdownEl?.text = '${widget.countdown}';
     _replayEl?.style.display = widget.showReplay ? 'flex' : 'none';
+    _nextEl?.style.display = widget.showNext ? 'flex' : 'none';
   }
 
   void _startListening() {
@@ -439,7 +439,8 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     }
     if (widget.countdown != old.countdown ||
         widget.showCountdown != old.showCountdown ||
-        widget.showReplay != old.showReplay) {
+        widget.showReplay != old.showReplay ||
+        widget.showNext != old.showNext) {
       _refreshOverlays();
     }
   }
