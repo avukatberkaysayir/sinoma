@@ -308,7 +308,53 @@ class AdminService {
     return idsToDelete.length;
   }
 
-  // Which of these words are in an HSK list (hsk_level 1-6) → green chips.
+  // Which of these candidate strings exist in the dictionary (any HSK level).
+  Future<Set<String>> existingDictionaryWords(List<String> words) async {
+    if (words.isEmpty) return {};
+    try {
+      final data = await _db
+          .from('dictionary')
+          .select('simplified')
+          .inFilter('simplified', words);
+      return List<Map<String, dynamic>>.from(data)
+          .map((e) => e['simplified'] as String)
+          .toSet();
+    } catch (_) {
+      return {};
+    }
+  }
+
+  // Split a Chinese sentence into words via greedy longest-match against the
+  // dictionary (max word length 4). Characters with no dictionary match stay as
+  // single-char segments, so the segments always reconstruct the sentence.
+  Future<List<String>> segmentSentence(String sentence) async {
+    final s = sentence.trim();
+    if (s.isEmpty) return [];
+    const maxLen = 4;
+    final cands = <String>{};
+    for (var i = 0; i < s.length; i++) {
+      for (var l = 2; l <= maxLen && i + l <= s.length; l++) {
+        cands.add(s.substring(i, i + l));
+      }
+    }
+    final valid = await existingDictionaryWords(cands.toList());
+    final result = <String>[];
+    var i = 0;
+    while (i < s.length) {
+      var chosen = s[i]; // fallback: single character
+      for (var l = maxLen; l >= 2; l--) {
+        if (i + l <= s.length && valid.contains(s.substring(i, i + l))) {
+          chosen = s.substring(i, i + l);
+          break;
+        }
+      }
+      result.add(chosen);
+      i += chosen.length;
+    }
+    return result;
+  }
+
+  // Which of these are in an HSK list (hsk_level 1-6) → green chips.
   // Words absent or with no HSK level count as "not in the list" → red.
   Future<Set<String>> wordsInDictionary(List<String> words) async {
     if (words.isEmpty) return {};

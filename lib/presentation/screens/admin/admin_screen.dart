@@ -1843,6 +1843,7 @@ class _VideoCardState extends State<_VideoCard> {
   late final TextEditingController _wrongCtrl;
   bool _saving = false;
   bool _generating = false;
+  bool _segmenting = false;
 
   YoutubePlayerController? _ytController;
   Timer? _segmentTimer; // restricts playback to start..end
@@ -1985,6 +1986,26 @@ class _VideoCardState extends State<_VideoCard> {
       setState(() => _generating = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Üretim hatası: $e')));
+    }
+  }
+
+  // Split the sentence into word chips that exactly reconstruct it.
+  Future<void> _segmentIntoWords() async {
+    final s = _transcriptionCtrl.text.trim();
+    if (s.isEmpty) return;
+    setState(() => _segmenting = true);
+    try {
+      final words = await widget.service.segmentSentence(s);
+      if (!mounted) return;
+      setState(() {
+        _targetWords = words;
+        _segmenting = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _segmenting = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Bölme hatası: $e')));
     }
   }
 
@@ -2291,6 +2312,27 @@ class _VideoCardState extends State<_VideoCard> {
                           fontSize: 13)),
                   const SizedBox(height: 6),
                   _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
+                  const SizedBox(height: 6),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _segmenting ? null : _segmentIntoWords,
+                      icon: _segmenting
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.auto_fix_high, size: 18),
+                      label: Text(_segmenting
+                          ? 'Bölünüyor…'
+                          : 'Cümleyi kelimelere ayır'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
                   const SizedBox(height: 8),
                   _WordTagEditor(
                     words: _targetWords,
