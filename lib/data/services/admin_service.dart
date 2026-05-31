@@ -308,13 +308,15 @@ class AdminService {
     return idsToDelete.length;
   }
 
-  // Which of these words exist in the dictionary (for green/red colouring).
+  // Which of these words are in an HSK list (hsk_level 1-6) → green chips.
+  // Words absent or with no HSK level count as "not in the list" → red.
   Future<Set<String>> wordsInDictionary(List<String> words) async {
     if (words.isEmpty) return {};
     try {
       final data = await _db
           .from('dictionary')
           .select('simplified')
+          .gte('hsk_level', 1)
           .inFilter('simplified', words);
       return List<Map<String, dynamic>>.from(data)
           .map((e) => e['simplified'] as String)

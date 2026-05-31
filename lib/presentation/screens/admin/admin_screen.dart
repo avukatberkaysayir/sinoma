@@ -1836,6 +1836,7 @@ class _VideoCardState extends State<_VideoCard> {
   late int _hskLevel;
   late QuizCategory _category;
   late List<String> _targetWords;
+  late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
   late final TextEditingController _questionCtrl;
   late final TextEditingController _correctCtrl;
@@ -1868,6 +1869,8 @@ class _VideoCardState extends State<_VideoCard> {
         return ia.compareTo(ib);
       });
     }
+    _transcriptionCtrl =
+        TextEditingController(text: tr);
     _pinyinCtrl = TextEditingController(text: v['pinyin'] as String? ?? '');
     final quiz = v['quiz'] as Map<String, dynamic>? ?? {};
     _questionCtrl =
@@ -1943,6 +1946,7 @@ class _VideoCardState extends State<_VideoCard> {
   void dispose() {
     _segmentTimer?.cancel();
     _ytController?.close();
+    _transcriptionCtrl.dispose();
     _pinyinCtrl.dispose();
     _questionCtrl.dispose();
     _correctCtrl.dispose();
@@ -1987,9 +1991,8 @@ class _VideoCardState extends State<_VideoCard> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      // The sentence is the target words joined in their (drag-ordered) order.
       await widget.service.patchVideoFields(widget.data['id'] as String, {
-        'transcription': _targetWords.join(''),
+        'transcription': _transcriptionCtrl.text.trim(),
         'pinyin': _pinyinCtrl.text.trim(),
         'hsk_level': _hskLevel,
         'quiz_category': _category.name,
@@ -2281,7 +2284,14 @@ class _VideoCardState extends State<_VideoCard> {
                   ),
                   const SizedBox(height: 14),
                   _editField(_pinyinCtrl, 'Pinyin'),
+                  const Text('Cümle (gerçek metin)',
+                      style: TextStyle(
+                          color: AppColors.onSurface,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13)),
                   const SizedBox(height: 6),
+                  _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
+                  const SizedBox(height: 8),
                   _WordTagEditor(
                     words: _targetWords,
                     service: widget.service,
@@ -2467,30 +2477,6 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Live sentence preview — the chips joined in their current order.
-        const Text('Cümle',
-            style: TextStyle(
-                color: AppColors.onSurface,
-                fontWeight: FontWeight.bold,
-                fontSize: 13)),
-        const SizedBox(height: 6),
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: const Color(0xFF1C1C2E),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(
-            widget.words.isEmpty ? '—' : widget.words.join(''),
-            style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w500,
-                height: 1.4),
-          ),
-        ),
-        const SizedBox(height: 10),
         const Text('Kelimeler — sürükle-bırak ile sırala, × ile sil',
             style: TextStyle(
                 color: AppColors.onSurface,
