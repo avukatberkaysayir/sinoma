@@ -21,7 +21,6 @@ class InlinePlayerSection extends StatefulWidget {
 
 class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   late int _index;
-  bool _isPlaying = true;
   bool _clipEnded = false;
   bool? _subtitleChoice;
   bool _quizAnswered = false;
@@ -49,7 +48,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   }
 
   void _resetState() {
-    _isPlaying = true;
     _clipEnded = false;
     _subtitleChoice = null;
     _quizAnswered = false;
@@ -60,10 +58,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   VideoSegmentModel get _seg => widget.segments[_index];
 
   void _onSegmentEnded() {
-    setState(() {
-      _isPlaying = false;
-      _clipEnded = true;
-    });
+    setState(() => _clipEnded = true);
   }
 
   void _goNext() {
@@ -84,21 +79,11 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
 
   void _replay() {
     setState(() {
-      _isPlaying = true;
       _clipEnded = false;
       _subtitleChoice = null;
       _quizAnswered = false;
       _replayCount++;
     });
-  }
-
-  void _togglePlayPause() {
-    if (_isPlaying) {
-      _playerCtrl.pauseVideo();
-    } else {
-      _playerCtrl.playVideo();
-    }
-    setState(() => _isPlaying = !_isPlaying);
   }
 
   void _setSpeed(double speed) {
@@ -113,8 +98,8 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   }
 
   void _onQuizAnswered() {
+    // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _quizAnswered = true);
-    Future.delayed(const Duration(milliseconds: 900), _goNext);
   }
 
   void _pickWithSubtitle() => setState(() => _subtitleChoice = true);
@@ -150,10 +135,16 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 onSoundChanged: (v) {
                   if (mounted) setState(() => _soundOn = v);
                 },
+                clipIndex: _index,
+                clipCount: widget.segments.length,
+                showReplay: _clipEnded && !_quizAnswered,
+                showNext: _quizAnswered,
+                onReplayTap: _replay,
+                onNextTap: _goNext,
               ),
               Positioned(
                 top: 8,
-                right: 8,
+                left: 8,
                 child: _HskBadge(level: seg.hskLevel),
               ),
               Positioned(
@@ -174,13 +165,11 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
 
           // ── Controls bar ──────────────────────────────────────────────────
           _ControlsBar(
-            isPlaying: _isPlaying,
             speed: _speed,
             soundOn: _soundOn,
             onToggleSound: _playerCtrl.toggleSound,
             onPrev: _goPrev,
             onReplay: _replay,
-            onTogglePlay: _togglePlayPause,
             onNext: _goNext,
             onSpeedChanged: _setSpeed,
           ),
@@ -285,24 +274,20 @@ class _HskBadge extends StatelessWidget {
 // ── Controls bar ──────────────────────────────────────────────────────────────
 
 class _ControlsBar extends StatelessWidget {
-  final bool isPlaying;
   final double speed;
   final bool soundOn;
   final VoidCallback onToggleSound;
   final VoidCallback onPrev;
   final VoidCallback onReplay;
-  final VoidCallback onTogglePlay;
   final VoidCallback onNext;
   final void Function(double) onSpeedChanged;
 
   const _ControlsBar({
-    required this.isPlaying,
     required this.speed,
     required this.soundOn,
     required this.onToggleSound,
     required this.onPrev,
     required this.onReplay,
-    required this.onTogglePlay,
     required this.onNext,
     required this.onSpeedChanged,
   });
@@ -326,14 +311,6 @@ class _ControlsBar extends StatelessWidget {
               onTap: onReplay,
               size: 24,
               tooltip: 'Tekrar oynat'),
-          _CtrlBtn(
-              icon: isPlaying
-                  ? Icons.pause_circle_filled_rounded
-                  : Icons.play_circle_filled_rounded,
-              onTap: onTogglePlay,
-              size: 34,
-              tooltip: isPlaying ? 'Duraklat' : 'Oynat',
-              color: AppColors.primary),
           _CtrlBtn(
               icon: Icons.skip_next_rounded,
               onTap: onNext,

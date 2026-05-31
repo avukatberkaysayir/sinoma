@@ -36,6 +36,14 @@ class DirectYouTubePlayer extends StatefulWidget {
   final VoidCallback onSegmentEnded;
   final ValueChanged<bool>? onSoundChanged;
 
+  // Voscreen-style overlays drawn on top of the player.
+  final int clipIndex; // 0-based
+  final int clipCount;
+  final bool showReplay; // segment ended, awaiting action
+  final bool showNext; // answered, offer manual advance
+  final VoidCallback? onReplayTap;
+  final VoidCallback? onNextTap;
+
   const DirectYouTubePlayer({
     super.key,
     required this.videoId,
@@ -46,6 +54,12 @@ class DirectYouTubePlayer extends StatefulWidget {
     required this.controller,
     required this.onSegmentEnded,
     this.onSoundChanged,
+    this.clipIndex = 0,
+    this.clipCount = 0,
+    this.showReplay = false,
+    this.showNext = false,
+    this.onReplayTap,
+    this.onNextTap,
   });
 
   @override
@@ -53,10 +67,7 @@ class DirectYouTubePlayer extends StatefulWidget {
 }
 
 class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
-  // Set true once the user has interacted with the page in this session. After
-  // that, Chrome allows autoplay WITH sound, so every later clip starts unmuted.
   static bool _pageInteracted = false;
-  // Persists the user's explicit choice across clips.
   static bool _mutedByUser = false;
 
   static const _gestureEvents = [
@@ -69,10 +80,13 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   final GlobalKey _containerKey = GlobalKey();
 
   html.IFrameElement? _iframe;
+  html.DivElement? _counterEl; // top-right "i / n"
+  html.DivElement? _replayEl; // center replay (segment end)
+  html.DivElement? _nextEl; // right-center next arrow (after answer)
   html.EventListener? _msgListener;
   html.EventListener? _gestureListener;
 
-  Timer? _listenTimer; // re-sends the listening handshake until events arrive
+  Timer? _listenTimer;
   int _listenTries = 0;
   bool _eventsFlowing = false;
 
@@ -90,9 +104,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
     _msgListener = (html.Event e) {
       if (e is! html.MessageEvent) return;
-      // Filter by origin, not by source identity: comparing e.source to
-      // _iframe.contentWindow is unreliable in dart:html (different Dart
-      // wrappers for the same JS window) and silently dropped every message.
       final origin = e.origin;
       if (origin.isNotEmpty && !origin.contains('youtube')) return;
       Map<String, dynamic>? map;
@@ -122,13 +133,11 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     });
   }
 
-  // ── iframe ─────────────────────────────────────────────────────────────────
+  // ── iframe + overlays ──────────────────────────────────────────────────────
 
   void _buildIframe() {
     if (_iframe != null) return;
 
-    // Cold first load (no interaction yet) → muted autoplay, the only kind
-    // Chrome permits without a gesture. Any later clip → unmuted autoplay.
     final muted = !_pageInteracted || _mutedByUser;
     _soundOn = !muted;
 
@@ -149,23 +158,104 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       ..setAttribute('allowfullscreen', '')
       ..style.position = 'fixed'
       ..style.border = 'none'
-      ..style.zIndex = '5'
-      // Pass clicks/mouse-moves through to the page so interaction anywhere
-      // (incl. over the video) is detected; our controls live below the video.
-      ..style.pointerEvents = 'none';
+      ..style.zIndex = '5';
+    // No pointer-events:none — the user controls play/pause by clicking the
+    // video (YouTube's native click handler). Our overlays sit above it.
 
-    // Subscribe to the player's event stream once the frame document loads.
     frame.onLoad.listen((_) => _startListening());
 
     _iframe = frame;
-    _applyGeometry();
     html.document.body!.append(frame);
+    _buildOverlays();
+    _applyGeometry();
     widget.controller._notify();
   }
 
-  // The YouTube iframe only streams infoDelivery (currentTime / state / muted)
-  // to windows that registered with a 'listening' message that includes
-  // channel:'widget'. Re-send it until the first event confirms it took.
+  void _buildOverlays() {
+    // Counter — top-right, non-interactive so clicks fall through to the video.
+    _counterEl = html.DivElement()
+      ..style.position = 'fixed'
+      ..style.zIndex = '8'
+      ..style.pointerEvents = 'none'
+      ..style.padding = '4px 12px'
+      ..style.borderRadius = '16px'
+      ..style.background = 'rgba(0,0,0,0.6)'
+      ..style.color = 'white'
+      ..style.fontFamily = 'sans-serif'
+      ..style.fontSize = '13px'
+      ..style.fontWeight = '600'
+      ..style.whiteSpace = 'nowrap';
+    html.document.body!.append(_counterEl!);
+
+    // Center replay (shown when the segment ends).
+    final replayIcon = html.DivElement()
+      ..text = '↻'
+      ..style.fontSize = '30px'
+      ..style.lineHeight = '1';
+    final replayLabel = html.DivElement()
+      ..text = 'Tekrar'
+      ..style.fontSize = '11px'
+      ..style.marginTop = '3px';
+    _replayEl = html.DivElement()
+      ..style.position = 'fixed'
+      ..style.zIndex = '8'
+      ..style.display = 'none'
+      ..style.flexDirection = 'column'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'center'
+      ..style.width = '88px'
+      ..style.height = '88px'
+      ..style.borderRadius = '50%'
+      ..style.cursor = 'pointer'
+      ..style.background = 'rgba(34, 197, 94, 0.90)'
+      ..style.color = 'white'
+      ..style.fontFamily = 'sans-serif'
+      ..style.boxShadow = '0 2px 12px rgba(0,0,0,0.35)';
+    _replayEl!.append(replayIcon);
+    _replayEl!.append(replayLabel);
+    _replayEl!.onClick.listen((e) {
+      e.stopPropagation();
+      widget.onReplayTap?.call();
+    });
+    html.document.body!.append(_replayEl!);
+
+    // Right-center next arrow (shown after answering).
+    _nextEl = html.DivElement()
+      ..text = '›'
+      ..style.position = 'fixed'
+      ..style.zIndex = '8'
+      ..style.display = 'none'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'center'
+      ..style.width = '54px'
+      ..style.height = '54px'
+      ..style.borderRadius = '50%'
+      ..style.cursor = 'pointer'
+      ..style.background = 'rgba(255,255,255,0.92)'
+      ..style.color = '#1a1a1a'
+      ..style.fontSize = '34px'
+      ..style.fontFamily = 'sans-serif'
+      ..style.boxShadow = '0 2px 10px rgba(0,0,0,0.35)';
+    _nextEl!.onClick.listen((e) {
+      e.stopPropagation();
+      widget.onNextTap?.call();
+    });
+    html.document.body!.append(_nextEl!);
+
+    _refreshOverlays();
+  }
+
+  void _refreshOverlays() {
+    if (widget.clipCount > 0) {
+      _counterEl?.text = '${widget.clipIndex + 1} / ${widget.clipCount}';
+      _counterEl?.style.display = 'block';
+    } else {
+      _counterEl?.style.display = 'none';
+    }
+    _replayEl?.style.display = widget.showReplay ? 'flex' : 'none';
+    _nextEl?.style.display = widget.showNext ? 'flex' : 'none';
+  }
+
   void _startListening() {
     _sendListening();
     _listenTimer?.cancel();
@@ -205,6 +295,34 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       ..top = '${pos.dy}px'
       ..width = '${size.width}px'
       ..height = '${size.height}px';
+
+    final winW = html.window.innerWidth!.toDouble();
+    final right = winW - (pos.dx + size.width);
+    final cx = pos.dx + size.width / 2;
+    final cy = pos.dy + size.height / 2;
+
+    final c = _counterEl?.style;
+    if (c != null) {
+      c
+        ..left = ''
+        ..top = '${pos.dy + 10}px'
+        ..right = '${right + 12}px';
+    }
+    final r = _replayEl?.style;
+    if (r != null) {
+      r
+        ..left = '${cx}px'
+        ..top = '${cy}px'
+        ..transform = 'translate(-50%, -50%)';
+    }
+    final n = _nextEl?.style;
+    if (n != null) {
+      n
+        ..left = ''
+        ..top = '${cy}px'
+        ..right = '${right + 16}px'
+        ..transform = 'translateY(-50%)';
+    }
   }
 
   void _updatePosition() {
@@ -304,7 +422,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     );
   }
 
-  // ── Replay ─────────────────────────────────────────────────────────────────
+  // ── Updates ────────────────────────────────────────────────────────────────
 
   @override
   void didUpdateWidget(DirectYouTubePlayer old) {
@@ -314,6 +432,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _hasPlayed = false;
       _cmd('seekTo', [widget.startTime, true]);
       _cmd('playVideo', []);
+    }
+    if (widget.clipIndex != old.clipIndex ||
+        widget.clipCount != old.clipCount ||
+        widget.showReplay != old.showReplay ||
+        widget.showNext != old.showNext) {
+      _refreshOverlays();
     }
   }
 
@@ -332,6 +456,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       }
     }
     _iframe?.remove();
+    _counterEl?.remove();
+    _replayEl?.remove();
+    _nextEl?.remove();
     super.dispose();
   }
 
@@ -341,9 +468,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
 
-    // The video (iframe) is a body-appended DOM element layered above this;
-    // here we only reserve the 16:9 space for geometry. The sound toggle lives
-    // in the controls bar below the video (see InlinePlayerSection).
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: Container(
