@@ -45,6 +45,10 @@ class DirectYouTubePlayer extends StatefulWidget {
 }
 
 class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
+  // Set true once the user has interacted with the page in this session. After
+  // that, Chrome allows autoplay WITH sound, so every later clip starts unmuted.
+  static bool _pageInteracted = false;
+
   final GlobalKey _containerKey = GlobalKey();
 
   html.IFrameElement? _iframe;
@@ -54,7 +58,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   bool _soundOn = false;
   bool _hasPlayed = false;
   bool _ended = false;
-  double _lastTime = 0;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -62,10 +65,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void initState() {
     super.initState();
     widget.controller._attach(this);
-    _lastTime = widget.startTime;
 
-    // One message listener for the lifetime of the widget; it validates the
-    // source against the current iframe, so it keeps working across a reload.
     _msgListener = (html.Event e) {
       if (e is! html.MessageEvent) return;
       if (e.source != _iframe?.contentWindow) return;
@@ -78,29 +78,38 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     };
     html.window.addEventListener('message', _msgListener!);
 
-    // First real interaction anywhere on the page → try the cheap unmute path
-    // (works when the document already has a sticky user activation, e.g. the
-    // user navigated here by clicking). If it doesn't take, the visible
-    // speaker button reloads the player with sound — see _turnSoundOn().
+    // Record the first interaction and, if this clip started muted, unmute it
+    // on the spot (cheap, no reload). Capture phase so it runs before Flutter.
     _gestureListener = (_) {
-      if (!_soundOn) _cmd('unMute', []);
+      _pageInteracted = true;
+      if (!_soundOn) {
+        _cmd('unMute', []);
+        _cmd('setVolume', [100]);
+      }
     };
     html.document.addEventListener('pointerdown', _gestureListener!, true);
     html.document.addEventListener('keydown', _gestureListener!, true);
 
-    // Create the player + muted-autoplay after first layout (container sized).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _buildIframe(muted: true, startAt: widget.startTime);
+      if (mounted) _buildIframe();
     });
   }
 
   // ── iframe ─────────────────────────────────────────────────────────────────
 
-  void _buildIframe({required bool muted, required double startAt}) {
+  void _buildIframe() {
+    if (_iframe != null) return;
+
+    // Cold first load (no interaction yet) → muted autoplay, the only kind
+    // Chrome permits without a gesture. Any later clip (the user got here by
+    // clicking) → unmuted autoplay, so sound plays immediately with no delay.
+    final muted = !_pageInteracted;
+    _soundOn = !muted;
+
     final origin = Uri.encodeComponent(html.window.location.origin);
     final muteParam = muted ? '&mute=1' : '';
 
-    final frame = html.IFrameElement()
+    _iframe = html.IFrameElement()
       ..src = 'https://www.youtube.com/embed/${widget.videoId}'
           '?autoplay=1'
           '$muteParam'
@@ -108,7 +117,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
           '&rel=0'
           '&playsinline=1'
           '&enablejsapi=1'
-          '&start=${startAt.toInt()}'
+          '&start=${widget.startTime.toInt()}'
           '&origin=$origin'
       ..allow = 'autoplay; fullscreen; encrypted-media'
       ..setAttribute('allowfullscreen', '')
@@ -116,22 +125,14 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       ..style.border = 'none'
       ..style.zIndex = '5';
 
-    _iframe = frame;
     _applyGeometry();
-    html.document.body!.append(frame);
+    html.document.body!.append(_iframe!);
   }
 
-  // Reload the player WITHOUT mute, resuming at the current time. Called from a
-  // real user gesture (button tap), so the fresh autoplay is granted with
-  // sound — the reliable way to unmute a cross-origin YouTube embed.
-  void _turnSoundOn() {
-    if (_soundOn) return;
-    final resumeAt = (_lastTime > widget.startTime - 1)
-        ? _lastTime
-        : widget.startTime;
-    _iframe?.remove();
-    _buildIframe(muted: false, startAt: resumeAt);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
+  void _requestSound() {
+    _pageInteracted = true;
+    _cmd('unMute', []);
+    _cmd('setVolume', [100]);
   }
 
   void _applyGeometry() {
@@ -183,10 +184,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
         }
 
         final t = (info['currentTime'] as num?)?.toDouble();
-        if (t != null) {
-          _lastTime = t;
-          if (_hasPlayed) _handleTime(t);
-        }
+        if (t != null && _hasPlayed) _handleTime(t);
       }
     } else if (event == 'onStateChange') {
       final state = (data['info'] as num?)?.toInt();
@@ -265,12 +263,14 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
             color: Colors.black,
           ),
         ),
+        // Only ever appears on the very first (cold-load) clip, which must
+        // start muted. One tap turns sound on; later clips never show it.
         if (!_soundOn)
           Positioned(
             bottom: 10,
             right: 10,
             child: GestureDetector(
-              onTap: _turnSoundOn,
+              onTap: _requestSound,
               child: Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
