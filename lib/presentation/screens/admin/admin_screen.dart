@@ -2304,7 +2304,6 @@ class _VideoCardState extends State<_VideoCard> {
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  _editField(_pinyinCtrl, 'Pinyin'),
                   const Text('Cümle (gerçek metin)',
                       style: TextStyle(
                           color: AppColors.onSurface,
@@ -2312,6 +2311,7 @@ class _VideoCardState extends State<_VideoCard> {
                           fontSize: 13)),
                   const SizedBox(height: 6),
                   _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
+                  _editField(_pinyinCtrl, 'Pinyin'),
                   const SizedBox(height: 6),
                   SizedBox(
                     width: double.infinity,
