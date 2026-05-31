@@ -100,10 +100,11 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
       ..style.position = 'fixed'
       ..style.border = 'none'
       ..style.zIndex = '5'
-      ..style.left = '-9999px'
+      ..style.left = '0'
       ..style.top = '0'
-      ..style.width = '1px'
-      ..style.height = '1px';
+      ..style.width = '100vw'
+      ..style.height = '56.25vw'
+      ..style.visibility = 'hidden';
 
     html.document.body!.append(_iframe!);
 
@@ -132,7 +133,8 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
       ..left = '${pos.dx}px'
       ..top = '${pos.dy}px'
       ..width = '${size.width}px'
-      ..height = '${size.height}px';
+      ..height = '${size.height}px'
+      ..visibility = 'visible';
   }
 
   // ── YouTube postMessage protocol ───────────────────────────────────────────
@@ -143,7 +145,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     if (event == 'onReady') {
       _iframe?.contentWindow
           ?.postMessage(jsonEncode({'event': 'listening', 'id': 1}), '*');
-      // Unmute while still within the tap's user-activation window.
+      _cmd('playVideo', []);
       _cmd('unMute', []);
       _cmd('setVolume', [100]);
     } else if (event == 'infoDelivery') {
