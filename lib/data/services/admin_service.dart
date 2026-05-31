@@ -376,13 +376,47 @@ class AdminService {
     final q = query.trim();
     if (q.isEmpty) return [];
     try {
-      final data = await _db
+      // Insertion order is preserved → the exact match is always first, so a
+      // word that exists never falls off the list (no spurious "add anyway").
+      final byWord = <String, Map<String, dynamic>>{};
+
+      final exact = await _db
+          .from('dictionary')
+          .select('id, simplified, pinyin, hsk_level')
+          .eq('simplified', q)
+          .limit(1);
+      for (final m in List<Map<String, dynamic>>.from(exact)) {
+        byWord[m['simplified'] as String] = m;
+      }
+
+      final fuzzy = await _db
           .from('dictionary')
           .select('id, simplified, pinyin, hsk_level')
           .or('simplified.ilike.%$q%,pinyin.ilike.%$q%,pinyin_ascii.ilike.%$q%')
-          .order('hsk_level')
-          .limit(8);
-      return List<Map<String, dynamic>>.from(data);
+          .limit(40);
+      final list = List<Map<String, dynamic>>.from(fuzzy);
+      // Rank: prefix matches first, then shorter words, then lower HSK level.
+      int rank(Map<String, dynamic> m) {
+        final s = m['simplified'] as String? ?? '';
+        if (s == q) return 0;
+        if (s.startsWith(q)) return 1;
+        return 2;
+      }
+      list.sort((a, b) {
+        final r = rank(a).compareTo(rank(b));
+        if (r != 0) return r;
+        final la = (a['simplified'] as String? ?? '').length;
+        final lb = (b['simplified'] as String? ?? '').length;
+        if (la != lb) return la.compareTo(lb);
+        final ha = (a['hsk_level'] as int?) ?? 99;
+        final hb = (b['hsk_level'] as int?) ?? 99;
+        return ha.compareTo(hb);
+      });
+      for (final m in list) {
+        byWord.putIfAbsent(m['simplified'] as String, () => m);
+      }
+
+      return byWord.values.take(12).toList();
     } catch (_) {
       return [];
     }
