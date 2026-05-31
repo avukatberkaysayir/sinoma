@@ -2075,16 +2075,26 @@ class _VideoCardState extends State<_VideoCard> {
                     _expanded ? AppColors.primary : AppColors.onSurfaceMuted,
                 size: 20,
               ),
-              onPressed: () => setState(() => _expanded = !_expanded),
+              onPressed: () {
+                setState(() => _expanded = !_expanded);
+                // Show the player in the left column right away, like home.
+                if (_expanded && _ytController == null) _openInlinePlayer();
+              },
             ),
           ),
           if (_expanded) ...[
             const Divider(height: 1, color: AppColors.surface),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // ── Left: video player ──────────────────────────────────
+                  SizedBox(
+                    width: 420,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                   if (ytId != null && ytId.isNotEmpty) ...[
                     // Inline player or clickable thumbnail
                     if (_ytController != null) ...[
@@ -2172,7 +2182,15 @@ class _VideoCardState extends State<_VideoCard> {
                       ),
                     ],
                   ],
-                  const SizedBox(height: 14),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  // ── Right: metadata, words, quiz ────────────────────────
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                   Text('HSK Seviye: $_hskLevel',
                       style: const TextStyle(
                           color: AppColors.onSurface,
@@ -2267,6 +2285,9 @@ class _VideoCardState extends State<_VideoCard> {
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
                           : const Text('Kaydet'),
+                    ),
+                  ),
+                      ],
                     ),
                   ),
                 ],
