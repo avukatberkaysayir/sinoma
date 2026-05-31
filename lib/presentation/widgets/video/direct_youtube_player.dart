@@ -34,6 +34,7 @@ class DirectYouTubePlayer extends StatefulWidget {
   final int replayCount;
   final DirectYouTubeController controller;
   final VoidCallback onSegmentEnded;
+  final ValueChanged<bool>? onSoundChanged;
 
   const DirectYouTubePlayer({
     super.key,
@@ -44,6 +45,7 @@ class DirectYouTubePlayer extends StatefulWidget {
     required this.replayCount,
     required this.controller,
     required this.onSegmentEnded,
+    this.onSoundChanged,
   });
 
   @override
@@ -240,6 +242,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (_soundOn == on) return;
     _soundOn = on;
     widget.controller._notify();
+    widget.onSoundChanged?.call(on);
   }
 
   // ── YouTube postMessage protocol ───────────────────────────────────────────

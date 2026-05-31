@@ -27,6 +27,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   bool _quizAnswered = false;
   double _speed = 1.0;
   int _replayCount = 0;
+  bool _soundOn = false;
   final DirectYouTubeController _playerCtrl = DirectYouTubeController();
   String? _activeWordId;
 
@@ -146,6 +147,9 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 replayCount: _replayCount,
                 controller: _playerCtrl,
                 onSegmentEnded: _onSegmentEnded,
+                onSoundChanged: (v) {
+                  if (mounted) setState(() => _soundOn = v);
+                },
               ),
               Positioned(
                 top: 8,
@@ -172,7 +176,8 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
           _ControlsBar(
             isPlaying: _isPlaying,
             speed: _speed,
-            soundController: _playerCtrl,
+            soundOn: _soundOn,
+            onToggleSound: _playerCtrl.toggleSound,
             onPrev: _goPrev,
             onReplay: _replay,
             onTogglePlay: _togglePlayPause,
@@ -282,7 +287,8 @@ class _HskBadge extends StatelessWidget {
 class _ControlsBar extends StatelessWidget {
   final bool isPlaying;
   final double speed;
-  final DirectYouTubeController soundController;
+  final bool soundOn;
+  final VoidCallback onToggleSound;
   final VoidCallback onPrev;
   final VoidCallback onReplay;
   final VoidCallback onTogglePlay;
@@ -292,7 +298,8 @@ class _ControlsBar extends StatelessWidget {
   const _ControlsBar({
     required this.isPlaying,
     required this.speed,
-    required this.soundController,
+    required this.soundOn,
+    required this.onToggleSound,
     required this.onPrev,
     required this.onReplay,
     required this.onTogglePlay,
@@ -333,19 +340,13 @@ class _ControlsBar extends StatelessWidget {
               size: 28,
               tooltip: 'Sonraki'),
 
-          // Sound toggle — rebuilds itself when the player's mute state changes.
-          ListenableBuilder(
-            listenable: soundController,
-            builder: (_, __) {
-              final on = soundController.soundOn;
-              return _CtrlBtn(
-                icon: on ? Icons.volume_up_rounded : Icons.volume_off_rounded,
-                onTap: soundController.toggleSound,
-                size: 26,
-                tooltip: on ? 'Sesi kapat' : 'Sesi aç',
-                color: on ? null : AppColors.primary,
-              );
-            },
+          // Sound toggle — same plain pattern as the play button (no builder).
+          _CtrlBtn(
+            icon: soundOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+            onTap: onToggleSound,
+            size: 26,
+            tooltip: soundOn ? 'Sesi kapat' : 'Sesi aç',
+            color: soundOn ? null : AppColors.primary,
           ),
 
           const Spacer(),
