@@ -49,6 +49,17 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   // that, Chrome allows autoplay WITH sound, so every later clip starts unmuted.
   static bool _pageInteracted = false;
 
+  // Any of these on the page tries to turn sound on. The "hard" ones also count
+  // as a real user activation (so the next clips start unmuted); the soft ones
+  // (mousemove/wheel) only unmute when an activation already exists — Chrome
+  // never grants a NEW activation from mouse movement or scrolling.
+  static const _gestureEvents = [
+    'pointerdown', 'mousedown', 'keydown', 'touchstart', 'mousemove', 'wheel',
+  ];
+  static const _hardEvents = {
+    'pointerdown', 'mousedown', 'keydown', 'touchstart',
+  };
+
   final GlobalKey _containerKey = GlobalKey();
 
   html.IFrameElement? _iframe;
@@ -58,6 +69,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   bool _soundOn = false;
   bool _hasPlayed = false;
   bool _ended = false;
+  DateTime _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
 
@@ -78,17 +90,15 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     };
     html.window.addEventListener('message', _msgListener!);
 
-    // Record the first interaction and, if this clip started muted, unmute it
-    // on the spot (cheap, no reload). Capture phase so it runs before Flutter.
-    _gestureListener = (_) {
-      _pageInteracted = true;
-      if (!_soundOn) {
-        _cmd('unMute', []);
-        _cmd('setVolume', [100]);
-      }
+    // Turn sound on at the lightest interaction (incl. mouse movement). Capture
+    // phase so it runs before Flutter consumes the event.
+    _gestureListener = (e) {
+      if (_hardEvents.contains(e.type)) _pageInteracted = true;
+      _tryUnmute();
     };
-    html.document.addEventListener('pointerdown', _gestureListener!, true);
-    html.document.addEventListener('keydown', _gestureListener!, true);
+    for (final type in _gestureEvents) {
+      html.document.addEventListener(type, _gestureListener!, true);
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _buildIframe();
@@ -129,10 +139,20 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     html.document.body!.append(_iframe!);
   }
 
-  void _requestSound() {
-    _pageInteracted = true;
+  // Attempt to unmute, throttled — mousemove fires constantly, so cap retries.
+  void _tryUnmute() {
+    if (_soundOn) return;
+    final now = DateTime.now();
+    if (now.difference(_lastUnmuteTry).inMilliseconds < 400) return;
+    _lastUnmuteTry = now;
     _cmd('unMute', []);
     _cmd('setVolume', [100]);
+  }
+
+  void _requestSound() {
+    _pageInteracted = true;
+    _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
+    _tryUnmute();
   }
 
   void _applyGeometry() {
@@ -241,8 +261,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       html.window.removeEventListener('message', _msgListener!);
     }
     if (_gestureListener != null) {
-      html.document.removeEventListener('pointerdown', _gestureListener!, true);
-      html.document.removeEventListener('keydown', _gestureListener!, true);
+      for (final type in _gestureEvents) {
+        html.document.removeEventListener(type, _gestureListener!, true);
+      }
     }
     _iframe?.remove();
     super.dispose();
