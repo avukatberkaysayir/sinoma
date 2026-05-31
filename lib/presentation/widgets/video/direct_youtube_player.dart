@@ -88,13 +88,22 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
     _msgListener = (html.Event e) {
       if (e is! html.MessageEvent) return;
-      if (e.source != _iframe?.contentWindow) return;
+      // Filter by origin, not by source identity: comparing e.source to
+      // _iframe.contentWindow is unreliable in dart:html (different Dart
+      // wrappers for the same JS window) and silently dropped every message.
+      final origin = e.origin;
+      if (origin.isNotEmpty && !origin.contains('youtube')) return;
+      Map<String, dynamic>? map;
+      final d = e.data;
       try {
-        final raw = e.data?.toString();
-        if (raw == null) return;
-        final data = jsonDecode(raw) as Map<String, dynamic>;
-        _onYTMessage(data);
+        if (d is String) {
+          map = jsonDecode(d) as Map<String, dynamic>;
+        } else if (d is Map) {
+          map = Map<String, dynamic>.from(d);
+        }
       } catch (_) {}
+      if (map == null || map['event'] == null) return;
+      _onYTMessage(map);
     };
     html.window.addEventListener('message', _msgListener!);
 
