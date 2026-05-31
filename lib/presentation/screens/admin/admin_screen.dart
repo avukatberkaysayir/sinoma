@@ -1840,6 +1840,7 @@ class _VideoCardState extends State<_VideoCard> {
   late final TextEditingController _correctCtrl;
   late final TextEditingController _wrongCtrl;
   bool _saving = false;
+  bool _generating = false;
 
   YoutubePlayerController? _ytController;
 
@@ -1896,6 +1897,40 @@ class _VideoCardState extends State<_VideoCard> {
     _correctCtrl.dispose();
     _wrongCtrl.dispose();
     super.dispose();
+  }
+
+  // Ask Gemini (server-side edge function) for the two translation options and
+  // fill the fields; the admin reviews/edits, then Saves. Gemini is used only
+  // here — the saved options are served from the DB afterwards.
+  Future<void> _generateQuiz() async {
+    final transcription =
+        (widget.data['transcription'] as String?)?.trim() ?? '';
+    if (transcription.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Bu klipte transkripsiyon yok.')));
+      return;
+    }
+    setState(() => _generating = true);
+    try {
+      final q = await widget.service.generateQuiz(
+        transcription: transcription,
+        pinyin: (widget.data['pinyin'] as String?) ?? '',
+      );
+      if (!mounted) return;
+      setState(() {
+        if ((q['question'] ?? '').isNotEmpty) {
+          _questionCtrl.text = q['question']!;
+        }
+        _correctCtrl.text = q['correctAnswer'] ?? '';
+        _wrongCtrl.text = q['wrongAnswer'] ?? '';
+        _generating = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _generating = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Üretim hatası: $e')));
+    }
   }
 
   Future<void> _save() async {
@@ -2173,6 +2208,26 @@ class _VideoCardState extends State<_VideoCard> {
                           fontWeight: FontWeight.bold,
                           fontSize: 13)),
                   const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _generating ? null : _generateQuiz,
+                      icon: _generating
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.auto_awesome, size: 18),
+                      label: Text(
+                          _generating ? 'Üretiliyor…' : 'Gemini ile şık üret'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primary,
+                        side: const BorderSide(color: AppColors.primary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
                   _editField(_questionCtrl, 'Soru'),
                   _editField(_correctCtrl, 'Doğru cevap'),
                   _editField(_wrongCtrl, 'Yanlış cevap (tuzak)'),

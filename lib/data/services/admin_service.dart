@@ -140,6 +140,31 @@ class AdminService {
     }
   }
 
+  // Generate quiz options (correct + close-wrong translation) via Gemini.
+  // Used once, in the admin panel; the result is saved on the video and served
+  // from the DB afterwards, so Gemini is never needed at playback time.
+  Future<Map<String, String>> generateQuiz({
+    required String transcription,
+    String pinyin = '',
+    String lang = 'tr',
+  }) async {
+    final res = await _db.functions.invoke(
+      'generate-quiz',
+      body: {'transcription': transcription, 'pinyin': pinyin, 'lang': lang},
+    );
+    if (res.status >= 300) {
+      final err = (res.data as Map<String, dynamic>?)?['error']
+          ?? 'Şık üretimi başarısız (${res.status})';
+      throw Exception(err);
+    }
+    final d = res.data as Map<String, dynamic>;
+    return {
+      'question': d['question'] as String? ?? '',
+      'correctAnswer': d['correctAnswer'] as String? ?? '',
+      'wrongAnswer': d['wrongAnswer'] as String? ?? '',
+    };
+  }
+
   // ── Supabase CRUD ───────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> listVideos() async {
