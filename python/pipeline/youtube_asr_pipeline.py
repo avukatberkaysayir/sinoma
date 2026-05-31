@@ -219,6 +219,74 @@ def run(
     return {"segmentsWritten": total, "method": method}
 
 
+def transcribe_and_fill_whisper(
+    url: str,
+    on_progress: Callable[[int], None] | None = None,
+) -> dict[str, Any]:
+    """Whisper-transcribe a video ONCE and fill videos.whisper_text for every
+    existing clip of that youtube_id (matched by time overlap). The admin then
+    compares the auto-caption transcription with this Whisper draft and picks."""
+    if not SUPABASE_SERVICE_KEY:
+        raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY ayarlı değil.")
+
+    import tempfile
+    from youtube_miner import (
+        download_audio,
+        transcribe_with_whisper,
+        extract_youtube_id,
+        normalize_youtube_url,
+    )
+
+    url = normalize_youtube_url(url)
+    youtube_id = extract_youtube_id(url)
+    print(f"\n▶ Whisper draft: {url} ({youtube_id})")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        audio_path = download_audio(url, Path(tmpdir))
+        print(f"  Ses indirildi → Whisper…")
+        entries = transcribe_with_whisper(audio_path)
+    if not entries:
+        raise RuntimeError("Whisper Çince metin üretemedi.")
+
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={
+            "youtube_id": f"eq.{youtube_id}",
+            "select": "id,start_time,end_time",
+        },
+        headers=_supabase_headers(),
+        timeout=30,
+    )
+    clips = resp.json() if resp.status_code < 300 else []
+    if not clips:
+        raise RuntimeError("Bu videonun klibi bulunamadı (önce içe aktarın).")
+
+    margin = 0.6
+    filled = 0
+    for clip in clips:
+        s = float(clip["start_time"])
+        e = float(clip["end_time"])
+        text = "".join(
+            en["text"] for en in entries
+            if en["end"] > s - margin and en["start"] < e + margin
+        ).strip()
+        if not text:
+            continue
+        requests.patch(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{clip['id']}"},
+            json={"whisper_text": text},
+            headers=_supabase_headers(),
+            timeout=15,
+        )
+        filled += 1
+        if on_progress:
+            on_progress(filled)
+
+    print(f"  ✓ {filled}/{len(clips)} klibe Whisper metni yazıldı")
+    return {"whisperFilled": filled, "clips": len(clips)}
+
+
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()

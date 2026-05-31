@@ -1844,6 +1844,9 @@ class _VideoCardState extends State<_VideoCard> {
   bool _saving = false;
   bool _generating = false;
   bool _segmenting = false;
+  bool _whisperRunning = false;
+  String? _whisperText;
+  Timer? _whisperTimer;
 
   YoutubePlayerController? _ytController;
   Timer? _segmentTimer; // restricts playback to start..end
@@ -1873,6 +1876,7 @@ class _VideoCardState extends State<_VideoCard> {
     _transcriptionCtrl =
         TextEditingController(text: tr);
     _pinyinCtrl = TextEditingController(text: v['pinyin'] as String? ?? '');
+    _whisperText = v['whisper_text'] as String?;
     final quiz = v['quiz'] as Map<String, dynamic>? ?? {};
     _questionCtrl =
         TextEditingController(text: quiz['question'] as String? ?? '');
@@ -1946,6 +1950,7 @@ class _VideoCardState extends State<_VideoCard> {
   @override
   void dispose() {
     _segmentTimer?.cancel();
+    _whisperTimer?.cancel();
     _ytController?.close();
     _transcriptionCtrl.dispose();
     _pinyinCtrl.dispose();
@@ -2006,6 +2011,50 @@ class _VideoCardState extends State<_VideoCard> {
       setState(() => _segmenting = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Bölme hatası: $e')));
+    }
+  }
+
+  // Enqueue a Whisper job (needs the local worker running), poll it, then load
+  // the whisper_text written for this clip so it can be compared/picked.
+  Future<void> _runWhisper() async {
+    final ytId = widget.data['youtube_id'] as String?;
+    if (ytId == null || ytId.isEmpty) return;
+    final url = 'https://www.youtube.com/watch?v=$ytId';
+    setState(() => _whisperRunning = true);
+    try {
+      final jobId = await widget.service.createWhisperJob(url);
+      _whisperTimer?.cancel();
+      _whisperTimer = Timer.periodic(const Duration(seconds: 4), (t) async {
+        try {
+          final job = await widget.service.getJob(jobId);
+          final status = job['status'] as String?;
+          if (status == 'done') {
+            t.cancel();
+            final v = await widget.service.getVideo(widget.data['id'] as String);
+            if (!mounted) return;
+            setState(() {
+              _whisperText = v?['whisper_text'] as String?;
+              _whisperRunning = false;
+            });
+            if ((_whisperText ?? '').isEmpty) {
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Whisper bu klip için metin üretemedi.')));
+            }
+          } else if (status == 'error') {
+            t.cancel();
+            if (!mounted) return;
+            setState(() => _whisperRunning = false);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(
+                    'Whisper hatası: ${job['error_text'] ?? 'bilinmiyor'}')));
+          }
+        } catch (_) {/* keep polling */}
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _whisperRunning = false);
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('İş oluşturulamadı: $e')));
     }
   }
 
@@ -2312,6 +2361,71 @@ class _VideoCardState extends State<_VideoCard> {
                   const SizedBox(height: 6),
                   _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
                   _editField(_pinyinCtrl, 'Pinyin'),
+                  const SizedBox(height: 6),
+                  // Whisper alternative — needs the local worker (dev_server.py).
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _whisperRunning ? null : _runWhisper,
+                      icon: _whisperRunning
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.graphic_eq, size: 18),
+                      label: Text(_whisperRunning
+                          ? 'Whisper çalışıyor… (lokal worker)'
+                          : 'Whisper ile çevir (karşılaştır)'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.onSurface,
+                        side: const BorderSide(color: AppColors.onSurfaceMuted),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  if ((_whisperText ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.surface,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: AppColors.correctAnswer
+                                .withValues(alpha: 0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Expanded(
+                                child: Text('Whisper sonucu',
+                                    style: TextStyle(
+                                        color: AppColors.correctAnswer,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12)),
+                              ),
+                              TextButton(
+                                onPressed: () => setState(() =>
+                                    _transcriptionCtrl.text = _whisperText!),
+                                style: TextButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8),
+                                    minimumSize: const Size(0, 28)),
+                                child: const Text("Cümle'ye al",
+                                    style: TextStyle(fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                          Text(_whisperText!,
+                              style: const TextStyle(
+                                  color: AppColors.onSurface, fontSize: 15)),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   SizedBox(
                     width: double.infinity,

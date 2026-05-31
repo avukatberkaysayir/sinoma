@@ -84,6 +84,7 @@ def _finish_job(
 def _poll_loop(base_url: str, service_key: str) -> None:
     print("  [poller] pipeline_jobs izleniyor…")
     from youtube_asr_pipeline import run as asr_run
+    from youtube_asr_pipeline import transcribe_and_fill_whisper
 
     while True:
         try:
@@ -94,11 +95,15 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                 url = payload.get("url", "")
                 active = payload.get("active", False)
                 hsk_filter = payload.get("hsk_filter") or None
-                print(f"\n  [poller] İş alındı {job_id[:8]}… url={url}")
+                job_type = job.get("job_type") or "youtube_asr"
+                print(f"\n  [poller] İş alındı {job_id[:8]}… type={job_type} url={url}")
                 try:
                     def _progress(n: int) -> None:
                         _update_progress(base_url, service_key, job_id, n)
-                    result = asr_run(url, active=active, hsk_filter=hsk_filter, on_progress=_progress)
+                    if job_type == "whisper_clip":
+                        result = transcribe_and_fill_whisper(url, on_progress=_progress)
+                    else:
+                        result = asr_run(url, active=active, hsk_filter=hsk_filter, on_progress=_progress)
                     _finish_job(base_url, service_key, job_id, "done", result=result)
                     print(f"  [poller] ✅ {result}")
                 except Exception as exc:

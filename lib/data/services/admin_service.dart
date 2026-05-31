@@ -100,6 +100,24 @@ class AdminService {
     return Map<String, dynamic>.from(res);
   }
 
+  // Enqueue a Whisper job: the local worker transcribes the whole video once and
+  // fills videos.whisper_text for every clip of that youtube_id, so the admin can
+  // compare the auto-caption transcription with the Whisper draft and pick.
+  Future<String> createWhisperJob(String url) async {
+    final res = await _db
+        .from('pipeline_jobs')
+        .insert({'job_type': 'whisper_clip', 'payload': {'url': url}})
+        .select('id')
+        .single();
+    return res['id'] as String;
+  }
+
+  // Re-read one video row (to pick up whisper_text after the job completes).
+  Future<Map<String, dynamic>?> getVideo(String id) async {
+    final data = await _db.from('videos').select().eq('id', id).maybeSingle();
+    return data == null ? null : Map<String, dynamic>.from(data);
+  }
+
   Future<Map<String, dynamic>> processYoutubeVideo(
     String url, {
     bool active = true,
