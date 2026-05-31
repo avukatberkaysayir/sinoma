@@ -22,7 +22,9 @@ if (-not $Token) {
 Write-Host "Building Flutter web..." -ForegroundColor Cyan
 # --no-wasm-dry-run: dart:html (YouTube player) is intentional; suppress the
 # wasm-incompatibility stderr that otherwise looks like a build failure.
-flutter build web --release --no-wasm-dry-run `
+# --pwa-strategy=none: no service worker, so a new main.dart.js is always
+# fetched fresh after deploy (the SW used to serve a stale cached bundle).
+flutter build web --release --no-wasm-dry-run --pwa-strategy=none `
   "--dart-define=SUPABASE_URL=https://pqyceostpukueydwuiut.supabase.co" `
   "--dart-define=SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBxeWNlb3N0cHVrdWV5ZHd1aXV0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTU3OTMsImV4cCI6MjA5NDE3MTc5M30.RwDlw5fTlNYZtI5wHyjLSmCKTvr97MCcOlKQZY1GrBQ" `
   "--dart-define=GEMINI_API_KEY="
