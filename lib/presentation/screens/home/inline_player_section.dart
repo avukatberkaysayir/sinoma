@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -30,6 +31,13 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   final DirectYouTubeController _playerCtrl = DirectYouTubeController();
   String? _activeWordId;
 
+  // Choice countdown — starts when the segment ends, keeps running through
+  // replays, stops on a choice; on timeout it's a miss → advance (penalty).
+  static const int _choiceSeconds = 20;
+  Timer? _countdownTimer;
+  int _countdown = _choiceSeconds;
+  bool _countdownActive = false;
+
   @override
   void initState() {
     super.initState();
@@ -47,18 +55,54 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     }
   }
 
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
   void _resetState() {
     _clipEnded = false;
     _subtitleChoice = null;
     _quizAnswered = false;
     _activeWordId = null;
     _replayCount = 0;
+    _stopCountdown();
+    _countdown = _choiceSeconds;
   }
 
   VideoSegmentModel get _seg => widget.segments[_index];
 
   void _onSegmentEnded() {
     setState(() => _clipEnded = true);
+    // Start the choice countdown the first time the segment ends. Guarded so a
+    // replay (which ends again) does not restart it.
+    if (_subtitleChoice == null) _startCountdown();
+  }
+
+  void _startCountdown() {
+    if (_countdownActive) return;
+    _countdownActive = true;
+    _countdown = _choiceSeconds;
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (t) {
+      if (!mounted) {
+        t.cancel();
+        return;
+      }
+      setState(() => _countdown--);
+      if (_countdown <= 0) {
+        t.cancel();
+        _countdownActive = false;
+        // Missed the choice window → penalty; move on to the next clip.
+        _goNext();
+      }
+    });
+  }
+
+  void _stopCountdown() {
+    _countdownTimer?.cancel();
+    _countdownActive = false;
   }
 
   void _goNext() {
@@ -102,9 +146,13 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     setState(() => _quizAnswered = true);
   }
 
-  void _pickWithSubtitle() => setState(() => _subtitleChoice = true);
+  void _pickWithSubtitle() {
+    _stopCountdown();
+    setState(() => _subtitleChoice = true);
+  }
 
   void _pickWithoutSubtitle() {
+    _stopCountdown();
     setState(() => _subtitleChoice = false);
     Future.delayed(const Duration(milliseconds: 350), _goNext);
   }
@@ -135,10 +183,9 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 onSoundChanged: (v) {
                   if (mounted) setState(() => _soundOn = v);
                 },
-                clipIndex: _index,
-                clipCount: widget.segments.length,
+                countdown: _countdown,
+                showCountdown: _countdownActive,
                 showReplay: _clipEnded && !_quizAnswered,
-                showNext: _quizAnswered,
                 onReplayTap: _replay,
                 onNextTap: _goNext,
               ),
@@ -170,7 +217,6 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
             onToggleSound: _playerCtrl.toggleSound,
             onPrev: _goPrev,
             onReplay: _replay,
-            onNext: _goNext,
             onSpeedChanged: _setSpeed,
           ),
 
@@ -279,7 +325,6 @@ class _ControlsBar extends StatelessWidget {
   final VoidCallback onToggleSound;
   final VoidCallback onPrev;
   final VoidCallback onReplay;
-  final VoidCallback onNext;
   final void Function(double) onSpeedChanged;
 
   const _ControlsBar({
@@ -288,7 +333,6 @@ class _ControlsBar extends StatelessWidget {
     required this.onToggleSound,
     required this.onPrev,
     required this.onReplay,
-    required this.onNext,
     required this.onSpeedChanged,
   });
 
@@ -311,11 +355,6 @@ class _ControlsBar extends StatelessWidget {
               onTap: onReplay,
               size: 24,
               tooltip: 'Tekrar oynat'),
-          _CtrlBtn(
-              icon: Icons.skip_next_rounded,
-              onTap: onNext,
-              size: 28,
-              tooltip: 'Sonraki'),
 
           // Sound toggle — same plain pattern as the play button (no builder).
           _CtrlBtn(

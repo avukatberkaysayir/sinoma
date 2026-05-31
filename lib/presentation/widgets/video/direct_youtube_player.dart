@@ -37,10 +37,9 @@ class DirectYouTubePlayer extends StatefulWidget {
   final ValueChanged<bool>? onSoundChanged;
 
   // Voscreen-style overlays drawn on top of the player.
-  final int clipIndex; // 0-based
-  final int clipCount;
+  final int countdown; // seconds left to make a choice (e.g. 20..0)
+  final bool showCountdown; // visible only during the choice window
   final bool showReplay; // segment ended, awaiting action
-  final bool showNext; // answered, offer manual advance
   final VoidCallback? onReplayTap;
   final VoidCallback? onNextTap;
 
@@ -54,10 +53,9 @@ class DirectYouTubePlayer extends StatefulWidget {
     required this.controller,
     required this.onSegmentEnded,
     this.onSoundChanged,
-    this.clipIndex = 0,
-    this.clipCount = 0,
+    this.countdown = 0,
+    this.showCountdown = false,
     this.showReplay = false,
-    this.showNext = false,
     this.onReplayTap,
     this.onNextTap,
   });
@@ -80,9 +78,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   final GlobalKey _containerKey = GlobalKey();
 
   html.IFrameElement? _iframe;
-  html.DivElement? _counterEl; // top-right "i / n"
+  html.DivElement? _countdownEl; // top-right choice countdown
   html.DivElement? _replayEl; // center replay (segment end)
-  html.DivElement? _nextEl; // right-center next arrow (after answer)
+  html.DivElement? _nextEl; // right-center next arrow (always available)
   html.EventListener? _msgListener;
   html.EventListener? _gestureListener;
 
@@ -172,20 +170,25 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   }
 
   void _buildOverlays() {
-    // Counter — top-right, non-interactive so clicks fall through to the video.
-    _counterEl = html.DivElement()
+    // Countdown — top-right circular badge, non-interactive (clicks fall
+    // through to the video). Shown only during the choice window.
+    _countdownEl = html.DivElement()
       ..style.position = 'fixed'
       ..style.zIndex = '8'
       ..style.pointerEvents = 'none'
-      ..style.padding = '4px 12px'
-      ..style.borderRadius = '16px'
-      ..style.background = 'rgba(0,0,0,0.6)'
+      ..style.display = 'none'
+      ..style.width = '44px'
+      ..style.height = '44px'
+      ..style.borderRadius = '50%'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'center'
+      ..style.background = 'rgba(0,0,0,0.55)'
+      ..style.border = '2px solid #ef4444'
       ..style.color = 'white'
       ..style.fontFamily = 'sans-serif'
-      ..style.fontSize = '13px'
-      ..style.fontWeight = '600'
-      ..style.whiteSpace = 'nowrap';
-    html.document.body!.append(_counterEl!);
+      ..style.fontSize = '16px'
+      ..style.fontWeight = '700';
+    html.document.body!.append(_countdownEl!);
 
     // Center replay (shown when the segment ends).
     final replayIcon = html.DivElement()
@@ -240,20 +243,21 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       e.stopPropagation();
       widget.onNextTap?.call();
     });
+    // Always visible — this is the "skip to next clip" control (it replaced the
+    // controls-bar next button).
+    _nextEl!.style.display = 'flex';
     html.document.body!.append(_nextEl!);
 
     _refreshOverlays();
   }
 
   void _refreshOverlays() {
-    if (widget.clipCount > 0) {
-      _counterEl?.text = '${widget.clipIndex + 1} / ${widget.clipCount}';
-      _counterEl?.style.display = 'block';
-    } else {
-      _counterEl?.style.display = 'none';
+    final cd = _countdownEl?.style;
+    if (cd != null) {
+      cd.display = widget.showCountdown ? 'flex' : 'none';
     }
+    _countdownEl?.text = '${widget.countdown}';
     _replayEl?.style.display = widget.showReplay ? 'flex' : 'none';
-    _nextEl?.style.display = widget.showNext ? 'flex' : 'none';
   }
 
   void _startListening() {
@@ -301,7 +305,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     final cx = pos.dx + size.width / 2;
     final cy = pos.dy + size.height / 2;
 
-    final c = _counterEl?.style;
+    final c = _countdownEl?.style;
     if (c != null) {
       c
         ..left = ''
@@ -433,10 +437,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _cmd('seekTo', [widget.startTime, true]);
       _cmd('playVideo', []);
     }
-    if (widget.clipIndex != old.clipIndex ||
-        widget.clipCount != old.clipCount ||
-        widget.showReplay != old.showReplay ||
-        widget.showNext != old.showNext) {
+    if (widget.countdown != old.countdown ||
+        widget.showCountdown != old.showCountdown ||
+        widget.showReplay != old.showReplay) {
       _refreshOverlays();
     }
   }
@@ -456,7 +459,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       }
     }
     _iframe?.remove();
-    _counterEl?.remove();
+    _countdownEl?.remove();
     _replayEl?.remove();
     _nextEl?.remove();
     super.dispose();
