@@ -103,10 +103,18 @@ class AdminService {
   // Enqueue a Whisper job: the local worker transcribes the whole video once and
   // fills videos.whisper_text for every clip of that youtube_id, so the admin can
   // compare the auto-caption transcription with the Whisper draft and pick.
-  Future<String> createWhisperJob(String url) async {
+  Future<String> createWhisperJob(
+    String url, {
+    required double start,
+    required double end,
+    required String rowId,
+  }) async {
     final res = await _db
         .from('pipeline_jobs')
-        .insert({'job_type': 'whisper_clip', 'payload': {'url': url}})
+        .insert({
+          'job_type': 'whisper_clip',
+          'payload': {'url': url, 'start': start, 'end': end, 'row_id': rowId},
+        })
         .select('id')
         .single();
     return res['id'] as String;

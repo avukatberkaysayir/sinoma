@@ -84,7 +84,7 @@ def _finish_job(
 def _poll_loop(base_url: str, service_key: str) -> None:
     print("  [poller] pipeline_jobs izleniyor…")
     from youtube_asr_pipeline import run as asr_run
-    from youtube_asr_pipeline import transcribe_and_fill_whisper
+    from youtube_asr_pipeline import transcribe_clip
 
     while True:
         try:
@@ -101,7 +101,13 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                     def _progress(n: int) -> None:
                         _update_progress(base_url, service_key, job_id, n)
                     if job_type == "whisper_clip":
-                        result = transcribe_and_fill_whisper(url, on_progress=_progress)
+                        result = transcribe_clip(
+                            url,
+                            float(payload.get("start", 0)),
+                            float(payload.get("end", 0)),
+                            payload.get("row_id", ""),
+                            on_progress=_progress,
+                        )
                     else:
                         result = asr_run(url, active=active, hsk_filter=hsk_filter, on_progress=_progress)
                     _finish_job(base_url, service_key, job_id, "done", result=result)

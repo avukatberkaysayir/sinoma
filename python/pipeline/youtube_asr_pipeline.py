@@ -219,72 +219,74 @@ def run(
     return {"segmentsWritten": total, "method": method}
 
 
-def transcribe_and_fill_whisper(
+def _audio_cache_path(youtube_id: str) -> Path:
+    import tempfile
+    d = Path(tempfile.gettempdir()) / "sinoma_audio_cache"
+    d.mkdir(parents=True, exist_ok=True)
+    return d / f"{youtube_id}.mp4"
+
+
+def transcribe_clip(
     url: str,
+    start: float,
+    end: float,
+    row_id: str,
     on_progress: Callable[[int], None] | None = None,
 ) -> dict[str, Any]:
-    """Whisper-transcribe a video ONCE and fill videos.whisper_text for every
-    existing clip of that youtube_id (matched by time overlap). The admin then
-    compares the auto-caption transcription with this Whisper draft and picks."""
+    """Whisper-transcribe ONLY the [start, end] window of the clip (not the whole
+    video) and write videos.whisper_text for that one row. The full audio is
+    cached per youtube_id so repeated clips of the same video are fast."""
     if not SUPABASE_SERVICE_KEY:
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY ayarlı değil.")
 
+    import shutil
     import tempfile
+    from faster_whisper import WhisperModel
+    from faster_whisper.audio import decode_audio
     from youtube_miner import (
         download_audio,
-        transcribe_with_whisper,
         extract_youtube_id,
         normalize_youtube_url,
     )
 
     url = normalize_youtube_url(url)
     youtube_id = extract_youtube_id(url)
-    print(f"\n▶ Whisper draft: {url} ({youtube_id})")
+    print(f"\n▶ Whisper clip {start:.1f}-{end:.1f}s: {youtube_id} (row {row_id[:8]})")
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        audio_path = download_audio(url, Path(tmpdir))
-        print(f"  Ses indirildi → Whisper…")
-        entries = transcribe_with_whisper(audio_path)
-    if not entries:
-        raise RuntimeError("Whisper Çince metin üretemedi.")
+    cache = _audio_cache_path(youtube_id)
+    if not cache.exists():
+        with tempfile.TemporaryDirectory() as tmpdir:
+            audio_path = download_audio(url, Path(tmpdir))
+            shutil.copy(str(audio_path), str(cache))
+        print(f"  Ses indirildi → cache")
+    else:
+        print(f"  Ses cache'ten")
 
-    resp = requests.get(
+    audio = decode_audio(str(cache))  # 16kHz mono float32, no ffmpeg (PyAV)
+    sr = 16000
+    a = max(0, int(start * sr))
+    b = min(len(audio), int(end * sr))
+    clip = audio[a:b] if b > a else audio
+    if on_progress:
+        on_progress(1)
+
+    print(f"  [ASR] Whisper 'small' — {len(clip) / sr:.1f}s dinleniyor…")
+    model = WhisperModel("small", device="cpu", compute_type="int8")
+    segments, _info = model.transcribe(clip, language="zh", beam_size=1)
+    text = "".join(
+        s.text for s in segments
+        if any("一" <= ch <= "鿿" for ch in s.text)
+    ).strip()
+
+    requests.patch(
         f"{SUPABASE_URL}/rest/v1/videos",
-        params={
-            "youtube_id": f"eq.{youtube_id}",
-            "select": "id,start_time,end_time",
-        },
+        params={"id": f"eq.{row_id}"},
+        json={"whisper_text": text},
         headers=_supabase_headers(),
-        timeout=30,
+        timeout=15,
     )
-    clips = resp.json() if resp.status_code < 300 else []
-    if not clips:
-        raise RuntimeError("Bu videonun klibi bulunamadı (önce içe aktarın).")
-
-    margin = 0.6
-    filled = 0
-    for clip in clips:
-        s = float(clip["start_time"])
-        e = float(clip["end_time"])
-        text = "".join(
-            en["text"] for en in entries
-            if en["end"] > s - margin and en["start"] < e + margin
-        ).strip()
-        if not text:
-            continue
-        requests.patch(
-            f"{SUPABASE_URL}/rest/v1/videos",
-            params={"id": f"eq.{clip['id']}"},
-            json={"whisper_text": text},
-            headers=_supabase_headers(),
-            timeout=15,
-        )
-        filled += 1
-        if on_progress:
-            on_progress(filled)
-
-    print(f"  ✓ {filled}/{len(clips)} klibe Whisper metni yazıldı")
-    return {"whisperFilled": filled, "clips": len(clips)}
+    print(f"  ✓ whisper_text yazıldı: {text[:40]}")
+    return {"whisper_text": text}
 
 
 if __name__ == "__main__":

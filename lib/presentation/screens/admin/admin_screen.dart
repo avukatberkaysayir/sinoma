@@ -2020,9 +2020,16 @@ class _VideoCardState extends State<_VideoCard> {
     final ytId = widget.data['youtube_id'] as String?;
     if (ytId == null || ytId.isEmpty) return;
     final url = 'https://www.youtube.com/watch?v=$ytId';
+    final start = (widget.data['start_time'] as num?)?.toDouble() ?? 0.0;
+    final end = (widget.data['end_time'] as num?)?.toDouble() ?? 0.0;
     setState(() => _whisperRunning = true);
     try {
-      final jobId = await widget.service.createWhisperJob(url);
+      final jobId = await widget.service.createWhisperJob(
+        url,
+        start: start,
+        end: end,
+        rowId: widget.data['id'] as String,
+      );
       _whisperTimer?.cancel();
       _whisperTimer = Timer.periodic(const Duration(seconds: 4), (t) async {
         try {
