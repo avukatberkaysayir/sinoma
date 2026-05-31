@@ -126,7 +126,9 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         t.cancel();
         // Missed the choice window → penalty. Don't auto-advance; the next
         // arrow appears and the user taps it to continue.
-        _addScore(-_penaltyPoints(_seg), answered: false);
+        final delta = -_penaltyPoints(_seg);
+        _addScore(delta, answered: false);
+        _playerCtrl.showScorePopup(delta);
         setState(() {
           _countdownActive = false;
           _timedOut = true;
@@ -178,7 +180,9 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
 
   void _onQuizAnswered(bool correct) {
     final seg = _seg;
-    _addScore(correct ? _correctPoints(seg) : -_penaltyPoints(seg));
+    final delta = correct ? _correctPoints(seg) : -_penaltyPoints(seg);
+    _addScore(delta);
+    _playerCtrl.showScorePopup(delta);
     // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _quizAnswered = true);
   }

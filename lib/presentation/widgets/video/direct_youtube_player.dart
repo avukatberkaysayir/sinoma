@@ -15,6 +15,7 @@ class DirectYouTubeController extends ChangeNotifier {
 
   bool get soundOn => _state?._soundOn ?? false;
   void toggleSound() => _state?._toggleSound();
+  void showScorePopup(int points) => _state?._showScorePopup(points);
 
   void pauseVideo() => _state?._cmd('pauseVideo', []);
   void playVideo() => _state?._cmd('playVideo', []);
@@ -128,9 +129,60 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       html.document.addEventListener(type, _gestureListener!, true);
     }
 
+    _injectPopupKeyframes();
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _buildIframe();
     });
+  }
+
+  // Inject the score-pop animation once per document.
+  void _injectPopupKeyframes() {
+    if (html.document.getElementById('sinoma-score-pop') != null) return;
+    final style = html.StyleElement()
+      ..id = 'sinoma-score-pop'
+      ..text = '@keyframes sinomaScorePop {'
+          '0% { transform: translate(-50%, -50%) scale(0.4); opacity: 0; }'
+          '25% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }'
+          '55% { transform: translate(-50%, -50%) scale(1.0); opacity: 1; }'
+          '100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; }'
+          '}';
+    html.document.head!.append(style);
+  }
+
+  // A transient circular burst over the player: green +N, red -N.
+  void _showScorePopup(int points) {
+    final box = _containerKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return;
+    final pos = box.localToGlobal(Offset.zero);
+    final cx = pos.dx + box.size.width / 2;
+    final cy = pos.dy + box.size.height / 2;
+    final positive = points >= 0;
+
+    final el = html.DivElement()
+      ..text = positive ? '+$points' : '$points'
+      ..style.position = 'fixed'
+      ..style.zIndex = '9'
+      ..style.pointerEvents = 'none'
+      ..style.left = '${cx}px'
+      ..style.top = '${cy}px'
+      ..style.width = '96px'
+      ..style.height = '96px'
+      ..style.borderRadius = '50%'
+      ..style.display = 'flex'
+      ..style.alignItems = 'center'
+      ..style.justifyContent = 'center'
+      ..style.color = 'white'
+      ..style.fontFamily = 'sans-serif'
+      ..style.fontSize = '28px'
+      ..style.fontWeight = '800'
+      ..style.background = positive
+          ? 'rgba(34, 197, 94, 0.95)'
+          : 'rgba(239, 68, 68, 0.95)'
+      ..style.boxShadow = '0 4px 18px rgba(0,0,0,0.4)'
+      ..style.animation = 'sinomaScorePop 1.1s ease-out forwards';
+    html.document.body!.append(el);
+    Future.delayed(const Duration(milliseconds: 1150), el.remove);
   }
 
   // ── iframe + overlays ──────────────────────────────────────────────────────
@@ -192,32 +244,25 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       ..style.fontWeight = '700';
     html.document.body!.append(_countdownEl!);
 
-    // Center replay (shown when the segment ends).
-    final replayIcon = html.DivElement()
-      ..text = '↻'
-      ..style.fontSize = '30px'
-      ..style.lineHeight = '1';
-    final replayLabel = html.DivElement()
-      ..text = 'Tekrar'
-      ..style.fontSize = '11px'
-      ..style.marginTop = '3px';
+    // Center replay (shown when the segment ends) — subtle dark circle with
+    // just the replay glyph, no label.
     _replayEl = html.DivElement()
+      ..text = '↻'
       ..style.position = 'fixed'
       ..style.zIndex = '8'
       ..style.display = 'none'
-      ..style.flexDirection = 'column'
       ..style.alignItems = 'center'
       ..style.justifyContent = 'center'
-      ..style.width = '88px'
-      ..style.height = '88px'
+      ..style.width = '64px'
+      ..style.height = '64px'
       ..style.borderRadius = '50%'
       ..style.cursor = 'pointer'
-      ..style.background = 'rgba(34, 197, 94, 0.90)'
+      ..style.background = 'rgba(0, 0, 0, 0.40)'
+      ..style.border = '1px solid rgba(255,255,255,0.45)'
       ..style.color = 'white'
       ..style.fontFamily = 'sans-serif'
-      ..style.boxShadow = '0 2px 12px rgba(0,0,0,0.35)';
-    _replayEl!.append(replayIcon);
-    _replayEl!.append(replayLabel);
+      ..style.fontSize = '32px'
+      ..style.lineHeight = '1';
     _replayEl!.onClick.listen((e) {
       e.stopPropagation();
       widget.onReplayTap?.call();
