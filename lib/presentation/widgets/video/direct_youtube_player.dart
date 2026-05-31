@@ -66,6 +66,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   final GlobalKey _containerKey = GlobalKey();
 
   html.IFrameElement? _iframe;
+  html.DivElement? _soundBtn; // DOM, sits ABOVE the iframe so it's always usable
   html.EventListener? _msgListener;
   html.EventListener? _gestureListener;
 
@@ -142,8 +143,43 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       // iframe itself never needs pointer input.
       ..style.pointerEvents = 'none';
 
-    _applyGeometry();
     html.document.body!.append(_iframe!);
+    _buildSoundButton();
+    _applyGeometry();
+  }
+
+  // Sound toggle as a DOM element at a higher z-index than the iframe, so it is
+  // always visible and clickable over the video (a Flutter widget would render
+  // behind the body-appended iframe and be unusable once the video loads).
+  void _buildSoundButton() {
+    if (_soundBtn != null) return;
+    final btn = html.DivElement()
+      ..style.position = 'fixed'
+      ..style.zIndex = '7'
+      ..style.cursor = 'pointer'
+      ..style.display = 'flex'
+      ..style.alignItems = 'center'
+      ..style.gap = '6px'
+      ..style.padding = '7px 12px'
+      ..style.borderRadius = '20px'
+      ..style.background = 'rgba(0,0,0,0.72)'
+      ..style.border = '1px solid rgba(255,255,255,0.24)'
+      ..style.color = 'white'
+      ..style.fontFamily = 'sans-serif'
+      ..style.fontSize = '12px'
+      ..style.userSelect = 'none'
+      ..style.whiteSpace = 'nowrap';
+    btn.onClick.listen((e) {
+      e.stopPropagation();
+      _toggleSound();
+    });
+    _soundBtn = btn;
+    html.document.body!.append(btn);
+    _refreshSoundButton();
+  }
+
+  void _refreshSoundButton() {
+    _soundBtn?.text = _soundOn ? '🔊' : '🔇 Ses için dokun';
   }
 
   // Attempt to unmute, throttled — mousemove fires constantly, so cap retries.
@@ -168,33 +204,54 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (_soundOn) {
       _mutedByUser = true;
       _cmd('mute', []);
-      if (mounted) setState(() => _soundOn = false);
+      _applySound(false);
     } else {
       _mutedByUser = false;
       _requestSound();
-      if (mounted) setState(() => _soundOn = true);
+      _applySound(true);
     }
+  }
+
+  void _applySound(bool on) {
+    _soundOn = on;
+    _refreshSoundButton();
   }
 
   void _applyGeometry() {
     final box = _containerKey.currentContext?.findRenderObject() as RenderBox?;
-    final style = _iframe?.style;
-    if (style == null) return;
-    if (box == null || !box.hasSize) {
-      style
-        ..left = '0'
-        ..top = '0'
-        ..width = '100vw'
-        ..height = '56.25vw';
-      return;
+    final haveBox = box != null && box.hasSize;
+    final iStyle = _iframe?.style;
+
+    if (iStyle != null) {
+      if (haveBox) {
+        final pos = box.localToGlobal(Offset.zero);
+        iStyle
+          ..left = '${pos.dx}px'
+          ..top = '${pos.dy}px'
+          ..width = '${box.size.width}px'
+          ..height = '${box.size.height}px';
+      } else {
+        iStyle
+          ..left = '0'
+          ..top = '0'
+          ..width = '100vw'
+          ..height = '56.25vw';
+      }
     }
-    final pos = box.localToGlobal(Offset.zero);
-    final size = box.size;
-    style
-      ..left = '${pos.dx}px'
-      ..top = '${pos.dy}px'
-      ..width = '${size.width}px'
-      ..height = '${size.height}px';
+
+    // Anchor the sound button to the iframe's bottom-right corner using
+    // right/bottom insets, so its own (variable) width doesn't matter.
+    final bStyle = _soundBtn?.style;
+    if (bStyle != null && haveBox) {
+      final pos = box.localToGlobal(Offset.zero);
+      final winW = html.window.innerWidth!.toDouble();
+      final winH = html.window.innerHeight!.toDouble();
+      bStyle
+        ..left = ''
+        ..top = ''
+        ..right = '${winW - (pos.dx + box.size.width) + 10}px'
+        ..bottom = '${winH - (pos.dy + box.size.height) + 10}px';
+    }
   }
 
   void _updatePosition() {
@@ -220,9 +277,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
         final muted = info['muted'];
         final volume = (info['volume'] as num?)?.toInt();
         final soundNow = (muted == false) && (volume == null || volume > 0);
-        if (soundNow != _soundOn && mounted) {
-          setState(() => _soundOn = soundNow);
-        }
+        if (soundNow != _soundOn) _applySound(soundNow);
 
         final t = (info['currentTime'] as num?)?.toDouble();
         if (t != null && _hasPlayed) _handleTime(t);
@@ -287,6 +342,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       }
     }
     _iframe?.remove();
+    _soundBtn?.remove();
     super.dispose();
   }
 
@@ -296,53 +352,14 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   Widget build(BuildContext context) {
     WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
 
-    return Stack(
-      children: [
-        AspectRatio(
-          aspectRatio: 16 / 9,
-          child: Container(
-            key: _containerKey,
-            color: Colors.black,
-          ),
-        ),
-        // Persistent sound toggle — always visible so the user knows where to
-        // tap. Shows the "Ses için dokun" hint while muted; just the speaker
-        // icon once sound is on (tap to mute again).
-        Positioned(
-          bottom: 10,
-          right: 10,
-          child: GestureDetector(
-            onTap: _toggleSound,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-              decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.72),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white24),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _soundOn
-                        ? Icons.volume_up_rounded
-                        : Icons.volume_off_rounded,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  if (!_soundOn) ...[
-                    const SizedBox(width: 6),
-                    const Text(
-                      'Ses için dokun',
-                      style: TextStyle(color: Colors.white, fontSize: 12),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+    // The video (iframe) and the sound toggle are body-appended DOM elements
+    // layered above this; here we only reserve the 16:9 space for geometry.
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Container(
+        key: _containerKey,
+        color: Colors.black,
+      ),
     );
   }
 }
