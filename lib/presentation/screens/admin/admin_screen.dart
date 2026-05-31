@@ -1836,7 +1836,6 @@ class _VideoCardState extends State<_VideoCard> {
   late int _hskLevel;
   late QuizCategory _category;
   late List<String> _targetWords;
-  late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
   late final TextEditingController _questionCtrl;
   late final TextEditingController _correctCtrl;
@@ -1855,8 +1854,6 @@ class _VideoCardState extends State<_VideoCard> {
         QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
-    _transcriptionCtrl =
-        TextEditingController(text: v['transcription'] as String? ?? '');
     _pinyinCtrl = TextEditingController(text: v['pinyin'] as String? ?? '');
     final quiz = v['quiz'] as Map<String, dynamic>? ?? {};
     _questionCtrl =
@@ -1898,7 +1895,6 @@ class _VideoCardState extends State<_VideoCard> {
   @override
   void dispose() {
     _ytController?.close();
-    _transcriptionCtrl.dispose();
     _pinyinCtrl.dispose();
     _questionCtrl.dispose();
     _correctCtrl.dispose();
@@ -1943,22 +1939,13 @@ class _VideoCardState extends State<_VideoCard> {
   Future<void> _save() async {
     setState(() => _saving = true);
     try {
-      final transcription = _transcriptionCtrl.text.trim();
-      // Keep target words in sentence order (words not found go to the end).
-      final orderedWords = [..._targetWords]..sort((a, b) {
-          final ia = transcription.indexOf(a);
-          final ib = transcription.indexOf(b);
-          if (ia == ib) return 0;
-          if (ia == -1) return 1;
-          if (ib == -1) return -1;
-          return ia.compareTo(ib);
-        });
+      // The sentence is the target words joined in their (drag-ordered) order.
       await widget.service.patchVideoFields(widget.data['id'] as String, {
-        'transcription': transcription,
+        'transcription': _targetWords.join(''),
         'pinyin': _pinyinCtrl.text.trim(),
         'hsk_level': _hskLevel,
         'quiz_category': _category.name,
-        'target_words': orderedWords,
+        'target_words': _targetWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
           'correctAnswer': _correctCtrl.text.trim(),
@@ -2174,20 +2161,6 @@ class _VideoCardState extends State<_VideoCard> {
                     ],
                   ],
                   const SizedBox(height: 14),
-                  const Text('Cümle',
-                      style: TextStyle(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
-                  const SizedBox(height: 6),
-                  _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
-                  _editField(_pinyinCtrl, 'Pinyin'),
-                  const Text(
-                    'Kelimeler kaydederken cümledeki sıraya göre dizilir.',
-                    style: TextStyle(
-                        color: AppColors.onSurfaceMuted, fontSize: 11),
-                  ),
-                  const SizedBox(height: 14),
                   Text('HSK Seviye: $_hskLevel',
                       style: const TextStyle(
                           color: AppColors.onSurface,
@@ -2228,6 +2201,8 @@ class _VideoCardState extends State<_VideoCard> {
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
+                  _editField(_pinyinCtrl, 'Pinyin'),
+                  const SizedBox(height: 6),
                   _WordTagEditor(
                     words: _targetWords,
                     service: widget.service,
@@ -2377,33 +2352,97 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     widget.onChanged(current);
   }
 
+  void _onReorder(int oldIndex, int newIndex) {
+    final list = List<String>.from(widget.words);
+    if (newIndex > oldIndex) newIndex -= 1;
+    final item = list.removeAt(oldIndex);
+    list.insert(newIndex, item);
+    widget.onChanged(list);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Kelimeler (sözlükten)',
+        // Live sentence preview — the chips joined in their current order.
+        const Text('Cümle',
+            style: TextStyle(
+                color: AppColors.onSurface,
+                fontWeight: FontWeight.bold,
+                fontSize: 13)),
+        const SizedBox(height: 6),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C2E),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(
+            widget.words.isEmpty ? '—' : widget.words.join(''),
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w500,
+                height: 1.4),
+          ),
+        ),
+        const SizedBox(height: 10),
+        const Text('Kelimeler — sürükle-bırak ile sırala, × ile sil',
             style: TextStyle(
                 color: AppColors.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 13)),
         const SizedBox(height: 6),
         if (widget.words.isNotEmpty)
-          Wrap(
-            spacing: 6,
-            runSpacing: 4,
-            children: widget.words
-                .map((w) => InputChip(
-                      label: Text(w,
-                          style: const TextStyle(
-                              fontSize: 12, color: AppColors.primary)),
-                      onDeleted: () => _removeWord(w),
-                      deleteIcon: const Icon(Icons.close, size: 14),
-                      backgroundColor:
-                          AppColors.primary.withValues(alpha: 0.1),
-                      deleteIconColor: AppColors.primary,
-                    ))
-                .toList(),
+          SizedBox(
+            height: 46,
+            child: ReorderableListView(
+              scrollDirection: Axis.horizontal,
+              buildDefaultDragHandles: false,
+              onReorder: _onReorder,
+              children: [
+                for (int i = 0; i < widget.words.length; i++)
+                  ReorderableDragStartListener(
+                    key: ValueKey(widget.words[i]),
+                    index: i,
+                    child: Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.grab,
+                        child: Container(
+                          padding: const EdgeInsets.only(left: 12, right: 6),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                                color:
+                                    AppColors.primary.withValues(alpha: 0.4)),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(widget.words[i],
+                                  style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(width: 4),
+                              GestureDetector(
+                                onTap: () => _removeWord(widget.words[i]),
+                                child: const Icon(Icons.close,
+                                    size: 16, color: AppColors.primary),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         const SizedBox(height: 6),
         TextField(
