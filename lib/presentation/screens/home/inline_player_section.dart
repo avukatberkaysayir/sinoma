@@ -2,25 +2,28 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 import '../../widgets/video/direct_youtube_player.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
-class InlinePlayerSection extends StatefulWidget {
+class InlinePlayerSection extends ConsumerStatefulWidget {
   final List<VideoSegmentModel> segments;
 
   const InlinePlayerSection({super.key, required this.segments});
 
   @override
-  State<InlinePlayerSection> createState() => _InlinePlayerSectionState();
+  ConsumerState<InlinePlayerSection> createState() =>
+      _InlinePlayerSectionState();
 }
 
-class _InlinePlayerSectionState extends State<InlinePlayerSection> {
+class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   late int _index;
   bool _clipEnded = false;
   bool? _subtitleChoice;
@@ -37,6 +40,7 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
   Timer? _countdownTimer;
   int _countdown = _choiceSeconds;
   bool _countdownActive = false;
+  bool _timedOut = false; // choice window expired without a selection
 
   @override
   void initState() {
@@ -65,10 +69,37 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     _clipEnded = false;
     _subtitleChoice = null;
     _quizAnswered = false;
+    _timedOut = false;
     _activeWordId = null;
     _replayCount = 0;
     _stopCountdown();
     _countdown = _choiceSeconds;
+  }
+
+  // ── Scoring ────────────────────────────────────────────────────────────────
+  // Correct = (word count) × (HSK level) × 2  →  6 HSK-1 words = 12.
+  // Penalty = (HSK level) × 2  (level = highest word level in the segment).
+
+  int _correctPoints(VideoSegmentModel seg) {
+    final words = seg.targetWords.isEmpty ? 1 : seg.targetWords.length;
+    final level = seg.hskLevel <= 0 ? 1 : seg.hskLevel;
+    return words * level * 2;
+  }
+
+  int _penaltyPoints(VideoSegmentModel seg) {
+    final level = seg.hskLevel <= 0 ? 1 : seg.hskLevel;
+    return level * 2;
+  }
+
+  void _addScore(int delta, {bool answered = true}) {
+    final user = ref.read(currentUserProvider).valueOrNull;
+    if (user == null) return;
+    final newStats = user.stats.copyWith(
+      totalScore: (user.stats.totalScore + delta).clamp(0, 1 << 30),
+      questionsAnswered:
+          user.stats.questionsAnswered + (answered ? 1 : 0),
+    );
+    ref.read(userRepositoryProvider).updateUserStats(user.uid, newStats);
   }
 
   VideoSegmentModel get _seg => widget.segments[_index];
@@ -93,9 +124,13 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
       setState(() => _countdown--);
       if (_countdown <= 0) {
         t.cancel();
-        _countdownActive = false;
-        // Missed the choice window → penalty; move on to the next clip.
-        _goNext();
+        // Missed the choice window → penalty. Don't auto-advance; the next
+        // arrow appears and the user taps it to continue.
+        _addScore(-_penaltyPoints(_seg), answered: false);
+        setState(() {
+          _countdownActive = false;
+          _timedOut = true;
+        });
       }
     });
   }
@@ -141,7 +176,9 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
     return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
   }
 
-  void _onQuizAnswered() {
+  void _onQuizAnswered(bool correct) {
+    final seg = _seg;
+    _addScore(correct ? _correctPoints(seg) : -_penaltyPoints(seg));
     // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _quizAnswered = true);
   }
@@ -185,8 +222,8 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
                 },
                 countdown: _countdown,
                 showCountdown: _countdownActive,
-                showReplay: _clipEnded && !_quizAnswered,
-                showNext: _subtitleChoice != null,
+                showReplay: _clipEnded && !_quizAnswered && !_timedOut,
+                showNext: _subtitleChoice != null || _timedOut,
                 onReplayTap: _replay,
                 onNextTap: _goNext,
               ),
@@ -222,43 +259,26 @@ class _InlinePlayerSectionState extends State<InlinePlayerSection> {
           ),
 
           // ── Post-clip area ────────────────────────────────────────────────
-          if (_clipEnded && !_quizAnswered) ...[
+          if (_clipEnded) ...[
             const SizedBox(height: 14),
 
-            // Step 1: VoScreen-style choice (Altyazılı | Altyazısız)
-            if (_subtitleChoice == null)
+            // Step 1: VoScreen-style choice (Altyazılı | Altyazısız) — only
+            // while the choice window is open (not after a pick or timeout).
+            if (_subtitleChoice == null && !_timedOut)
               _SubtitleChoiceButtons(
                 onWithSubtitle: _pickWithSubtitle,
                 onWithoutSubtitle: _pickWithoutSubtitle,
               ),
 
-            // Step 2: subtitle chosen → Chinese bar + answer buttons
+            // Step 2: "Altyazılı" → Chinese subtitle + the two answer options.
+            // The options stay visible after answering so the result shows; the
+            // user advances via the next arrow on the player.
             if (_subtitleChoice == true) ...[
               _ChineseSubtitleBar(transcription: seg.transcription),
               const SizedBox(height: 14),
-              if (hasQuiz)
-                _AnswerRow(quiz: seg.quiz, onAnswered: _onQuizAnswered)
-              else
-                _NextButton(onNext: _goNext),
+              if (hasQuiz) _AnswerRow(quiz: seg.quiz, onAnswered: _onQuizAnswered),
             ],
           ],
-
-          if (_quizAnswered)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.check_circle,
-                      color: AppColors.correctAnswer, size: 18),
-                  SizedBox(width: 8),
-                  Text(
-                    'Sonraki klibe geçiliyor…',
-                    style: TextStyle(color: AppColors.correctAnswer),
-                  ),
-                ],
-              ),
-            ),
 
           const SizedBox(height: 24),
         ],
@@ -587,7 +607,7 @@ class _ChineseSubtitleBar extends StatelessWidget {
 
 class _AnswerRow extends StatefulWidget {
   final QuizData quiz;
-  final VoidCallback onAnswered;
+  final ValueChanged<bool> onAnswered;
 
   const _AnswerRow({required this.quiz, required this.onAnswered});
 
@@ -602,6 +622,7 @@ class _AnswerRowState extends State<_AnswerRow> {
   @override
   void initState() {
     super.initState();
+    // Correct + a close-but-wrong translation, in random left/right order.
     _opts = [
       _Opt(widget.quiz.correctAnswer, true),
       _Opt(widget.quiz.wrongAnswer, false),
@@ -611,7 +632,10 @@ class _AnswerRowState extends State<_AnswerRow> {
   void _pick(_Opt opt) {
     if (_selected != null) return;
     setState(() => _selected = opt.text);
-    Future.delayed(const Duration(milliseconds: 850), widget.onAnswered);
+    Future.delayed(
+      const Duration(milliseconds: 850),
+      () => widget.onAnswered(opt.correct),
+    );
   }
 
   @override
@@ -703,28 +727,6 @@ class _AnswerButton extends StatelessWidget {
 }
 
 // ── No-quiz fallback ──────────────────────────────────────────────────────────
-
-class _NextButton extends StatelessWidget {
-  final VoidCallback onNext;
-  const _NextButton({required this.onNext});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: SizedBox(
-        height: 52,
-        child: FilledButton.icon(
-          onPressed: onNext,
-          icon: const Icon(Icons.skip_next_rounded, size: 20),
-          label: const Text('Sonraki Klip',
-              style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
-          style: FilledButton.styleFrom(backgroundColor: AppColors.primary),
-        ),
-      ),
-    );
-  }
-}
 
 // ── Side word detail panel (wide screen) ─────────────────────────────────────
 
