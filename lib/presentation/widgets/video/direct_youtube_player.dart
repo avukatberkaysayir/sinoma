@@ -4,8 +4,6 @@ import 'dart:html' as html;
 
 import 'package:flutter/material.dart';
 
-import '../../../core/constants/app_colors.dart';
-
 // ── Controller ───────────────────────────────────────────────────────────────
 
 class DirectYouTubeController {
@@ -46,18 +44,14 @@ class DirectYouTubePlayer extends StatefulWidget {
   State<DirectYouTubePlayer> createState() => _DirectYouTubePlayerState();
 }
 
-class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
-    with SingleTickerProviderStateMixin {
+class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   final GlobalKey _containerKey = GlobalKey();
 
-  // Nullable — iframe is created on first user tap, not at initState.
   html.IFrameElement? _iframe;
   html.EventListener? _msgListener;
+  html.EventListener? _gestureListener;
 
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
-
-  bool _showOverlay = true; // Always show until user taps
+  bool _muted = true; // starts muted (the only autoplay Chrome allows on load)
   bool _hasPlayed = false;
   bool _ended = false;
 
@@ -68,25 +62,37 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     super.initState();
     widget.controller._attach(this);
 
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
-    _pulseAnim = Tween(begin: 0.92, end: 1.08).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    // Create the player + muted-autoplay right after the first layout pass,
+    // when the container already has a size (so geometry is correct and the
+    // player is visible — YouTube aborts autoplay for hidden/zero-size frames).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _createAndAppendIframe();
+    });
+
+    // The first interaction anywhere on the page (a real user gesture) lets us
+    // turn the sound on. Capture phase so it fires before Flutter consumes it.
+    _gestureListener = (_) => _enableSound();
+    html.document.addEventListener('pointerdown', _gestureListener!, true);
+    html.document.addEventListener('keydown', _gestureListener!, true);
   }
 
-  // ── iframe — created on user tap so Chrome grants autoplay+audio ───────────
+  // ── Sound ────────────────────────────────────────────────────────────────
+
+  void _enableSound() {
+    _cmd('unMute', []);
+    _cmd('setVolume', [100]);
+  }
+
+  // ── iframe — muted autoplay on load ────────────────────────────────────────
 
   void _createAndAppendIframe() {
+    if (_iframe != null) return;
     final origin = Uri.encodeComponent(html.window.location.origin);
 
-    // mute=1 guarantees Chrome's muted-autoplay exception fires regardless of
-    // MEI. unMute() is sent in onReady (sticky user activation from the tap
-    // persists), restoring audio. CRITICAL: the iframe must be VISIBLE and
-    // properly sized the instant YouTube's player initialises — a hidden or
-    // 1px player makes YouTube abort autoplay and show its own play button.
+    // autoplay=1 + mute=1 = Chrome's guaranteed muted-autoplay path; the video
+    // starts on its own with no tap. Sound is turned on via unMute() the moment
+    // a user gesture exists (onReady if the SPA navigation already activated the
+    // document, otherwise the first pointerdown/keydown — see _gestureListener).
     _iframe = html.IFrameElement()
       ..src = 'https://www.youtube.com/embed/${widget.videoId}'
           '?autoplay=1'
@@ -103,10 +109,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
       ..style.border = 'none'
       ..style.zIndex = '5';
 
-    // Position over the (already laid-out) container BEFORE appending, so the
-    // player is visible and sized from the very first frame.
     _applyGeometry();
-
     html.document.body!.append(_iframe!);
 
     _msgListener = (html.Event e) {
@@ -127,7 +130,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     final style = _iframe?.style;
     if (style == null) return;
     if (box == null || !box.hasSize) {
-      // Fallback: full-width 16:9 so autoplay still has a visible player.
       style
         ..left = '0'
         ..top = '0'
@@ -158,13 +160,20 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
       _iframe?.contentWindow
           ?.postMessage(jsonEncode({'event': 'listening', 'id': 1}), '*');
       _cmd('playVideo', []);
-      _cmd('unMute', []);
-      _cmd('setVolume', [100]);
+      // If the SPA navigation already gave the document a sticky user
+      // activation, this unmutes immediately; otherwise it's a no-op and the
+      // first page interaction handles it.
+      _enableSound();
     } else if (event == 'infoDelivery') {
       final info = data['info'];
       if (info is Map) {
         final state = (info['playerState'] as num?)?.toInt();
         if (state == 1) _markPlaying();
+
+        final muted = info['muted'];
+        if (muted is bool && muted != _muted && mounted) {
+          setState(() => _muted = muted);
+        }
 
         final t = (info['currentTime'] as num?)?.toDouble();
         if (t != null && _hasPlayed) _handleTime(t);
@@ -202,22 +211,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     );
   }
 
-  // ── Overlay tap ────────────────────────────────────────────────────────────
-
-  void _onStartTap() {
-    setState(() => _showOverlay = false);
-    if (_iframe == null) {
-      // First tap: create the iframe inside the browser's user-activation
-      // window so Chrome grants autoplay with audio.
-      _createAndAppendIframe();
-      WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
-    } else {
-      // Overlay was re-shown (after segment change on same instance).
-      _iframe!.style.display = '';
-      _cmd('playVideo', []);
-    }
-  }
-
   // ── Replay ─────────────────────────────────────────────────────────────────
 
   @override
@@ -226,8 +219,6 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
     if (widget.replayCount != old.replayCount) {
       _ended = false;
       _hasPlayed = false;
-      // Replay button is a user gesture — page already activated from the
-      // initial tap, so postMessage playVideo will work with audio.
       _cmd('seekTo', [widget.startTime, true]);
       _cmd('playVideo', []);
     }
@@ -238,9 +229,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
   @override
   void dispose() {
     widget.controller._detach();
-    _pulseCtrl.dispose();
     if (_msgListener != null) {
       html.window.removeEventListener('message', _msgListener!);
+    }
+    if (_gestureListener != null) {
+      html.document.removeEventListener('pointerdown', _gestureListener!, true);
+      html.document.removeEventListener('keydown', _gestureListener!, true);
     }
     _iframe?.remove();
     super.dispose();
@@ -250,9 +244,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
 
   @override
   Widget build(BuildContext context) {
-    if (!_showOverlay) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updatePosition());
 
     return Stack(
       children: [
@@ -263,51 +255,31 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer>
             color: Colors.black,
           ),
         ),
-        if (_showOverlay)
-          Positioned.fill(
+        // Subtle "tap for sound" hint while the muted autoplay is running.
+        // Any tap on the page unmutes (see _gestureListener); this is the cue.
+        if (_muted)
+          Positioned(
+            bottom: 10,
+            right: 10,
             child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: _onStartTap,
+              onTap: _enableSound,
               child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Color(0xCC000000), Color(0xEE000000)],
-                  ),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white24),
                 ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    ScaleTransition(
-                      scale: _pulseAnim,
-                      child: Container(
-                        decoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        padding: const EdgeInsets.all(20),
-                        child: const Icon(
-                          Icons.play_arrow_rounded,
-                          color: Colors.white,
-                          size: 52,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    const Text(
-                      '开始',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 26,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: 4,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    const Text(
-                      'Oynatmak için dokun',
-                      style: TextStyle(color: Colors.white60, fontSize: 12),
+                    Icon(Icons.volume_off_rounded,
+                        color: Colors.white, size: 16),
+                    SizedBox(width: 6),
+                    Text(
+                      'Ses için dokun',
+                      style: TextStyle(color: Colors.white, fontSize: 12),
                     ),
                   ],
                 ),
