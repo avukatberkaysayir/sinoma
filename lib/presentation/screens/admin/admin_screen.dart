@@ -2360,79 +2360,126 @@ class _VideoCardState extends State<_VideoCard> {
                     }).toList(),
                   ),
                   const SizedBox(height: 14),
-                  const Text('Cümle (gerçek metin)',
-                      style: TextStyle(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
-                  const SizedBox(height: 6),
-                  _editField(_transcriptionCtrl, 'Çince cümle', maxLines: 2),
-                  _editField(_pinyinCtrl, 'Pinyin'),
-                  const SizedBox(height: 6),
-                  // Whisper alternative — needs the local worker (dev_server.py).
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: _whisperRunning ? null : _runWhisper,
-                      icon: _whisperRunning
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.graphic_eq, size: 18),
-                      label: Text(_whisperRunning
-                          ? 'Whisper çalışıyor… (lokal worker)'
-                          : 'Whisper ile çevir (karşılaştır)'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.onSurface,
-                        side: const BorderSide(color: AppColors.onSurfaceMuted),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                  // Left = ASR (auto-caption), Right = Whisper (clip range only).
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // ── Left: ASR transcription (auto-filled, editable) ────
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Cümle — ASR (oto-altyazı)',
+                                style: TextStyle(
+                                    color: AppColors.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13)),
+                            const SizedBox(height: 6),
+                            _editField(_transcriptionCtrl, 'Çince cümle',
+                                maxLines: 3),
+                            _editField(_pinyinCtrl, 'Pinyin'),
+                          ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 12),
+                      // ── Right: Whisper (optional, only the clip's seconds) ──
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Whisper (seçili aralık)',
+                                style: TextStyle(
+                                    color: AppColors.onSurface,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13)),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed:
+                                    _whisperRunning ? null : _runWhisper,
+                                icon: _whisperRunning
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                            strokeWidth: 2))
+                                    : const Icon(Icons.graphic_eq, size: 18),
+                                label: Text(_whisperRunning
+                                    ? 'Whisper çalışıyor…'
+                                    : 'Whisper ile çevir'),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.onSurface,
+                                  side: const BorderSide(
+                                      color: AppColors.onSurfaceMuted),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                              ),
+                            ),
+                            if ((_whisperText ?? '').isNotEmpty) ...[
+                              const SizedBox(height: 8),
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: AppColors.correctAnswer
+                                          .withValues(alpha: 0.5)),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Expanded(
+                                          child: Text('Whisper sonucu',
+                                              style: TextStyle(
+                                                  color:
+                                                      AppColors.correctAnswer,
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 12)),
+                                        ),
+                                        TextButton(
+                                          onPressed: () => setState(() =>
+                                              _transcriptionCtrl.text =
+                                                  _whisperText!),
+                                          style: TextButton.styleFrom(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8),
+                                              minimumSize: const Size(0, 28)),
+                                          child: const Text("Cümle'ye al",
+                                              style: TextStyle(fontSize: 12)),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(_whisperText!,
+                                        style: const TextStyle(
+                                            color: AppColors.onSurface,
+                                            fontSize: 15)),
+                                  ],
+                                ),
+                              ),
+                            ] else
+                              const Padding(
+                                padding: EdgeInsets.only(top: 8),
+                                child: Text(
+                                  'Lokal worker çalışırken bu klibin sesini '
+                                  'Whisper ile çevirir.',
+                                  style: TextStyle(
+                                      color: AppColors.onSurfaceMuted,
+                                      fontSize: 11),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                  if ((_whisperText ?? '').isNotEmpty) ...[
-                    const SizedBox(height: 8),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.surface,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(
-                            color: AppColors.correctAnswer
-                                .withValues(alpha: 0.5)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Expanded(
-                                child: Text('Whisper sonucu',
-                                    style: TextStyle(
-                                        color: AppColors.correctAnswer,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 12)),
-                              ),
-                              TextButton(
-                                onPressed: () => setState(() =>
-                                    _transcriptionCtrl.text = _whisperText!),
-                                style: TextButton.styleFrom(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8),
-                                    minimumSize: const Size(0, 28)),
-                                child: const Text("Cümle'ye al",
-                                    style: TextStyle(fontSize: 12)),
-                              ),
-                            ],
-                          ),
-                          Text(_whisperText!,
-                              style: const TextStyle(
-                                  color: AppColors.onSurface, fontSize: 15)),
-                        ],
-                      ),
-                    ),
-                  ],
                   const SizedBox(height: 6),
                   SizedBox(
                     width: double.infinity,
