@@ -22,9 +22,24 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> _route() async {
-    // PKCE OAuth callback: Supabase.initialize() exchanges the code before main()
-    // finishes, but give a short buffer for session propagation.
-    await Future.delayed(const Duration(milliseconds: 400));
+    // Wait for Supabase to confirm session state. On web, the JS SDK reads
+    // localStorage asynchronously; checking currentUser immediately after
+    // Supabase.initialize() can race with token restoration. We check
+    // synchronously first; if null, wait up to 2 s for the initial-session
+    // event before giving up and treating the user as logged out.
+    var user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      try {
+        final event = await Supabase.instance.client.auth.onAuthStateChange
+            .where((s) =>
+                s.event == AuthChangeEvent.initialSession ||
+                s.event == AuthChangeEvent.signedIn ||
+                s.event == AuthChangeEvent.signedOut)
+            .first
+            .timeout(const Duration(seconds: 2));
+        user = event.session?.user;
+      } catch (_) {}
+    }
     if (!mounted) return;
 
     final prefs = await SharedPreferences.getInstance();
@@ -36,13 +51,13 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // If the URL still has a PKCE code param, the exchange may still be
-    // in progress — wait for the auth state to settle (up to 4 s).
-    var user = Supabase.instance.client.auth.currentUser;
+    // PKCE OAuth callback: if the code param is still present, the exchange
+    // may still be completing — wait a bit longer.
     if (user == null && Uri.base.queryParameters.containsKey('code')) {
       try {
         final event = await Supabase.instance.client.auth.onAuthStateChange
-            .where((s) => s.event == AuthChangeEvent.signedIn ||
+            .where((s) =>
+                s.event == AuthChangeEvent.signedIn ||
                 s.event == AuthChangeEvent.initialSession)
             .first
             .timeout(const Duration(seconds: 4));

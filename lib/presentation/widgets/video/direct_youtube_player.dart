@@ -68,7 +68,10 @@ class DirectYouTubePlayer extends StatefulWidget {
 }
 
 class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
+  // Persisted in sessionStorage so hard-refresh within the same browser tab
+  // doesn't reset the interaction state (and lose unmuted playback).
   static bool _pageInteracted = false;
+  // Persisted in localStorage so the user's mute preference survives page loads.
   static bool _mutedByUser = false;
 
   static const _gestureEvents = [
@@ -77,6 +80,27 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   static const _hardEvents = {
     'pointerdown', 'mousedown', 'keydown', 'touchstart',
   };
+
+  static void _loadStoredFlags() {
+    try {
+      if (html.window.sessionStorage['sinoma_interacted'] == '1') {
+        _pageInteracted = true;
+      }
+    } catch (_) {}
+    try {
+      if (html.window.localStorage['sinoma_muted'] == '1') {
+        _mutedByUser = true;
+      }
+    } catch (_) {}
+  }
+
+  static void _persistInteracted() {
+    try { html.window.sessionStorage['sinoma_interacted'] = '1'; } catch (_) {}
+  }
+
+  static void _persistMuted(bool v) {
+    try { html.window.localStorage['sinoma_muted'] = v ? '1' : '0'; } catch (_) {}
+  }
 
   final GlobalKey _containerKey = GlobalKey();
 
@@ -102,6 +126,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void initState() {
     super.initState();
     widget.controller._attach(this);
+    _loadStoredFlags();
 
     _msgListener = (html.Event e) {
       if (e is! html.MessageEvent) return;
@@ -122,7 +147,10 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     html.window.addEventListener('message', _msgListener!);
 
     _gestureListener = (e) {
-      if (_hardEvents.contains(e.type)) _pageInteracted = true;
+      if (_hardEvents.contains(e.type) && !_pageInteracted) {
+        _pageInteracted = true;
+        _persistInteracted();
+      }
       _tryUnmute();
     };
     for (final type in _gestureEvents) {
@@ -393,11 +421,14 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void _toggleSound() {
     if (_soundOn) {
       _mutedByUser = true;
+      _persistMuted(true);
       _cmd('mute', []);
       _applySound(false);
     } else {
       _mutedByUser = false;
+      _persistMuted(false);
       _pageInteracted = true;
+      _persistInteracted();
       _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
       _cmd('unMute', []);
       _cmd('setVolume', [100]);

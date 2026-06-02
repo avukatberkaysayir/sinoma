@@ -50,13 +50,30 @@
     });
   </script>
 
-  <!-- Unregister any stale service worker from previous deploys -->
+  <!-- Nuke any stale service worker + its caches from previous deploys.
+       A registered SW from an older build serves cached main.dart.js and makes
+       hard-refresh show stale code. Unregistering alone is not enough — the
+       CacheStorage it created must also be deleted, then the page reloaded once
+       (guarded by a sessionStorage flag) so assets come fresh from the network. -->
   <script>
-    if ('serviceWorker' in navigator) {
+    (function () {
+      if (!('serviceWorker' in navigator)) return;
       navigator.serviceWorker.getRegistrations().then(function (regs) {
-        regs.forEach(function (r) { r.unregister(); });
+        var hadStale = regs.length > 0;
+        var jobs = regs.map(function (r) { return r.unregister(); });
+        if (window.caches && caches.keys) {
+          jobs.push(caches.keys().then(function (keys) {
+            return Promise.all(keys.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+        Promise.all(jobs).then(function () {
+          if (hadStale && !sessionStorage.getItem('sw_nuked')) {
+            sessionStorage.setItem('sw_nuked', '1');
+            location.reload();
+          }
+        });
       });
-    }
+    })();
   </script>
 
   <!-- Vercel Analytics — page views + custom events (Pro plan) -->

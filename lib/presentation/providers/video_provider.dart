@@ -24,6 +24,11 @@ final selectedLifeCategoryProvider  = StateProvider<Set<String>>((ref) => {});
 final selectedSearchProvider        = StateProvider<String?>((ref) => null);
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
+  // Wait for the user profile stream to emit once before using the HSK level.
+  // Without this, the provider fires first with the AsyncLoading default (HSK 1)
+  // and then again with the real level, causing the player to rebuild twice.
+  await ref.watch(currentUserProvider.future).catchError((_) => null);
+
   final userHskLevel   = ref.watch(currentHskLevelProvider);
   final levelFilters   = ref.watch(selectedLevelFilterProvider);
   final hskFilters     = ref.watch(selectedHskFilterProvider);

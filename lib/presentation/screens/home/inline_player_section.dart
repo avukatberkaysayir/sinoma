@@ -278,7 +278,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             // The options stay visible after answering so the result shows; the
             // user advances via the next arrow on the player.
             if (_subtitleChoice == true) ...[
-              _ChineseSubtitleBar(transcription: seg.transcription),
+              _ChineseSubtitleBar(
+                transcription: seg.targetWords.isNotEmpty
+                    ? seg.targetWords.join('')
+                    : seg.transcription,
+              ),
               const SizedBox(height: 14),
               if (hasQuiz) _AnswerRow(quiz: seg.quiz, onAnswered: _onQuizAnswered),
             ],
