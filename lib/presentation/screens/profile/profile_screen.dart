@@ -421,7 +421,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               onChanged: (v) {
                                 final code = v ?? 'tr';
                                 setState(() => _motherTongue = code);
-                                ref.read(localeProvider.notifier).setLocale(Locale(code));
+                                // Defer the app-wide locale change: calling it
+                                // synchronously from the dropdown's onChanged
+                                // rebuilds MaterialApp while the dropdown route
+                                // is still closing → "markNeedsBuild during
+                                // build" red-screen crash. Run it after the frame.
+                                WidgetsBinding.instance.addPostFrameCallback((_) {
+                                  ref.read(localeProvider.notifier)
+                                      .setLocale(Locale(code));
+                                });
                               },
                             ),
                           ],
