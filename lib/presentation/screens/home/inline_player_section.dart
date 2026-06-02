@@ -203,6 +203,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     setState(() => _subtitleChoice = false);
   }
 
+  // Transparent CC toggle over the options — show/hide the subtitle anytime.
+  void _toggleSubtitle() {
+    setState(() => _subtitleChoice = !(_subtitleChoice ?? false));
+  }
+
   @override
   Widget build(BuildContext context) {
     final seg = _seg;
@@ -285,29 +290,48 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
               ),
 
             // Step 2: after a choice → the two answer options always show; the
-            // Chinese subtitle bar shows only when "Subtitles On" was chosen.
+            // Chinese subtitle bar shows only when subtitles are toggled on.
+            // A transparent CC toggle floats over the options so the user can
+            // show/hide the subtitle at any time, regardless of the first pick.
             // Options freeze after one pick; advance via the player's next arrow.
-            if (_subtitleChoice != null) ...[
-              if (_subtitleChoice == true) ...[
-                _ChineseSubtitleBar(
-                  transcription: seg.targetWords.isNotEmpty
-                      ? seg.targetWords.join('')
-                      : seg.transcription,
-                ),
-                const SizedBox(height: 14),
-              ],
-              if (hasQuiz)
-                _AnswerRow(
-                  correct: quizCorrect,
-                  wrong: quizWrong,
-                  swap: _optSwap,
-                  selected: _pickedAnswer,
-                  // Freeze (reveal correct, ignore taps) once answered OR after
-                  // the countdown expired without an answer.
-                  revealed: _pickedAnswer != null || _timedOut,
-                  onPick: _onPick,
-                ),
-            ],
+            if (_subtitleChoice != null)
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (_subtitleChoice == true) ...[
+                        _ChineseSubtitleBar(
+                          transcription: seg.targetWords.isNotEmpty
+                              ? seg.targetWords.join('')
+                              : seg.transcription,
+                        ),
+                        const SizedBox(height: 14),
+                      ],
+                      if (hasQuiz)
+                        _AnswerRow(
+                          correct: quizCorrect,
+                          wrong: quizWrong,
+                          swap: _optSwap,
+                          selected: _pickedAnswer,
+                          // Freeze (reveal correct, ignore taps) once answered
+                          // OR after the countdown expired without an answer.
+                          revealed: _pickedAnswer != null || _timedOut,
+                          onPick: _onPick,
+                        ),
+                    ],
+                  ),
+                  Positioned(
+                    top: -10,
+                    right: 16,
+                    child: _SubtitleToggle(
+                      on: _subtitleChoice == true,
+                      onTap: _toggleSubtitle,
+                    ),
+                  ),
+                ],
+              ),
           ],
 
           const SizedBox(height: 24),
@@ -601,6 +625,42 @@ class _ChoiceBtn extends StatelessWidget {
                 ),
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Transparent subtitle toggle (floats over the options) ────────────────────
+
+class _SubtitleToggle extends StatelessWidget {
+  final bool on;
+  final VoidCallback onTap;
+  const _SubtitleToggle({required this.on, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          decoration: BoxDecoration(
+            color: (on ? AppColors.primary : Colors.black)
+                .withValues(alpha: on ? 0.30 : 0.35),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: on ? 0.7 : 0.3),
+              width: 1,
+            ),
+          ),
+          child: Icon(
+            on ? Icons.closed_caption_rounded : Icons.closed_caption_off_outlined,
+            size: 18,
+            color: Colors.white.withValues(alpha: on ? 1.0 : 0.75),
           ),
         ),
       ),
