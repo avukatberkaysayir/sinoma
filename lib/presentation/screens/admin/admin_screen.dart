@@ -2074,10 +2074,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
   }
 
-  Future<void> _save() async {
+  Future<void> _save({bool approve = false}) async {
+    final id = widget.data['id'] as String;
     setState(() => _saving = true);
     try {
-      await widget.service.patchVideoFields(widget.data['id'] as String, {
+      await widget.service.patchVideoFields(id, {
         'transcription': _transcriptionCtrl.text.trim(),
         'pinyin': _pinyinCtrl.text.trim(),
         'hsk_level': _hskLevel,
@@ -2093,10 +2094,17 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           },
         },
       });
+      // Approve in the same step so an edited clip actually reaches the home
+      // feed (which only shows is_active=true); saving alone leaves it pending.
+      if (approve) await widget.service.approveVideos([id]);
       if (mounted) {
         // Invalidate the homepage feed so the next visit fetches fresh quiz data.
         ref.invalidate(videoFeedProvider);
         setState(() { _saving = false; _expanded = false; });
+        if (approve) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✓ Kaydedildi ve onaylandı — anasayfada görünür')));
+        }
         widget.onSaved();
       }
     } catch (e) {
@@ -2596,22 +2604,47 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     _editField(_wrongCtrlEn, 'Wrong answer — distractor (EN)'),
                   ],
                   const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: _saving ? null : _save,
-                      style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12)),
-                      child: _saving
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Text('Kaydet'),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _saving ? null : () => _save(),
+                          style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.primary,
+                              side: const BorderSide(color: AppColors.primary),
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 12)),
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                      strokeWidth: 2))
+                              : const Text('Kaydet'),
+                        ),
+                      ),
+                      // Approve in one step so the edit reaches the home feed
+                      // (only is_active=true shows). Hidden for already-active.
+                      if (status != 'active') ...[
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: FilledButton(
+                            onPressed: _saving ? null : () => _save(approve: true),
+                            style: FilledButton.styleFrom(
+                                backgroundColor: AppColors.correctAnswer,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12)),
+                            child: _saving
+                                ? const SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2, color: Colors.white))
+                                : const Text('Kaydet ve Onayla'),
+                          ),
+                        ),
+                      ],
+                    ],
                   ),
                       ],
                     ),
