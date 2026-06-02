@@ -55,9 +55,20 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   void didUpdateWidget(InlinePlayerSection old) {
     super.didUpdateWidget(old);
     if (widget.segments != old.segments && widget.segments.isNotEmpty) {
+      // Keep showing the current clip if it still exists in the new list (the
+      // feed can re-emit for unrelated reasons); only jump when it's gone.
+      final currentId = (old.segments.isNotEmpty && _index < old.segments.length)
+          ? old.segments[_index].videoId
+          : null;
+      final keep =
+          widget.segments.indexWhere((s) => s.videoId == currentId);
       setState(() {
-        _index = Random().nextInt(widget.segments.length);
-        _resetState();
+        if (keep >= 0) {
+          _index = keep;
+        } else {
+          _index = Random().nextInt(widget.segments.length);
+          _resetState();
+        }
       });
     }
   }
@@ -294,44 +305,37 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             // A transparent CC toggle floats over the options so the user can
             // show/hide the subtitle at any time, regardless of the first pick.
             // Options freeze after one pick; advance via the player's next arrow.
-            if (_subtitleChoice != null)
-              Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (_subtitleChoice == true) ...[
-                        _ChineseSubtitleBar(
-                          transcription: seg.targetWords.isNotEmpty
-                              ? seg.targetWords.join('')
-                              : seg.transcription,
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      if (hasQuiz)
-                        _AnswerRow(
-                          correct: quizCorrect,
-                          wrong: quizWrong,
-                          swap: _optSwap,
-                          selected: _pickedAnswer,
-                          // Freeze (reveal correct, ignore taps) once answered
-                          // OR after the countdown expired without an answer.
-                          revealed: _pickedAnswer != null || _timedOut,
-                          onPick: _onPick,
-                        ),
-                    ],
-                  ),
-                  Positioned(
-                    top: -10,
-                    right: 16,
-                    child: _SubtitleToggle(
-                      on: _subtitleChoice == true,
-                      onTap: _toggleSubtitle,
-                    ),
-                  ),
-                ],
+            if (_subtitleChoice != null) ...[
+              // Transparent "Subtitle" toggle, centered above the two options;
+              // show/hide the Chinese subtitle anytime. Label follows the locale.
+              Center(
+                child: _SubtitleToggle(
+                  on: _subtitleChoice == true,
+                  label: l10n.subtitleTitle,
+                  onTap: _toggleSubtitle,
+                ),
               ),
+              const SizedBox(height: 10),
+              if (_subtitleChoice == true) ...[
+                _ChineseSubtitleBar(
+                  transcription: seg.targetWords.isNotEmpty
+                      ? seg.targetWords.join('')
+                      : seg.transcription,
+                ),
+                const SizedBox(height: 14),
+              ],
+              if (hasQuiz)
+                _AnswerRow(
+                  correct: quizCorrect,
+                  wrong: quizWrong,
+                  swap: _optSwap,
+                  selected: _pickedAnswer,
+                  // Freeze (reveal correct, ignore taps) once answered
+                  // OR after the countdown expired without an answer.
+                  revealed: _pickedAnswer != null || _timedOut,
+                  onPick: _onPick,
+                ),
+            ],
           ],
 
           const SizedBox(height: 24),
@@ -636,31 +640,43 @@ class _ChoiceBtn extends StatelessWidget {
 
 class _SubtitleToggle extends StatelessWidget {
   final bool on;
+  final String label;
   final VoidCallback onTap;
-  const _SubtitleToggle({required this.on, required this.onTap});
+  const _SubtitleToggle(
+      {required this.on, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final accent = on ? AppColors.primary : AppColors.onSurfaceMuted;
     return Material(
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
           decoration: BoxDecoration(
-            color: (on ? AppColors.primary : Colors.black)
-                .withValues(alpha: on ? 0.30 : 0.35),
+            color: accent.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: on ? 0.7 : 0.3),
-              width: 1,
-            ),
+            border: Border.all(color: accent.withValues(alpha: 0.45)),
           ),
-          child: Icon(
-            on ? Icons.closed_caption_rounded : Icons.closed_caption_off_outlined,
-            size: 18,
-            color: Colors.white.withValues(alpha: on ? 1.0 : 0.75),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                on
+                    ? Icons.closed_caption_rounded
+                    : Icons.closed_caption_off_outlined,
+                size: 16,
+                color: accent,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                    color: accent, fontSize: 12, fontWeight: FontWeight.w600),
+              ),
+            ],
           ),
         ),
       ),

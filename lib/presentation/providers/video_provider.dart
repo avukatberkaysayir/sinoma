@@ -24,11 +24,9 @@ final selectedLifeCategoryProvider  = StateProvider<Set<String>>((ref) => {});
 final selectedSearchProvider        = StateProvider<String?>((ref) => null);
 
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
-  // Wait for the user profile stream to emit once before using the HSK level.
-  // Without this, the provider fires first with the AsyncLoading default (HSK 1)
-  // and then again with the real level, causing the player to rebuild twice.
-  await ref.watch(currentUserProvider.future).catchError((_) => null);
-
+  // Depend only on the HSK level (an int), NOT on the whole user stream — otherwise
+  // every stats write (scoring an answer) re-emits the user, re-runs this provider,
+  // hands the player a new list instance and makes it jump to a random clip.
   final userHskLevel   = ref.watch(currentHskLevelProvider);
   final levelFilters   = ref.watch(selectedLevelFilterProvider);
   final hskFilters     = ref.watch(selectedHskFilterProvider);

@@ -65,6 +65,7 @@ class AppL10n {
   String get failedToLoad          => _isTr ? 'Videolar yüklenemedi' : 'Failed to load videos';
   String get subtitlesOn           => _isTr ? 'Altyazılı'          : 'Subtitles On';
   String get subtitlesOff          => _isTr ? 'Altyazısız'         : 'Subtitles Off';
+  String get subtitleTitle         => _isTr ? 'Altyazı'           : 'Subtitle';
 
   // ── HSK levels ──────────────────────────────────────────────────────────────
   String hskLabel(int level) => 'HSK $level';
