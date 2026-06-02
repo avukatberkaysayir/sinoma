@@ -386,6 +386,24 @@ class AdminService {
     return result;
   }
 
+  // Dictionary pinyin for each of these words (for display when the edited
+  // sentence differs from the original ASR pinyin). Missing words are omitted.
+  Future<Map<String, String>> pinyinForWords(List<String> words) async {
+    if (words.isEmpty) return {};
+    try {
+      final data = await _db
+          .from('dictionary')
+          .select('simplified,pinyin')
+          .inFilter('simplified', words);
+      return {
+        for (final m in List<Map<String, dynamic>>.from(data))
+          m['simplified'] as String: (m['pinyin'] as String? ?? ''),
+      };
+    } catch (_) {
+      return {};
+    }
+  }
+
   // Which of these are in an HSK list (hsk_level 1-6) → green chips.
   // Words absent or with no HSK level count as "not in the list" → red.
   Future<Set<String>> wordsInDictionary(List<String> words) async {

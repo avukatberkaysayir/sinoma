@@ -1505,6 +1505,27 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     });
     try {
       final list = await widget.service.listVideosByStatus(widget.status);
+      // Derive a pinyin that matches the confirmed target_words (the card title),
+      // so an edited sentence no longer shows the stale ASR pinyin. One batched
+      // dictionary lookup for the whole list.
+      final allWords = <String>{};
+      for (final v in list) {
+        allWords.addAll(
+            (v['target_words'] as List<dynamic>?)?.map((e) => e.toString()) ??
+                const []);
+      }
+      final pmap = await widget.service.pinyinForWords(allWords.toList());
+      for (final v in list) {
+        final ws = (v['target_words'] as List<dynamic>?)
+                ?.map((e) => e.toString())
+                .toList() ??
+            const [];
+        if (ws.isNotEmpty) {
+          final p =
+              ws.map((w) => pmap[w] ?? '').where((x) => x.isNotEmpty).join(' ');
+          if (p.isNotEmpty) v['pinyin_derived'] = p;
+        }
+      }
       if (mounted) setState(() { _videos = list; _loading = false; });
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
@@ -1840,6 +1861,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   bool _expanded = false;
   late int _hskLevel;
   late QuizCategory _category;
+  late String _lifeCategory;
   late List<String> _targetWords;
   late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
@@ -1868,6 +1890,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     _hskLevel = (v['hsk_level'] as int?) ?? 1;
     _category =
         QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
+    _lifeCategory = v['life_category'] as String? ?? 'daily_life';
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
     final tr = v['transcription'] as String? ?? '';
@@ -2086,6 +2109,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'pinyin': _pinyinCtrl.text.trim(),
         'hsk_level': _hskLevel,
         'quiz_category': _category.name,
+        'life_category': _lifeCategory,
         'target_words': _targetWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
@@ -2187,7 +2211,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(v['pinyin'] as String? ?? '',
+                Text(
+                    (v['pinyin_derived'] as String?)?.isNotEmpty == true
+                        ? v['pinyin_derived'] as String
+                        : (v['pinyin'] as String? ?? ''),
                     style: const TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                     maxLines: 1,
@@ -2353,44 +2380,71 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                  Text('HSK Seviye: $_hskLevel',
-                      style: const TextStyle(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13)),
-                  Slider(
-                    value: _hskLevel.toDouble(),
-                    min: 1,
-                    max: 6,
-                    divisions: 5,
-                    activeColor: AppColors.forHskLevel(_hskLevel),
-                    label: 'HSK $_hskLevel',
-                    onChanged: (v) => setState(() => _hskLevel = v.round()),
+                  // ── Classification filters — same taxonomy as the home feed
+                  // filters, laid out left-to-right as dropdowns. The picks are
+                  // saved on the video so it shows under the same home filters
+                  // once approved/active. (Length is derived from the sentence.)
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: _classDropdown<int>(
+                          label: 'HSK',
+                          value: _hskLevel,
+                          items: [
+                            for (var i = 1; i <= 6; i++)
+                              DropdownMenuItem(value: i, child: Text('HSK $i')),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _hskLevel = v ?? _hskLevel),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        flex: 2,
+                        child: _classDropdown<QuizCategory>(
+                          label: 'Gramer',
+                          value: _category,
+                          items: QuizCategory.values
+                              .map((c) => DropdownMenuItem(
+                                  value: c,
+                                  child: Text('${c.emoji} ${c.displayName}',
+                                      overflow: TextOverflow.ellipsis)))
+                              .toList(),
+                          onChanged: (v) =>
+                              setState(() => _category = v ?? _category),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _classDropdown<String>(
+                          label: 'Hayat',
+                          value: _lifeCategory,
+                          items: const [
+                            DropdownMenuItem(
+                                value: 'daily_life',
+                                child: Text('Günlük Hayat')),
+                            DropdownMenuItem(
+                                value: 'business', child: Text('İş')),
+                            DropdownMenuItem(
+                                value: 'children', child: Text('Çocuk')),
+                          ],
+                          onChanged: (v) =>
+                              setState(() => _lifeCategory = v ?? _lifeCategory),
+                        ),
+                      ),
+                    ],
                   ),
-                  const Text('Kategori',
-                      style: TextStyle(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13)),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
                     runSpacing: 4,
-                    children: QuizCategory.values.map((cat) {
-                      final sel = _category == cat;
-                      return ChoiceChip(
-                        label: Text('${cat.emoji} ${cat.displayName}',
-                            style: TextStyle(
-                                fontSize: 11,
-                                color: sel
-                                    ? AppColors.primary
-                                    : AppColors.onSurfaceMuted)),
-                        selected: sel,
-                        selectedColor:
-                            AppColors.primary.withValues(alpha: 0.15),
-                        onSelected: (_) => setState(() => _category = cat),
-                      );
-                    }).toList(),
+                    children: [
+                      _selChip('HSK $_hskLevel', AppColors.forHskLevel(_hskLevel)),
+                      _selChip('${_category.emoji} ${_category.displayName}',
+                          AppColors.primary),
+                      _selChip(_lifeLabel(_lifeCategory), AppColors.primary),
+                    ],
                   ),
                   const SizedBox(height: 14),
                   // Left = ASR (auto-caption), Right = Whisper (clip range only).
@@ -2665,6 +2719,72 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           ],
         ],
       ),
+    );
+  }
+
+  String _lifeLabel(String code) => switch (code) {
+        'business' => 'İş',
+        'children' => 'Çocuk',
+        _ => 'Günlük Hayat',
+      };
+
+  // A labelled dropdown that opens downward over the content (translucent menu),
+  // mirroring the home feed's filter options.
+  Widget _classDropdown<T>({
+    required String label,
+    required T value,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                color: AppColors.onSurfaceMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<T>(
+              value: value,
+              items: items,
+              onChanged: onChanged,
+              isExpanded: true,
+              isDense: true,
+              dropdownColor:
+                  AppColors.surfaceVariant.withValues(alpha: 0.96),
+              borderRadius: BorderRadius.circular(8),
+              style: const TextStyle(
+                  color: AppColors.onSurface, fontSize: 12),
+              icon: const Icon(Icons.keyboard_arrow_down,
+                  color: AppColors.onSurfaceMuted, size: 18),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _selChip(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(text,
+          style: TextStyle(
+              color: color, fontSize: 11, fontWeight: FontWeight.w600)),
     );
   }
 
