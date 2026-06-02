@@ -173,10 +173,16 @@ class AdminService {
     required String transcription,
     String pinyin = '',
     String lang = 'tr',
+    List<String> targetWords = const [],
   }) async {
     final res = await _db.functions.invoke(
       'generate-quiz',
-      body: {'transcription': transcription, 'pinyin': pinyin, 'lang': lang},
+      body: {
+        'transcription': transcription,
+        'pinyin': pinyin,
+        'lang': lang,
+        if (targetWords.isNotEmpty) 'targetWords': targetWords,
+      },
     );
     if (res.status >= 300) {
       final err = (res.data as Map<String, dynamic>?)?['error']

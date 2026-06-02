@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:web/web.dart' as web;
 import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -11,6 +12,7 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../data/services/admin_service.dart';
+import '../../providers/video_provider.dart';
 
 // ── Navigation sections ───────────────────────────────────────────────────────
 
@@ -1816,7 +1818,7 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
 
 // ── Video Card ────────────────────────────────────────────────────────────────
 
-class _VideoCard extends StatefulWidget {
+class _VideoCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> data;
   final AdminService service;
   final VoidCallback onSaved;
@@ -1828,10 +1830,10 @@ class _VideoCard extends StatefulWidget {
   });
 
   @override
-  State<_VideoCard> createState() => _VideoCardState();
+  ConsumerState<_VideoCard> createState() => _VideoCardState();
 }
 
-class _VideoCardState extends State<_VideoCard> {
+class _VideoCardState extends ConsumerState<_VideoCard> {
   bool _expanded = false;
   late int _hskLevel;
   late QuizCategory _category;
@@ -1841,10 +1843,14 @@ class _VideoCardState extends State<_VideoCard> {
   late final TextEditingController _questionCtrl;
   late final TextEditingController _correctCtrl;
   late final TextEditingController _wrongCtrl;
+  late final TextEditingController _correctCtrlEn;
+  late final TextEditingController _wrongCtrlEn;
+  String _selectedQuizLang = 'tr';
   bool _saving = false;
   bool _generating = false;
   bool _segmenting = false;
   bool _whisperRunning = false;
+  List<String>? _confirmedWords;
   String? _whisperText;
   Timer? _whisperTimer;
 
@@ -1861,18 +1867,7 @@ class _VideoCardState extends State<_VideoCard> {
         QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
-    // Start in the ASR sentence's order (words not in it go to the end).
     final tr = v['transcription'] as String? ?? '';
-    if (tr.isNotEmpty) {
-      _targetWords.sort((a, b) {
-        final ia = tr.indexOf(a);
-        final ib = tr.indexOf(b);
-        if (ia == ib) return 0;
-        if (ia == -1) return 1;
-        if (ib == -1) return -1;
-        return ia.compareTo(ib);
-      });
-    }
     _transcriptionCtrl =
         TextEditingController(text: tr);
     _pinyinCtrl = TextEditingController(text: v['pinyin'] as String? ?? '');
@@ -1884,6 +1879,11 @@ class _VideoCardState extends State<_VideoCard> {
         TextEditingController(text: quiz['correctAnswer'] as String? ?? '');
     _wrongCtrl =
         TextEditingController(text: quiz['wrongAnswer'] as String? ?? '');
+    final quizEn = (quiz['en'] as Map<String, dynamic>?) ?? {};
+    _correctCtrlEn = TextEditingController(
+        text: quizEn['correctAnswer'] as String? ?? '');
+    _wrongCtrlEn = TextEditingController(
+        text: quizEn['wrongAnswer'] as String? ?? '');
   }
 
   void _openInlinePlayer() {
@@ -1957,6 +1957,8 @@ class _VideoCardState extends State<_VideoCard> {
     _questionCtrl.dispose();
     _correctCtrl.dispose();
     _wrongCtrl.dispose();
+    _correctCtrlEn.dispose();
+    _wrongCtrlEn.dispose();
     super.dispose();
   }
 
@@ -1964,8 +1966,12 @@ class _VideoCardState extends State<_VideoCard> {
   // fill the fields; the admin reviews/edits, then Saves. Gemini is used only
   // here — the saved options are served from the DB afterwards.
   Future<void> _generateQuiz() async {
-    final transcription =
-        (widget.data['transcription'] as String?)?.trim() ?? '';
+    if (_confirmedWords == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Önce kelimeleri ayırıp "Kelimeleri Onayla"ya bas.')));
+      return;
+    }
+    final transcription = _confirmedWords!.join('');
     if (transcription.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Bu klipte transkripsiyon yok.')));
@@ -1975,15 +1981,18 @@ class _VideoCardState extends State<_VideoCard> {
     try {
       final q = await widget.service.generateQuiz(
         transcription: transcription,
-        pinyin: (widget.data['pinyin'] as String?) ?? '',
+        pinyin: _pinyinCtrl.text.trim(),
+        lang: _selectedQuizLang,
       );
       if (!mounted) return;
       setState(() {
-        if ((q['question'] ?? '').isNotEmpty) {
-          _questionCtrl.text = q['question']!;
+        if (_selectedQuizLang == 'tr') {
+          _correctCtrl.text = q['correctAnswer'] ?? '';
+          _wrongCtrl.text = q['wrongAnswer'] ?? '';
+        } else {
+          _correctCtrlEn.text = q['correctAnswer'] ?? '';
+          _wrongCtrlEn.text = q['wrongAnswer'] ?? '';
         }
-        _correctCtrl.text = q['correctAnswer'] ?? '';
-        _wrongCtrl.text = q['wrongAnswer'] ?? '';
         _generating = false;
       });
     } catch (e) {
@@ -2078,9 +2087,15 @@ class _VideoCardState extends State<_VideoCard> {
           'question': _questionCtrl.text.trim(),
           'correctAnswer': _correctCtrl.text.trim(),
           'wrongAnswer': _wrongCtrl.text.trim(),
+          'en': {
+            'correctAnswer': _correctCtrlEn.text.trim(),
+            'wrongAnswer': _wrongCtrlEn.text.trim(),
+          },
         },
       });
       if (mounted) {
+        // Invalidate the homepage feed so the next visit fetches fresh quiz data.
+        ref.invalidate(videoFeedProvider);
         setState(() { _saving = false; _expanded = false; });
         widget.onSaved();
       }
@@ -2505,15 +2520,52 @@ class _VideoCardState extends State<_VideoCard> {
                   _WordTagEditor(
                     words: _targetWords,
                     service: widget.service,
-                    onChanged: (words) =>
-                        setState(() => _targetWords = words),
+                    onChanged: (words) => setState(() {
+                      _targetWords = words;
+                      _confirmedWords = null; // reset confirmation on change
+                    }),
                   ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: _targetWords.isEmpty
+                          ? null
+                          : () => setState(
+                              () => _confirmedWords = List.from(_targetWords)),
+                      icon: const Icon(Icons.check_circle_outline, size: 16),
+                      label: const Text('Kelimeleri Onayla'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _confirmedWords != null
+                            ? AppColors.correctAnswer
+                            : AppColors.primary,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                      ),
+                    ),
+                  ),
+                  if (_confirmedWords != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        '✓ Onaylı: ${_confirmedWords!.join(' · ')}',
+                        style: const TextStyle(
+                            color: AppColors.correctAnswer, fontSize: 11),
+                      ),
+                    ),
                   const SizedBox(height: 14),
-                  const Text('Quiz',
-                      style: TextStyle(
-                          color: AppColors.onSurface,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13)),
+                  Row(
+                    children: [
+                      const Text('Quiz',
+                          style: TextStyle(
+                              color: AppColors.onSurface,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13)),
+                      const SizedBox(width: 12),
+                      _quizLangTab('TR', 'tr'),
+                      const SizedBox(width: 6),
+                      _quizLangTab('EN', 'en'),
+                    ],
+                  ),
                   const SizedBox(height: 8),
                   SizedBox(
                     width: double.infinity,
@@ -2525,8 +2577,9 @@ class _VideoCardState extends State<_VideoCard> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2))
                           : const Icon(Icons.auto_awesome, size: 18),
-                      label: Text(
-                          _generating ? 'Üretiliyor…' : 'Gemini ile şık üret'),
+                      label: Text(_generating
+                          ? 'Üretiliyor…'
+                          : 'Gemini ile şık üret (${_selectedQuizLang.toUpperCase()})'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
@@ -2535,9 +2588,13 @@ class _VideoCardState extends State<_VideoCard> {
                     ),
                   ),
                   const SizedBox(height: 10),
-                  _editField(_questionCtrl, 'Soru'),
-                  _editField(_correctCtrl, 'Doğru cevap'),
-                  _editField(_wrongCtrl, 'Yanlış cevap (tuzak)'),
+                  if (_selectedQuizLang == 'tr') ...[
+                    _editField(_correctCtrl, 'Doğru cevap (TR)'),
+                    _editField(_wrongCtrl, 'Yanlış cevap — tuzak (TR)'),
+                  ] else ...[
+                    _editField(_correctCtrlEn, 'Correct answer (EN)'),
+                    _editField(_wrongCtrlEn, 'Wrong answer — distractor (EN)'),
+                  ],
                   const SizedBox(height: 12),
                   SizedBox(
                     width: double.infinity,
@@ -2564,6 +2621,33 @@ class _VideoCardState extends State<_VideoCard> {
             ),
           ],
         ],
+      ),
+    );
+  }
+
+  Widget _quizLangTab(String label, String lang) {
+    final selected = _selectedQuizLang == lang;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedQuizLang = lang),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.15)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? AppColors.primary : AppColors.onSurfaceMuted,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
       ),
     );
   }
