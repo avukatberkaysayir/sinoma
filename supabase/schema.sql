@@ -64,15 +64,15 @@ CREATE POLICY "Anyone authenticated can read videos"
 
 CREATE POLICY "Only admins can insert videos"
   ON public.videos FOR INSERT TO authenticated
-  WITH CHECK ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+  WITH CHECK ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com');
 
 CREATE POLICY "Only admins can update videos"
   ON public.videos FOR UPDATE TO authenticated
-  USING ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+  USING ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com');
 
 CREATE POLICY "Only admins can delete videos"
   ON public.videos FOR DELETE TO authenticated
-  USING ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+  USING ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com');
 
 CREATE INDEX IF NOT EXISTS idx_videos_hsk_active ON public.videos (hsk_level, is_active, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_videos_category   ON public.videos (quiz_category, hsk_level, is_active);
@@ -99,8 +99,8 @@ CREATE POLICY "Authenticated users can read dictionary"
 
 CREATE POLICY "Only admins can modify dictionary"
   ON public.dictionary FOR ALL TO authenticated
-  USING ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com')
-  WITH CHECK ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+  USING ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com')
+  WITH CHECK ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com');
 
 CREATE INDEX IF NOT EXISTS idx_dictionary_pinyin       ON public.dictionary (pinyin);
 CREATE INDEX IF NOT EXISTS idx_dictionary_pinyin_ascii ON public.dictionary (pinyin_ascii);
@@ -286,8 +286,8 @@ CREATE POLICY "Authenticated users can read config"
 
 CREATE POLICY "Only admins can modify config"
   ON public.app_config FOR ALL TO authenticated
-  USING  ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com')
-  WITH CHECK ((SELECT email FROM auth.users WHERE id = auth.uid()) = 'berkaysayir@gmail.com');
+  USING  ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com')
+  WITH CHECK ((auth.jwt() ->> 'email') = 'berkaysayir@gmail.com');
 
 -- ── Realtime ──────────────────────────────────────────────────────────────────
 -- Enable realtime for tables that use .stream() subscriptions.
