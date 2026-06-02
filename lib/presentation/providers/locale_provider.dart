@@ -63,6 +63,8 @@ class AppL10n {
   String get noVideosFiltered      => _isTr ? 'Filtreyle eşleşen video yok.' : 'No videos match filters.';
   String get retry                 => _isTr ? 'Tekrar Dene'        : 'Retry';
   String get failedToLoad          => _isTr ? 'Videolar yüklenemedi' : 'Failed to load videos';
+  String get subtitlesOn           => _isTr ? 'Altyazılı'          : 'Subtitles On';
+  String get subtitlesOff          => _isTr ? 'Altyazısız'         : 'Subtitles Off';
 
   // ── HSK levels ──────────────────────────────────────────────────────────────
   String hskLabel(int level) => 'HSK $level';

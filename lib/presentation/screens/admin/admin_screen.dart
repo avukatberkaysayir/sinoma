@@ -1803,7 +1803,10 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
                           child: _VideoCard(
                             data: video,
                             service: widget.service,
-                            onSaved: _load,
+                            // Refresh ALL tabs (not just this one) so an
+                            // approved clip leaves "pending" and shows under
+                            // "active" immediately after Save / Save & Approve.
+                            onSaved: widget.onRefresh,
                           ),
                         ),
                       ],
@@ -2133,6 +2136,13 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final ytId = v['youtube_id'] as String?;
     final id = v['id'] as String;
     final status = v['status'] as String? ?? '';
+    // Title shows the confirmed word order (target_words), falling back to the
+    // ASR transcription, so an edited sentence is reflected here too.
+    final words =
+        (v['target_words'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    final titleText = words.isNotEmpty
+        ? words.join('')
+        : (v['transcription'] as String? ?? id);
 
     return Container(
       decoration: BoxDecoration(
@@ -2168,7 +2178,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               ],
             ),
             title: Text(
-              v['transcription'] as String? ?? id,
+              titleText,
               style:
                   const TextStyle(color: AppColors.onSurface, fontSize: 13),
               maxLines: 1,

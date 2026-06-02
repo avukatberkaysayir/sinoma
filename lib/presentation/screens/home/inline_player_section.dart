@@ -28,7 +28,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   late int _index;
   bool _clipEnded = false;
   bool? _subtitleChoice;
-  bool _quizAnswered = false;
+  String? _pickedAnswer; // option text the user picked — frozen, survives replay
+  bool _optSwap = false; // stable left/right order for the two options
   double _speed = 1.0;
   int _replayCount = 0;
   bool _soundOn = false;
@@ -47,6 +48,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   void initState() {
     super.initState();
     _index = Random().nextInt(widget.segments.length);
+    _optSwap = Random().nextBool();
   }
 
   @override
@@ -69,7 +71,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   void _resetState() {
     _clipEnded = false;
     _subtitleChoice = null;
-    _quizAnswered = false;
+    _pickedAnswer = null;
+    _optSwap = Random().nextBool();
     _timedOut = false;
     _activeWordId = null;
     _replayCount = 0;
@@ -160,10 +163,10 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   }
 
   void _replay() {
+    // Re-listen only: keep the subtitle choice and the picked answer frozen.
+    // Hide the post-clip UI while it plays; it reappears unchanged on end.
     setState(() {
       _clipEnded = false;
-      _subtitleChoice = null;
-      _quizAnswered = false;
       _replayCount++;
     });
   }
@@ -179,23 +182,24 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     return '${m.toString().padLeft(2, '0')}:${sec.toString().padLeft(2, '0')}';
   }
 
-  void _onQuizAnswered(bool correct) {
+  void _onPick(String text, bool correct) {
+    if (_pickedAnswer != null || _timedOut) return; // one answer only; none after timeout
+    _stopCountdown();
     final seg = _seg;
     final delta = correct ? _correctPoints(seg) : -_penaltyPoints(seg);
     _addScore(delta);
     _playerCtrl.showScorePopup(delta);
     // No auto-advance — the player shows a "next" arrow; the user taps it.
-    setState(() => _quizAnswered = true);
+    setState(() => _pickedAnswer = text);
   }
 
+  // Choosing subtitled/unsubtitled does NOT stop the countdown — it keeps
+  // running as the answer window and stops only when an option is picked.
   void _pickWithSubtitle() {
-    _stopCountdown();
     setState(() => _subtitleChoice = true);
   }
 
   void _pickWithoutSubtitle() {
-    // No auto-advance — the next arrow appears on the player; the user taps it.
-    _stopCountdown();
     setState(() => _subtitleChoice = false);
   }
 
@@ -203,6 +207,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   Widget build(BuildContext context) {
     final seg = _seg;
     final lang = ref.watch(localeProvider).languageCode;
+    final l10n = AppL10n.fromCode(lang);
     final quizCorrect = seg.quiz.correctFor(lang);
     final quizWrong = seg.quiz.wrongFor(lang);
     final hasQuiz = quizCorrect.isNotEmpty && quizWrong.isNotEmpty;
@@ -229,7 +234,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 },
                 countdown: _countdown,
                 showCountdown: _countdownActive,
-                showReplay: _clipEnded && !_quizAnswered && !_timedOut,
+                showReplay: _clipEnded,
                 showNext: _subtitleChoice != null || _timedOut,
                 onReplayTap: _replay,
                 onNextTap: _goNext,
@@ -269,29 +274,38 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
           if (_clipEnded) ...[
             const SizedBox(height: 14),
 
-            // Step 1: VoScreen-style choice (Altyazılı | Altyazısız) — only
-            // while the choice window is open (not after a pick or timeout).
+            // Step 1: choice (Subtitles On | Subtitles Off) — only while the
+            // choice window is open (not after a pick or timeout).
             if (_subtitleChoice == null && !_timedOut)
               _SubtitleChoiceButtons(
+                onLabel: l10n.subtitlesOn,
+                offLabel: l10n.subtitlesOff,
                 onWithSubtitle: _pickWithSubtitle,
                 onWithoutSubtitle: _pickWithoutSubtitle,
               ),
 
-            // Step 2: "Altyazılı" → Chinese subtitle + the two answer options.
-            // The options stay visible after answering so the result shows; the
-            // user advances via the next arrow on the player.
-            if (_subtitleChoice == true) ...[
-              _ChineseSubtitleBar(
-                transcription: seg.targetWords.isNotEmpty
-                    ? seg.targetWords.join('')
-                    : seg.transcription,
-              ),
-              const SizedBox(height: 14),
+            // Step 2: after a choice → the two answer options always show; the
+            // Chinese subtitle bar shows only when "Subtitles On" was chosen.
+            // Options freeze after one pick; advance via the player's next arrow.
+            if (_subtitleChoice != null) ...[
+              if (_subtitleChoice == true) ...[
+                _ChineseSubtitleBar(
+                  transcription: seg.targetWords.isNotEmpty
+                      ? seg.targetWords.join('')
+                      : seg.transcription,
+                ),
+                const SizedBox(height: 14),
+              ],
               if (hasQuiz)
                 _AnswerRow(
                   correct: quizCorrect,
                   wrong: quizWrong,
-                  onAnswered: _onQuizAnswered,
+                  swap: _optSwap,
+                  selected: _pickedAnswer,
+                  // Freeze (reveal correct, ignore taps) once answered OR after
+                  // the countdown expired without an answer.
+                  revealed: _pickedAnswer != null || _timedOut,
+                  onPick: _onPick,
                 ),
             ],
           ],
@@ -486,10 +500,14 @@ class _SpeedChip extends StatelessWidget {
 // ── VoScreen subtitle choice (Altyazılı | Altyazısız) ────────────────────────
 
 class _SubtitleChoiceButtons extends StatelessWidget {
+  final String onLabel;
+  final String offLabel;
   final VoidCallback onWithSubtitle;
   final VoidCallback onWithoutSubtitle;
 
   const _SubtitleChoiceButtons({
+    required this.onLabel,
+    required this.offLabel,
     required this.onWithSubtitle,
     required this.onWithoutSubtitle,
   });
@@ -507,7 +525,7 @@ class _SubtitleChoiceButtons extends StatelessWidget {
         children: [
           Expanded(
             child: _ChoiceBtn(
-              label: 'Altyazılı',
+              label: onLabel,
               icon: Icons.closed_caption_rounded,
               bg: bg,
               border: border,
@@ -519,7 +537,7 @@ class _SubtitleChoiceButtons extends StatelessWidget {
           const SizedBox(width: 10),
           Expanded(
             child: _ChoiceBtn(
-              label: 'Altyazısız',
+              label: offLabel,
               icon: Icons.closed_caption_off_outlined,
               bg: bg,
               border: border,
@@ -621,57 +639,45 @@ class _ChineseSubtitleBar extends StatelessWidget {
 
 // ── Answer buttons (correct / wrong, shuffled) ────────────────────────────────
 
-class _AnswerRow extends StatefulWidget {
+// Stateless and parent-driven: the picked answer and the left/right order live
+// in the parent so the selection stays frozen across replays (which rebuild
+// this widget). Once [selected] is non-null, taps are ignored.
+class _AnswerRow extends StatelessWidget {
   final String correct;
   final String wrong;
-  final ValueChanged<bool> onAnswered;
+  final bool swap;
+  final String? selected;
+  final bool revealed;
+  final void Function(String text, bool correct) onPick;
 
   const _AnswerRow({
     required this.correct,
     required this.wrong,
-    required this.onAnswered,
+    required this.swap,
+    required this.selected,
+    required this.revealed,
+    required this.onPick,
   });
 
   @override
-  State<_AnswerRow> createState() => _AnswerRowState();
-}
-
-class _AnswerRowState extends State<_AnswerRow> {
-  String? _selected;
-  late List<_Opt> _opts;
-
-  @override
-  void initState() {
-    super.initState();
-    // Correct + a close-but-wrong translation, in random left/right order.
-    _opts = [
-      _Opt(widget.correct, true),
-      _Opt(widget.wrong, false),
-    ]..shuffle();
-  }
-
-  void _pick(_Opt opt) {
-    if (_selected != null) return;
-    setState(() => _selected = opt.text);
-    Future.delayed(
-      const Duration(milliseconds: 850),
-      () => widget.onAnswered(opt.correct),
-    );
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final opts = swap
+        ? [_Opt(wrong, false), _Opt(correct, true)]
+        : [_Opt(correct, true), _Opt(wrong, false)];
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
       child: Row(
-        children: _opts
+        children: opts
             .map((opt) => Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 4),
                     child: _AnswerButton(
                       opt: opt,
-                      selected: _selected,
-                      onTap: () => _pick(opt),
+                      selected: selected,
+                      revealed: revealed,
+                      onTap: revealed
+                          ? null
+                          : () => onPick(opt.text, opt.correct),
                     ),
                   ),
                 ))
@@ -690,14 +696,17 @@ class _Opt {
 class _AnswerButton extends StatelessWidget {
   final _Opt opt;
   final String? selected;
-  final VoidCallback onTap;
+  final bool revealed;
+  final VoidCallback? onTap;
 
   const _AnswerButton(
-      {required this.opt, required this.selected, required this.onTap});
+      {required this.opt,
+      required this.selected,
+      required this.revealed,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final revealed = selected != null;
     Color bg;
     Color borderColor;
     Color textColor;
