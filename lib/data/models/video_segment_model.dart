@@ -204,24 +204,42 @@ class VideoSegmentModel {
 
 class QuizData {
   final String question;
-  final String correctAnswer;
-  final String wrongAnswer;
+  final String correctAnswer; // tr (top-level)
+  final String wrongAnswer; // tr
+  final String correctAnswerEn;
+  final String wrongAnswerEn;
 
   const QuizData({
     required this.question,
     required this.correctAnswer,
     required this.wrongAnswer,
+    this.correctAnswerEn = '',
+    this.wrongAnswerEn = '',
   });
 
-  factory QuizData.fromMap(Map<String, dynamic> map) => QuizData(
-        question: map['question'] as String? ?? '',
-        correctAnswer: map['correctAnswer'] as String? ?? '',
-        wrongAnswer: map['wrongAnswer'] as String? ?? '',
-      );
+  factory QuizData.fromMap(Map<String, dynamic> map) {
+    final en = (map['en'] as Map<String, dynamic>?) ?? const {};
+    return QuizData(
+      question: map['question'] as String? ?? '',
+      correctAnswer: map['correctAnswer'] as String? ?? '',
+      wrongAnswer: map['wrongAnswer'] as String? ?? '',
+      correctAnswerEn: en['correctAnswer'] as String? ?? '',
+      wrongAnswerEn: en['wrongAnswer'] as String? ?? '',
+    );
+  }
+
+  // Resolve options for the UI language; fall back to Turkish (the always-saved
+  // top-level fields) when the requested language has no saved text.
+  String correctFor(String lang) =>
+      (lang == 'en' && correctAnswerEn.isNotEmpty) ? correctAnswerEn : correctAnswer;
+  String wrongFor(String lang) =>
+      (lang == 'en' && wrongAnswerEn.isNotEmpty) ? wrongAnswerEn : wrongAnswer;
 
   Map<String, dynamic> toMap() => {
         'question': question,
         'correctAnswer': correctAnswer,
         'wrongAnswer': wrongAnswer,
+        if (correctAnswerEn.isNotEmpty || wrongAnswerEn.isNotEmpty)
+          'en': {'correctAnswer': correctAnswerEn, 'wrongAnswer': wrongAnswerEn},
       };
 }

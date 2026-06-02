@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../core/utils/responsive_layout.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 import '../../widgets/video/direct_youtube_player.dart';
@@ -201,8 +202,10 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   @override
   Widget build(BuildContext context) {
     final seg = _seg;
-    final hasQuiz =
-        seg.quiz.correctAnswer.isNotEmpty && seg.quiz.wrongAnswer.isNotEmpty;
+    final lang = ref.watch(localeProvider).languageCode;
+    final quizCorrect = seg.quiz.correctFor(lang);
+    final quizWrong = seg.quiz.wrongFor(lang);
+    final hasQuiz = quizCorrect.isNotEmpty && quizWrong.isNotEmpty;
     final isWide = ResponsiveLayout.isWide(context);
 
     final playerPanel = SingleChildScrollView(
@@ -284,7 +287,12 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                     : seg.transcription,
               ),
               const SizedBox(height: 14),
-              if (hasQuiz) _AnswerRow(quiz: seg.quiz, onAnswered: _onQuizAnswered),
+              if (hasQuiz)
+                _AnswerRow(
+                  correct: quizCorrect,
+                  wrong: quizWrong,
+                  onAnswered: _onQuizAnswered,
+                ),
             ],
           ],
 
@@ -614,10 +622,15 @@ class _ChineseSubtitleBar extends StatelessWidget {
 // ── Answer buttons (correct / wrong, shuffled) ────────────────────────────────
 
 class _AnswerRow extends StatefulWidget {
-  final QuizData quiz;
+  final String correct;
+  final String wrong;
   final ValueChanged<bool> onAnswered;
 
-  const _AnswerRow({required this.quiz, required this.onAnswered});
+  const _AnswerRow({
+    required this.correct,
+    required this.wrong,
+    required this.onAnswered,
+  });
 
   @override
   State<_AnswerRow> createState() => _AnswerRowState();
@@ -632,8 +645,8 @@ class _AnswerRowState extends State<_AnswerRow> {
     super.initState();
     // Correct + a close-but-wrong translation, in random left/right order.
     _opts = [
-      _Opt(widget.quiz.correctAnswer, true),
-      _Opt(widget.quiz.wrongAnswer, false),
+      _Opt(widget.correct, true),
+      _Opt(widget.wrong, false),
     ]..shuffle();
   }
 
