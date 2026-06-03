@@ -2204,30 +2204,6 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
   }
 
-  // Open a new (empty) sentence line in the ASR box for another sentence.
-  void _addSentenceLine() {
-    final t = _transcriptionCtrl.text;
-    final next = t.trimRight().isEmpty ? '' : '${t.trimRight()}\n';
-    _transcriptionCtrl.text = next;
-    _transcriptionCtrl.selection =
-        TextSelection.collapsed(offset: next.length);
-    _confirmedWords = null;
-    setState(() {});
-  }
-
-  // Append the Whisper result as a NEW sentence line (multi-sentence clips),
-  // instead of replacing the whole sentence the way "Cümle'ye al" does.
-  void _appendWhisperLine() {
-    final w = (_whisperText ?? '').trim();
-    if (w.isEmpty) return;
-    final t = _transcriptionCtrl.text.trimRight();
-    _transcriptionCtrl.text = t.isEmpty ? w : '$t\n$w';
-    _transcriptionCtrl.selection =
-        TextSelection.collapsed(offset: _transcriptionCtrl.text.length);
-    _confirmedWords = null;
-    setState(() {});
-  }
-
   Future<void> _refreshPinyin() async {
     final t = _transcriptionCtrl.text.trim();
     if (t.isEmpty) return;
@@ -2579,24 +2555,14 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                     color: AppColors.onSurface,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13)),
-                            const Text(
-                                'Her satır ayrı bir cümle (alt alta yaz).',
-                                style: TextStyle(
-                                    color: AppColors.onSurfaceMuted,
-                                    fontSize: 10)),
                             const SizedBox(height: 6),
                             _editField(_transcriptionCtrl, 'Çince cümle',
-                                maxLines: 5),
+                                maxLines: 3),
                             _editField(_pinyinCtrl, 'Pinyin'),
                             Wrap(
                               spacing: 6,
                               runSpacing: 4,
                               children: [
-                                _miniBtn(
-                                  '+ Satır',
-                                  Icons.add,
-                                  _addSentenceLine,
-                                ),
                                 _miniBtn(
                                   _pinyinBusy ? 'Pinyin…' : 'Pinyin yenile',
                                   Icons.refresh,
@@ -2682,16 +2648,6 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                                       AppColors.correctAnswer,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 12)),
-                                        ),
-                                        TextButton(
-                                          onPressed: _appendWhisperLine,
-                                          style: TextButton.styleFrom(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                      horizontal: 8),
-                                              minimumSize: const Size(0, 28)),
-                                          child: const Text('+ Alt satır',
-                                              style: TextStyle(fontSize: 12)),
                                         ),
                                         TextButton(
                                           onPressed: _pinyinBusy
@@ -3124,6 +3080,13 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
 
 // ── Word Tag Editor ───────────────────────────────────────────────────────────
 
+// Drag payload: which line + index a chip came from.
+class _WordRef {
+  final int line;
+  final int index;
+  const _WordRef(this.line, this.index);
+}
+
 class _WordTagEditor extends StatefulWidget {
   final List<String> words;
   final AdminService service;
@@ -3146,18 +3109,33 @@ class _WordTagEditorState extends State<_WordTagEditor> {
   bool _searching = false;
   Set<String> _inDict = {}; // words that exist in the dictionary → green
 
+  // Local editing model: per-sentence word groups. Kept locally so an
+  // explicitly added (still empty) line survives our own onChanged round-trips;
+  // re-synced from widget.words only on an EXTERNAL change (e.g. re-segment).
+  late List<List<String>> _groups;
+
   @override
   void initState() {
     super.initState();
+    _groups = _split(widget.words);
     _refreshDict();
   }
 
   @override
   void didUpdateWidget(_WordTagEditor old) {
     super.didUpdateWidget(old);
+    if (!_sameList(widget.words, _flatten())) _groups = _split(widget.words);
     final a = old.words.toSet();
     final b = widget.words.toSet();
     if (a.length != b.length || !a.containsAll(b)) _refreshDict();
+  }
+
+  static bool _sameList(List<String> a, List<String> b) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   Future<void> _refreshDict() async {
@@ -3186,11 +3164,10 @@ class _WordTagEditorState extends State<_WordTagEditor> {
   }
 
   // Split the flat word list into per-sentence groups on the '\n' sentinel.
-  // Always returns at least one (possibly empty) group.
-  List<List<String>> _lineGroups() {
+  static List<List<String>> _split(List<String> words) {
     final groups = <List<String>>[];
     var cur = <String>[];
-    for (final w in widget.words) {
+    for (final w in words) {
       if (w == '\n') {
         groups.add(cur);
         cur = [];
@@ -3203,9 +3180,11 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     return nonEmpty.isEmpty ? [<String>[]] : nonEmpty;
   }
 
-  List<String> _flatten(List<List<String>> groups) {
+  // Flatten the local groups back to the flat list with '\n' sentinels (empty
+  // lines are dropped here — they exist only as a drop target until filled).
+  List<String> _flatten() {
     final out = <String>[];
-    for (final g in groups) {
+    for (final g in _groups) {
       if (g.isEmpty) continue;
       if (out.isNotEmpty) out.add('\n');
       out.addAll(g);
@@ -3213,27 +3192,171 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     return out;
   }
 
+  void _commit() {
+    widget.onChanged(_flatten());
+    setState(() {});
+  }
+
+  void _addLine() => setState(() => _groups.add(<String>[]));
+
   void _addWord(String word) {
-    final groups = _lineGroups();
-    if (!groups.any((g) => g.contains(word))) groups.last.add(word);
-    widget.onChanged(_flatten(groups));
+    if (!_groups.any((g) => g.contains(word))) {
+      _groups.last.add(word);
+      _commit();
+    }
     _ctrl.clear();
     setState(() => _suggestions = []);
   }
 
   void _removeAt(int line, int index) {
-    final groups = _lineGroups();
-    groups[line].removeAt(index);
-    widget.onChanged(_flatten(groups));
+    _groups[line].removeAt(index);
+    if (_groups[line].isEmpty && _groups.length > 1) _groups.removeAt(line);
+    _commit();
   }
 
-  void _reorderLine(int line, int oldIndex, int newIndex) {
-    final groups = _lineGroups();
-    final g = groups[line];
-    if (newIndex > oldIndex) newIndex -= 1;
-    final item = g.removeAt(oldIndex);
-    g.insert(newIndex, item);
-    widget.onChanged(_flatten(groups));
+  // Move a word to [dstLine] at [dstIndex] (drag-drop). dstIndex == line length
+  // means "append to the end of that line".
+  void _moveWord(int srcLine, int srcIndex, int dstLine, int dstIndex) {
+    if (srcLine == dstLine && (srcIndex == dstIndex || srcIndex == dstIndex - 1)) {
+      return; // dropped onto itself / its own slot — no-op
+    }
+    final word = _groups[srcLine].removeAt(srcIndex);
+    var di = dstIndex;
+    if (srcLine == dstLine && srcIndex < di) di -= 1;
+    di = di.clamp(0, _groups[dstLine].length);
+    _groups[dstLine].insert(di, word);
+    if (_groups[srcLine].isEmpty && _groups.length > 1) {
+      _groups.removeAt(srcLine);
+    }
+    _commit();
+  }
+
+  // One sentence line: a drop target (append) holding a Wrap of draggable chips.
+  Widget _buildLine(int li, bool multi) {
+    final words = _groups[li];
+    return DragTarget<_WordRef>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) =>
+          _moveWord(d.data.line, d.data.index, li, words.length),
+      builder: (context, candidate, rejected) {
+        final hovering = candidate.isNotEmpty;
+        return Container(
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: hovering
+                ? AppColors.primary.withValues(alpha: 0.08)
+                : AppColors.surface.withValues(alpha: 0.4),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: hovering
+                  ? AppColors.primary.withValues(alpha: 0.6)
+                  : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Row(
+            children: [
+              if (multi)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: Text('${li + 1}.',
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold)),
+                ),
+              Expanded(
+                child: words.isEmpty
+                    ? const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 6),
+                        child: Text('Buraya kelime sürükle…',
+                            style: TextStyle(
+                                color: AppColors.onSurfaceMuted,
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic)),
+                      )
+                    : Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          for (int k = 0; k < words.length; k++)
+                            _buildChip(li, k),
+                        ],
+                      ),
+              ),
+              if (multi && words.isEmpty)
+                GestureDetector(
+                  onTap: () => setState(() => _groups.removeAt(li)),
+                  child: const Icon(Icons.delete_outline,
+                      size: 16, color: AppColors.onSurfaceMuted),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _chipVisual(String word, Color c, {VoidCallback? onRemove}) {
+    return Container(
+      padding: EdgeInsets.only(left: 12, right: onRemove == null ? 12 : 6),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: c.withValues(alpha: 0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(word,
+              style: TextStyle(
+                  color: c, fontSize: 15, fontWeight: FontWeight.w600)),
+          if (onRemove != null) ...[
+            const SizedBox(width: 4),
+            GestureDetector(
+              onTap: onRemove,
+              child: Icon(Icons.close, size: 16, color: c),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  // A draggable word chip; also a drop target that inserts a dropped word
+  // BEFORE it (so order within / across lines is controllable by drag).
+  Widget _buildChip(int li, int k) {
+    final word = _groups[li][k];
+    final c =
+        _inDict.contains(word) ? AppColors.correctAnswer : AppColors.wrongAnswer;
+    return DragTarget<_WordRef>(
+      onWillAcceptWithDetails: (_) => true,
+      onAcceptWithDetails: (d) => _moveWord(d.data.line, d.data.index, li, k),
+      builder: (context, candidate, rejected) {
+        final hovering = candidate.isNotEmpty;
+        return Container(
+          decoration: hovering
+              ? const BoxDecoration(
+                  border: Border(
+                      left: BorderSide(color: AppColors.primary, width: 2)))
+              : null,
+          padding: EdgeInsets.only(left: hovering ? 3 : 0),
+          child: Draggable<_WordRef>(
+            data: _WordRef(li, k),
+            feedback: Material(
+              color: Colors.transparent,
+              child: Opacity(opacity: 0.9, child: _chipVisual(word, c)),
+            ),
+            childWhenDragging:
+                Opacity(opacity: 0.3, child: _chipVisual(word, c)),
+            child: MouseRegion(
+              cursor: SystemMouseCursors.grab,
+              child: _chipVisual(word, c, onRemove: () => _removeAt(li, k)),
+            ),
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -3242,103 +3365,33 @@ class _WordTagEditorState extends State<_WordTagEditor> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-            'Kelimeler — sürükle-bırak ile sırala, × ile sil (her satır ayrı cümle)',
+            'Kelimeler — kelimeyi sürükleyip başka satıra taşı, × ile sil',
             style: TextStyle(
                 color: AppColors.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 13)),
         const SizedBox(height: 6),
-        if (widget.words.isNotEmpty)
-          Builder(builder: (_) {
-            final groups = _lineGroups();
-            final multi = groups.length > 1;
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                for (int li = 0; li < groups.length; li++)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        if (multi)
-                          Padding(
-                            padding: const EdgeInsets.only(right: 6),
-                            child: Text('${li + 1}.',
-                                style: const TextStyle(
-                                    color: AppColors.onSurfaceMuted,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold)),
-                          ),
-                        Expanded(
-                          child: SizedBox(
-                            height: 46,
-                            child: ReorderableListView(
-                              scrollDirection: Axis.horizontal,
-                              buildDefaultDragHandles: false,
-                              onReorder: (o, n) => _reorderLine(li, o, n),
-                              children: [
-                                for (int k = 0; k < groups[li].length; k++)
-                                  Builder(
-                                    key: ValueKey('$li-$k-${groups[li][k]}'),
-                                    builder: (_) {
-                                      final word = groups[li][k];
-                                      final c = _inDict.contains(word)
-                                          ? AppColors.correctAnswer
-                                          : AppColors.wrongAnswer;
-                                      return ReorderableDragStartListener(
-                                        index: k,
-                                        child: Padding(
-                                          padding:
-                                              const EdgeInsets.only(right: 6),
-                                          child: MouseRegion(
-                                            cursor: SystemMouseCursors.grab,
-                                            child: Container(
-                                              padding: const EdgeInsets.only(
-                                                  left: 12, right: 6),
-                                              alignment: Alignment.center,
-                                              decoration: BoxDecoration(
-                                                color: c.withValues(alpha: 0.12),
-                                                borderRadius:
-                                                    BorderRadius.circular(20),
-                                                border: Border.all(
-                                                    color: c.withValues(
-                                                        alpha: 0.5)),
-                                              ),
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  Text(word,
-                                                      style: TextStyle(
-                                                          color: c,
-                                                          fontSize: 15,
-                                                          fontWeight:
-                                                              FontWeight.w600)),
-                                                  const SizedBox(width: 4),
-                                                  GestureDetector(
-                                                    onTap: () =>
-                                                        _removeAt(li, k),
-                                                    child: Icon(Icons.close,
-                                                        size: 16, color: c),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            );
-          }),
+        if (widget.words.isNotEmpty) ...[
+          for (int li = 0; li < _groups.length; li++)
+            _buildLine(li, _groups.length > 1),
+          const SizedBox(height: 2),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _addLine,
+              icon: const Icon(Icons.subdirectory_arrow_left, size: 16),
+              label: const Text('+ Satır ekle'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                textStyle: const TextStyle(fontSize: 12),
+                minimumSize: Size.zero,
+              ),
+            ),
+          ),
+        ],
         const SizedBox(height: 6),
         TextField(
           controller: _ctrl,

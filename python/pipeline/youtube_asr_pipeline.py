@@ -109,18 +109,42 @@ def _query_dictionary(candidates: list[str]) -> list[dict[str, Any]]:
     return rows
 
 
+def _segment_ordered(text: str, valid: set[str]) -> list[str]:
+    """Greedy longest-match (≤4) left-to-right segmentation, falling back to a
+    single character when no dictionary word matches. Same algorithm as the
+    admin's segmentSentence so the imported word list is already clean and IN
+    ORDER (join → the original sentence), not a scrambled n-gram dump."""
+    result: list[str] = []
+    i, n = 0, len(text)
+    while i < n:
+        chosen = text[i]
+        for length in range(4, 1, -1):
+            if i + length <= n and text[i : i + length] in valid:
+                chosen = text[i : i + length]
+                break
+        result.append(chosen)
+        i += len(chosen)
+    return result
+
+
 def analyze_segment(text: str) -> tuple[list[str], int]:
-    """Return (word_ids, hsk_level) for a segment text. hsk_level=0 means no match."""
+    """Return (words, hsk_level): a clean IN-ORDER word segmentation of the
+    sentence plus its HSK level (0 = no dictionary match → caller drops it)."""
     candidates = _extract_candidates(text)
     if not candidates:
         return [], 0
     rows = _query_dictionary(candidates)
-    if not rows:
+    valid = {
+        r["simplified"]: (r.get("hsk_level") or 0)
+        for r in rows
+        if r.get("simplified")
+    }
+    if not valid:
         return [], 0
-    word_ids = [r["id"] for r in rows]
-    levels = [r["hsk_level"] for r in rows if r.get("hsk_level")]
+    words = _segment_ordered(text, set(valid.keys()))
+    levels = [valid[w] for w in words if valid.get(w)]
     hsk_level = min(6, max(1, max(levels))) if levels else 0
-    return word_ids, hsk_level
+    return words, hsk_level
 
 
 # ── Supabase insert ───────────────────────────────────────────────────────────
