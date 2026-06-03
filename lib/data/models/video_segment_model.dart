@@ -167,6 +167,11 @@ class QuizCategory {
   String get emoji => this == general ? '📖' : '📝';
 }
 
+// Sentinel inserted between sentences inside target_words for multi-sentence
+// clips. Joining target_words then yields stacked lines; word-chip renderers
+// and counts must skip it (see spokenWords).
+const String kWordLineBreak = '\n';
+
 class VideoSegmentModel {
   final String videoId;
   final VideoSourceType sourceType;
@@ -217,6 +222,34 @@ class VideoSegmentModel {
       quizCategories.isNotEmpty ? quizCategories : [quizCategory.name];
   List<String> get lifeTags =>
       lifeCategories.isNotEmpty ? lifeCategories : [lifeCategory];
+
+  // Confirmed words without the line-break sentinel — for counts, word chips,
+  // and "save to dictionary".
+  List<String> get spokenWords =>
+      targetWords.where((w) => w != kWordLineBreak).toList();
+
+  // Per-sentence groups (split on the sentinel) — for line-by-line display.
+  List<List<String>> get wordLines {
+    final lines = <List<String>>[];
+    var cur = <String>[];
+    for (final w in targetWords) {
+      if (w == kWordLineBreak) {
+        lines.add(cur);
+        cur = [];
+      } else {
+        cur.add(w);
+      }
+    }
+    lines.add(cur);
+    return lines.where((l) => l.isNotEmpty).toList();
+  }
+
+  // Subtitle text honouring confirmed word order + line breaks; falls back to
+  // the raw transcription when no words are confirmed.
+  String get subtitleText {
+    final joined = targetWords.join('');
+    return joined.isNotEmpty ? joined : transcription;
+  }
 
   factory VideoSegmentModel.fromMap(Map<String, dynamic> data) {
     final sourceStr = data['source_type'] as String? ?? 'youtube';

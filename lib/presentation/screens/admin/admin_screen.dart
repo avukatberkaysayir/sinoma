@@ -1819,6 +1819,12 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
                         ),
                         Expanded(
                           child: _VideoCard(
+                            // Stable identity: without a key Flutter reuses a
+                            // card's State by list position, so after a refresh
+                            // (or a streaming insert) the edit fields kept the
+                            // PREVIOUS row's text while thumbnail/time updated —
+                            // the "card shows a different sentence" desync.
+                            key: ValueKey(id),
                             data: video,
                             service: widget.service,
                             // Refresh ALL tabs (not just this one) so an
@@ -1845,6 +1851,7 @@ class _VideoCard extends ConsumerStatefulWidget {
   final VoidCallback onSaved;
 
   const _VideoCard({
+    super.key,
     required this.data,
     required this.service,
     required this.onSaved,
@@ -2044,11 +2051,24 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
 
   // Split the sentence into word chips that exactly reconstruct it.
   Future<void> _segmentIntoWords() async {
-    final s = _transcriptionCtrl.text.trim();
-    if (s.isEmpty) return;
+    // Each line of the sentence box is a separate sentence: split per line and
+    // join the word groups with the '\n' sentinel so the player shows them
+    // stacked and the word editor shows them line by line.
+    final lines = _transcriptionCtrl.text
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toList();
+    if (lines.isEmpty) return;
     setState(() => _segmenting = true);
     try {
-      final words = await widget.service.segmentSentence(s);
+      final words = <String>[];
+      for (final line in lines) {
+        final ws = await widget.service.segmentSentence(line);
+        if (ws.isEmpty) continue;
+        if (words.isNotEmpty) words.add('\n');
+        words.addAll(ws);
+      }
       if (!mounted) return;
       setState(() {
         _targetWords = words;
@@ -2184,6 +2204,30 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
   }
 
+  // Open a new (empty) sentence line in the ASR box for another sentence.
+  void _addSentenceLine() {
+    final t = _transcriptionCtrl.text;
+    final next = t.trimRight().isEmpty ? '' : '${t.trimRight()}\n';
+    _transcriptionCtrl.text = next;
+    _transcriptionCtrl.selection =
+        TextSelection.collapsed(offset: next.length);
+    _confirmedWords = null;
+    setState(() {});
+  }
+
+  // Append the Whisper result as a NEW sentence line (multi-sentence clips),
+  // instead of replacing the whole sentence the way "Cümle'ye al" does.
+  void _appendWhisperLine() {
+    final w = (_whisperText ?? '').trim();
+    if (w.isEmpty) return;
+    final t = _transcriptionCtrl.text.trimRight();
+    _transcriptionCtrl.text = t.isEmpty ? w : '$t\n$w';
+    _transcriptionCtrl.selection =
+        TextSelection.collapsed(offset: _transcriptionCtrl.text.length);
+    _confirmedWords = null;
+    setState(() {});
+  }
+
   Future<void> _refreshPinyin() async {
     final t = _transcriptionCtrl.text.trim();
     if (t.isEmpty) return;
@@ -2247,8 +2291,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final words =
         (v['target_words'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
     final titleText = words.isNotEmpty
-        ? words.join('')
-        : (v['transcription'] as String? ?? id);
+        ? words.map((w) => w == '\n' ? ' / ' : w).join('')
+        : (v['transcription'] as String? ?? id).replaceAll('\n', ' / ');
 
     return Container(
       decoration: BoxDecoration(
@@ -2535,18 +2579,29 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                     color: AppColors.onSurface,
                                     fontWeight: FontWeight.bold,
                                     fontSize: 13)),
+                            const Text(
+                                'Her satır ayrı bir cümle (alt alta yaz).',
+                                style: TextStyle(
+                                    color: AppColors.onSurfaceMuted,
+                                    fontSize: 10)),
                             const SizedBox(height: 6),
                             _editField(_transcriptionCtrl, 'Çince cümle',
-                                maxLines: 3),
+                                maxLines: 5),
                             _editField(_pinyinCtrl, 'Pinyin'),
-                            Row(
+                            Wrap(
+                              spacing: 6,
+                              runSpacing: 4,
                               children: [
+                                _miniBtn(
+                                  '+ Satır',
+                                  Icons.add,
+                                  _addSentenceLine,
+                                ),
                                 _miniBtn(
                                   _pinyinBusy ? 'Pinyin…' : 'Pinyin yenile',
                                   Icons.refresh,
                                   _pinyinBusy ? null : _refreshPinyin,
                                 ),
-                                const SizedBox(width: 6),
                                 _miniBtn(
                                   _trAsrBusy ? 'Çevriliyor…' : 'Türkçesi',
                                   Icons.translate,
@@ -2627,6 +2682,16 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                                       AppColors.correctAnswer,
                                                   fontWeight: FontWeight.bold,
                                                   fontSize: 12)),
+                                        ),
+                                        TextButton(
+                                          onPressed: _appendWhisperLine,
+                                          style: TextButton.styleFrom(
+                                              padding:
+                                                  const EdgeInsets.symmetric(
+                                                      horizontal: 8),
+                                              minimumSize: const Size(0, 28)),
+                                          child: const Text('+ Alt satır',
+                                              style: TextStyle(fontSize: 12)),
                                         ),
                                         TextButton(
                                           onPressed: _pinyinBusy
@@ -3120,28 +3185,55 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     });
   }
 
-  void _addWord(String word) {
-    final current = List<String>.from(widget.words);
-    if (!current.contains(word)) {
-      current.add(word);
-      widget.onChanged(current);
+  // Split the flat word list into per-sentence groups on the '\n' sentinel.
+  // Always returns at least one (possibly empty) group.
+  List<List<String>> _lineGroups() {
+    final groups = <List<String>>[];
+    var cur = <String>[];
+    for (final w in widget.words) {
+      if (w == '\n') {
+        groups.add(cur);
+        cur = [];
+      } else {
+        cur.add(w);
+      }
     }
+    groups.add(cur);
+    final nonEmpty = groups.where((g) => g.isNotEmpty).toList();
+    return nonEmpty.isEmpty ? [<String>[]] : nonEmpty;
+  }
+
+  List<String> _flatten(List<List<String>> groups) {
+    final out = <String>[];
+    for (final g in groups) {
+      if (g.isEmpty) continue;
+      if (out.isNotEmpty) out.add('\n');
+      out.addAll(g);
+    }
+    return out;
+  }
+
+  void _addWord(String word) {
+    final groups = _lineGroups();
+    if (!groups.any((g) => g.contains(word))) groups.last.add(word);
+    widget.onChanged(_flatten(groups));
     _ctrl.clear();
     setState(() => _suggestions = []);
   }
 
-  void _removeWord(String word) {
-    final current = List<String>.from(widget.words);
-    current.remove(word);
-    widget.onChanged(current);
+  void _removeAt(int line, int index) {
+    final groups = _lineGroups();
+    groups[line].removeAt(index);
+    widget.onChanged(_flatten(groups));
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
-    final list = List<String>.from(widget.words);
+  void _reorderLine(int line, int oldIndex, int newIndex) {
+    final groups = _lineGroups();
+    final g = groups[line];
     if (newIndex > oldIndex) newIndex -= 1;
-    final item = list.removeAt(oldIndex);
-    list.insert(newIndex, item);
-    widget.onChanged(list);
+    final item = g.removeAt(oldIndex);
+    g.insert(newIndex, item);
+    widget.onChanged(_flatten(groups));
   }
 
   @override
@@ -3149,70 +3241,104 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Kelimeler — sürükle-bırak ile sırala, × ile sil',
+        const Text(
+            'Kelimeler — sürükle-bırak ile sırala, × ile sil (her satır ayrı cümle)',
             style: TextStyle(
                 color: AppColors.onSurface,
                 fontWeight: FontWeight.w600,
                 fontSize: 13)),
         const SizedBox(height: 6),
         if (widget.words.isNotEmpty)
-          SizedBox(
-            height: 46,
-            child: ReorderableListView(
-              scrollDirection: Axis.horizontal,
-              buildDefaultDragHandles: false,
-              onReorder: _onReorder,
+          Builder(builder: (_) {
+            final groups = _lineGroups();
+            final multi = groups.length > 1;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                for (int i = 0; i < widget.words.length; i++)
-                  Builder(
-                    key: ValueKey(widget.words[i]),
-                    builder: (_) {
-                      final word = widget.words[i];
-                      // Green = in our dictionary, red = not in the lists.
-                      final c = _inDict.contains(word)
-                          ? AppColors.correctAnswer
-                          : AppColors.wrongAnswer;
-                      return ReorderableDragStartListener(
-                        index: i,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 6),
-                          child: MouseRegion(
-                            cursor: SystemMouseCursors.grab,
-                            child: Container(
-                              padding:
-                                  const EdgeInsets.only(left: 12, right: 6),
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: c.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                                border:
-                                    Border.all(color: c.withValues(alpha: 0.5)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(word,
-                                      style: TextStyle(
-                                          color: c,
-                                          fontSize: 15,
-                                          fontWeight: FontWeight.w600)),
-                                  const SizedBox(width: 4),
-                                  GestureDetector(
-                                    onTap: () => _removeWord(word),
-                                    child: Icon(Icons.close,
-                                        size: 16, color: c),
+                for (int li = 0; li < groups.length; li++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        if (multi)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: Text('${li + 1}.',
+                                style: const TextStyle(
+                                    color: AppColors.onSurfaceMuted,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.bold)),
+                          ),
+                        Expanded(
+                          child: SizedBox(
+                            height: 46,
+                            child: ReorderableListView(
+                              scrollDirection: Axis.horizontal,
+                              buildDefaultDragHandles: false,
+                              onReorder: (o, n) => _reorderLine(li, o, n),
+                              children: [
+                                for (int k = 0; k < groups[li].length; k++)
+                                  Builder(
+                                    key: ValueKey('$li-$k-${groups[li][k]}'),
+                                    builder: (_) {
+                                      final word = groups[li][k];
+                                      final c = _inDict.contains(word)
+                                          ? AppColors.correctAnswer
+                                          : AppColors.wrongAnswer;
+                                      return ReorderableDragStartListener(
+                                        index: k,
+                                        child: Padding(
+                                          padding:
+                                              const EdgeInsets.only(right: 6),
+                                          child: MouseRegion(
+                                            cursor: SystemMouseCursors.grab,
+                                            child: Container(
+                                              padding: const EdgeInsets.only(
+                                                  left: 12, right: 6),
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                color: c.withValues(alpha: 0.12),
+                                                borderRadius:
+                                                    BorderRadius.circular(20),
+                                                border: Border.all(
+                                                    color: c.withValues(
+                                                        alpha: 0.5)),
+                                              ),
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Text(word,
+                                                      style: TextStyle(
+                                                          color: c,
+                                                          fontSize: 15,
+                                                          fontWeight:
+                                                              FontWeight.w600)),
+                                                  const SizedBox(width: 4),
+                                                  GestureDetector(
+                                                    onTap: () =>
+                                                        _removeAt(li, k),
+                                                    child: Icon(Icons.close,
+                                                        size: 16, color: c),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                ],
-                              ),
+                              ],
                             ),
                           ),
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
               ],
-            ),
-          ),
+            );
+          }),
         const SizedBox(height: 6),
         TextField(
           controller: _ctrl,

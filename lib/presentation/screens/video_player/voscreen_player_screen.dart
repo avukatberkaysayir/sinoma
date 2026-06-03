@@ -334,8 +334,9 @@ class _TappableTranscription extends StatelessWidget {
     }
 
     // Sort target words by first occurrence in transcription.
+    // Skip the multi-sentence line-break sentinel.
     final positioned = targetWords
-        .where((w) => transcription.contains(w))
+        .where((w) => w != '\n' && transcription.contains(w))
         .toList()
       ..sort((a, b) =>
           transcription.indexOf(a).compareTo(transcription.indexOf(b)));
@@ -709,13 +710,13 @@ class _InfoSidePanel extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 13)),
           const SizedBox(height: 10),
-          if (segment.targetWords.isEmpty)
+          if (segment.spokenWords.isEmpty)
             const Text('—', style: TextStyle(color: Colors.white38))
           else
             Wrap(
               spacing: 8,
               runSpacing: 8,
-              children: segment.targetWords
+              children: segment.spokenWords
                   .map((w) => GestureDetector(
                         onTap: () => showModalBottomSheet(
                           context: context,

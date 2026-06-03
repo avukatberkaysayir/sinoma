@@ -98,7 +98,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   // Penalty = (HSK level) × 2  (level = highest word level in the segment).
 
   int _correctPoints(VideoSegmentModel seg) {
-    final words = seg.targetWords.isEmpty ? 1 : seg.targetWords.length;
+    final words = seg.spokenWords.isEmpty ? 1 : seg.spokenWords.length;
     final level = seg.hskLevel <= 0 ? 1 : seg.hskLevel;
     return words * level * 2;
   }
@@ -312,29 +312,17 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             // show/hide the subtitle at any time, regardless of the first pick.
             // Options freeze after one pick; advance via the player's next arrow.
             if (_subtitleChoice != null) ...[
-              // Subtitle OFF → show the transparent "Subtitle" toggle (tap to
-              // reveal). Subtitle ON → the button is gone and the subtitle bar
-              // takes its place (tap the bar to hide it again). Locale-aware.
-              if (_subtitleChoice != true) ...[
-                Center(
-                  child: _SubtitleToggle(
-                    on: false,
-                    label: l10n.subtitleTitle,
-                    onTap: _toggleSubtitle,
-                  ),
-                ),
-                const SizedBox(height: 10),
-              ] else ...[
-                GestureDetector(
-                  onTap: _toggleSubtitle,
-                  child: _ChineseSubtitleBar(
-                    transcription: seg.targetWords.isNotEmpty
-                        ? seg.targetWords.join('')
-                        : seg.transcription,
-                  ),
-                ),
-                const SizedBox(height: 14),
-              ],
+              // Subtitle OFF → show the transparent "Subtitle" toggle. Subtitle
+              // ON → the dark subtitle bar. Both occupy the SAME footprint (same
+              // bar metrics) so revealing the real subtitle does NOT push the
+              // answer options down. Locale-aware. Tap either to flip.
+              GestureDetector(
+                onTap: _toggleSubtitle,
+                child: _subtitleChoice == true
+                    ? _ChineseSubtitleBar(transcription: seg.subtitleText)
+                    : _SubtitleRevealBar(label: l10n.subtitleTitle),
+              ),
+              const SizedBox(height: 14),
               if (hasQuiz)
                 _AnswerRow(
                   correct: quizCorrect,
@@ -647,55 +635,50 @@ class _ChoiceBtn extends StatelessWidget {
   }
 }
 
-// ── Transparent subtitle toggle (floats over the options) ────────────────────
+// ── Subtitle reveal bar (shown when subtitles are OFF) ───────────────────────
+// Uses the EXACT outer metrics of _ChineseSubtitleBar (margin/padding/radius +
+// a single line at fontSize 20) so toggling to the real subtitle does not change
+// the height and the answer options stay put.
 
-class _SubtitleToggle extends StatelessWidget {
-  final bool on;
+class _SubtitleRevealBar extends StatelessWidget {
   final String label;
-  final VoidCallback onTap;
-  const _SubtitleToggle(
-      {required this.on, required this.label, required this.onTap});
+  const _SubtitleRevealBar({required this.label});
 
   @override
   Widget build(BuildContext context) {
-    final accent = on ? AppColors.primary : AppColors.onSurfaceMuted;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-          decoration: BoxDecoration(
-            color: accent.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: accent.withValues(alpha: 0.45)),
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.onSurfaceMuted.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.onSurfaceMuted.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.closed_caption_off_outlined,
+              size: 22, color: AppColors.onSurfaceMuted),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: AppColors.onSurfaceMuted,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+              height: 1.4,
+            ),
           ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                on
-                    ? Icons.closed_caption_rounded
-                    : Icons.closed_caption_off_outlined,
-                size: 16,
-                color: accent,
-              ),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(
-                    color: accent, fontSize: 12, fontWeight: FontWeight.w600),
-              ),
-            ],
-          ),
-        ),
+        ],
       ),
     );
   }
 }
 
 // ── Chinese subtitle bar (VoScreen style, appears when Altyazılı chosen) ─────
+// Multi-sentence clips store line breaks in the text, so a multi-line subtitle
+// renders stacked automatically (Text honours '\n').
 
 class _ChineseSubtitleBar extends StatelessWidget {
   final String transcription;

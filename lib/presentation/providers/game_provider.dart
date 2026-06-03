@@ -237,7 +237,8 @@ class MandarinDuelNotifier extends StateNotifier<DuelState> {
   Future<void> saveTargetWords() async {
     final s = state;
     if (s.wordsSavedForCurrentRound || s.currentRound == null) return;
-    final words = s.currentRound!.targetWords;
+    final words =
+        s.currentRound!.targetWords.where((w) => w != '\n').toList();
     if (words.isEmpty) return;
 
     final uid = _ref.read(currentUidProvider);

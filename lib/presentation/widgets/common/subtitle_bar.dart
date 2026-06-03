@@ -54,8 +54,9 @@ class SubtitleBar extends StatelessWidget {
     }
 
     // Sort target words by first occurrence position in transcription.
+    // Skip the multi-sentence line-break sentinel.
     final positioned = targetWords
-        .where((w) => transcription.contains(w))
+        .where((w) => w != '\n' && transcription.contains(w))
         .toList()
       ..sort((a, b) =>
           transcription.indexOf(a).compareTo(transcription.indexOf(b)));
