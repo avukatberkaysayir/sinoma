@@ -11,27 +11,19 @@ import '../../../providers/game_provider.dart';
 import '../../../providers/subscription_provider.dart';
 import '../../../providers/user_provider.dart';
 
-// Maps each grammar category to a wheel-segment colour.
-Color _categoryColor(QuizCategory c) => switch (c) {
-      QuizCategory.baConstruct   => const Color(0xFF2196F3),
-      QuizCategory.beiPassive    => const Color(0xFF3F51B5),
-      QuizCategory.shiDeEmphasis => const Color(0xFF9C27B0),
-      QuizCategory.conditional   => const Color(0xFF009688),
-      QuizCategory.contrast      => const Color(0xFF00BCD4),
-      QuizCategory.causeEffect   => const Color(0xFF4CAF50),
-      QuizCategory.guoExperience => const Color(0xFF8BC34A),
-      QuizCategory.biComparison  => const Color(0xFFFF9800),
-      QuizCategory.huiNengKeyi   => const Color(0xFF795548),
-      QuizCategory.yingDeiYao    => const Color(0xFFFF5722),
-      QuizCategory.xiangDasuan   => const Color(0xFFE91E63),
-      QuizCategory.questions     => const Color(0xFFF44336),
-      QuizCategory.leCompletion  => const Color(0xFF607D8B),
-      QuizCategory.negation      => AppColors.wrongAnswer,
-      QuizCategory.timeWords     => const Color(0xFF673AB7),
-      QuizCategory.locationWords => const Color(0xFF03A9F4),
-      QuizCategory.general       => const Color(0xFF9E9E9E),
-      _                          => const Color(0xFF9E9E9E),
-    };
+// Maps each grammar category to a wheel-segment colour by index, so the palette
+// works regardless of how many categories exist.
+const _categoryPalette = [
+  Color(0xFF2196F3), Color(0xFF3F51B5), Color(0xFF9C27B0), Color(0xFF009688),
+  Color(0xFF00BCD4), Color(0xFF4CAF50), Color(0xFF8BC34A), Color(0xFFFF9800),
+  Color(0xFF795548), Color(0xFFFF5722), Color(0xFFE91E63), Color(0xFFF44336),
+  Color(0xFF607D8B), Color(0xFF673AB7), Color(0xFF03A9F4), Color(0xFF9E9E9E),
+];
+
+Color _categoryColor(QuizCategory c) =>
+    c == QuizCategory.general
+        ? const Color(0xFF9E9E9E)
+        : _categoryPalette[c.index % _categoryPalette.length];
 
 // =============================================================================
 // Screen

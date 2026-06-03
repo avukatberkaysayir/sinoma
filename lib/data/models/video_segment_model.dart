@@ -1,42 +1,32 @@
 enum VideoSourceType { youtube, selfHosted }
 
-// Grammar patterns covered by the HSK 1-6 vocabulary lists. Existing value names
-// are kept (stored on videos); new HSK grammar points were added. displayName
-// carries the pattern + its key particle(s); no emoji (filter labels stay clean).
+// One grammar focus point per entry, drawn from the HSK 1-6 word lists.
+// displayName is just the word/particle — no descriptions, no emoji.
 enum QuizCategory {
-  baConstruct,
-  beiPassive,
-  shiDeEmphasis,
-  conditional,
-  contrast,
-  causeEffect,
-  guoExperience,
-  biComparison,
-  huiNengKeyi,
-  yingDeiYao,
-  xiangDasuan,
-  questions,
-  leCompletion,
-  negation,
-  timeWords,
-  locationWords,
-  // ── Added from the HSK word lists ──
-  zheContinuous,
-  progressive,
-  deComplement,
-  existence,
-  concession,
-  progression,
-  purpose,
-  choice,
-  emphasis,
-  sequence,
-  accordingTo,
-  exception,
-  degree,
-  frequency,
-  rhetorical,
-  comparisonEqual,
+  // Aspect & structural particles
+  le, guo, zhe, deStruct, deComplement,
+  // Sentence patterns
+  ba, bei, shiDe, shi, you, zai, zhengzai,
+  // Modal verbs
+  hui, neng, keyi, yinggai, yao, xiang, dasuan,
+  // Question particles
+  ma, ne, baParticle,
+  // Negation
+  bu, mei,
+  // Comparison
+  bi, genYiyang,
+  // Conditionals
+  ruguo, yaoshi, zhiyao, zhiyou,
+  // Cause & contrast
+  yinwei, suoyi, suiran, danshi,
+  // Concession & progression
+  jishi, wulun, budan, erqie,
+  // Choice & sequence
+  haishi, huozhe, ranhou, yushi,
+  // Connectors & prepositions
+  chule, lian, weile, anzhao, genju,
+  // Adverbs
+  jiu, cai, dou, yijing, changchang, nandao, tai,
   general;
 
   static QuizCategory fromString(String value) =>
@@ -46,61 +36,64 @@ enum QuizCategory {
       );
 
   String get displayName => switch (this) {
-        baConstruct     => '把字句 (把)',
-        beiPassive      => '被动句 (被)',
-        shiDeEmphasis   => '是…的',
-        conditional     => '条件句 (如果/只要)',
-        contrast        => '转折句 (虽然/但是)',
-        causeEffect     => '因果句 (因为/所以)',
-        guoExperience   => '经历体 (过)',
-        biComparison    => '比较句 (比)',
-        huiNengKeyi     => '能愿动词 (会/能/可以)',
-        yingDeiYao      => '应该/得/要',
-        xiangDasuan     => '想/打算',
-        questions       => '疑问句 (吗/呢)',
-        leCompletion    => '完成体 (了)',
-        negation        => '否定句 (不/没)',
-        timeWords       => '时间表达',
-        locationWords   => '方位/地点 (在/从)',
-        zheContinuous   => '持续体 (着)',
-        progressive     => '进行体 (在/正在)',
-        deComplement    => '补语 (得)',
-        existence       => '有字句 (有)',
-        concession      => '让步句 (即使/无论)',
-        progression     => '递进句 (不但…而且)',
-        purpose         => '目的句 (为了)',
-        choice          => '选择句 (还是/或者)',
-        emphasis        => '强调 (连…都)',
-        sequence        => '顺承句 (然后/于是)',
-        accordingTo     => '依据 (按照/根据)',
-        exception       => '排除 (除了…以外)',
-        degree          => '程度 (太/非常)',
-        frequency       => '频率 (常常/往往)',
-        rhetorical      => '反问句 (难道)',
-        comparisonEqual => '相同 (跟…一样)',
+        le              => '了',
+        guo             => '过',
+        zhe             => '着',
+        deStruct        => '的',
+        deComplement    => '得',
+        ba              => '把',
+        bei             => '被',
+        shiDe           => '是…的',
+        shi             => '是',
+        you             => '有',
+        zai             => '在',
+        zhengzai        => '正在',
+        hui             => '会',
+        neng            => '能',
+        keyi            => '可以',
+        yinggai         => '应该',
+        yao             => '要',
+        xiang           => '想',
+        dasuan          => '打算',
+        ma              => '吗',
+        ne              => '呢',
+        baParticle      => '吧',
+        bu              => '不',
+        mei             => '没',
+        bi              => '比',
+        genYiyang       => '跟…一样',
+        ruguo           => '如果',
+        yaoshi          => '要是',
+        zhiyao          => '只要',
+        zhiyou          => '只有',
+        yinwei          => '因为',
+        suoyi           => '所以',
+        suiran          => '虽然',
+        danshi          => '但是',
+        jishi           => '即使',
+        wulun           => '无论',
+        budan           => '不但',
+        erqie           => '而且',
+        haishi          => '还是',
+        huozhe          => '或者',
+        ranhou          => '然后',
+        yushi           => '于是',
+        chule           => '除了',
+        lian            => '连',
+        weile           => '为了',
+        anzhao          => '按照',
+        genju           => '根据',
+        jiu             => '就',
+        cai             => '才',
+        dou             => '都',
+        yijing          => '已经',
+        changchang      => '常常',
+        nandao          => '难道',
+        tai             => '太',
         general         => '一般',
       };
 
-  String get emoji => switch (this) {
-        baConstruct   => '🫳',
-        beiPassive    => '🔄',
-        shiDeEmphasis => '💡',
-        conditional   => '⚡',
-        contrast      => '↔️',
-        causeEffect   => '🔗',
-        guoExperience => '🌍',
-        biComparison  => '⚖️',
-        huiNengKeyi   => '💪',
-        yingDeiYao    => '📋',
-        xiangDasuan   => '🎯',
-        questions     => '❓',
-        leCompletion  => '✅',
-        negation      => '🚫',
-        timeWords     => '⏰',
-        locationWords => '📍',
-        general       => '📖',
-        _             => '📝',
-      };
+  String get emoji => this == general ? '📖' : '📝';
 }
 
 class VideoSegmentModel {
