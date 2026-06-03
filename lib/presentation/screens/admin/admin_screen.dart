@@ -2455,8 +2455,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
+                      // Adım ve HSK aynı seviyeyi temsil eder; çip ikisini de
+                      // gösterir ("HSK 3 · Orta") — hangi dropdown'dan seçilirse
+                      // seçilsin tutarlı.
                       for (final lvl in _hskLevels.toList()..sort())
-                        _tagChip('HSK $lvl',
+                        _tagChip('HSK $lvl · ${_adimLabel(lvl)}',
                             () => setState(() => _hskLevels.remove(lvl))),
                       for (final c in _quizCategories)
                         _tagChip(
@@ -2823,7 +2826,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                           color: AppColors.onSurfaceMuted, fontSize: 12),
                       overflow: TextOverflow.ellipsis),
                 ),
-                const Icon(Icons.keyboard_arrow_down,
+                Icon(Icons.keyboard_arrow_down,
                     color: AppColors.onSurfaceMuted, size: 18),
               ],
             ),
