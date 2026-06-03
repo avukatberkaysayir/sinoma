@@ -6,8 +6,10 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// gemini-2.5-flash: better reasoning quality than lite, needed for accurate grammar
-const MODEL = "gemini-2.5-flash";
+// Default to flash-lite: the free tier gives ~1000 requests/day vs only 20/day
+// for gemini-2.5-flash, which the import pipeline exhausts. Override with the
+// GEMINI_MODEL secret (e.g. "gemini-2.5-flash") once billing is enabled.
+const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
 
 // Per-language expert profile: authoritative source + ordered grammar rules.
 // Rules are numbered so the model can cite them in its self-audit step.
@@ -122,8 +124,12 @@ async function callGeminiWithRetry(
         const data = await r.json();
         return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
       }
-      lastErr = `Gemini ${r.status}: ${(await r.text()).slice(0, 300)}`;
-      if (!RETRYABLE.has(r.status)) throw new Error(lastErr);
+      const bodyText = (await r.text()).slice(0, 1500);
+      lastErr = `Gemini ${r.status}: ${bodyText}`;
+      // A daily-quota 429 will not clear on retry — only retry per-minute/over-
+      // load cases. Stop early when the message is an exhausted daily quota.
+      const dailyExhausted = r.status === 429 && /per ?day|PerDay/i.test(bodyText);
+      if (!RETRYABLE.has(r.status) || dailyExhausted) throw new Error(lastErr);
     } catch (e) {
       lastErr = String(e);
     }

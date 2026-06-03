@@ -6,7 +6,8 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-const MODEL = "gemini-2.5-flash";
+// flash-lite default for the higher free-tier daily quota; GEMINI_MODEL overrides.
+const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
