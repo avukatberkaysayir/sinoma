@@ -3394,7 +3394,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
   double _durationSec = 0; // total audio length reported by the pipeline
   double _lastPos = 0;     // how far (sec) ASR has progressed into the audio
   double? _etaTotalSec;    // estimated total processing time (re-anchored per poll)
-  bool _approving = false;
   List<Map<String, dynamic>> _liveVideos = [];
   Timer? _liveVideoTimer;
 
@@ -3567,41 +3566,6 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           _resultMsg = e.toString().replaceFirst('Exception: ', '');
         });
       }
-    }
-  }
-
-  Future<void> _approveAll() async {
-    final pending = _liveVideos
-        .where((v) => (v['status'] as String? ?? 'pending') != 'active')
-        .map((v) => v['id'] as String)
-        .toList();
-    if (pending.isEmpty) return;
-    setState(() => _approving = true);
-    try {
-      await _service.approveVideos(pending);
-      final ytId = _liveVideos.isNotEmpty
-          ? (_liveVideos.first['youtube_id'] as String? ?? '')
-          : '';
-      if (ytId.isNotEmpty) {
-        final vids = await _service.listVideosByYoutubeId(ytId);
-        if (mounted) setState(() => _liveVideos = vids);
-      }
-      widget.onVideosChanged();
-      if (mounted) {
-        setState(() {
-          _resultSuccess = true;
-          _resultMsg = '✓ ${pending.length} klip onaylandı ve yayında.';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _resultSuccess = false;
-          _resultMsg = e.toString().replaceFirst('Exception: ', '');
-        });
-      }
-    } finally {
-      if (mounted) setState(() => _approving = false);
     }
   }
 
@@ -3866,53 +3830,18 @@ class _YouTubeTabState extends State<_YouTubeTab> {
 
           if (_liveVideos.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Builder(builder: (_) {
-              final pendingCount = _liveVideos
-                  .where((v) => (v['status'] as String? ?? 'pending') != 'active')
-                  .length;
-              return Row(
-                children: [
-                  const Icon(Icons.playlist_play,
-                      size: 15, color: AppColors.onSurfaceMuted),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      '${_liveVideos.length} klip — önizleme'
-                      '${pendingCount > 0 ? ' ($pendingCount onay bekliyor)' : ' (onaylandı)'}',
-                      style: const TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 12),
-                    ),
-                  ),
-                  if (pendingCount > 0)
-                    FilledButton.icon(
-                      onPressed: (_processing || _approving) ? null : _approveAll,
-                      icon: _approving
-                          ? const SizedBox(
-                              width: 13,
-                              height: 13,
-                              child: CircularProgressIndicator(
-                                  strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.check_circle, size: 16),
-                      label: Text(_approving
-                          ? 'Onaylanıyor…'
-                          : 'Hepsini Onayla ($pendingCount)'),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: AppColors.correctAnswer,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 8),
-                        visualDensity: VisualDensity.compact,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
-                      ),
-                    ),
-                ],
-              );
-            }),
-            const SizedBox(height: 2),
-            const Text(
-              'Önizleme sayfadan ayrılınca kaybolur — kalıcı için onaylayın.',
-              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
-            ),
+            Row(children: [
+              const Icon(Icons.playlist_add_check,
+                  size: 15, color: AppColors.correctAnswer),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${_liveVideos.length} klip eklendi — "Onay Bekleyen" sekmesinden onaylayın',
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 12),
+                ),
+              ),
+            ]),
             const SizedBox(height: 6),
             ..._liveVideos.map((v) => _LiveImportCard(data: v)),
           ],
