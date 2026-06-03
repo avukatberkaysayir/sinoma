@@ -1882,6 +1882,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   bool _segmenting = false;
   bool _whisperRunning = false;
   List<String>? _confirmedWords;
+  // Live overrides for the collapsed card header so confirming words / applying
+  // Whisper updates the title + pinyin INSTANTLY (before Save/reload).
+  List<String>? _liveTitleWords;
+  String? _livePinyin;
   String? _whisperText;
   Timer? _whisperTimer;
   String? _asrTranslation; // TR translation of the ASR/edited sentence
@@ -2185,20 +2189,51 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   }
 
   // Apply the Whisper result to the sentence AND refresh the pinyin to match
-  // (the old pinyin was for the previous sentence).
+  // (the old pinyin was for the previous sentence). The sentence is no longer
+  // confirmed, so the live card overrides reset until "Kelimeleri Onayla".
   Future<void> _applyWhisper() async {
     final t = _whisperText ?? '';
     if (t.isEmpty) return;
     setState(() {
       _transcriptionCtrl.text = t;
       _confirmedWords = null;
+      _liveTitleWords = null;
+      _livePinyin = null;
       _asrTranslation = null;
       _pinyinBusy = true;
     });
     try {
       final py = await widget.service.pinyinForText(t);
-      if (mounted && py.isNotEmpty) _pinyinCtrl.text = py;
+      if (mounted && py.isNotEmpty) setState(() => _pinyinCtrl.text = py);
     } catch (_) {/* keep old pinyin on failure */}
+    finally {
+      if (mounted) setState(() => _pinyinBusy = false);
+    }
+  }
+
+  // "Kelimeleri Onayla": lock in the current word list AND instantly refresh the
+  // ASR pinyin field + the collapsed card title/pinyin from the confirmed words.
+  Future<void> _onConfirmWords() async {
+    final words = List<String>.from(_targetWords);
+    setState(() {
+      _confirmedWords = words;
+      _liveTitleWords = words; // card title updates instantly
+      _pinyinBusy = true;
+    });
+    try {
+      final spoken = words.where((w) => w != '\n').toList();
+      final pmap = await widget.service.pinyinForWords(spoken);
+      final py = spoken
+          .map((w) => pmap[w] ?? '')
+          .where((p) => p.isNotEmpty)
+          .join(' ');
+      if (mounted && py.isNotEmpty) {
+        setState(() {
+          _pinyinCtrl.text = py; // ASR pinyin field
+          _livePinyin = py; // collapsed card pinyin
+        });
+      }
+    } catch (_) {/* keep existing pinyin on failure */}
     finally {
       if (mounted) setState(() => _pinyinBusy = false);
     }
@@ -2263,12 +2298,18 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final id = v['id'] as String;
     final status = v['status'] as String? ?? '';
     // Title shows the confirmed word order (target_words), falling back to the
-    // ASR transcription, so an edited sentence is reflected here too.
-    final words =
-        (v['target_words'] as List<dynamic>?)?.map((e) => e.toString()).toList() ?? [];
+    // ASR transcription, so an edited sentence is reflected here too. A live
+    // override (set on "Kelimeleri Onayla") updates it instantly before save.
+    final words = _liveTitleWords ??
+        (v['target_words'] as List<dynamic>?)?.map((e) => e.toString()).toList() ??
+        [];
     final titleText = words.isNotEmpty
         ? words.map((w) => w == '\n' ? ' / ' : w).join('')
         : (v['transcription'] as String? ?? id).replaceAll('\n', ' / ');
+    final headerPinyin = _livePinyin ??
+        ((v['pinyin_derived'] as String?)?.isNotEmpty == true
+            ? v['pinyin_derived'] as String
+            : (v['pinyin'] as String? ?? ''));
 
     return Container(
       decoration: BoxDecoration(
@@ -2314,9 +2355,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                    (v['pinyin_derived'] as String?)?.isNotEmpty == true
-                        ? v['pinyin_derived'] as String
-                        : (v['pinyin'] as String? ?? ''),
+                    headerPinyin,
                     style: const TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                     maxLines: 1,
@@ -2742,10 +2781,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   SizedBox(
                     width: double.infinity,
                     child: FilledButton.icon(
-                      onPressed: _targetWords.isEmpty
+                      onPressed: (_targetWords.isEmpty || _pinyinBusy)
                           ? null
-                          : () => setState(
-                              () => _confirmedWords = List.from(_targetWords)),
+                          : _onConfirmWords,
                       icon: const Icon(Icons.check_circle_outline, size: 16),
                       label: const Text('Kelimeleri Onayla'),
                       style: FilledButton.styleFrom(
