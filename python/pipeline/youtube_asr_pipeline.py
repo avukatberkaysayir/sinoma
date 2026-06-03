@@ -134,8 +134,9 @@ def run(
         download_audio,
         download_subtitles,
         parse_subtitle_file,
-        transcribe_with_whisper,
         build_segments,
+        stream_segments,
+        iter_whisper_cues,
         extract_youtube_id,
         normalize_youtube_url,
     )
@@ -145,44 +146,32 @@ def run(
     youtube_id = extract_youtube_id(url)
     print(f"\n▶ YouTube ASR pipeline: {url} ({youtube_id})")
 
-    entries: list[dict[str, Any]] = []
     method = "subtitles"
+    inserted = 0
+    matched = 0  # segments seen that matched the dictionary (before filter)
+    seg_seen = 0
+    buf: list[dict[str, Any]] = []
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        tmp = Path(tmpdir)
+    def _flush(force: bool = False) -> None:
+        nonlocal inserted, buf
+        if buf and (force or len(buf) >= 5):
+            insert_segments(buf)
+            inserted += len(buf)
+            buf = []
+            print(f"  ✓ {inserted} segment yazıldı (akışlı)")
+            if on_progress:
+                on_progress(inserted)
 
-        print("  Önce altyazı deneniyor…")
-        sub_path = download_subtitles(url, tmp)
-        if sub_path:
-            print(f"  Altyazı bulundu: {sub_path.name}")
-            entries = parse_subtitle_file(sub_path)
-            print(f"  {len(entries)} cue.")
-
-        if not entries:
-            method = "whisper"
-            print("  Altyazı yok → ses indiriliyor (Whisper ASR)…")
-            audio_path = download_audio(url, tmp)
-            # download_audio raises RuntimeError on failure — audio_path is always valid here
-            size_kb = audio_path.stat().st_size // 1024
-            print(f"  Ses: {audio_path.name} ({size_kb} KB)")
-            entries = transcribe_with_whisper(audio_path)
-            if not entries:
-                raise RuntimeError(
-                    "Whisper Çince metin üretemedi — "
-                    "video Mandarin içermiyor veya ses kalitesi yetersiz."
-                )
-
-    print(f"  {len(entries)} giriş → segmentler oluşturuluyor…")
-    segments = build_segments(entries)
-    if not segments:
-        raise RuntimeError("Segment oluşturulamadı (girişler çok kısa?).")
-
-    print(f"  {len(segments)} segment. HSK analizi…")
-    from pinyin_helper import get_pinyin  # noqa: F811 (already imported above)
-    rows: list[dict[str, Any]] = []
-    for seg in segments:
+    def _emit(seg: dict[str, Any]) -> None:
+        nonlocal seg_seen, matched
+        seg_seen += 1
         word_ids, hsk_level = analyze_segment(seg["text"])
-        rows.append({
+        if hsk_level == 0:
+            return
+        matched += 1
+        if hsk_filter and hsk_level not in hsk_filter:
+            return
+        buf.append({
             "source_type": "youtube",
             "youtube_id": youtube_id,
             "start_time": seg["start"],
@@ -195,28 +184,43 @@ def run(
             "quiz": {"question": "", "correctAnswer": "", "wrongAnswer": ""},
             "is_active": active,
         })
+        _flush()
 
-    # Filter out hsk_level=0 (no dictionary match) and apply hsk_filter if set
-    rows = [r for r in rows if r["hsk_level"] != 0]
-    if hsk_filter:
-        rows = [r for r in rows if r["hsk_level"] in hsk_filter]
+    # Stream: segments are analysed + inserted AS they close, so they appear in
+    # the "pending" tab progressively instead of all at once at the end. Works
+    # for hour-long videos (no in-memory accumulation, no single huge insert).
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
 
-    if not rows:
+        print("  Önce altyazı deneniyor…")
+        sub_path = download_subtitles(url, tmp)
+        if sub_path:
+            print(f"  Altyazı bulundu: {sub_path.name}")
+            entries = parse_subtitle_file(sub_path)
+            print(f"  {len(entries)} cue → akışlı segmentleme…")
+            for seg in stream_segments(entries):
+                _emit(seg)
+        else:
+            method = "whisper"
+            print("  Altyazı yok → ses indiriliyor (Whisper ASR)…")
+            audio_path = download_audio(url, tmp)
+            size_kb = audio_path.stat().st_size // 1024
+            print(f"  Ses: {audio_path.name} ({size_kb} KB) — akışlı transkripsiyon…")
+            for seg in stream_segments(iter_whisper_cues(audio_path)):
+                _emit(seg)
+
+    _flush(force=True)
+
+    if seg_seen == 0:
+        raise RuntimeError(
+            "Segment oluşturulamadı — video Mandarin içermiyor veya ses/altyazı yetersiz."
+        )
+    if inserted == 0:
         raise RuntimeError(
             "Hiçbir segment sözlükle eşleşmedi veya filtre kapsamında değil. "
             "Farklı bir HSK filtresi deneyin ya da filtreyi kaldırın."
         )
-
-    _BATCH = 10
-    total = 0
-    for i in range(0, len(rows), _BATCH):
-        chunk = rows[i : i + _BATCH]
-        insert_segments(chunk)
-        total += len(chunk)
-        print(f"  ✓ {total}/{len(rows)} segment yazıldı")
-        if on_progress:
-            on_progress(total)
-    return {"segmentsWritten": total, "method": method}
+    return {"segmentsWritten": inserted, "method": method}
 
 
 def _audio_cache_path(youtube_id: str) -> Path:

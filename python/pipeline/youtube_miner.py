@@ -356,20 +356,22 @@ def download_audio(url: str, output_dir: Path) -> Path | None:
 # Whisper transcription
 # ---------------------------------------------------------------------------
 
-def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
-    """Transcribe Mandarin audio with faster-whisper.
+def iter_whisper_cues(audio_path: Path):
+    """Stream Mandarin cues from faster-whisper as they are transcribed.
 
-    Returns [{start, end, text}] — same format as parse_vtt/parse_srt.
+    Yields {start, end, text} (Simplified, duration-capped) one cue at a time —
+    faster-whisper's transcribe() is a lazy generator, so downstream segmenting
+    + DB insert can happen WHILE the rest of the audio is still being processed.
     Model (~480 MB for 'small') downloads automatically on first use.
     """
     if not _WHISPER_AVAILABLE:
         _log("ASR", "faster-whisper not installed. Run: py -m pip install faster-whisper")
-        return []
+        return
 
     _log("ASR", f"loading Whisper '{WHISPER_MODEL_SIZE}' model (downloads on first use)…")
     model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
-    _log("ASR", f"transcribing {audio_path.name} …")
+    _log("ASR", f"transcribing {audio_path.name} (streaming)…")
     segments, info = model.transcribe(
         str(audio_path),
         language="zh",
@@ -378,7 +380,6 @@ def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
         vad_parameters={"min_silence_duration_ms": 500},
     )
 
-    entries: list[dict[str, Any]] = []
     for seg in segments:
         text = _to_simplified(re.sub(r"\s+", "", seg.text.strip()))
         if text and re.search(r"[一-鿿]", text):
@@ -386,14 +387,12 @@ def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
             # huge duration (e.g. a 13-char line tagged 195s). Cap the end by a
             # char-rate estimate so such cues don't become a 3-minute segment.
             cap = seg.start + max(2.0, len(text) * 0.6)
-            end = min(seg.end, cap)
-            entries.append({"start": seg.start, "end": end, "text": text})
+            yield {"start": seg.start, "end": min(seg.end, cap), "text": text}
 
-    _log("ASR", (
-        f"{len(entries)} Chinese cues — "
-        f"detected lang={info.language} prob={info.language_probability:.0%}"
-    ))
-    return entries
+
+def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
+    """Batch wrapper around iter_whisper_cues (collects all cues into a list)."""
+    return list(iter_whisper_cues(audio_path))
 
 
 # ---------------------------------------------------------------------------
@@ -480,22 +479,21 @@ def parse_subtitle_file(path: Path) -> list[dict[str, Any]]:
 # Segmentation
 # ---------------------------------------------------------------------------
 
-def build_segments(
-    entries: list[dict[str, Any]],
+def stream_segments(
+    entries: "Any",
     min_sec: float = MIN_SEGMENT_SECONDS,
     max_sec: float = 8.0,
     max_chars: int = 24,
     max_gap: float = 1.0,
-) -> list[dict[str, Any]]:
-    """Sentence-aware segmentation. A segment closes on sentence-ending
-    punctuation, on a silence gap before the next cue (so a cue at 0:48 and the
-    next at 4:03 don't merge into one 3-minute block), at max_sec, or at
-    max_chars Chinese characters. Short lines (>= min_sec) are kept."""
-    import re
-
-    segments: list[dict[str, Any]] = []
-    current_text = ""
-    current_start: float | None = None
+):
+    """Incremental, sentence-aware segmentation. Yields each segment as soon as
+    it closes — on sentence-ending punctuation, on a silence gap before the next
+    cue (so a cue at 0:48 and the next at 4:03 don't merge into one 3-minute
+    block), at max_sec, or at max_chars Chinese chars. Streaming lets callers
+    insert/show segments while transcription is still running (large videos
+    appear in 'pending' progressively). `entries` may be a list or a generator."""
+    cur_text = ""
+    cur_start: float | None = None
     last_end = 0.0
 
     def ends_sentence(t: str) -> bool:
@@ -504,33 +502,45 @@ def build_segments(
     def hanzi(t: str) -> int:
         return len(re.findall(r"[一-鿿]", t))
 
-    def flush() -> None:
-        nonlocal current_text, current_start
-        if (current_start is not None and current_text.strip()
-                and (last_end - current_start) >= min_sec):
-            segments.append({
-                "start": round(current_start, 3),
-                "end": round(last_end, 3),
-                "text": current_text.strip(),
-            })
-        current_text = ""
-        current_start = None
+    def ready() -> bool:
+        return (cur_start is not None and len(cur_text.strip()) >= 2
+                and (last_end - cur_start) >= min_sec)
+
+    def make() -> dict[str, Any]:
+        return {"start": round(cur_start, 3), "end": round(last_end, 3),
+                "text": cur_text.strip()}
 
     for entry in entries:
         # Pause since the previous cue → close the current segment first.
-        if current_start is not None and entry["start"] - last_end > max_gap:
-            flush()
-        if current_start is None:
-            current_start = entry["start"]
-        current_text += entry["text"]
+        if cur_start is not None and entry["start"] - last_end > max_gap:
+            if ready():
+                yield make()
+            cur_text = ""
+            cur_start = None
+        if cur_start is None:
+            cur_start = entry["start"]
+        cur_text += entry["text"]
         last_end = entry["end"]
         if (ends_sentence(entry["text"])
-                or (last_end - current_start) >= max_sec
-                or hanzi(current_text) >= max_chars):
-            flush()
-    flush()
+                or (last_end - cur_start) >= max_sec
+                or hanzi(cur_text) >= max_chars):
+            if ready():
+                yield make()
+            cur_text = ""
+            cur_start = None
+    if ready():
+        yield make()
 
-    return [s for s in segments if len(s["text"]) >= 2]
+
+def build_segments(
+    entries: list[dict[str, Any]],
+    min_sec: float = MIN_SEGMENT_SECONDS,
+    max_sec: float = 8.0,
+    max_chars: int = 24,
+    max_gap: float = 1.0,
+) -> list[dict[str, Any]]:
+    """Batch wrapper around stream_segments (collects all segments into a list)."""
+    return list(stream_segments(entries, min_sec, max_sec, max_chars, max_gap))
 
 
 # ---------------------------------------------------------------------------

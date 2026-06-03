@@ -3264,6 +3264,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
 
   // ── Elapsed timer + live import stream ────────────────────────────────────
   DateTime? _processingStart;
+  DateTime? _lastProgressAt; // last time new segments appeared (stall detection)
   Timer? _elapsedTimer;
   int _partialCount = 0;
   List<Map<String, dynamic>> _liveVideos = [];
@@ -3298,6 +3299,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
 
   void _startTimers(String youtubeId) {
     _processingStart = DateTime.now();
+    _lastProgressAt = DateTime.now();
     _partialCount = 0;
     _liveVideos = [];
     _elapsedTimer?.cancel();
@@ -3422,17 +3424,25 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     _jobPollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
       if (!mounted) return;
 
-      // 15-minute hard timeout
-      if (_processingStart != null &&
+      // Stall timeout: abort only if NO new segment has appeared for 10 min.
+      // This supports hour-long videos (segments stream in for many minutes)
+      // while still catching a dead/idle worker. A generous 3-hour absolute cap
+      // guards against a truly stuck job.
+      final lastTick = _lastProgressAt ?? _processingStart;
+      final stalled = lastTick != null &&
+          DateTime.now().difference(lastTick) > const Duration(minutes: 10);
+      final tooLong = _processingStart != null &&
           DateTime.now().difference(_processingStart!) >
-              const Duration(minutes: 15)) {
+              const Duration(hours: 3);
+      if (stalled || tooLong) {
         _jobPollTimer?.cancel();
         _stopTimers();
         setState(() {
           _processing = false;
           _resultSuccess = false;
-          _resultMsg =
-              'İşlem zaman aşımına uğradı (15 dk). Pipeline sunucusu çalışıyor mu?';
+          _resultMsg = stalled
+              ? '10 dk yeni segment gelmedi — işlem durdu. Pipeline sunucusu (dev_server.py) çalışıyor mu?'
+              : 'İşlem 3 saati aştı, durduruldu.';
         });
         return;
       }
@@ -3447,6 +3457,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
         if (partial > 0 && partial != _partialCount) {
           _partialCount = partial;
+          _lastProgressAt = DateTime.now(); // reset stall timer on real progress
           widget.onVideosChanged();
         }
 
