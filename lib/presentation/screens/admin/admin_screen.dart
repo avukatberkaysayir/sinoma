@@ -1859,9 +1859,11 @@ class _VideoCard extends ConsumerStatefulWidget {
 
 class _VideoCardState extends ConsumerState<_VideoCard> {
   bool _expanded = false;
-  late int _hskLevel;
-  late QuizCategory _category;
-  late String _lifeCategory;
+  // Multi-tag classification (mirrors the home filters). Add via dropdown,
+  // remove via chip. Auto-seeded from the row on first open.
+  final Set<int> _hskLevels = {};
+  final Set<String> _quizCategories = {};
+  final Set<String> _lifeCategories = {};
   late List<String> _targetWords;
   late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
@@ -1887,10 +1889,19 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   void initState() {
     super.initState();
     final v = widget.data;
-    _hskLevel = (v['hsk_level'] as int?) ?? 1;
-    _category =
-        QuizCategory.fromString(v['quiz_category'] as String? ?? 'general');
-    _lifeCategory = v['life_category'] as String? ?? 'daily_life';
+    _hskLevels.addAll(
+        ((v['hsk_levels'] as List<dynamic>?) ?? []).map((e) => (e as num).toInt()));
+    if (_hskLevels.isEmpty) _hskLevels.add((v['hsk_level'] as int?) ?? 1);
+    _quizCategories.addAll(
+        ((v['quiz_categories'] as List<dynamic>?) ?? []).map((e) => e.toString()));
+    if (_quizCategories.isEmpty) {
+      _quizCategories.add(v['quiz_category'] as String? ?? 'general');
+    }
+    _lifeCategories.addAll(
+        ((v['life_categories'] as List<dynamic>?) ?? []).map((e) => e.toString()));
+    if (_lifeCategories.isEmpty) {
+      _lifeCategories.add(v['life_category'] as String? ?? 'daily_life');
+    }
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
     final tr = v['transcription'] as String? ?? '';
@@ -2102,14 +2113,22 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
 
   Future<void> _save({bool approve = false}) async {
     final id = widget.data['id'] as String;
+    // Primary single values (first tag) kept for backward compatibility + the
+    // collapsed card badge; the arrays drive the home filtering.
+    final hskList = _hskLevels.toList()..sort();
+    final catList = _quizCategories.toList();
+    final lifeList = _lifeCategories.toList();
     setState(() => _saving = true);
     try {
       await widget.service.patchVideoFields(id, {
         'transcription': _transcriptionCtrl.text.trim(),
         'pinyin': _pinyinCtrl.text.trim(),
-        'hsk_level': _hskLevel,
-        'quiz_category': _category.name,
-        'life_category': _lifeCategory,
+        'hsk_level': hskList.isNotEmpty ? hskList.first : 1,
+        'quiz_category': catList.isNotEmpty ? catList.first : 'general',
+        'life_category': lifeList.isNotEmpty ? lifeList.first : 'daily_life',
+        'hsk_levels': hskList,
+        'quiz_categories': catList,
+        'life_categories': lifeList,
         'target_words': _targetWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
@@ -2380,70 +2399,72 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                  // ── Classification filters — same taxonomy as the home feed
-                  // filters, laid out left-to-right as dropdowns. The picks are
-                  // saved on the video so it shows under the same home filters
-                  // once approved/active. (Length is derived from the sentence.)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  // ── Classification filters — the SAME 5 groups as the home
+                  // feed, left-to-right. Multi-select: add from the dropdown,
+                  // remove from the chips below. Saved as tag arrays so the clip
+                  // shows under every matching home filter once approved.
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
-                      Expanded(
-                        child: _classDropdown<int>(
-                          label: 'HSK',
-                          value: _hskLevel,
-                          items: [
-                            for (var i = 1; i <= 6; i++)
-                              DropdownMenuItem(value: i, child: Text('HSK $i')),
-                          ],
-                          onChanged: (v) =>
-                              setState(() => _hskLevel = v ?? _hskLevel),
-                        ),
+                      _multiDropdown<String>(
+                        label: 'Hayat',
+                        options: const [
+                          (value: 'daily_life', text: 'Günlük Hayat'),
+                          (value: 'business', text: 'İş'),
+                          (value: 'children', text: 'Çocuk'),
+                        ],
+                        chosen: _lifeCategories,
+                        onAdd: (v) => setState(() => _lifeCategories.add(v)),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        flex: 2,
-                        child: _classDropdown<QuizCategory>(
-                          label: 'Gramer',
-                          value: _category,
-                          items: QuizCategory.values
-                              .map((c) => DropdownMenuItem(
-                                  value: c,
-                                  child: Text('${c.emoji} ${c.displayName}',
-                                      overflow: TextOverflow.ellipsis)))
-                              .toList(),
-                          onChanged: (v) =>
-                              setState(() => _category = v ?? _category),
-                        ),
+                      _multiDropdown<int>(
+                        label: 'Adım',
+                        options: [
+                          for (var i = 1; i <= 6; i++)
+                            (value: i, text: _adimLabel(i)),
+                        ],
+                        chosen: _hskLevels,
+                        onAdd: (v) => setState(() => _hskLevels.add(v)),
                       ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _classDropdown<String>(
-                          label: 'Hayat',
-                          value: _lifeCategory,
-                          items: const [
-                            DropdownMenuItem(
-                                value: 'daily_life',
-                                child: Text('Günlük Hayat')),
-                            DropdownMenuItem(
-                                value: 'business', child: Text('İş')),
-                            DropdownMenuItem(
-                                value: 'children', child: Text('Çocuk')),
-                          ],
-                          onChanged: (v) =>
-                              setState(() => _lifeCategory = v ?? _lifeCategory),
-                        ),
+                      _multiDropdown<int>(
+                        label: 'HSK',
+                        options: [
+                          for (var i = 1; i <= 6; i++) (value: i, text: 'HSK $i'),
+                        ],
+                        chosen: _hskLevels,
+                        onAdd: (v) => setState(() => _hskLevels.add(v)),
                       ),
+                      _multiDropdown<QuizCategory>(
+                        label: 'Gramer',
+                        options: [
+                          for (final c in QuizCategory.values)
+                            (value: c, text: '${c.emoji} ${c.displayName}'),
+                        ],
+                        chosen: _quizCategories
+                            .map(QuizCategory.fromString)
+                            .toSet(),
+                        onAdd: (v) =>
+                            setState(() => _quizCategories.add(v.name)),
+                      ),
+                      // Length (SinoRhythm) is derived from the sentence.
+                      _readonlyFilter('Uzunluk', _lengthBucket()),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 6,
-                    runSpacing: 4,
+                    runSpacing: 6,
                     children: [
-                      _selChip('HSK $_hskLevel', AppColors.forHskLevel(_hskLevel)),
-                      _selChip('${_category.emoji} ${_category.displayName}',
-                          AppColors.primary),
-                      _selChip(_lifeLabel(_lifeCategory), AppColors.primary),
+                      for (final lvl in _hskLevels.toList()..sort())
+                        _tagChip('HSK $lvl',
+                            () => setState(() => _hskLevels.remove(lvl))),
+                      for (final c in _quizCategories)
+                        _tagChip(
+                            '${QuizCategory.fromString(c).emoji} ${QuizCategory.fromString(c).displayName}',
+                            () => setState(() => _quizCategories.remove(c))),
+                      for (final lc in _lifeCategories)
+                        _tagChip(_lifeLabel(lc),
+                            () => setState(() => _lifeCategories.remove(lc))),
                     ],
                   ),
                   const SizedBox(height: 14),
@@ -2728,15 +2749,93 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         _ => 'Günlük Hayat',
       };
 
-  // A labelled dropdown that opens downward over the content (translucent menu),
-  // mirroring the home feed's filter options.
-  Widget _classDropdown<T>({
+  String _adimLabel(int i) => switch (i) {
+        1 => 'Başlangıç',
+        2 => 'Temel',
+        3 => 'Orta',
+        4 => 'Orta-İleri',
+        5 => 'İleri',
+        _ => 'Uzman',
+      };
+
+  String _lengthBucket() {
+    final s = _targetWords.isNotEmpty
+        ? _targetWords.join('')
+        : _transcriptionCtrl.text;
+    final n = RegExp(r'[一-鿿]').allMatches(s).length;
+    if (n <= 5) return '1-5字';
+    if (n <= 10) return '6-10字';
+    if (n <= 15) return '11-15字';
+    if (n <= 20) return '16-20字';
+    return '21字+';
+  }
+
+  // A labelled multi-select: tapping opens a translucent menu downward; picking
+  // an item adds it (already-chosen items are filtered out). Removal is via the
+  // tag chips shown below.
+  Widget _multiDropdown<T>({
     required String label,
-    required T value,
-    required List<DropdownMenuItem<T>> items,
-    required ValueChanged<T?> onChanged,
+    required List<({T value, String text})> options,
+    required Set<T> chosen,
+    required ValueChanged<T> onAdd,
   }) {
+    final available = options.where((o) => !chosen.contains(o.value)).toList();
     return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                color: AppColors.onSurfaceMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        PopupMenuButton<T>(
+          enabled: available.isNotEmpty,
+          onSelected: onAdd,
+          color: AppColors.surfaceVariant.withValues(alpha: 0.92),
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8)),
+          itemBuilder: (_) => [
+            for (final o in available)
+              PopupMenuItem<T>(
+                value: o.value,
+                height: 38,
+                child: Text(o.text,
+                    style: const TextStyle(
+                        color: AppColors.onSurface, fontSize: 12)),
+              ),
+          ],
+          child: Container(
+            width: 132,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
+            ),
+            child: const Row(
+              children: [
+                Expanded(
+                  child: Text('Ekle…',
+                      style: TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 12),
+                      overflow: TextOverflow.ellipsis),
+                ),
+                const Icon(Icons.keyboard_arrow_down,
+                    color: AppColors.onSurfaceMuted, size: 18),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _readonlyFilter(String label, String value) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
@@ -2746,45 +2845,56 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                 fontWeight: FontWeight.w600)),
         const SizedBox(height: 4),
         Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
+          width: 132,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: AppColors.surface.withValues(alpha: 0.5),
             borderRadius: BorderRadius.circular(8),
             border: Border.all(
-                color: AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
+                color: AppColors.onSurfaceMuted.withValues(alpha: 0.2)),
           ),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<T>(
-              value: value,
-              items: items,
-              onChanged: onChanged,
-              isExpanded: true,
-              isDense: true,
-              dropdownColor:
-                  AppColors.surfaceVariant.withValues(alpha: 0.96),
-              borderRadius: BorderRadius.circular(8),
-              style: const TextStyle(
-                  color: AppColors.onSurface, fontSize: 12),
-              icon: const Icon(Icons.keyboard_arrow_down,
-                  color: AppColors.onSurfaceMuted, size: 18),
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(value,
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 12),
+                    overflow: TextOverflow.ellipsis),
+              ),
+              const Icon(Icons.lock_outline,
+                  color: AppColors.onSurfaceMuted, size: 13),
+            ],
           ),
         ),
       ],
     );
   }
 
-  Widget _selChip(String text, Color color) {
+  // Uniform removable tag chip (no per-level colours — those were confusing).
+  Widget _tagChip(String text, VoidCallback onRemove) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.fromLTRB(10, 4, 6, 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: AppColors.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.4)),
       ),
-      child: Text(text,
-          style: TextStyle(
-              color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(text,
+              style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(width: 4),
+          GestureDetector(
+            onTap: onRemove,
+            child: const Icon(Icons.close,
+                size: 14, color: AppColors.primary),
+          ),
+        ],
+      ),
     );
   }
 

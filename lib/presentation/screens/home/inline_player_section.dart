@@ -174,12 +174,9 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   }
 
   void _replay() {
-    // Re-listen only: keep the subtitle choice and the picked answer frozen.
-    // Hide the post-clip UI while it plays; it reappears unchanged on end.
-    setState(() {
-      _clipEnded = false;
-      _replayCount++;
-    });
+    // Re-listen only: replay the clip while the post-clip UI (subtitle choice,
+    // options, picked answer) stays put — nothing below changes.
+    setState(() => _replayCount++);
   }
 
   void _setSpeed(double speed) {
@@ -306,21 +303,26 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             // show/hide the subtitle at any time, regardless of the first pick.
             // Options freeze after one pick; advance via the player's next arrow.
             if (_subtitleChoice != null) ...[
-              // Transparent "Subtitle" toggle, centered above the two options;
-              // show/hide the Chinese subtitle anytime. Label follows the locale.
-              Center(
-                child: _SubtitleToggle(
-                  on: _subtitleChoice == true,
-                  label: l10n.subtitleTitle,
-                  onTap: _toggleSubtitle,
+              // Subtitle OFF → show the transparent "Subtitle" toggle (tap to
+              // reveal). Subtitle ON → the button is gone and the subtitle bar
+              // takes its place (tap the bar to hide it again). Locale-aware.
+              if (_subtitleChoice != true) ...[
+                Center(
+                  child: _SubtitleToggle(
+                    on: false,
+                    label: l10n.subtitleTitle,
+                    onTap: _toggleSubtitle,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10),
-              if (_subtitleChoice == true) ...[
-                _ChineseSubtitleBar(
-                  transcription: seg.targetWords.isNotEmpty
-                      ? seg.targetWords.join('')
-                      : seg.transcription,
+                const SizedBox(height: 10),
+              ] else ...[
+                GestureDetector(
+                  onTap: _toggleSubtitle,
+                  child: _ChineseSubtitleBar(
+                    transcription: seg.targetWords.isNotEmpty
+                        ? seg.targetWords.join('')
+                        : seg.transcription,
+                  ),
                 ),
                 const SizedBox(height: 14),
               ],

@@ -37,14 +37,17 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
 
   var segments = await repo.loadSegmentsForLevel(userHskLevel);
 
-  // Level and HSK both filter by hskLevel — combine as union (OR within group)
+  // Level and HSK both filter by hskLevel — combine as union (OR within group).
+  // Match against the video's tag lists (multi-tag), any overlap counts.
   final combinedHsk = {...levelFilters, ...hskFilters};
   if (combinedHsk.isNotEmpty) {
-    segments = segments.where((s) => combinedHsk.contains(s.hskLevel)).toList();
+    segments = segments
+        .where((s) => s.hskLevelTags.any(combinedHsk.contains))
+        .toList();
   }
   if (categories.isNotEmpty) {
     segments = segments
-        .where((s) => categories.contains(s.quizCategory.name))
+        .where((s) => s.categoryTags.any(categories.contains))
         .toList();
   }
   if (lengths.isNotEmpty) {
@@ -54,7 +57,7 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   }
   if (lifeCategories.isNotEmpty) {
     segments = segments
-        .where((s) => lifeCategories.contains(s.lifeCategory))
+        .where((s) => s.lifeTags.any(lifeCategories.contains))
         .toList();
   }
   return segments;

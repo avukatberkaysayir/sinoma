@@ -53,6 +53,11 @@ CREATE TABLE IF NOT EXISTS public.videos (
   target_words  TEXT[] NOT NULL DEFAULT '{}',
   quiz          JSONB NOT NULL DEFAULT '{"question":"","correctAnswer":"","wrongAnswer":""}',
   quiz_category TEXT NOT NULL DEFAULT 'general',
+  life_category TEXT NOT NULL DEFAULT 'daily_life',
+  -- Multi-tag classification (primary single columns above kept for compat).
+  hsk_levels      INTEGER[] NOT NULL DEFAULT '{}',
+  quiz_categories TEXT[]    NOT NULL DEFAULT '{}',
+  life_categories TEXT[]    NOT NULL DEFAULT '{}',
   is_active     BOOLEAN NOT NULL DEFAULT TRUE,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

@@ -80,6 +80,11 @@ class VideoSegmentModel {
   final QuizData quiz;
   final QuizCategory quizCategory;
   final String lifeCategory; // 'daily_life' | 'business' | 'children'
+  // Multi-tag classification (admin-editable). The single fields above stay as
+  // the "primary" (first tag) for backward compatibility; these drive filtering.
+  final List<int> hskLevels;
+  final List<String> quizCategories;
+  final List<String> lifeCategories;
   final bool isActive;
   final DateTime createdAt;
 
@@ -97,9 +102,20 @@ class VideoSegmentModel {
     required this.quiz,
     this.quizCategory = QuizCategory.general,
     this.lifeCategory = 'daily_life',
+    this.hskLevels = const [],
+    this.quizCategories = const [],
+    this.lifeCategories = const [],
     this.isActive = true,
     required this.createdAt,
   });
+
+  // Effective tag lists — fall back to the single primary value when the
+  // multi-tag arrays are empty (older rows / cache).
+  List<int> get hskLevelTags => hskLevels.isNotEmpty ? hskLevels : [hskLevel];
+  List<String> get categoryTags =>
+      quizCategories.isNotEmpty ? quizCategories : [quizCategory.name];
+  List<String> get lifeTags =>
+      lifeCategories.isNotEmpty ? lifeCategories : [lifeCategory];
 
   factory VideoSegmentModel.fromMap(Map<String, dynamic> data) {
     final sourceStr = data['source_type'] as String? ?? 'youtube';
@@ -119,6 +135,15 @@ class VideoSegmentModel {
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
       quizCategory: QuizCategory.fromString(data['quiz_category'] as String? ?? 'general'),
       lifeCategory: data['life_category'] as String? ?? 'daily_life',
+      hskLevels: ((data['hsk_levels'] as List<dynamic>?) ?? [])
+          .map((e) => (e as num).toInt())
+          .toList(),
+      quizCategories: ((data['quiz_categories'] as List<dynamic>?) ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      lifeCategories: ((data['life_categories'] as List<dynamic>?) ?? [])
+          .map((e) => e.toString())
+          .toList(),
       isActive: data['is_active'] as bool? ?? true,
       createdAt: data['created_at'] != null
           ? DateTime.parse(data['created_at'] as String)
@@ -144,6 +169,15 @@ class VideoSegmentModel {
       quiz: QuizData.fromMap(data['quiz'] as Map<String, dynamic>? ?? {}),
       quizCategory: QuizCategory.fromString(data['quizCategory'] as String? ?? 'general'),
       lifeCategory: data['lifeCategory'] as String? ?? 'daily_life',
+      hskLevels: ((data['hskLevels'] as List<dynamic>?) ?? [])
+          .map((e) => (e as num).toInt())
+          .toList(),
+      quizCategories: ((data['quizCategories'] as List<dynamic>?) ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      lifeCategories: ((data['lifeCategories'] as List<dynamic>?) ?? [])
+          .map((e) => e.toString())
+          .toList(),
       isActive: data['isActive'] as bool? ?? true,
       createdAt: data['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'] as int)
@@ -165,6 +199,9 @@ class VideoSegmentModel {
         'quiz': quiz.toMap(),
         'quiz_category': quizCategory.name,
         'life_category': lifeCategory,
+        'hsk_levels': hskLevels,
+        'quiz_categories': quizCategories,
+        'life_categories': lifeCategories,
         'is_active': isActive,
         'created_at': createdAt.toIso8601String(),
       };
@@ -182,6 +219,9 @@ class VideoSegmentModel {
         'quiz': quiz.toMap(),
         'quizCategory': quizCategory.name,
         'lifeCategory': lifeCategory,
+        'hskLevels': hskLevels,
+        'quizCategories': quizCategories,
+        'lifeCategories': lifeCategories,
         'isActive': isActive,
         'createdAt': createdAt.millisecondsSinceEpoch,
       };
