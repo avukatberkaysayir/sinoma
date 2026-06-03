@@ -30,6 +30,7 @@ Color _categoryColor(QuizCategory c) => switch (c) {
       QuizCategory.timeWords     => const Color(0xFF673AB7),
       QuizCategory.locationWords => const Color(0xFF03A9F4),
       QuizCategory.general       => const Color(0xFF9E9E9E),
+      _                          => const Color(0xFF9E9E9E),
     };
 
 // =============================================================================

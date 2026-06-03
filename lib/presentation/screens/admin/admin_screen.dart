@@ -2429,7 +2429,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         label: 'Gramer',
                         options: [
                           for (final c in QuizCategory.values)
-                            (value: c, text: '${c.emoji} ${c.displayName}'),
+                            (value: c, text: c.displayName),
                         ],
                         chosen: _quizCategories
                             .map(QuizCategory.fromString)
@@ -2450,8 +2450,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         _tagChip('HSK $lvl',
                             () => setState(() => _hskLevels.remove(lvl))),
                       for (final c in _quizCategories)
-                        _tagChip(
-                            '${QuizCategory.fromString(c).emoji} ${QuizCategory.fromString(c).displayName}',
+                        _tagChip(QuizCategory.fromString(c).displayName,
                             () => setState(() => _quizCategories.remove(c))),
                       for (final lc in _lifeCategories)
                         _tagChip(_lifeLabel(lc),

@@ -371,7 +371,7 @@ class _FilterSidebar extends ConsumerWidget {
                     children: [
                       for (final cat in QuizCategory.values)
                         _SidebarItem(
-                          label: '${cat.emoji} ${cat.displayName}',
+                          label: cat.displayName,
                           selected: categories.contains(cat.name),
                           onTap: () => toggleCategory(cat.name),
                           isDark: isDark,
@@ -472,7 +472,7 @@ class _ActiveFilterChips extends ConsumerWidget {
         orElse: () => QuizCategory.general,
       );
       chips.add(_RemovableChip(
-        label: '${qc.emoji} ${qc.displayName}',
+        label: qc.displayName,
         onRemove: () => onRemoveCategory(cat),
         isDark: isDark,
       ));

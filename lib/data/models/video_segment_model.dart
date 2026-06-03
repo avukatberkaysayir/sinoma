@@ -1,5 +1,8 @@
 enum VideoSourceType { youtube, selfHosted }
 
+// Grammar patterns covered by the HSK 1-6 vocabulary lists. Existing value names
+// are kept (stored on videos); new HSK grammar points were added. displayName
+// carries the pattern + its key particle(s); no emoji (filter labels stay clean).
 enum QuizCategory {
   baConstruct,
   beiPassive,
@@ -17,6 +20,23 @@ enum QuizCategory {
   negation,
   timeWords,
   locationWords,
+  // ── Added from the HSK word lists ──
+  zheContinuous,
+  progressive,
+  deComplement,
+  existence,
+  concession,
+  progression,
+  purpose,
+  choice,
+  emphasis,
+  sequence,
+  accordingTo,
+  exception,
+  degree,
+  frequency,
+  rhetorical,
+  comparisonEqual,
   general;
 
   static QuizCategory fromString(String value) =>
@@ -26,23 +46,39 @@ enum QuizCategory {
       );
 
   String get displayName => switch (this) {
-        baConstruct   => '把字句',
-        beiPassive    => '被动句',
-        shiDeEmphasis => '是…的',
-        conditional   => '条件句',
-        contrast      => '转折句',
-        causeEffect   => '因果句',
-        guoExperience => '经历体 过',
-        biComparison  => '比较句',
-        huiNengKeyi   => '会/能/可以',
-        yingDeiYao    => '应该/得/要',
-        xiangDasuan   => '想/打算',
-        questions     => '疑问句',
-        leCompletion  => '完成体 了',
-        negation      => '否定句',
-        timeWords     => '时间表达',
-        locationWords => '方位/地点',
-        general       => '一般',
+        baConstruct     => '把字句 (把)',
+        beiPassive      => '被动句 (被)',
+        shiDeEmphasis   => '是…的',
+        conditional     => '条件句 (如果/只要)',
+        contrast        => '转折句 (虽然/但是)',
+        causeEffect     => '因果句 (因为/所以)',
+        guoExperience   => '经历体 (过)',
+        biComparison    => '比较句 (比)',
+        huiNengKeyi     => '能愿动词 (会/能/可以)',
+        yingDeiYao      => '应该/得/要',
+        xiangDasuan     => '想/打算',
+        questions       => '疑问句 (吗/呢)',
+        leCompletion    => '完成体 (了)',
+        negation        => '否定句 (不/没)',
+        timeWords       => '时间表达',
+        locationWords   => '方位/地点 (在/从)',
+        zheContinuous   => '持续体 (着)',
+        progressive     => '进行体 (在/正在)',
+        deComplement    => '补语 (得)',
+        existence       => '有字句 (有)',
+        concession      => '让步句 (即使/无论)',
+        progression     => '递进句 (不但…而且)',
+        purpose         => '目的句 (为了)',
+        choice          => '选择句 (还是/或者)',
+        emphasis        => '强调 (连…都)',
+        sequence        => '顺承句 (然后/于是)',
+        accordingTo     => '依据 (按照/根据)',
+        exception       => '排除 (除了…以外)',
+        degree          => '程度 (太/非常)',
+        frequency       => '频率 (常常/往往)',
+        rhetorical      => '反问句 (难道)',
+        comparisonEqual => '相同 (跟…一样)',
+        general         => '一般',
       };
 
   String get emoji => switch (this) {
@@ -63,6 +99,7 @@ enum QuizCategory {
         timeWords     => '⏰',
         locationWords => '📍',
         general       => '📖',
+        _             => '📝',
       };
 }
 
