@@ -482,16 +482,17 @@ def parse_subtitle_file(path: Path) -> list[dict[str, Any]]:
 def stream_segments(
     entries: "Any",
     min_sec: float = MIN_SEGMENT_SECONDS,
-    max_sec: float = 8.0,
-    max_chars: int = 24,
+    max_sec: float = 10.0,
+    max_chars: int = 45,
     max_gap: float = 1.0,
 ):
-    """Incremental, sentence-aware segmentation. Yields each segment as soon as
-    it closes — on sentence-ending punctuation, on a silence gap before the next
-    cue (so a cue at 0:48 and the next at 4:03 don't merge into one 3-minute
-    block), at max_sec, or at max_chars Chinese chars. Streaming lets callers
-    insert/show segments while transcription is still running (large videos
-    appear in 'pending' progressively). `entries` may be a list or a generator."""
+    """Incremental, SENTENCE-focused segmentation. A segment closes on sentence
+    punctuation, on a silence gap before the next cue (natural boundary), or at
+    the max_sec hard cap (10s). max_chars (45 ≈ ~10s of speech) is only a runaway
+    safety, so a sentence is NOT chopped mid-way at an arbitrary char/second
+    count — it runs to its natural end up to ~10s. Yields each segment as it
+    closes so callers can insert/show progressively. `entries` may be a list or
+    a generator."""
     cur_text = ""
     cur_start: float | None = None
     last_end = 0.0
@@ -535,8 +536,8 @@ def stream_segments(
 def build_segments(
     entries: list[dict[str, Any]],
     min_sec: float = MIN_SEGMENT_SECONDS,
-    max_sec: float = 8.0,
-    max_chars: int = 24,
+    max_sec: float = 10.0,
+    max_chars: int = 45,
     max_gap: float = 1.0,
 ) -> list[dict[str, Any]]:
     """Batch wrapper around stream_segments (collects all segments into a list)."""

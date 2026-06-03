@@ -252,7 +252,7 @@ interface Segment {
 // Short utterances (min ~0.8s) are kept so lines like "这个能吃" aren't dropped.
 function buildSegments(
   events: CaptionEvent[],
-  { maxDuration = 8, maxChars = 24, maxGap = 1.0, minDuration = 0.8 } = {},
+  { maxDuration = 10, maxChars = 45, maxGap = 1.0, minDuration = 0.8 } = {},
 ): Segment[] {
   const segments: Segment[] = [];
   let segStart: number | null = null;

@@ -197,6 +197,34 @@ class AdminService {
     };
   }
 
+  // Faithful translation (default Turkish) of a Chinese sentence — lets the
+  // admin sanity-check that an ASR/Whisper transcription makes sense.
+  Future<String> translateText(String text, {String lang = 'tr'}) async {
+    final t = text.trim();
+    if (t.isEmpty) return '';
+    final res = await _db.functions.invoke(
+      'translate',
+      body: {'text': t, 'lang': lang},
+    );
+    if (res.status >= 300) {
+      throw Exception((res.data as Map<String, dynamic>?)?['error']
+          ?? 'Çeviri başarısız (${res.status})');
+    }
+    return (res.data as Map<String, dynamic>)['translation'] as String? ?? '';
+  }
+
+  // Pinyin for a whole sentence: segment it against the dictionary, then join
+  // each word's dictionary pinyin. Used to refresh the pinyin field after the
+  // sentence text changes (e.g. applying a Whisper transcription).
+  Future<String> pinyinForText(String text) async {
+    final t = text.trim();
+    if (t.isEmpty) return '';
+    final words = await segmentSentence(t);
+    final map = await pinyinForWords(words);
+    final parts = words.map((w) => map[w] ?? '').where((p) => p.isNotEmpty);
+    return parts.join(' ');
+  }
+
   // ── Supabase CRUD ───────────────────────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> listVideos() async {

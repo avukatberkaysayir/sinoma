@@ -1880,6 +1880,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   List<String>? _confirmedWords;
   String? _whisperText;
   Timer? _whisperTimer;
+  String? _asrTranslation; // TR translation of the ASR/edited sentence
+  String? _whisperTranslation; // TR translation of the Whisper result
+  bool _trAsrBusy = false;
+  bool _trWhisperBusy = false;
+  bool _pinyinBusy = false;
 
   YoutubePlayerController? _ytController;
   Timer? _segmentTimer; // restricts playback to start..end
@@ -2159,6 +2164,67 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
+    }
+  }
+
+  // Apply the Whisper result to the sentence AND refresh the pinyin to match
+  // (the old pinyin was for the previous sentence).
+  Future<void> _applyWhisper() async {
+    final t = _whisperText ?? '';
+    if (t.isEmpty) return;
+    setState(() {
+      _transcriptionCtrl.text = t;
+      _confirmedWords = null;
+      _asrTranslation = null;
+      _pinyinBusy = true;
+    });
+    try {
+      final py = await widget.service.pinyinForText(t);
+      if (mounted && py.isNotEmpty) _pinyinCtrl.text = py;
+    } catch (_) {/* keep old pinyin on failure */}
+    finally {
+      if (mounted) setState(() => _pinyinBusy = false);
+    }
+  }
+
+  Future<void> _refreshPinyin() async {
+    final t = _transcriptionCtrl.text.trim();
+    if (t.isEmpty) return;
+    setState(() => _pinyinBusy = true);
+    try {
+      final py = await widget.service.pinyinForText(t);
+      if (mounted && py.isNotEmpty) _pinyinCtrl.text = py;
+    } catch (_) {}
+    finally {
+      if (mounted) setState(() => _pinyinBusy = false);
+    }
+  }
+
+  Future<void> _translateAsr() async {
+    final t = _transcriptionCtrl.text.trim();
+    if (t.isEmpty) return;
+    setState(() => _trAsrBusy = true);
+    try {
+      final tr = await widget.service.translateText(t);
+      if (mounted) setState(() => _asrTranslation = tr);
+    } catch (e) {
+      if (mounted) setState(() => _asrTranslation = 'Çeviri hatası: $e');
+    } finally {
+      if (mounted) setState(() => _trAsrBusy = false);
+    }
+  }
+
+  Future<void> _translateWhisper() async {
+    final t = _whisperText ?? '';
+    if (t.isEmpty) return;
+    setState(() => _trWhisperBusy = true);
+    try {
+      final tr = await widget.service.translateText(t);
+      if (mounted) setState(() => _whisperTranslation = tr);
+    } catch (e) {
+      if (mounted) setState(() => _whisperTranslation = 'Çeviri hatası: $e');
+    } finally {
+      if (mounted) setState(() => _trWhisperBusy = false);
     }
   }
 
@@ -2476,6 +2542,30 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                             _editField(_transcriptionCtrl, 'Çince cümle',
                                 maxLines: 3),
                             _editField(_pinyinCtrl, 'Pinyin'),
+                            Row(
+                              children: [
+                                _miniBtn(
+                                  _pinyinBusy ? 'Pinyin…' : 'Pinyin yenile',
+                                  Icons.refresh,
+                                  _pinyinBusy ? null : _refreshPinyin,
+                                ),
+                                const SizedBox(width: 6),
+                                _miniBtn(
+                                  _trAsrBusy ? 'Çevriliyor…' : 'Türkçesi',
+                                  Icons.translate,
+                                  _trAsrBusy ? null : _translateAsr,
+                                ),
+                              ],
+                            ),
+                            if ((_asrTranslation ?? '').isNotEmpty)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 6),
+                                child: Text('TR: ${_asrTranslation!}',
+                                    style: const TextStyle(
+                                        color: AppColors.onSurfaceMuted,
+                                        fontSize: 12,
+                                        fontStyle: FontStyle.italic)),
+                              ),
                           ],
                         ),
                       ),
@@ -2542,16 +2632,20 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                                   fontSize: 12)),
                                         ),
                                         TextButton(
-                                          onPressed: () => setState(() =>
-                                              _transcriptionCtrl.text =
-                                                  _whisperText!),
+                                          onPressed: _pinyinBusy
+                                              ? null
+                                              : _applyWhisper,
                                           style: TextButton.styleFrom(
                                               padding:
                                                   const EdgeInsets.symmetric(
                                                       horizontal: 8),
                                               minimumSize: const Size(0, 28)),
-                                          child: const Text("Cümle'ye al",
-                                              style: TextStyle(fontSize: 12)),
+                                          child: Text(
+                                              _pinyinBusy
+                                                  ? 'Uygulanıyor…'
+                                                  : "Cümle'ye al",
+                                              style:
+                                                  const TextStyle(fontSize: 12)),
                                         ),
                                       ],
                                     ),
@@ -2559,6 +2653,24 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                         style: const TextStyle(
                                             color: AppColors.onSurface,
                                             fontSize: 15)),
+                                    const SizedBox(height: 4),
+                                    _miniBtn(
+                                      _trWhisperBusy
+                                          ? 'Çevriliyor…'
+                                          : 'Türkçesi',
+                                      Icons.translate,
+                                      _trWhisperBusy ? null : _translateWhisper,
+                                    ),
+                                    if ((_whisperTranslation ?? '').isNotEmpty)
+                                      Padding(
+                                        padding: const EdgeInsets.only(top: 4),
+                                        child: Text(
+                                            'TR: ${_whisperTranslation!}',
+                                            style: const TextStyle(
+                                                color: AppColors.onSurfaceMuted,
+                                                fontSize: 12,
+                                                fontStyle: FontStyle.italic)),
+                                      ),
                                   ],
                                 ),
                               ),
@@ -2902,6 +3014,21 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _miniBtn(String label, IconData icon, VoidCallback? onTap) {
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 13),
+      label: Text(label, style: const TextStyle(fontSize: 11)),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primary,
+        side: BorderSide(color: AppColors.primary.withValues(alpha: 0.5)),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }
