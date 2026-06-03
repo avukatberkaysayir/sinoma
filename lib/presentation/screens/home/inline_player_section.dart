@@ -27,6 +27,7 @@ class InlinePlayerSection extends ConsumerStatefulWidget {
 class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   late int _index;
   bool _clipEnded = false;
+  bool _replaying = false; // clip is currently re-playing → hide the replay button
   bool? _subtitleChoice;
   String? _pickedAnswer; // option text the user picked — frozen, survives replay
   bool _optSwap = false; // stable left/right order for the two options
@@ -81,6 +82,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
 
   void _resetState() {
     _clipEnded = false;
+    _replaying = false;
     _subtitleChoice = null;
     _pickedAnswer = null;
     _optSwap = Random().nextBool();
@@ -120,10 +122,14 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   VideoSegmentModel get _seg => widget.segments[_index];
 
   void _onSegmentEnded() {
-    setState(() => _clipEnded = true);
+    // Clip stopped → show the replay button again (it's hidden while replaying).
+    setState(() {
+      _clipEnded = true;
+      _replaying = false;
+    });
     // Start the choice countdown the first time the segment ends. Guarded so a
-    // replay (which ends again) does not restart it.
-    if (_subtitleChoice == null) _startCountdown();
+    // replay (which ends again) does not restart it, and not after a timeout.
+    if (_subtitleChoice == null && !_timedOut) _startCountdown();
   }
 
   void _startCountdown() {
@@ -175,8 +181,12 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
 
   void _replay() {
     // Re-listen only: replay the clip while the post-clip UI (subtitle choice,
-    // options, picked answer) stays put — nothing below changes.
-    setState(() => _replayCount++);
+    // options, picked answer) stays put — nothing below changes. The replay
+    // button hides during playback and returns when the clip ends.
+    setState(() {
+      _replaying = true;
+      _replayCount++;
+    });
   }
 
   void _setSpeed(double speed) {
@@ -247,7 +257,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 },
                 countdown: _countdown,
                 showCountdown: _countdownActive,
-                showReplay: _clipEnded,
+                showReplay: _clipEnded && !_replaying,
                 showNext: _subtitleChoice != null || _timedOut,
                 onReplayTap: _replay,
                 onNextTap: _goNext,
