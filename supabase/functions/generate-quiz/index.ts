@@ -99,6 +99,39 @@ function buildPrompt(
   );
 }
 
+const RETRYABLE = new Set([429, 500, 502, 503, 504]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Gemini occasionally returns a transient 502/503/429 (overload). Retry a few
+// times with backoff so the admin doesn't have to manually press the button
+// again. Returns the response text, or throws after the last attempt.
+async function callGeminiWithRetry(
+  url: string,
+  reqBody: string,
+  attempts = 4,
+): Promise<string> {
+  let lastErr = "";
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const r = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: reqBody,
+      });
+      if (r.ok) {
+        const data = await r.json();
+        return data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+      }
+      lastErr = `Gemini ${r.status}: ${(await r.text()).slice(0, 300)}`;
+      if (!RETRYABLE.has(r.status)) throw new Error(lastErr);
+    } catch (e) {
+      lastErr = String(e);
+    }
+    if (i < attempts - 1) await sleep(500 * (i + 1) + Math.random() * 300);
+  }
+  throw new Error(lastErr || "Gemini request failed");
+}
+
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
     status,
@@ -129,29 +162,24 @@ serve(async (req) => {
 
     const prompt = buildPrompt(transcription, pinyin, langName);
 
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            response_mime_type: "application/json",
-            temperature: 0.4, // lower = more consistent, less hallucination
-          },
-        }),
+    const reqBody = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        response_mime_type: "application/json",
+        temperature: 0.4, // lower = more consistent, less hallucination
       },
-    );
+    });
 
-    if (!r.ok) {
-      const t = await r.text();
-      return json({ error: `Gemini ${r.status}: ${t.slice(0, 300)}` }, 502);
+    let text: string;
+    try {
+      text = await callGeminiWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+        reqBody,
+      );
+    } catch (e) {
+      return json({ error: String(e) }, 502);
     }
 
-    const data = await r.json();
-    const text: string =
-      data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
     let parsed: Record<string, unknown> = {};
     try {
       parsed = JSON.parse(text);
