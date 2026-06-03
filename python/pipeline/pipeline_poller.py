@@ -85,6 +85,8 @@ def _poll_loop(base_url: str, service_key: str) -> None:
     print("  [poller] pipeline_jobs izleniyor…")
     from youtube_asr_pipeline import run as asr_run
     from youtube_asr_pipeline import transcribe_clip
+    from movie_supabase_pipeline import run as movie_run
+    from pathlib import Path
 
     while True:
         try:
@@ -108,6 +110,18 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                             payload.get("row_id", ""),
                             on_progress=_progress,
                         )
+                    elif job_type == "movie":
+                        result = movie_run(
+                            Path(payload.get("video_path", "")),
+                            sub_path=Path(payload["sub_path"])
+                            if payload.get("sub_path") else None,
+                            active=active,
+                            hsk_filter=hsk_filter,
+                            on_progress=_progress,
+                        )
+                        # Normalise key so the admin's progress reader works.
+                        result.setdefault("segmentsWritten",
+                                          result.get("clipsWritten", 0))
                     else:
                         result = asr_run(url, active=active, hsk_filter=hsk_filter, on_progress=_progress)
                     _finish_job(base_url, service_key, job_id, "done", result=result)

@@ -91,6 +91,34 @@ class AdminService {
     return res['id'] as String;
   }
 
+  // Enqueue a movie job. The local poller reads videoPath (a path on the
+  // machine running the worker) from disk, extracts clips, uploads them to
+  // Supabase Storage and inserts self_hosted rows. No localhost call, no
+  // GB browser upload — the deployed admin only writes a pipeline_jobs row.
+  Future<String> createMovieJob(
+    String videoPath, {
+    String? subPath,
+    bool active = false,
+    List<int>? hskFilter,
+  }) async {
+    final res = await _db
+        .from('pipeline_jobs')
+        .insert({
+          'job_type': 'movie',
+          'payload': {
+            'video_path': videoPath,
+            if (subPath != null && subPath.trim().isNotEmpty)
+              'sub_path': subPath.trim(),
+            'active': active,
+            if (hskFilter != null && hskFilter.isNotEmpty)
+              'hsk_filter': hskFilter,
+          },
+        })
+        .select('id')
+        .single();
+    return res['id'] as String;
+  }
+
   Future<Map<String, dynamic>> getJob(String jobId) async {
     final res = await _db
         .from('pipeline_jobs')

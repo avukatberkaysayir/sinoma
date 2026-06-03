@@ -1,10 +1,7 @@
 import 'dart:async';
-import 'dart:js_interop';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:web/web.dart' as web;
-import 'package:flutter/services.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
@@ -3947,86 +3944,47 @@ class _MovieImportTab extends StatefulWidget {
 class _MovieImportTabState extends State<_MovieImportTab> {
   final _service = AdminService();
 
-  web.File? _selectedFile;
-  Uint8List? _fileBytes;
-  String? _fileName;
+  final _videoPathCtrl = TextEditingController();
+  final _subPathCtrl = TextEditingController();
+  final Set<int> _hskFilter = {};
 
-  bool _serverRunning = false;
-  bool _ffmpegAvailable = false;
-  bool _checking = true;
   bool _processing = false;
-  int _maxClips = 50;
   String? _resultMsg;
   bool _resultSuccess = false;
+  int _partial = 0;
+  Timer? _pollTimer;
+  DateTime? _start;
+  DateTime? _lastProgressAt;
 
   @override
-  void initState() {
-    super.initState();
-    _checkDeps();
-  }
-
-  Future<void> _checkDeps() async {
-    setState(() => _checking = true);
-    final server = await _service.isPipelineServerRunning();
-    final ffmpeg = server ? await _service.isFfmpegAvailable() : false;
-    if (mounted) {
-      setState(() {
-        _serverRunning = server;
-        _ffmpegAvailable = ffmpeg;
-        _checking = false;
-      });
-    }
-  }
-
-  void _pickFile() {
-    final input = web.document.createElement('input') as web.HTMLInputElement;
-    input.type = 'file';
-    input.accept = '.mp4,video/mp4';
-    input.addEventListener(
-      'change',
-      (web.Event _) {
-        final file = input.files?.item(0);
-        if (file == null) return;
-        final reader = web.FileReader();
-        reader.addEventListener(
-          'load',
-          (web.Event _) {
-            if (mounted) {
-              final bytes =
-                  (reader.result as JSArrayBuffer).toDart.asUint8List();
-              setState(() {
-                _selectedFile = file;
-                _fileName = file.name;
-                _fileBytes = bytes;
-              });
-            }
-          }.toJS,
-        );
-        reader.readAsArrayBuffer(file);
-      }.toJS,
-    );
-    input.click();
+  void dispose() {
+    _videoPathCtrl.dispose();
+    _subPathCtrl.dispose();
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   Future<void> _process() async {
-    if (_fileBytes == null || _fileName == null) return;
-    setState(() { _processing = true; _resultMsg = null; });
+    final path = _videoPathCtrl.text.trim();
+    if (path.isEmpty) return;
+    setState(() {
+      _processing = true;
+      _resultMsg = null;
+      _partial = 0;
+      _start = DateTime.now();
+      _lastProgressAt = DateTime.now();
+    });
     try {
-      final result = await _service.processMovieFileBytes(
-        _fileBytes!,
-        fileName: _fileName!,
-        maxClips: _maxClips,
+      final jobId = await _service.createMovieJob(
+        path,
+        subPath: _subPathCtrl.text.trim().isEmpty ? null : _subPathCtrl.text.trim(),
         active: false,
+        hskFilter: _hskFilter.isEmpty ? null : (_hskFilter.toList()..sort()),
       );
-      final count = result['clipsWritten'] as int? ?? 0;
-      if (mounted) {
-        setState(() {
-          _processing = false;
-          _resultSuccess = true;
-          _resultMsg = '✓ $count klip çıkarıldı. Sağdan onaylayın.';
-        });
-        widget.onVideosChanged();
-      }
+      if (!mounted) return;
+      setState(() => _resultMsg =
+          '⏳ Yerel işçi işliyor… (klipler hazırlandıkça Onay Bekleyen\'e düşer)');
+      _startPolling(jobId);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -4038,119 +3996,104 @@ class _MovieImportTabState extends State<_MovieImportTab> {
     }
   }
 
+  void _startPolling(String jobId) {
+    _pollTimer?.cancel();
+    _pollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
+      if (!mounted) return;
+      final lastTick = _lastProgressAt ?? _start;
+      if (lastTick != null &&
+          DateTime.now().difference(lastTick) > const Duration(minutes: 10)) {
+        _pollTimer?.cancel();
+        setState(() {
+          _processing = false;
+          _resultSuccess = false;
+          _resultMsg =
+              '10 dk yeni klip gelmedi — işçi durdu. dev_server.py çalışıyor mu, '
+              'dosya yolu doğru mu?';
+        });
+        return;
+      }
+      try {
+        final job = await _service.getJob(jobId);
+        if (!mounted) return;
+        final status = job['status'] as String? ?? '';
+        final partial = (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
+        if (partial > 0 && partial != _partial) {
+          setState(() => _partial = partial);
+          _lastProgressAt = DateTime.now();
+          widget.onVideosChanged();
+        }
+        if (status == 'done') {
+          _pollTimer?.cancel();
+          final n = (job['result'] as Map?)?['segmentsWritten'] as int? ?? _partial;
+          setState(() {
+            _processing = false;
+            _resultSuccess = true;
+            _resultMsg = '✓ $n klip içe aktarıldı. Sağdan onaylayın.';
+          });
+          widget.onVideosChanged();
+        } else if (status == 'error') {
+          _pollTimer?.cancel();
+          setState(() {
+            _processing = false;
+            _resultSuccess = false;
+            _resultMsg = job['error_text'] as String? ?? 'İşlem başarısız.';
+          });
+        }
+      } catch (_) {}
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
-    final ready = _serverRunning && _ffmpegAvailable && !_processing;
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _StatusRow(
-              label: 'Pipeline sunucusu',
-              ok: _serverRunning,
-              checking: _checking),
-          const SizedBox(height: 4),
-          _StatusRow(
-            label: _ffmpegAvailable
-                ? 'ffmpeg bulundu'
-                : 'ffmpeg bulunamadı — çalıştırın: winget install Gyan.FFmpeg',
-            ok: _ffmpegAvailable,
-            checking: _checking,
-          ),
-          if (!_checking && (!_serverRunning || !_ffmpegAvailable)) ...[
-            const SizedBox(height: 6),
-            TextButton(
-              onPressed: _checkDeps,
-              style: TextButton.styleFrom(
-                  padding: EdgeInsets.zero,
-                  minimumSize: Size.zero,
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-              child: const Text('Tekrar Dene',
-                  style: TextStyle(fontSize: 11)),
-            ),
-          ],
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: _pickFile,
-            child: Container(
-              width: double.infinity,
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: _selectedFile != null
-                      ? AppColors.primary.withValues(alpha: 0.5)
-                      : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
-                ),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    _selectedFile != null
-                        ? Icons.movie_filter_outlined
-                        : Icons.upload_file_outlined,
-                    size: 32,
-                    color: _selectedFile != null
-                        ? AppColors.primary
-                        : AppColors.onSurfaceMuted,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _selectedFile != null
-                        ? _fileName!
-                        : 'MP4 dosyası seçmek için tıklayın',
-                    style: TextStyle(
-                      color: _selectedFile != null
-                          ? AppColors.onSurface
-                          : AppColors.onSurfaceMuted,
-                      fontSize: 13,
-                      fontWeight: _selectedFile != null
-                          ? FontWeight.w600
-                          : FontWeight.normal,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (_selectedFile != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      '${(_selectedFile!.size / 1024 / 1024).toStringAsFixed(1)} MB',
-                      style: const TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 11),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Text(
-              'Max klip: $_maxClips${_maxClips == 0 ? " (sınırsız)" : ""}',
-              style: const TextStyle(
+          const Text('Film / Yerel Dosya → Supabase',
+              style: TextStyle(
                   color: AppColors.onSurface,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-          Slider(
-            value: _maxClips.toDouble(),
-            min: 0,
-            max: 200,
-            divisions: 40,
-            activeColor: AppColors.primary,
-            label: _maxClips == 0 ? '∞' : '$_maxClips',
-            onChanged: (v) => setState(() => _maxClips = v.round()),
-          ),
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14)),
+          const SizedBox(height: 4),
           const Text(
-            'Pipeline sunucusu + ffmpeg gerektirir.',
+            'Yerel pipeline (dev_server.py) açıkken çalışır. Dosya yolu, işçinin '
+            'çalıştığı bilgisayardaki yoldur. Her diyalog ayrı klip olarak kesilip '
+            'Supabase Storage\'a yüklenir; kullanıcılar canlı sitede oynatır. '
+            'Klipler hazırlandıkça Onay Bekleyen sekmesine düşer.',
             style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 11),
+          ),
+          const SizedBox(height: 14),
+          _pathField(_videoPathCtrl, 'Film dosyası yolu (ör. D:\\Movies\\film.mkv)'),
+          const SizedBox(height: 8),
+          _pathField(_subPathCtrl, 'Altyazı yolu — opsiyonel (.srt/.vtt/.ass)'),
+          const SizedBox(height: 12),
+          const Text('Ön Filtre (opsiyonel) — boş = tüm seviyeler',
+              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 11)),
+          const SizedBox(height: 6),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              for (var i = 1; i <= 6; i++)
+                FilterChip(
+                  label: Text('HSK $i', style: const TextStyle(fontSize: 11)),
+                  selected: _hskFilter.contains(i),
+                  onSelected: (_) => setState(() => _hskFilter.contains(i)
+                      ? _hskFilter.remove(i)
+                      : _hskFilter.add(i)),
+                  selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                  backgroundColor: AppColors.surface,
+                  showCheckmark: false,
+                ),
+            ],
           ),
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             child: FilledButton.icon(
-              onPressed: (ready && _selectedFile != null) ? _process : null,
+              onPressed: _processing ? null : _process,
               icon: _processing
                   ? const SizedBox(
                       width: 16,
@@ -4159,8 +4102,10 @@ class _MovieImportTabState extends State<_MovieImportTab> {
                           strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.movie_filter_outlined, size: 18),
               label: Text(_processing
-                  ? 'Klipleri ayırıyor… (birkaç dakika)'
-                  : 'Klipleri Ayır ve İçe Aktar'),
+                  ? (_partial > 0
+                      ? '$_partial klip… (devam ediyor)'
+                      : 'İşçi başlatıldı…')
+                  : 'Parçala ve İçe Aktar'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding: const EdgeInsets.symmetric(vertical: 14),
@@ -4177,46 +4122,29 @@ class _MovieImportTabState extends State<_MovieImportTab> {
       ),
     );
   }
+
+  Widget _pathField(TextEditingController ctrl, String hint) {
+    return TextField(
+      controller: ctrl,
+      style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+      decoration: InputDecoration(
+        hintText: hint,
+        hintStyle:
+            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+        filled: true,
+        fillColor: AppColors.surface,
+        isDense: true,
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: AppColors.primary)),
+      ),
+    );
+  }
 }
 
 // ── Shared widgets ────────────────────────────────────────────────────────────
-
-class _StatusRow extends StatelessWidget {
-  final String label;
-  final bool ok;
-  final bool checking;
-  const _StatusRow(
-      {required this.label, required this.ok, required this.checking});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: [
-      checking
-          ? const SizedBox(
-              width: 10,
-              height: 10,
-              child: CircularProgressIndicator(strokeWidth: 1.5))
-          : Icon(
-              ok ? Icons.check_circle_outline : Icons.cancel_outlined,
-              size: 14,
-              color: ok ? AppColors.correctAnswer : AppColors.wrongAnswer),
-      const SizedBox(width: 6),
-      Expanded(
-        child: Text(
-          checking ? 'Kontrol ediliyor…' : label,
-          style: TextStyle(
-            color: checking
-                ? AppColors.onSurfaceMuted
-                : ok
-                    ? AppColors.correctAnswer
-                    : AppColors.wrongAnswer,
-            fontSize: 12,
-          ),
-        ),
-      ),
-    ]);
-  }
-}
 
 class _ResultBox extends StatelessWidget {
   final String msg;
