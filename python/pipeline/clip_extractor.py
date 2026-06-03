@@ -7,8 +7,25 @@ import subprocess
 from pathlib import Path
 
 
+def _ffmpeg_exe() -> str | None:
+    """ffmpeg from PATH, else the bundled imageio-ffmpeg binary (no system install)."""
+    on_path = shutil.which("ffmpeg")
+    if on_path:
+        return on_path
+    try:
+        import imageio_ffmpeg
+        return imageio_ffmpeg.get_ffmpeg_exe()
+    except Exception:
+        return None
+
+
+def _ffprobe_exe() -> str | None:
+    """ffprobe is only on PATH (imageio bundles ffmpeg, not ffprobe)."""
+    return shutil.which("ffprobe")
+
+
 def check_ffmpeg() -> bool:
-    return shutil.which("ffmpeg") is not None
+    return _ffmpeg_exe() is not None
 
 
 def extract_clip(
@@ -19,8 +36,11 @@ def extract_clip(
 ) -> bool:
     """Extract [start, end] seconds from video_path → output_path (H.264/AAC MP4 at 480p)."""
     duration = max(end - start, 0.5)
+    ffmpeg = _ffmpeg_exe()
+    if not ffmpeg:
+        print("    ffmpeg yok (PATH'te veya imageio-ffmpeg ile)."); return False
     cmd = [
-        "ffmpeg", "-y",
+        ffmpeg, "-y",
         "-ss", f"{start:.3f}",
         "-i", str(video_path),
         "-t", f"{duration:.3f}",
@@ -45,9 +65,13 @@ def extract_embedded_subs(video_path: Path, output_srt: Path) -> bool:
 
     Returns True if a Chinese subtitle stream was found and extracted.
     """
+    ffprobe = _ffprobe_exe()
+    ffmpeg = _ffmpeg_exe()
+    if not ffprobe or not ffmpeg:
+        return False  # embedded-sub detection needs ffprobe (PATH only)
     probe = subprocess.run(
         [
-            "ffprobe", "-v", "quiet",
+            ffprobe, "-v", "quiet",
             "-print_format", "json",
             "-show_streams", "-select_streams", "s",
             str(video_path),
@@ -78,7 +102,7 @@ def extract_embedded_subs(video_path: Path, output_srt: Path) -> bool:
 
     result = subprocess.run(
         [
-            "ffmpeg", "-y",
+            ffmpeg, "-y",
             "-i", str(video_path),
             "-map", f"0:{target_index}",
             "-c:s", "srt",

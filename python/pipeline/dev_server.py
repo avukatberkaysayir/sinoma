@@ -44,8 +44,11 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(200, {"status": "ok", "port": PORT})
 
         elif self.path == "/ffmpeg-check":
-            import shutil
-            available = shutil.which("ffmpeg") is not None
+            try:
+                from clip_extractor import check_ffmpeg
+                available = check_ffmpeg()  # PATH or bundled imageio-ffmpeg
+            except Exception:
+                available = False
             self._json(200, {"available": available})
 
         elif self.path.startswith("/clips/"):
@@ -131,31 +134,20 @@ class _Handler(BaseHTTPRequestHandler):
             self._json(400, {"error": f"File not found: {video_path}"})
             return
 
-        cmd = [sys.executable, str(PIPELINE_DIR / "movie_pipeline.py"),
-               "--video", video_path]
-        if sub_path:
-            cmd += ["--sub", sub_path]
-        if max_clips:
-            cmd += ["--max-clips", str(max_clips)]
-        if offset:
-            cmd += ["--offset", str(offset)]
-        if active:
-            cmd.append("--active")
-
-        print(f"\n▶ Movie: {video_path}")
-        # Long timeout: ffmpeg extraction for 100 clips ≈ 2-5 min
-        result = self._run(cmd, timeout=1800)
-        if result is None:
-            self._json(504, {"error": "Timed out after 30 minutes."})
-            return
-
-        if result.returncode == 0:
-            count = result.stdout.count("✓")
-            self._json(200, {"success": True, "clipsWritten": count,
-                             "message": result.stdout.strip()})
-            print(f"✅ Done — {count} clips\n")
-        else:
-            err = result.stderr.strip() or result.stdout.strip()
+        print(f"\n▶ Movie → Supabase: {video_path}")
+        try:
+            from movie_supabase_pipeline import run as movie_run
+            result = movie_run(
+                Path(video_path),
+                sub_path=Path(sub_path) if sub_path else None,
+                active=active,
+                max_clips=max_clips or 0,
+                offset=offset or 0,
+            )
+            self._json(200, {"success": True, **result})
+            print(f"✅ Done — {result.get('clipsWritten', 0)} clips\n")
+        except Exception as e:
+            err = str(e)
             self._json(500, {"success": False, "error": err})
             print(f"❌ Failed: {err[:300]}\n")
 
