@@ -359,13 +359,16 @@ def download_audio(url: str, output_dir: Path) -> Path | None:
 # Whisper transcription
 # ---------------------------------------------------------------------------
 
-def iter_whisper_cues(audio_path: Path):
+def iter_whisper_cues(audio_path: Path, on_meta=None):
     """Stream Mandarin cues from faster-whisper as they are transcribed.
 
     Yields {start, end, text} (Simplified, duration-capped) one cue at a time —
     faster-whisper's transcribe() is a lazy generator, so downstream segmenting
     + DB insert can happen WHILE the rest of the audio is still being processed.
     Model (~480 MB for 'small') downloads automatically on first use.
+
+    on_meta, if given, is called once with {"durationSec": <total audio length>}
+    as soon as it is known (before the first cue) so a caller can show an ETA.
     """
     if not _WHISPER_AVAILABLE:
         _log("ASR", "faster-whisper not installed. Run: py -m pip install faster-whisper")
@@ -389,6 +392,12 @@ def iter_whisper_cues(audio_path: Path):
         vad_filter=True,
         vad_parameters={"threshold": 0.5, "min_silence_duration_ms": 700},
     )
+
+    if on_meta:
+        try:
+            on_meta({"durationSec": float(getattr(info, "duration", 0.0) or 0.0)})
+        except Exception:
+            pass
 
     kept = dropped = 0
     for seg in segments:

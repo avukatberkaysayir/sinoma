@@ -46,12 +46,18 @@ def _claim_pending(base_url: str, service_key: str) -> dict[str, Any] | None:
     return job if patch.status_code < 300 else None
 
 
-def _update_progress(base_url: str, service_key: str, job_id: str, n: int) -> None:
+def _update_progress(
+    base_url: str, service_key: str, job_id: str, n: int,
+    meta: dict[str, Any] | None = None,
+) -> None:
     try:
+        result: dict[str, Any] = {"segmentsWritten": n, "in_progress": True}
+        if meta:
+            result.update(meta)  # durationSec / lastPos for the admin ETA
         requests.patch(
             f"{base_url}/rest/v1/pipeline_jobs",
             params={"id": f"eq.{job_id}"},
-            json={"result": {"segmentsWritten": n, "in_progress": True}},
+            json={"result": result},
             headers=_headers(service_key),
             timeout=5,
         )
@@ -100,8 +106,8 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                 job_type = job.get("job_type") or "youtube_asr"
                 print(f"\n  [poller] İş alındı {job_id[:8]}… type={job_type} url={url}")
                 try:
-                    def _progress(n: int) -> None:
-                        _update_progress(base_url, service_key, job_id, n)
+                    def _progress(n: int, meta: dict[str, Any] | None = None) -> None:
+                        _update_progress(base_url, service_key, job_id, n, meta)
                     if job_type == "whisper_clip":
                         result = transcribe_clip(
                             url,

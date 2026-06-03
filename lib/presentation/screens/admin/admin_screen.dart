@@ -3386,11 +3386,15 @@ class _YouTubeTabState extends State<_YouTubeTab> {
 
   final Set<int> _hskFilter = {};
 
-  // ── Elapsed timer + live import stream ────────────────────────────────────
+  // ── Countdown ETA + live import stream ────────────────────────────────────
   DateTime? _processingStart;
   DateTime? _lastProgressAt; // last time new segments appeared (stall detection)
   Timer? _elapsedTimer;
   int _partialCount = 0;
+  double _durationSec = 0; // total audio length reported by the pipeline
+  double _lastPos = 0;     // how far (sec) ASR has progressed into the audio
+  double? _etaTotalSec;    // estimated total processing time (re-anchored per poll)
+  bool _approving = false;
   List<Map<String, dynamic>> _liveVideos = [];
   Timer? _liveVideoTimer;
 
@@ -3413,18 +3417,41 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     super.dispose();
   }
 
-  String get _elapsedLabel {
-    if (_processingStart == null) return '';
-    final dur = DateTime.now().difference(_processingStart!);
-    final m = dur.inMinutes.toString().padLeft(2, '0');
-    final s = (dur.inSeconds % 60).toString().padLeft(2, '0');
+  int get _elapsedSec => _processingStart == null
+      ? 0
+      : DateTime.now().difference(_processingStart!).inSeconds;
+
+  // Countdown label "MM:SS" once an estimate exists, else null (→ show "İşleniyor…").
+  String? get _countdownLabel {
+    if (_etaTotalSec == null || _processingStart == null) return null;
+    var rem = (_etaTotalSec! - _elapsedSec).round();
+    if (rem < 0) rem = 0;
+    final m = (rem ~/ 60).toString().padLeft(2, '0');
+    final s = (rem % 60).toString().padLeft(2, '0');
     return '$m:$s';
+  }
+
+  // Re-anchor the estimate from the latest reported audio position. As ASR
+  // advances proportionally to elapsed time the estimate converges; between
+  // polls the 1s ticker counts the frozen estimate down.
+  void _recomputeEta() {
+    if (_durationSec <= 0) return;
+    final elapsed = _elapsedSec.toDouble();
+    if (_lastPos > 0 && elapsed > 1) {
+      final frac = (_lastPos / _durationSec).clamp(0.02, 1.0);
+      _etaTotalSec = elapsed / frac;
+    } else {
+      _etaTotalSec ??= _durationSec; // rough first guess before any segment
+    }
   }
 
   void _startTimers(String youtubeId) {
     _processingStart = DateTime.now();
     _lastProgressAt = DateTime.now();
     _partialCount = 0;
+    _durationSec = 0;
+    _lastPos = 0;
+    _etaTotalSec = null;
     _liveVideos = [];
     _elapsedTimer?.cancel();
     _elapsedTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -3543,6 +3570,41 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     }
   }
 
+  Future<void> _approveAll() async {
+    final pending = _liveVideos
+        .where((v) => (v['status'] as String? ?? 'pending') != 'active')
+        .map((v) => v['id'] as String)
+        .toList();
+    if (pending.isEmpty) return;
+    setState(() => _approving = true);
+    try {
+      await _service.approveVideos(pending);
+      final ytId = _liveVideos.isNotEmpty
+          ? (_liveVideos.first['youtube_id'] as String? ?? '')
+          : '';
+      if (ytId.isNotEmpty) {
+        final vids = await _service.listVideosByYoutubeId(ytId);
+        if (mounted) setState(() => _liveVideos = vids);
+      }
+      widget.onVideosChanged();
+      if (mounted) {
+        setState(() {
+          _resultSuccess = true;
+          _resultMsg = '✓ ${pending.length} klip onaylandı ve yayında.';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _resultSuccess = false;
+          _resultMsg = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _approving = false);
+    }
+  }
+
   void _startJobPolling(String jobId) {
     _jobPollTimer?.cancel();
     _jobPollTimer = Timer.periodic(const Duration(seconds: 4), (_) async {
@@ -3576,9 +3638,14 @@ class _YouTubeTabState extends State<_YouTubeTab> {
         if (!mounted) return;
         final status = job['status'] as String? ?? '';
 
-        // Live partial-progress update
-        final partial =
-            (job['result'] as Map?)?['segmentsWritten'] as int? ?? 0;
+        // Live partial-progress update + ETA basis (duration / audio position)
+        final res = job['result'] as Map?;
+        final dur = (res?['durationSec'] as num?)?.toDouble() ?? 0;
+        final pos = (res?['lastPos'] as num?)?.toDouble() ?? 0;
+        if (dur > 0) _durationSec = dur;
+        if (pos > 0) _lastPos = pos;
+        _recomputeEta();
+        final partial = res?['segmentsWritten'] as int? ?? 0;
         if (partial > 0 && partial != _partialCount) {
           _partialCount = partial;
           _lastProgressAt = DateTime.now(); // reset stall timer on real progress
@@ -3768,40 +3835,84 @@ class _YouTubeTabState extends State<_YouTubeTab> {
             _ResultBox(msg: _resultMsg!, success: _resultSuccess),
             if (_processing && _processingStart != null) ...[
               const SizedBox(height: 6),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.timer_outlined,
-                      size: 13, color: AppColors.onSurfaceMuted),
-                  const SizedBox(width: 4),
-                  Text(_elapsedLabel,
+              Builder(builder: (_) {
+                final cd = _countdownLabel;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(cd != null ? Icons.hourglass_bottom : Icons.timer_outlined,
+                        size: 13, color: AppColors.onSurfaceMuted),
+                    const SizedBox(width: 4),
+                    Text(
+                      cd != null ? '~$cd kaldı (tahmini)' : 'İşleniyor…',
                       style: const TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 12)),
-                  if (_partialCount > 0) ...[
-                    const Text(' · ',
-                        style: TextStyle(
-                            color: AppColors.onSurfaceMuted, fontSize: 12)),
-                    Text('$_partialCount klip bulundu',
-                        style: const TextStyle(
-                            color: AppColors.onSurface,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600)),
+                          color: AppColors.onSurfaceMuted, fontSize: 12),
+                    ),
+                    if (_partialCount > 0) ...[
+                      const Text(' · ',
+                          style: TextStyle(
+                              color: AppColors.onSurfaceMuted, fontSize: 12)),
+                      Text('$_partialCount klip bulundu',
+                          style: const TextStyle(
+                              color: AppColors.onSurface,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                    ],
                   ],
-                ],
-              ),
+                );
+              }),
             ],
           ],
 
           if (_liveVideos.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Row(children: [
-              const Icon(Icons.playlist_play,
-                  size: 15, color: AppColors.onSurfaceMuted),
-              const SizedBox(width: 6),
-              Text('${_liveVideos.length} klip — önizleme',
-                  style: const TextStyle(
-                      color: AppColors.onSurfaceMuted, fontSize: 12)),
-            ]),
+            Builder(builder: (_) {
+              final pendingCount = _liveVideos
+                  .where((v) => (v['status'] as String? ?? 'pending') != 'active')
+                  .length;
+              return Row(
+                children: [
+                  const Icon(Icons.playlist_play,
+                      size: 15, color: AppColors.onSurfaceMuted),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      '${_liveVideos.length} klip — önizleme'
+                      '${pendingCount > 0 ? ' ($pendingCount onay bekliyor)' : ' (onaylandı)'}',
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 12),
+                    ),
+                  ),
+                  if (pendingCount > 0)
+                    FilledButton.icon(
+                      onPressed: (_processing || _approving) ? null : _approveAll,
+                      icon: _approving
+                          ? const SizedBox(
+                              width: 13,
+                              height: 13,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_circle, size: 16),
+                      label: Text(_approving
+                          ? 'Onaylanıyor…'
+                          : 'Hepsini Onayla ($pendingCount)'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.correctAnswer,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 8),
+                        visualDensity: VisualDensity.compact,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                ],
+              );
+            }),
+            const SizedBox(height: 2),
+            const Text(
+              'Önizleme sayfadan ayrılınca kaybolur — kalıcı için onaylayın.',
+              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
+            ),
             const SizedBox(height: 6),
             ..._liveVideos.map((v) => _LiveImportCard(data: v)),
           ],

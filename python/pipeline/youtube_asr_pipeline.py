@@ -144,7 +144,7 @@ def run(
     url: str,
     active: bool = False,
     hsk_filter: list[int] | None = None,
-    on_progress: Callable[[int], None] | None = None,
+    on_progress: Callable[..., None] | None = None,
 ) -> dict[str, Any]:
     """Full pipeline: YouTube URL → audio → Whisper → Supabase.
 
@@ -180,7 +180,21 @@ def run(
     matched = 0  # segments seen that matched the dictionary (before filter)
     gated = 0    # segments dropped by the coherence gate (layer E)
     seg_seen = 0
+    duration_sec = 0.0  # total audio length (Whisper), for the admin ETA
+    last_pos = 0.0      # latest segment end-time = how far ASR has progressed
     buf: list[dict[str, Any]] = []
+
+    def _report() -> None:
+        # Two-arg progress: count + meta (duration + audio position) so the admin
+        # can show a real countdown ETA instead of a count-up timer.
+        if on_progress:
+            on_progress(inserted, {"durationSec": round(duration_sec, 1),
+                                   "lastPos": round(last_pos, 1)})
+
+    def _set_meta(meta: dict[str, Any]) -> None:
+        nonlocal duration_sec
+        duration_sec = float(meta.get("durationSec") or 0.0)
+        _report()  # surface the ETA basis immediately, before the first segment
 
     def _flush(force: bool = False) -> None:
         nonlocal inserted, buf, gated
@@ -193,12 +207,12 @@ def run(
                 insert_segments(kept)
                 inserted += len(kept)
                 print(f"  ✓ {inserted} segment yazıldı (akışlı)")
-                if on_progress:
-                    on_progress(inserted)
+                _report()
 
     def _emit(seg: dict[str, Any]) -> None:
-        nonlocal seg_seen, matched
+        nonlocal seg_seen, matched, last_pos
         seg_seen += 1
+        last_pos = max(last_pos, float(seg["end"]))
         word_ids, hsk_level = analyze_segment(seg["text"])
         if hsk_level == 0:
             return
@@ -240,7 +254,7 @@ def run(
             audio_path = download_audio(url, tmp)
             size_kb = audio_path.stat().st_size // 1024
             print(f"  Ses: {audio_path.name} ({size_kb} KB) — akışlı transkripsiyon…")
-            for seg in stream_segments(iter_whisper_cues(audio_path)):
+            for seg in stream_segments(iter_whisper_cues(audio_path, on_meta=_set_meta)):
                 _emit(seg)
 
     _flush(force=True)
