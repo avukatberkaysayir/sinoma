@@ -1310,7 +1310,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                   value: _filterCategory,
                   hint: 'Tümü',
                   options: QuizCategory.values
-                      .map((c) => ('${c.emoji} ${c.displayName}', c.name))
+                      .map((c) => (c.displayName, c.name))
                       .toList(),
                   onChanged: (v) => setState(() => _filterCategory = v),
                 ),

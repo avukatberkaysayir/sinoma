@@ -1,97 +1,168 @@
 enum VideoSourceType { youtube, selfHosted }
 
-// One grammar focus point per entry, drawn from the HSK 1-6 word lists.
-// displayName is just the word/particle — no descriptions, no emoji.
-enum QuizCategory {
-  // Aspect & structural particles
-  le, guo, zhe, deStruct, deComplement,
-  // Sentence patterns
-  ba, bei, shiDe, shi, you, zai, zhengzai,
-  // Modal verbs
-  hui, neng, keyi, yinggai, yao, xiang, dasuan,
-  // Question particles
-  ma, ne, baParticle,
-  // Negation
-  bu, mei,
-  // Comparison
-  bi, genYiyang,
-  // Conditionals
-  ruguo, yaoshi, zhiyao, zhiyou,
-  // Cause & contrast
-  yinwei, suoyi, suiran, danshi,
-  // Concession & progression
-  jishi, wulun, budan, erqie,
-  // Choice & sequence
-  haishi, huozhe, ranhou, yushi,
-  // Connectors & prepositions
-  chule, lian, weile, anzhao, genju,
-  // Adverbs
-  jiu, cai, dou, yijing, changchang, nandao, tai,
-  general;
+// Grammar focus points covering the teachable HSK 1-6 (HSK 3.0) syllabus.
+// One entry per grammar point; displayName is just the word/pattern (no emoji,
+// no description). A class (not an enum) so the ~95 entries stay a clean list.
+// `name` is the stored id; const instances make `==` / Set membership work.
+class QuizCategory {
+  final String name;
+  final String displayName;
+  const QuizCategory._(this.name, this.displayName);
+
+  // ── Aspect & structural particles ──
+  static const le = QuizCategory._('le', '了');
+  static const zhe = QuizCategory._('zhe', '着');
+  static const guo = QuizCategory._('guo', '过');
+  static const deStruct = QuizCategory._('deStruct', '的');
+  static const deAdverbial = QuizCategory._('deAdverbial', '地');
+  static const deComplement = QuizCategory._('deComplement', '得');
+  static const ma = QuizCategory._('ma', '吗');
+  static const ne = QuizCategory._('ne', '呢');
+  static const baParticle = QuizCategory._('baParticle', '吧');
+  static const a = QuizCategory._('a', '啊');
+  static const dehua = QuizCategory._('dehua', '的话');
+  // ── Special sentence patterns ──
+  static const ba = QuizCategory._('ba', '把字句');
+  static const bei = QuizCategory._('bei', '被动句');
+  static const shiDe = QuizCategory._('shiDe', '是…的');
+  static const shi = QuizCategory._('shi', '是字句');
+  static const you = QuizCategory._('you', '有字句');
+  static const cunxian = QuizCategory._('cunxian', '存现句');
+  static const jianyu = QuizCategory._('jianyu', '兼语句');
+  static const liandong = QuizCategory._('liandong', '连动句');
+  static const chongdong = QuizCategory._('chongdong', '重动句');
+  // ── Comparison ──
+  static const bi = QuizCategory._('bi', '比');
+  static const meiyou = QuizCategory._('meiyou', '没有 (比较)');
+  static const genYiyang = QuizCategory._('genYiyang', '跟…一样');
+  static const buru = QuizCategory._('buru', '不如');
+  static const yuelaiyue = QuizCategory._('yuelaiyue', '越来越');
+  static const yueyue = QuizCategory._('yueyue', '越…越');
+  // ── Complements ──
+  static const jieguo = QuizCategory._('jieguo', '结果补语');
+  static const quxiang = QuizCategory._('quxiang', '趋向补语');
+  static const keneng = QuizCategory._('keneng', '可能补语');
+  static const chengdu = QuizCategory._('chengdu', '程度补语');
+  static const dongliang = QuizCategory._('dongliang', '动量补语');
+  static const shiliang = QuizCategory._('shiliang', '时量补语');
+  // ── Aspect/progressive ──
+  static const zai = QuizCategory._('zai', '在 (进行)');
+  static const zhengzai = QuizCategory._('zhengzai', '正在');
+  static const qilai = QuizCategory._('qilai', '起来');
+  static const xiaqu = QuizCategory._('xiaqu', '下去');
+  // ── Modal verbs ──
+  static const hui = QuizCategory._('hui', '会');
+  static const neng = QuizCategory._('neng', '能');
+  static const keyi = QuizCategory._('keyi', '可以');
+  static const yao = QuizCategory._('yao', '要');
+  static const xiang = QuizCategory._('xiang', '想');
+  static const yinggai = QuizCategory._('yinggai', '应该');
+  static const dei = QuizCategory._('dei', '得 (děi)');
+  static const gan = QuizCategory._('gan', '敢');
+  static const xuyao = QuizCategory._('xuyao', '需要');
+  static const bixu = QuizCategory._('bixu', '必须');
+  static const dasuan = QuizCategory._('dasuan', '打算');
+  // ── Question forms ──
+  static const zhengfan = QuizCategory._('zhengfan', '正反问 (A不A)');
+  static const haishi = QuizCategory._('haishi', '还是');
+  static const zenme = QuizCategory._('zenme', '怎么');
+  static const weishenme = QuizCategory._('weishenme', '为什么');
+  static const zenmeyang = QuizCategory._('zenmeyang', '怎么样');
+  // ── Negation ──
+  static const bu = QuizCategory._('bu', '不');
+  static const mei = QuizCategory._('mei', '没');
+  // ── Adverbs ──
+  static const jiu = QuizCategory._('jiu', '就');
+  static const cai = QuizCategory._('cai', '才');
+  static const dou = QuizCategory._('dou', '都');
+  static const hai = QuizCategory._('hai', '还');
+  static const zaiAgain = QuizCategory._('zaiAgain', '再');
+  static const youAgain = QuizCategory._('youAgain', '又');
+  static const yizhi = QuizCategory._('yizhi', '一直');
+  static const yijing = QuizCategory._('yijing', '已经');
+  static const changchang = QuizCategory._('changchang', '常常');
+  static const zhongyu = QuizCategory._('zhongyu', '终于');
+  static const nandao = QuizCategory._('nandao', '难道');
+  static const tai = QuizCategory._('tai', '太');
+  static const geng = QuizCategory._('geng', '更');
+  static const zui = QuizCategory._('zui', '最');
+  static const bijiao = QuizCategory._('bijiao', '比较');
+  // ── Prepositions ──
+  static const cong = QuizCategory._('cong', '从');
+  static const dui = QuizCategory._('dui', '对');
+  static const gei = QuizCategory._('gei', '给');
+  static const gen = QuizCategory._('gen', '跟');
+  static const xiangPrep = QuizCategory._('xiangPrep', '向');
+  static const wei = QuizCategory._('wei', '为');
+  static const weile = QuizCategory._('weile', '为了');
+  static const li = QuizCategory._('li', '离');
+  static const guanyu = QuizCategory._('guanyu', '关于');
+  static const anzhao = QuizCategory._('anzhao', '按照');
+  static const genju = QuizCategory._('genju', '根据');
+  static const chule = QuizCategory._('chule', '除了');
+  static const lian = QuizCategory._('lian', '连');
+  // ── Complex-sentence connectors ──
+  static const ruguo = QuizCategory._('ruguo', '如果');
+  static const yaoshi = QuizCategory._('yaoshi', '要是');
+  static const jiaru = QuizCategory._('jiaru', '假如');
+  static const wanyi = QuizCategory._('wanyi', '万一');
+  static const fouze = QuizCategory._('fouze', '否则');
+  static const zhiyao = QuizCategory._('zhiyao', '只要');
+  static const zhiyou = QuizCategory._('zhiyou', '只有');
+  static const wulun = QuizCategory._('wulun', '无论');
+  static const buguan = QuizCategory._('buguan', '不管');
+  static const chufei = QuizCategory._('chufei', '除非');
+  static const yinwei = QuizCategory._('yinwei', '因为');
+  static const suoyi = QuizCategory._('suoyi', '所以');
+  static const jiran = QuizCategory._('jiran', '既然');
+  static const yinci = QuizCategory._('yinci', '因此');
+  static const suiran = QuizCategory._('suiran', '虽然');
+  static const danshi = QuizCategory._('danshi', '但是');
+  static const que = QuizCategory._('que', '却');
+  static const raner = QuizCategory._('raner', '然而');
+  static const jishi = QuizCategory._('jishi', '即使');
+  static const napa = QuizCategory._('napa', '哪怕');
+  static const jinguan = QuizCategory._('jinguan', '尽管');
+  static const budan = QuizCategory._('budan', '不但');
+  static const erqie = QuizCategory._('erqie', '而且');
+  static const bujin = QuizCategory._('bujin', '不仅');
+  static const shenzhi = QuizCategory._('shenzhi', '甚至');
+  static const huozhe = QuizCategory._('huozhe', '或者');
+  static const yaome = QuizCategory._('yaome', '要么');
+  static const ranhou = QuizCategory._('ranhou', '然后');
+  static const yushi = QuizCategory._('yushi', '于是');
+  static const yibian = QuizCategory._('yibian', '一边');
+  // ── Emphasis ──
+  static const liandou = QuizCategory._('liandou', '连…都');
+  static const fanwen = QuizCategory._('fanwen', '反问句');
+  static const shuangchong = QuizCategory._('shuangchong', '双重否定');
+  // ── Fallback ──
+  static const general = QuizCategory._('general', '一般');
+
+  static const List<QuizCategory> values = [
+    le, zhe, guo, deStruct, deAdverbial, deComplement, ma, ne, baParticle, a, dehua,
+    ba, bei, shiDe, shi, you, cunxian, jianyu, liandong, chongdong,
+    bi, meiyou, genYiyang, buru, yuelaiyue, yueyue,
+    jieguo, quxiang, keneng, chengdu, dongliang, shiliang,
+    zai, zhengzai, qilai, xiaqu,
+    hui, neng, keyi, yao, xiang, yinggai, dei, gan, xuyao, bixu, dasuan,
+    zhengfan, haishi, zenme, weishenme, zenmeyang,
+    bu, mei,
+    jiu, cai, dou, hai, zaiAgain, youAgain, yizhi, yijing, changchang, zhongyu,
+    nandao, tai, geng, zui, bijiao,
+    cong, dui, gei, gen, xiangPrep, wei, weile, li, guanyu, anzhao, genju, chule, lian,
+    ruguo, yaoshi, jiaru, wanyi, fouze, zhiyao, zhiyou, wulun, buguan, chufei,
+    yinwei, suoyi, jiran, yinci, suiran, danshi, que, raner,
+    jishi, napa, jinguan, budan, erqie, bujin, shenzhi,
+    huozhe, yaome, ranhou, yushi, yibian,
+    liandou, fanwen, shuangchong,
+    general,
+  ];
 
   static QuizCategory fromString(String value) =>
-      QuizCategory.values.firstWhere(
-        (c) => c.name == value,
-        orElse: () => QuizCategory.general,
-      );
+      values.firstWhere((c) => c.name == value, orElse: () => general);
 
-  String get displayName => switch (this) {
-        le              => '了',
-        guo             => '过',
-        zhe             => '着',
-        deStruct        => '的',
-        deComplement    => '得',
-        ba              => '把',
-        bei             => '被',
-        shiDe           => '是…的',
-        shi             => '是',
-        you             => '有',
-        zai             => '在',
-        zhengzai        => '正在',
-        hui             => '会',
-        neng            => '能',
-        keyi            => '可以',
-        yinggai         => '应该',
-        yao             => '要',
-        xiang           => '想',
-        dasuan          => '打算',
-        ma              => '吗',
-        ne              => '呢',
-        baParticle      => '吧',
-        bu              => '不',
-        mei             => '没',
-        bi              => '比',
-        genYiyang       => '跟…一样',
-        ruguo           => '如果',
-        yaoshi          => '要是',
-        zhiyao          => '只要',
-        zhiyou          => '只有',
-        yinwei          => '因为',
-        suoyi           => '所以',
-        suiran          => '虽然',
-        danshi          => '但是',
-        jishi           => '即使',
-        wulun           => '无论',
-        budan           => '不但',
-        erqie           => '而且',
-        haishi          => '还是',
-        huozhe          => '或者',
-        ranhou          => '然后',
-        yushi           => '于是',
-        chule           => '除了',
-        lian            => '连',
-        weile           => '为了',
-        anzhao          => '按照',
-        genju           => '根据',
-        jiu             => '就',
-        cai             => '才',
-        dou             => '都',
-        yijing          => '已经',
-        changchang      => '常常',
-        nandao          => '难道',
-        tai             => '太',
-        general         => '一般',
-      };
+  int get index => values.indexOf(this);
 
   String get emoji => this == general ? '📖' : '📝';
 }

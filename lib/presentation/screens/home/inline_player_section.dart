@@ -271,7 +271,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 bottom: 8,
                 left: 8,
                 child: Text(
-                  '${seg.hskLevel >= 1 ? seg.quizCategory.emoji : ''} '
                   '${_fmtTime(seg.startTime)}–${_fmtTime(seg.endTime)}',
                   style: const TextStyle(
                     color: Colors.white70,

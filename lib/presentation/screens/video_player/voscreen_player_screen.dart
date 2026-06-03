@@ -131,7 +131,7 @@ class _TopBar extends ConsumerWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              '${segment.quizCategory.emoji} ${segment.quizCategory.displayName}',
+              segment.quizCategory.displayName,
               style: const TextStyle(color: Colors.white70, fontSize: 11),
             ),
           ),
