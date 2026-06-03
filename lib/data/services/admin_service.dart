@@ -269,6 +269,7 @@ class AdminService {
         .from('videos')
         .select()
         .eq('status', status)
+        .order('hsk_level', ascending: true)
         .order('created_at', ascending: false)
         .limit(500);
     return List<Map<String, dynamic>>.from(data);
