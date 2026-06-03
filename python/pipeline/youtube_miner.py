@@ -34,6 +34,21 @@ try:
 except ImportError:
     _WHISPER_AVAILABLE = False
 
+# Traditional → Simplified: captions / Whisper output are often Traditional, but
+# the dictionary, quiz and UI are Simplified. Convert at the source so HSK
+# analysis matches and stored transcriptions are Simplified.
+try:
+    import zhconv  # type: ignore
+
+    def _to_simplified(text: str) -> str:
+        try:
+            return zhconv.convert(text, "zh-cn")
+        except Exception:
+            return text
+except ImportError:
+    def _to_simplified(text: str) -> str:
+        return text
+
 WHISPER_MODEL_SIZE = "small"
 MIN_SEGMENT_SECONDS = 1.0
 MAX_SEGMENT_SECONDS = 6.0
@@ -365,9 +380,14 @@ def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
 
     entries: list[dict[str, Any]] = []
     for seg in segments:
-        text = re.sub(r"\s+", "", seg.text.strip())
+        text = _to_simplified(re.sub(r"\s+", "", seg.text.strip()))
         if text and re.search(r"[一-鿿]", text):
-            entries.append({"start": seg.start, "end": seg.end, "text": text})
+            # Whisper sometimes bridges a silent/musical gap into one cue with a
+            # huge duration (e.g. a 13-char line tagged 195s). Cap the end by a
+            # char-rate estimate so such cues don't become a 3-minute segment.
+            cap = seg.start + max(2.0, len(text) * 0.6)
+            end = min(seg.end, cap)
+            entries.append({"start": seg.start, "end": end, "text": text})
 
     _log("ASR", (
         f"{len(entries)} Chinese cues — "
@@ -416,7 +436,7 @@ def parse_vtt(content: str) -> list[dict[str, Any]]:
         if not text or not re.search(r"[一-鿿]", text) or text in seen:
             continue
         seen.add(text)
-        entries.append({"start": start, "end": end, "text": text})
+        entries.append({"start": start, "end": end, "text": _to_simplified(text)})
 
     return entries
 
@@ -445,7 +465,7 @@ def parse_srt(content: str) -> list[dict[str, Any]]:
         end = int(g[4]) * 3600 + int(g[5]) * 60 + int(g[6]) + int(g[7]) / 1000
         text = re.sub(r"\s+", "", " ".join(lines[2:]).strip())
         if text and re.search(r"[一-鿿]", text):
-            entries.append({"start": start, "end": end, "text": text})
+            entries.append({"start": start, "end": end, "text": _to_simplified(text)})
     return entries
 
 
@@ -463,10 +483,14 @@ def parse_subtitle_file(path: Path) -> list[dict[str, Any]]:
 def build_segments(
     entries: list[dict[str, Any]],
     min_sec: float = MIN_SEGMENT_SECONDS,
-    max_sec: float = MAX_SEGMENT_SECONDS,
+    max_sec: float = 8.0,
+    max_chars: int = 24,
+    max_gap: float = 1.0,
 ) -> list[dict[str, Any]]:
-    """Sentence-aware segmentation: close a segment at sentence-ending
-    punctuation or once it reaches max_sec, keeping short lines (>= min_sec)."""
+    """Sentence-aware segmentation. A segment closes on sentence-ending
+    punctuation, on a silence gap before the next cue (so a cue at 0:48 and the
+    next at 4:03 don't merge into one 3-minute block), at max_sec, or at
+    max_chars Chinese characters. Short lines (>= min_sec) are kept."""
     import re
 
     segments: list[dict[str, Any]] = []
@@ -475,7 +499,10 @@ def build_segments(
     last_end = 0.0
 
     def ends_sentence(t: str) -> bool:
-        return bool(re.search(r"[。！？!?…]\s*$", t.strip()))
+        return bool(re.search(r"[。！？!?…；;]\s*$", t.strip()))
+
+    def hanzi(t: str) -> int:
+        return len(re.findall(r"[一-鿿]", t))
 
     def flush() -> None:
         nonlocal current_text, current_start
@@ -490,11 +517,16 @@ def build_segments(
         current_start = None
 
     for entry in entries:
+        # Pause since the previous cue → close the current segment first.
+        if current_start is not None and entry["start"] - last_end > max_gap:
+            flush()
         if current_start is None:
             current_start = entry["start"]
         current_text += entry["text"]
         last_end = entry["end"]
-        if ends_sentence(entry["text"]) or (last_end - current_start) >= max_sec:
+        if (ends_sentence(entry["text"])
+                or (last_end - current_start) >= max_sec
+                or hanzi(current_text) >= max_chars):
             flush()
     flush()
 
