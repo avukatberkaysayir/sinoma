@@ -37,6 +37,35 @@ _load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://pqyceostpukueydwuiut.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
 
+# Anti-hallucination layer E: Gemini coherence gate. ON by default; set
+# SINOMA_COHERENCE_GATE=0 to skip. Fail-open everywhere so it can only ever
+# drop clear garbage, never silently lose a whole video.
+COHERENCE_GATE = os.environ.get("SINOMA_COHERENCE_GATE", "1") != "0"
+
+
+def gate_coherence(texts: list[str]) -> list[bool]:
+    """Ask the gate-coherence edge function which segment texts are real spoken
+    Mandarin (vs. hallucinated gibberish). Returns one keep-flag per text.
+    Fail-open: any error/missing config keeps everything."""
+    if not texts:
+        return []
+    if not COHERENCE_GATE or not SUPABASE_SERVICE_KEY:
+        return [True] * len(texts)
+    try:
+        resp = requests.post(
+            f"{SUPABASE_URL}/functions/v1/gate-coherence",
+            json={"texts": texts},
+            headers=_supabase_headers(),
+            timeout=40,
+        )
+        if resp.status_code >= 300:
+            return [True] * len(texts)
+        keep = resp.json().get("keep", [])
+        return [bool(keep[i]) if i < len(keep) else True for i in range(len(texts))]
+    except Exception:
+        return [True] * len(texts)
+
+
 # ── HSK analysis via Supabase REST ───────────────────────────────────────────
 
 def _supabase_headers() -> dict[str, str]:
@@ -149,18 +178,23 @@ def run(
     method = "subtitles"
     inserted = 0
     matched = 0  # segments seen that matched the dictionary (before filter)
+    gated = 0    # segments dropped by the coherence gate (layer E)
     seg_seen = 0
     buf: list[dict[str, Any]] = []
 
     def _flush(force: bool = False) -> None:
-        nonlocal inserted, buf
+        nonlocal inserted, buf, gated
         if buf and (force or len(buf) >= 5):
-            insert_segments(buf)
-            inserted += len(buf)
+            keep = gate_coherence([r["transcription"] for r in buf])
+            kept = [r for r, k in zip(buf, keep) if k]
+            gated += len(buf) - len(kept)
             buf = []
-            print(f"  ✓ {inserted} segment yazıldı (akışlı)")
-            if on_progress:
-                on_progress(inserted)
+            if kept:
+                insert_segments(kept)
+                inserted += len(kept)
+                print(f"  ✓ {inserted} segment yazıldı (akışlı)")
+                if on_progress:
+                    on_progress(inserted)
 
     def _emit(seg: dict[str, Any]) -> None:
         nonlocal seg_seen, matched
@@ -211,16 +245,18 @@ def run(
 
     _flush(force=True)
 
+    if gated:
+        print(f"  ⚠ {gated} segment tutarlılık kapısında elendi (halüsinasyon)")
     if seg_seen == 0:
         raise RuntimeError(
             "Segment oluşturulamadı — video Mandarin içermiyor veya ses/altyazı yetersiz."
         )
     if inserted == 0:
         raise RuntimeError(
-            "Hiçbir segment sözlükle eşleşmedi veya filtre kapsamında değil. "
-            "Farklı bir HSK filtresi deneyin ya da filtreyi kaldırın."
+            "Hiçbir segment yazılamadı — sözlük eşleşmesi yok, HSK filtresi dışı, "
+            "veya tutarlılık kapısı hepsini halüsinasyon saydı. Filtreyi değiştirin."
         )
-    return {"segmentsWritten": inserted, "method": method}
+    return {"segmentsWritten": inserted, "method": method, "gatedOut": gated}
 
 
 def _audio_cache_path(youtube_id: str) -> Path:

@@ -25,6 +25,7 @@ from youtube_asr_pipeline import (
     SUPABASE_URL,
     SUPABASE_SERVICE_KEY,
     analyze_segment,
+    gate_coherence,
     insert_segments,
 )
 
@@ -103,7 +104,9 @@ def run(
 
         inserted = 0
         seg_index = 0
+        gated = 0
         buf: list[dict[str, Any]] = []
+        pending: list[dict[str, Any]] = []  # gate-approved candidates queue
 
         def _flush(force: bool = False) -> None:
             nonlocal inserted, buf
@@ -115,60 +118,87 @@ def run(
                 if on_progress:
                     on_progress(inserted)
 
-        for seg in stream_segments(cues, min_sec=MIN_SEG, max_sec=MAX_SEG):
-            if offset and seg_index < offset:
-                seg_index += 1
-                continue
-            if max_clips and inserted >= max_clips:
-                break
+        def _process(cand: dict[str, Any]) -> None:
+            """ffmpeg-clip + upload + buffer one gate-approved candidate."""
+            nonlocal seg_index
             seg_index += 1
-
-            word_ids, hsk_level = analyze_segment(seg["text"])
-            if hsk_level == 0:
-                continue
-            if hsk_filter and hsk_level not in hsk_filter:
-                continue
-
             clip_path = tmp / f"{slug}_{seg_index:04d}.mp4"
-            if not extract_clip(video_path, seg["start"], seg["end"], clip_path):
+            if not extract_clip(video_path, cand["start"], cand["end"], clip_path):
                 print(f"    ✗ ffmpeg klip {seg_index} başarısız, atlanıyor")
-                continue
-            clip_dur = round(seg["end"] - seg["start"], 3)
+                return
             dest = f"{slug}/{seg_index:04d}.mp4"
             try:
-                url = _upload_clip(clip_path, dest)
+                clip_url = _upload_clip(clip_path, dest)
             except RuntimeError as exc:
                 print(f"    ✗ upload {seg_index}: {exc}")
-                continue
+                return
             try:
                 clip_path.unlink()
             except OSError:
                 pass
-
             buf.append({
                 "source_type": "self_hosted",
-                "video_url": url,
+                "video_url": clip_url,
                 "start_time": 0.0,
-                "end_time": clip_dur,
-                "transcription": seg["text"],
-                "pinyin": get_pinyin(seg["text"]),
-                "hsk_level": hsk_level,
-                "target_words": word_ids,
+                "end_time": round(cand["end"] - cand["start"], 3),
+                "transcription": cand["text"],
+                "pinyin": get_pinyin(cand["text"]),
+                "hsk_level": cand["hsk_level"],
+                "target_words": cand["word_ids"],
                 "quiz_category": "general",
                 "quiz": {"question": "", "correctAnswer": "", "wrongAnswer": ""},
                 "is_active": active,
             })
             _flush()
 
+        def _drain(force: bool = False) -> None:
+            """Run the coherence gate (layer E) over queued candidates BEFORE any
+            clip is cut/uploaded, so hallucinated text never produces an orphan
+            file in storage."""
+            nonlocal pending, gated
+            if pending and (force or len(pending) >= 8):
+                keep = gate_coherence([c["text"] for c in pending])
+                for cand, k in zip(pending, keep):
+                    if k:
+                        if not (max_clips and inserted >= max_clips):
+                            _process(cand)
+                    else:
+                        gated += 1
+                pending = []
+
+        cand_seen = 0
+        for seg in stream_segments(cues, min_sec=MIN_SEG, max_sec=MAX_SEG):
+            if offset and cand_seen < offset:
+                cand_seen += 1
+                continue
+            if max_clips and inserted >= max_clips:
+                break
+
+            word_ids, hsk_level = analyze_segment(seg["text"])
+            if hsk_level == 0:
+                continue
+            if hsk_filter and hsk_level not in hsk_filter:
+                continue
+            cand_seen += 1
+            pending.append({
+                "text": seg["text"], "start": seg["start"], "end": seg["end"],
+                "word_ids": word_ids, "hsk_level": hsk_level,
+            })
+            _drain()
+
+        _drain(force=True)
         _flush(force=True)
 
-    if seg_index == 0:
+    if gated:
+        print(f"  ⚠ {gated} segment tutarlılık kapısında elendi (halüsinasyon)")
+    if cand_seen == 0:
         raise RuntimeError("Çince diyalog bulunamadı (altyazı/ses yetersiz).")
     if inserted == 0:
         raise RuntimeError(
-            "Hiçbir segment sözlükle eşleşmedi veya filtre kapsamında değil."
+            "Hiçbir segment yazılamadı — sözlük eşleşmesi yok, filtre dışı, "
+            "veya tutarlılık kapısı hepsini halüsinasyon saydı."
         )
-    return {"clipsWritten": inserted, "method": method}
+    return {"clipsWritten": inserted, "method": method, "gatedOut": gated}
 
 
 def main() -> None:
