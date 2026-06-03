@@ -79,7 +79,6 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
     ref.read(selectedCategoryProvider.notifier).state     = {};
     ref.read(selectedLengthProvider.notifier).state       = {};
     ref.read(selectedHskFilterProvider.notifier).state    = {};
-    ref.read(selectedLevelFilterProvider.notifier).state  = {};
     ref.read(selectedLifeCategoryProvider.notifier).state = {};
     ref.read(selectedSearchProvider.notifier).state       = null;
     _searchCtrl.clear();
@@ -92,7 +91,6 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
     final selectedCategory = ref.watch(selectedCategoryProvider);
     final selectedLength   = ref.watch(selectedLengthProvider);
     final hskFilter        = ref.watch(selectedHskFilterProvider);
-    final levelFilter      = ref.watch(selectedLevelFilterProvider);
     final lifeCategories   = ref.watch(selectedLifeCategoryProvider);
     final search           = ref.watch(selectedSearchProvider);
 
@@ -134,7 +132,6 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                   selectedCategory.isNotEmpty ||
                           selectedLength.isNotEmpty ||
                           hskFilter.isNotEmpty ||
-                          levelFilter.isNotEmpty ||
                           lifeCategories.isNotEmpty ||
                           search != null
                       ? l10n.noVideosFilter
@@ -187,13 +184,12 @@ class _FilterSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n          = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
     final hskFilters    = ref.watch(selectedHskFilterProvider);
-    final levelFilters  = ref.watch(selectedLevelFilterProvider);
     final categories    = ref.watch(selectedCategoryProvider);
     final lengths       = ref.watch(selectedLengthProvider);
     final lifeCategories = ref.watch(selectedLifeCategoryProvider);
     final search        = ref.watch(selectedSearchProvider);
     final isDark        = Theme.of(context).brightness == Brightness.dark;
-    final hasFilter     = hskFilters.isNotEmpty || levelFilters.isNotEmpty ||
+    final hasFilter     = hskFilters.isNotEmpty ||
         categories.isNotEmpty || lengths.isNotEmpty ||
         lifeCategories.isNotEmpty || search != null;
 
@@ -201,13 +197,6 @@ class _FilterSidebar extends ConsumerWidget {
       final next = Set<int>.from(hskFilters);
       next.contains(level) ? next.remove(level) : next.add(level);
       ref.read(selectedHskFilterProvider.notifier).state = next;
-      ref.invalidate(videoFeedProvider);
-    }
-
-    void toggleLevel(int level) {
-      final next = Set<int>.from(levelFilters);
-      next.contains(level) ? next.remove(level) : next.add(level);
-      ref.read(selectedLevelFilterProvider.notifier).state = next;
       ref.invalidate(videoFeedProvider);
     }
 
@@ -291,18 +280,12 @@ class _FilterSidebar extends ConsumerWidget {
           if (hasFilter)
             _ActiveFilterChips(
               hskFilters: hskFilters,
-              levelFilters: levelFilters,
               categories: categories,
               lengths: lengths,
               lifeCategories: lifeCategories,
               onRemoveHsk: (lvl) {
                 final next = Set<int>.from(hskFilters)..remove(lvl);
                 ref.read(selectedHskFilterProvider.notifier).state = next;
-                ref.invalidate(videoFeedProvider);
-              },
-              onRemoveLevel: (lvl) {
-                final next = Set<int>.from(levelFilters)..remove(lvl);
-                ref.read(selectedLevelFilterProvider.notifier).state = next;
                 ref.invalidate(videoFeedProvider);
               },
               onRemoveCategory: (cat) {
@@ -358,23 +341,6 @@ class _FilterSidebar extends ConsumerWidget {
                         onTap: () => toggleLife('children'),
                         isDark: isDark,
                       ),
-                    ],
-                  ),
-                  _SidebarGroup(
-                    id: 'level',
-                    label: l10n.levelSection,
-                    expandedGroup: expandedGroup,
-                    onToggle: onGroupToggle,
-                    hasActive: levelFilters.isNotEmpty,
-                    isDark: isDark,
-                    children: [
-                      for (int lvl = 1; lvl <= 6; lvl++)
-                        _SidebarItem(
-                          label: l10n.hskSublabel(lvl),
-                          selected: levelFilters.contains(lvl),
-                          onTap: () => toggleLevel(lvl),
-                          isDark: isDark,
-                        ),
                     ],
                   ),
                   _SidebarGroup(
@@ -449,12 +415,10 @@ class _FilterSidebar extends ConsumerWidget {
 
 class _ActiveFilterChips extends ConsumerWidget {
   final Set<int> hskFilters;
-  final Set<int> levelFilters;
   final Set<String> categories;
   final Set<String> lengths;
   final Set<String> lifeCategories;
   final void Function(int) onRemoveHsk;
-  final void Function(int) onRemoveLevel;
   final void Function(String) onRemoveCategory;
   final void Function(String) onRemoveLength;
   final void Function(String) onRemoveLifeCategory;
@@ -463,12 +427,10 @@ class _ActiveFilterChips extends ConsumerWidget {
 
   const _ActiveFilterChips({
     required this.hskFilters,
-    required this.levelFilters,
     required this.categories,
     required this.lengths,
     required this.lifeCategories,
     required this.onRemoveHsk,
-    required this.onRemoveLevel,
     required this.onRemoveCategory,
     required this.onRemoveLength,
     required this.onRemoveLifeCategory,
@@ -480,15 +442,6 @@ class _ActiveFilterChips extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n  = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
     final chips = <Widget>[];
-
-    for (final lvl in (levelFilters.toList()..sort())) {
-      chips.add(_RemovableChip(
-        label: l10n.hskSublabel(lvl),
-        color: AppColors.forHskLevel(lvl),
-        onRemove: () => onRemoveLevel(lvl),
-        isDark: isDark,
-      ));
-    }
 
     for (final lvl in (hskFilters.toList()..sort())) {
       chips.add(_RemovableChip(

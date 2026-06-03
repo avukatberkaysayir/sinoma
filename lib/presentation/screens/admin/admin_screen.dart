@@ -2418,15 +2418,6 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         onAdd: (v) => setState(() => _lifeCategories.add(v)),
                       ),
                       _multiDropdown<int>(
-                        label: 'Adım',
-                        options: [
-                          for (var i = 1; i <= 6; i++)
-                            (value: i, text: _adimLabel(i)),
-                        ],
-                        chosen: _hskLevels,
-                        onAdd: (v) => setState(() => _hskLevels.add(v)),
-                      ),
-                      _multiDropdown<int>(
                         label: 'HSK',
                         options: [
                           for (var i = 1; i <= 6; i++) (value: i, text: 'HSK $i'),
@@ -2455,11 +2446,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     spacing: 6,
                     runSpacing: 6,
                     children: [
-                      // Adım ve HSK aynı seviyeyi temsil eder; çip ikisini de
-                      // gösterir ("HSK 3 · Orta") — hangi dropdown'dan seçilirse
-                      // seçilsin tutarlı.
                       for (final lvl in _hskLevels.toList()..sort())
-                        _tagChip('HSK $lvl · ${_adimLabel(lvl)}',
+                        _tagChip('HSK $lvl',
                             () => setState(() => _hskLevels.remove(lvl))),
                       for (final c in _quizCategories)
                         _tagChip(
@@ -2750,15 +2738,6 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'business' => 'İş',
         'children' => 'Çocuk',
         _ => 'Günlük Hayat',
-      };
-
-  String _adimLabel(int i) => switch (i) {
-        1 => 'Başlangıç',
-        2 => 'Temel',
-        3 => 'Orta',
-        4 => 'Orta-İleri',
-        5 => 'İleri',
-        _ => 'Uzman',
       };
 
   String _lengthBucket() {

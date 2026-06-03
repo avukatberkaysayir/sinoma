@@ -15,8 +15,6 @@ final videoRepositoryProvider = Provider<VideoRepository>((ref) {
 // Empty set = show all
 final selectedCategoryProvider      = StateProvider<Set<String>>((ref) => {});
 final selectedLengthProvider        = StateProvider<Set<String>>((ref) => {});
-// Adım (level) tab — chips show descriptive names (Başlangıç/Temel/…)
-final selectedLevelFilterProvider   = StateProvider<Set<int>>((ref) => {});
 // HSK tab — chips show "HSK 1", "HSK 2" …
 final selectedHskFilterProvider     = StateProvider<Set<int>>((ref) => {});
 // Life category tab — 'daily_life' | 'business' | 'children'
@@ -28,7 +26,6 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   // every stats write (scoring an answer) re-emits the user, re-runs this provider,
   // hands the player a new list instance and makes it jump to a random clip.
   final userHskLevel   = ref.watch(currentHskLevelProvider);
-  final levelFilters   = ref.watch(selectedLevelFilterProvider);
   final hskFilters     = ref.watch(selectedHskFilterProvider);
   final categories     = ref.watch(selectedCategoryProvider);
   final lengths        = ref.watch(selectedLengthProvider);
@@ -37,12 +34,10 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
 
   var segments = await repo.loadSegmentsForLevel(userHskLevel);
 
-  // Level and HSK both filter by hskLevel — combine as union (OR within group).
-  // Match against the video's tag lists (multi-tag), any overlap counts.
-  final combinedHsk = {...levelFilters, ...hskFilters};
-  if (combinedHsk.isNotEmpty) {
+  // HSK filter — match against the video's tag list (multi-tag), any overlap.
+  if (hskFilters.isNotEmpty) {
     segments = segments
-        .where((s) => s.hskLevelTags.any(combinedHsk.contains))
+        .where((s) => s.hskLevelTags.any(hskFilters.contains))
         .toList();
   }
   if (categories.isNotEmpty) {
