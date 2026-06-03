@@ -243,19 +243,28 @@ interface Segment {
   text: string;
 }
 
-// Finer, sentence-aware segmentation: close a segment at sentence-ending
-// punctuation or once it reaches maxDuration, and keep short utterances
-// (min 1s) so lines like "这个能吃" aren't merged away or dropped.
-function buildSegments(events: CaptionEvent[], maxDuration = 6): Segment[] {
+// Sentence-aware segmentation. A segment closes when:
+//   • the line ends with sentence punctuation, OR
+//   • there is a silence gap before the next line (natural boundary — crucial
+//     for auto-captions that carry no punctuation), OR
+//   • it reaches maxDuration seconds, OR
+//   • it reaches maxChars Chinese characters.
+// Short utterances (min ~0.8s) are kept so lines like "这个能吃" aren't dropped.
+function buildSegments(
+  events: CaptionEvent[],
+  { maxDuration = 8, maxChars = 24, maxGap = 1.0, minDuration = 0.8 } = {},
+): Segment[] {
   const segments: Segment[] = [];
   let segStart: number | null = null;
   let segEnd = 0;
   let segText = "";
-  const endsSentence = (t: string) => /[。！？!?…]\s*$/.test(t.trim());
+  const endsSentence = (t: string) => /[。！？!?…；;]\s*$/.test(t.trim());
+  const hanziCount = (t: string) => (t.match(/[一-鿿]/g) ?? []).length;
 
   const flush = () => {
-    if (segStart !== null && segText.trim() && segEnd - segStart >= 1) {
-      segments.push({ start: segStart, end: segEnd, text: segText.trim() });
+    const text = segText.trim();
+    if (segStart !== null && text && segEnd - segStart >= minDuration) {
+      segments.push({ start: segStart, end: segEnd, text });
     }
     segStart = null;
     segText = "";
@@ -267,6 +276,9 @@ function buildSegments(events: CaptionEvent[], maxDuration = 6): Segment[] {
     const text = (ev.segs ?? []).map((s) => s.utf8).join("").replace(/\n/g, "");
     if (!text.trim()) continue;
 
+    // A pause since the previous line → close the current segment first.
+    if (segStart !== null && start - segEnd > maxGap) flush();
+
     if (segStart === null) {
       segStart = start;
       segEnd = end;
@@ -276,8 +288,11 @@ function buildSegments(events: CaptionEvent[], maxDuration = 6): Segment[] {
       segText += text;
     }
 
-    // Split on a sentence boundary, or when the window gets long enough.
-    if (endsSentence(text) || segEnd - (segStart ?? segEnd) >= maxDuration) {
+    if (
+      endsSentence(text) ||
+      segEnd - (segStart ?? segEnd) >= maxDuration ||
+      hanziCount(segText) >= maxChars
+    ) {
       flush();
     }
   }
@@ -416,6 +431,8 @@ serve(async (req) => {
       segmentsSkipped: skipped,
       unknownSkipped,
       filterSkipped,
+      eventCount: events.length,
+      rawSegments: segments.length,
       tracksFound,
       tracksSearched,
     });
