@@ -276,8 +276,15 @@ function buildSegments(
     const text = (ev.segs ?? []).map((s) => s.utf8).join("").replace(/\n/g, "");
     if (!text.trim()) continue;
 
-    // A pause since the previous line → close the current segment first.
-    if (segStart !== null && start - segEnd > maxGap) flush();
+    // Close FIRST when this line would either start after a silence gap or
+    // push the segment past maxDuration — closing before adding keeps every
+    // merged segment ≤ maxDuration instead of overshooting by a whole line.
+    if (
+      segStart !== null &&
+      (start - segEnd > maxGap || end - segStart > maxDuration)
+    ) {
+      flush();
+    }
 
     if (segStart === null) {
       segStart = start;
@@ -288,11 +295,7 @@ function buildSegments(
       segText += text;
     }
 
-    if (
-      endsSentence(text) ||
-      segEnd - (segStart ?? segEnd) >= maxDuration ||
-      hanziCount(segText) >= maxChars
-    ) {
+    if (endsSentence(text) || hanziCount(segText) >= maxChars) {
       flush();
     }
   }

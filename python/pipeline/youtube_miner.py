@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -49,7 +50,9 @@ except ImportError:
     def _to_simplified(text: str) -> str:
         return text
 
-WHISPER_MODEL_SIZE = "small"
+# 'medium' is markedly more accurate than 'small' for Mandarin (fewer wrong
+# transcriptions); override with WHISPER_MODEL=small for speed on weak CPUs.
+WHISPER_MODEL_SIZE = os.environ.get("WHISPER_MODEL", "medium")
 MIN_SEGMENT_SECONDS = 1.0
 MAX_SEGMENT_SECONDS = 6.0
 MAX_TARGET_WORDS = 3
@@ -371,23 +374,49 @@ def iter_whisper_cues(audio_path: Path):
     _log("ASR", f"loading Whisper '{WHISPER_MODEL_SIZE}' model (downloads on first use)…")
     model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
-    _log("ASR", f"transcribing {audio_path.name} (streaming)…")
+    _log("ASR", f"transcribing {audio_path.name} (streaming, anti-hallucination)…")
+    # Anti-hallucination settings: strict VAD removes music/silence before ASR;
+    # condition_on_previous_text=False stops runaway invented text; the *_threshold
+    # values make Whisper itself treat low-confidence / non-speech as silence.
     segments, info = model.transcribe(
         str(audio_path),
         language="zh",
         beam_size=5,
+        condition_on_previous_text=False,
+        no_speech_threshold=0.6,
+        log_prob_threshold=-1.0,
+        compression_ratio_threshold=2.4,
         vad_filter=True,
-        vad_parameters={"min_silence_duration_ms": 500},
+        vad_parameters={"threshold": 0.5, "min_silence_duration_ms": 700},
     )
 
+    kept = dropped = 0
     for seg in segments:
+        # A) Drop likely hallucinations / non-speech / gibberish using Whisper's
+        #    own confidence signals — this is what removes "a sentence where there
+        #    was only music/silence".
+        if getattr(seg, "no_speech_prob", 0.0) > 0.6:
+            dropped += 1
+            continue
+        if getattr(seg, "avg_logprob", 0.0) < -1.0:
+            dropped += 1
+            continue
+        if getattr(seg, "compression_ratio", 0.0) > 2.4:
+            dropped += 1
+            continue
         text = _to_simplified(re.sub(r"\s+", "", seg.text.strip()))
-        if text and re.search(r"[一-鿿]", text):
-            # Whisper sometimes bridges a silent/musical gap into one cue with a
-            # huge duration (e.g. a 13-char line tagged 195s). Cap the end by a
-            # char-rate estimate so such cues don't become a 3-minute segment.
-            cap = seg.start + max(2.0, len(text) * 0.6)
-            yield {"start": seg.start, "end": min(seg.end, cap), "text": text}
+        if not (text and re.search(r"[一-鿿]", text)):
+            continue
+        # Repetition guard: "啊啊啊啊", "好好好好" etc. (tiny unique-char set).
+        uniq = len(set(text))
+        if len(text) >= 4 and uniq <= 2:
+            dropped += 1
+            continue
+        # Cap implausibly long cues (Whisper bridging a gap) by a char-rate est.
+        cap = seg.start + max(2.0, len(text) * 0.6)
+        kept += 1
+        yield {"start": seg.start, "end": min(seg.end, cap), "text": text}
+    _log("ASR", f"cues kept={kept} dropped(hallucination/non-speech)={dropped}")
 
 
 def transcribe_with_whisper(audio_path: Path) -> list[dict[str, Any]]:
@@ -512,19 +541,22 @@ def stream_segments(
                 "text": cur_text.strip()}
 
     for entry in entries:
-        # Pause since the previous cue → close the current segment first.
-        if cur_start is not None and entry["start"] - last_end > max_gap:
-            if ready():
-                yield make()
-            cur_text = ""
-            cur_start = None
+        if cur_start is not None:
+            # Close FIRST when the next cue would either (a) start after a
+            # silence gap, or (b) push the segment past the max_sec cap. Closing
+            # before adding keeps every merged segment ≤ max_sec instead of
+            # overshooting by a whole cue's length.
+            if (entry["start"] - last_end > max_gap
+                    or (entry["end"] - cur_start) > max_sec):
+                if ready():
+                    yield make()
+                cur_text = ""
+                cur_start = None
         if cur_start is None:
             cur_start = entry["start"]
         cur_text += entry["text"]
         last_end = entry["end"]
-        if (ends_sentence(entry["text"])
-                or (last_end - cur_start) >= max_sec
-                or hanzi(cur_text) >= max_chars):
+        if ends_sentence(entry["text"]) or hanzi(cur_text) >= max_chars:
             if ready():
                 yield make()
             cur_text = ""
