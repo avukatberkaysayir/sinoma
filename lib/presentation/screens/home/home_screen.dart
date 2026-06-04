@@ -147,6 +147,9 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
       },
     );
 
+    // Voscreen-style watch page: a slim left filter rail and the exercise
+    // centered in a focused, max-width column on a clean background. The player
+    // widget itself (InlinePlayerSection) is unchanged.
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -159,7 +162,18 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
             searchCtrl: _searchCtrl,
           ),
         ),
-        Expanded(child: feedWidget),
+        Expanded(
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1040),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: feedWidget,
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }

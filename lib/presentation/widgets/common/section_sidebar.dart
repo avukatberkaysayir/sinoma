@@ -7,6 +7,13 @@ import '../../providers/locale_provider.dart';
 
 enum AppSection { video, dictionary, social, games }
 
+// Sections surfaced in navigation. Social + Games are HIDDEN for now (no content
+// yet — will revisit). Their routes/screens still exist, just not shown in nav.
+const List<AppSection> visibleSections = [
+  AppSection.video,
+  AppSection.dictionary,
+];
+
 extension AppSectionX on AppSection {
   String localizedLabel(AppL10n l10n) => switch (this) {
     AppSection.video       => l10n.videoTab,
@@ -67,7 +74,7 @@ class _SectionSidebarOverlayState
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
-            children: AppSection.values.map((section) {
+            children: visibleSections.map((section) {
               final isCurrent = section == widget.current;
               return _SidebarItem(
                 section: section,
@@ -148,12 +155,12 @@ class SectionNavRail extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n   = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final idx    = AppSection.values.indexOf(current);
+    final idx    = visibleSections.indexOf(current);
 
     return NavigationRail(
       selectedIndex: idx < 0 ? 0 : idx,
       onDestinationSelected: (i) {
-        final section = AppSection.values[i];
+        final section = visibleSections[i];
         if (section != current) context.go(section.route);
       },
       labelType: NavigationRailLabelType.all,
@@ -172,7 +179,7 @@ class SectionNavRail extends ConsumerWidget {
         color: isDark ? Colors.white38 : Colors.black38,
         fontSize: 11,
       ),
-      destinations: AppSection.values.map((s) => NavigationRailDestination(
+      destinations: visibleSections.map((s) => NavigationRailDestination(
         icon: Icon(s.icon),
         label: Text(s.localizedLabel(l10n)),
       )).toList(),
@@ -199,7 +206,7 @@ class SectionTabBar extends ConsumerWidget {
         ),
       ),
       child: Row(
-        children: AppSection.values.map((section) {
+        children: visibleSections.map((section) {
           return _SectionTab(
             section: section,
             label: section.localizedLabel(l10n),
