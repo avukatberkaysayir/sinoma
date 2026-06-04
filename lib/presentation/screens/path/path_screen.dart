@@ -30,11 +30,16 @@ class PathScreen extends ConsumerWidget {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
+        final withContent = {
+          for (final t in topics)
+            if (t.steps.isNotEmpty) t.hsk
+        };
 
         return Column(
           children: [
             _TopicSelector(
               selected: selectedHsk,
+              withContent: withContent,
               onSelect: (h) =>
                   ref.read(selectedTopicHskProvider.notifier).state = h,
             ),
@@ -64,8 +69,13 @@ class PathScreen extends ConsumerWidget {
 
 class _TopicSelector extends StatelessWidget {
   final int selected;
+  final Set<int> withContent;
   final void Function(int) onSelect;
-  const _TopicSelector({required this.selected, required this.onSelect});
+  const _TopicSelector({
+    required this.selected,
+    required this.withContent,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -79,30 +89,53 @@ class _TopicSelector extends StatelessWidget {
             for (var h = 1; h <= 6; h++)
               Padding(
                 padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => onSelect(h),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected == h
-                          ? AppColors.forHskLevel(h)
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
+                child: Opacity(
+                  // Dim HSK levels that have no content yet so it's obvious
+                  // where to start.
+                  opacity: withContent.contains(h) || selected == h ? 1 : 0.45,
+                  child: GestureDetector(
+                    onTap: () => onSelect(h),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 8),
+                      decoration: BoxDecoration(
                         color: selected == h
                             ? AppColors.forHskLevel(h)
-                            : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: selected == h
+                              ? AppColors.forHskLevel(h)
+                              : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('HSK $h',
+                              style: TextStyle(
+                                color: selected == h
+                                    ? Colors.white
+                                    : AppColors.onSurfaceMuted,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              )),
+                          if (withContent.contains(h)) ...[
+                            const SizedBox(width: 5),
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: selected == h
+                                    ? Colors.white
+                                    : AppColors.correctAnswer,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                          ],
+                        ],
                       ),
                     ),
-                    child: Text('HSK $h',
-                        style: TextStyle(
-                          color: selected == h
-                              ? Colors.white
-                              : AppColors.onSurfaceMuted,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        )),
                   ),
                 ),
               ),

@@ -80,7 +80,7 @@ class AppL10n {
   };
 
   // ── Sidebar ──────────────────────────────────────────────────────────────────
-  String get videoTab       => _isTr ? 'Video'     : 'Video';
+  String get videoTab       => _isTr ? 'Öğren'     : 'Learn';
   String get dictionaryTab  => _isTr ? 'Sözlük'    : 'Dictionary';
   String get socialTab      => _isTr ? 'Sosyal'     : 'Social';
   String get gamesTab       => _isTr ? 'Oyun'       : 'Games';

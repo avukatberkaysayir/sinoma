@@ -23,14 +23,14 @@ extension AppSectionX on AppSection {
   };
 
   IconData get icon => switch (this) {
-    AppSection.video       => Icons.play_circle_outline,
+    AppSection.video       => Icons.school_outlined,
     AppSection.dictionary  => Icons.menu_book_outlined,
     AppSection.social      => Icons.group_outlined,
     AppSection.games       => Icons.sports_esports_outlined,
   };
 
   String get route => switch (this) {
-    AppSection.video       => '/video',
+    AppSection.video       => '/home', // learning path is the primary screen
     AppSection.dictionary  => '/dictionary',
     AppSection.social      => '/social',
     AppSection.games       => '/games',
