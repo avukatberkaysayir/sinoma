@@ -608,14 +608,17 @@ class _DropdownCard extends ConsumerWidget {
               color: Colors.red.shade400,
               isDark: isDark,
               onTap: () async {
+                // Capture the router BEFORE closing the dropdown: onClose()
+                // unmounts this item's context, so a later context.mounted check
+                // would be false and the redirect would be skipped (staying on
+                // /home). The GoRouter reference stays valid regardless.
+                final router = GoRouter.of(context);
                 onClose();
                 try {
                   await Supabase.instance.client.auth.signOut();
                 } catch (_) {/* clear session anyway */}
-                // Land on the public homepage so the logged-out state is clear
-                // (going to /home would keep showing the app, looking like a
-                // no-op).
-                if (context.mounted) context.go('/');
+                // Land on the public homepage so the logged-out state is clear.
+                router.go('/');
               },
             ),
             const SizedBox(height: 4),
