@@ -76,7 +76,7 @@ class VideoFiltersRight extends ConsumerWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF24333D))),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -539,7 +539,7 @@ class RightInfoCard extends StatelessWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(right: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF24333D))),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
