@@ -29,14 +29,16 @@ class PathPhase {
 class PathStep {
   final int hsk;
   final int index;
-  final String themeKey; // a LifeCategory.name — UI localizes it
-  final List<PathPhase> phases;
+  final String title; // predefined Turkish topic title
+  final List<PathPhase> phases; // empty → step shown locked ("coming soon")
   const PathStep({
     required this.hsk,
     required this.index,
-    required this.themeKey,
+    required this.title,
     required this.phases,
   });
+
+  bool get hasContent => phases.isNotEmpty;
 }
 
 class PathTopic {
@@ -45,59 +47,71 @@ class PathTopic {
   const PathTopic({required this.hsk, required this.steps});
 }
 
-// Build the whole curriculum (HSK 1-6) from the active-video pool. Videos are
-// grouped by theme within each HSK level, sliced into phases, 4 phases per step.
+// Predefined curriculum: topic (step) titles per HSK level. The whole map is
+// always shown (Duolingo-style); steps fill with content as videos are approved
+// and lock otherwise. Extend each list toward ~30 steps over time.
+const Map<int, List<String>> kStepTitles = {
+  1: [
+    'Selamlaşma', 'Tanışma', 'Sayılar', 'Aile', 'Zaman & Tarih',
+    'Yeme & İçme', 'Renkler & Nesneler', 'Günlük Fiiller', 'Yön & Yer',
+    'Alışveriş', 'Okul', 'Vedalaşma',
+  ],
+  2: [
+    'Hobiler', 'Hava Durumu', 'Ulaşım', 'Sağlık', 'Telefon & İletişim',
+    'İş & Meslek', 'Ev & Eşya', 'Duygular', 'Plan Yapma', 'Yemek Tarifi',
+    'Spor', 'Tatil',
+  ],
+  3: [
+    'Seyahat', 'Restoranda', 'Doktorda', 'Bankada', 'Şehir Hayatı',
+    'Doğa & Çevre', 'Teknoloji', 'Eğitim', 'Kültür & Sanat', 'Görüşme',
+    'Alışkanlıklar', 'Kutlamalar',
+  ],
+  4: [
+    'İş Görüşmesi', 'Toplantılar', 'Haberler', 'Ekonomi', 'Sosyal Medya',
+    'Bilim', 'Tarih', 'Edebiyat', 'Çevre Sorunları', 'Sağlıklı Yaşam',
+    'Hukuk', 'Tartışma',
+  ],
+  5: [
+    'Akademik Dil', 'İş Dünyası', 'Politika', 'Felsefe', 'Psikoloji',
+    'Sanat Eleştirisi', 'Küresel Konular', 'Teknoloji & Gelecek', 'Edebi Metinler',
+    'Resmî Yazışma', 'Sunum', 'Müzakere',
+  ],
+  6: [
+    'İleri Akademik', 'Deyimler & Atasözleri', 'Klasik Metinler', 'Şiir',
+    'Hukuki Dil', 'Tıbbi Dil', 'Felsefi Tartışma', 'Köşe Yazısı',
+    'Bilimsel Makale', 'Diplomatik Dil', 'Edebi Çeviri', 'Usta Seviyesi',
+  ],
+};
+
+// Build the full curriculum (HSK 1-6). Every predefined step is created; the
+// HSK video pool fills steps' phases in order, the rest stay locked.
 List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
   final topics = <PathTopic>[];
   for (var hsk = 1; hsk <= 6; hsk++) {
-    final pool = all.where((v) => v.hskLevelTags.contains(hsk)).toList();
-    // Cluster same-theme clips together so steps/phases are coherent.
-    pool.sort((a, b) {
-      final ta = a.lifeTags.isNotEmpty ? a.lifeTags.first : '';
-      final tb = b.lifeTags.isNotEmpty ? b.lifeTags.first : '';
-      final c = ta.compareTo(tb);
-      return c != 0 ? c : b.createdAt.compareTo(a.createdAt);
-    });
+    final titles = kStepTitles[hsk] ?? const [];
+    final pool = all.where((v) => v.hskLevelTags.contains(hsk)).toList()
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-    // Slice into phases.
-    final phases = <List<VideoSegmentModel>>[];
+    // Slice the pool into phases of kPhaseSize.
+    final phaseChunks = <List<VideoSegmentModel>>[];
     for (var i = 0; i < pool.length; i += kPhaseSize) {
-      phases.add(pool.sublist(
+      phaseChunks.add(pool.sublist(
           i, (i + kPhaseSize) > pool.length ? pool.length : i + kPhaseSize));
     }
 
-    // Group phases into steps of kPhasesPerStep.
+    var cursor = 0;
     final steps = <PathStep>[];
-    for (var s = 0; s * kPhasesPerStep < phases.length; s++) {
-      final slice = phases.sublist(
-          s * kPhasesPerStep,
-          ((s + 1) * kPhasesPerStep) > phases.length
-              ? phases.length
-              : (s + 1) * kPhasesPerStep);
-      final stepVideos = slice.expand((p) => p).toList();
-      steps.add(PathStep(
-        hsk: hsk,
-        index: s,
-        themeKey: _dominantTheme(stepVideos),
-        phases: [
-          for (var p = 0; p < slice.length; p++)
-            PathPhase(hsk: hsk, stepIndex: s, phaseIndex: p, videos: slice[p]),
-        ],
-      ));
+    for (var s = 0; s < titles.length; s++) {
+      final stepPhases = <PathPhase>[];
+      for (var p = 0; p < kPhasesPerStep && cursor < phaseChunks.length; p++) {
+        stepPhases.add(PathPhase(
+            hsk: hsk, stepIndex: s, phaseIndex: p, videos: phaseChunks[cursor++]));
+      }
+      steps.add(PathStep(hsk: hsk, index: s, title: titles[s], phases: stepPhases));
     }
     topics.add(PathTopic(hsk: hsk, steps: steps));
   }
   return topics;
-}
-
-String _dominantTheme(List<VideoSegmentModel> videos) {
-  final counts = <String, int>{};
-  for (final v in videos) {
-    final t = v.lifeTags.isNotEmpty ? v.lifeTags.first : 'daily_life';
-    counts[t] = (counts[t] ?? 0) + 1;
-  }
-  if (counts.isEmpty) return 'daily_life';
-  return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
 }
 
 // ── Progress ──────────────────────────────────────────────────────────────────

@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
-import '../../../data/models/video_segment_model.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../providers/video_provider.dart';
+import '../dictionary/dictionary_screen.dart';
+import '../home/home_screen.dart';
+import '../profile/profile_screen.dart';
 import 'phase_runner_screen.dart';
 
 // Duolingo-style colours.
@@ -16,6 +17,8 @@ const _duoBg = Color(0xFF131F2A);
 const _duoPanel = Color(0xFF1C2A35);
 const _duoLocked = Color(0xFF37464F);
 
+enum _Section { learn, video, dictionary, profile }
+
 class PathScreen extends ConsumerStatefulWidget {
   const PathScreen({super.key});
 
@@ -24,14 +27,31 @@ class PathScreen extends ConsumerStatefulWidget {
 }
 
 class _PathScreenState extends ConsumerState<PathScreen> {
-  bool _videoPanel = false;
+  _Section _section = _Section.learn;
 
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
-    final showRight = w >= 1100;
-    final compactNav = w < 720;
+    final showRight = w >= 1100 && _section == _Section.learn;
+    final compactNav = w < 760;
     final tr = ref.watch(localeProvider).languageCode == 'tr';
+
+    Widget center;
+    switch (_section) {
+      case _Section.video:
+        center = const HomeScreen();
+        break;
+      case _Section.dictionary:
+        center = const DictionaryScreen();
+        break;
+      case _Section.profile:
+        final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
+        center = ProfileScreen(uid: uid);
+        break;
+      case _Section.learn:
+        center = const _CenterPath();
+        break;
+    }
 
     return Scaffold(
       backgroundColor: _duoBg,
@@ -41,30 +61,11 @@ class _PathScreenState extends ConsumerState<PathScreen> {
           children: [
             _LeftNav(
               compact: compactNav,
-              videoActive: _videoPanel,
-              onLearn: () => setState(() => _videoPanel = false),
-              onVideo: () => setState(() => _videoPanel = !_videoPanel),
-              onDict: () => context.go('/dictionary'),
-              onProfile: () => context.go('/profile'),
+              section: _section,
               tr: tr,
+              onSelect: (s) => setState(() => _section = s),
             ),
-            Expanded(
-              child: Stack(
-                children: [
-                  const _CenterPath(),
-                  if (_videoPanel)
-                    Positioned(
-                      left: 0,
-                      top: 0,
-                      bottom: 0,
-                      child: _VideoSlideOut(
-                        tr: tr,
-                        onClose: () => setState(() => _videoPanel = false),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+            Expanded(child: center),
             if (showRight) _RightSidebar(tr: tr),
           ],
         ),
@@ -77,20 +78,14 @@ class _PathScreenState extends ConsumerState<PathScreen> {
 
 class _LeftNav extends StatelessWidget {
   final bool compact;
-  final bool videoActive;
-  final VoidCallback onLearn;
-  final VoidCallback onVideo;
-  final VoidCallback onDict;
-  final VoidCallback onProfile;
+  final _Section section;
   final bool tr;
+  final void Function(_Section) onSelect;
   const _LeftNav({
     required this.compact,
-    required this.videoActive,
-    required this.onLearn,
-    required this.onVideo,
-    required this.onDict,
-    required this.onProfile,
+    required this.section,
     required this.tr,
+    required this.onSelect,
   });
 
   @override
@@ -123,28 +118,32 @@ class _LeftNav extends StatelessWidget {
           ),
           _NavItem(
               icon: Icons.home_rounded,
+              color: const Color(0xFFFF4B4B),
               label: tr ? 'ÖĞREN' : 'LEARN',
-              active: !videoActive,
+              active: section == _Section.learn,
               compact: compact,
-              onTap: onLearn),
+              onTap: () => onSelect(_Section.learn)),
           _NavItem(
               icon: Icons.menu_book_rounded,
+              color: const Color(0xFF1CB0F6),
               label: tr ? 'SÖZLÜK' : 'DICTIONARY',
-              active: false,
+              active: section == _Section.dictionary,
               compact: compact,
-              onTap: onDict),
+              onTap: () => onSelect(_Section.dictionary)),
           _NavItem(
               icon: Icons.play_circle_outline_rounded,
+              color: const Color(0xFFCE82FF),
               label: 'VIDEO',
-              active: videoActive,
+              active: section == _Section.video,
               compact: compact,
-              onTap: onVideo),
+              onTap: () => onSelect(_Section.video)),
           _NavItem(
               icon: Icons.person_rounded,
+              color: const Color(0xFFFFC800),
               label: tr ? 'PROFİL' : 'PROFILE',
-              active: false,
+              active: section == _Section.profile,
               compact: compact,
-              onTap: onProfile),
+              onTap: () => onSelect(_Section.profile)),
         ],
       ),
     );
@@ -153,12 +152,14 @@ class _LeftNav extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
+  final Color color;
   final String label;
   final bool active;
   final bool compact;
   final VoidCallback onTap;
   const _NavItem({
     required this.icon,
+    required this.color,
     required this.label,
     required this.active,
     required this.compact,
@@ -167,11 +168,11 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = active ? _duoGreen : const Color(0xFFAFAFAF);
+    final labelColor = active ? const Color(0xFF1CB0F6) : const Color(0xFFAFAFAF);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Material(
-        color: active ? _duoGreen.withValues(alpha: 0.15) : Colors.transparent,
+        color: active ? const Color(0xFF1CB0F6).withValues(alpha: 0.12) : Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
           onTap: onTap,
@@ -182,7 +183,9 @@ class _NavItem extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: active ? _duoGreen.withValues(alpha: 0.6) : Colors.transparent,
+                  color: active
+                      ? const Color(0xFF1CB0F6).withValues(alpha: 0.6)
+                      : Colors.transparent,
                   width: 2),
             ),
             child: Row(
@@ -194,7 +197,7 @@ class _NavItem extends StatelessWidget {
                   const SizedBox(width: 14),
                   Text(label,
                       style: TextStyle(
-                          color: color,
+                          color: labelColor,
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
                           letterSpacing: 0.5)),
@@ -208,7 +211,7 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-// ── Center path ───────────────────────────────────────────────────────────────
+// ── Center path (learn) ───────────────────────────────────────────────────────
 
 class _CenterPath extends ConsumerWidget {
   const _CenterPath();
@@ -222,16 +225,15 @@ class _CenterPath extends ConsumerWidget {
 
     return curriculum.when(
       loading: () => const Center(child: CircularProgressIndicator(color: _duoGreen)),
-      error: (e, _) => Center(
-          child: Text('$e',
-              style: const TextStyle(color: Colors.white54))),
+      error: (e, _) =>
+          Center(child: Text('$e', style: const TextStyle(color: Colors.white54))),
       data: (topics) {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
         final withContent = {
           for (final t in topics)
-            if (t.steps.isNotEmpty) t.hsk
+            if (t.steps.any((s) => s.hasContent)) t.hsk
         };
 
         // The single "current" phase across the topic.
@@ -244,9 +246,7 @@ class _CenterPath extends ConsumerWidget {
             break;
           }
         }
-        final currentStep = current == null
-            ? (topic.steps.isNotEmpty ? topic.steps.first : null)
-            : topic.steps[current.stepIndex];
+        final currentStep = current != null ? topic.steps[current.stepIndex] : null;
 
         return Column(
           children: [
@@ -257,44 +257,30 @@ class _CenterPath extends ConsumerWidget {
                   ref.read(selectedTopicHskProvider.notifier).state = h,
             ),
             Expanded(
-              child: topic.steps.isEmpty
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(32),
-                        child: Text(
-                          tr
-                              ? 'HSK $selectedHsk için içerik yakında.'
-                              : 'Content for HSK $selectedHsk coming soon.',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 15),
-                        ),
-                      ),
-                    )
-                  : ListView(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                      children: [
-                        Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 600),
-                            child: Column(
-                              children: [
-                                if (currentStep != null)
-                                  _UnitHeader(step: currentStep, tr: tr),
-                                for (final step in topic.steps)
-                                  _StepBlock(
-                                    step: step,
-                                    topic: topic,
-                                    progress: progress,
-                                    currentKey: current?.key,
-                                    tr: tr,
-                                  ),
-                              ],
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+                children: [
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 600),
+                      child: Column(
+                        children: [
+                          if (currentStep != null)
+                            _UnitHeader(step: currentStep, tr: tr),
+                          for (final step in topic.steps)
+                            _StepBlock(
+                              step: step,
+                              topic: topic,
+                              progress: progress,
+                              currentKey: current?.key,
+                              tr: tr,
                             ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -325,7 +311,7 @@ class _HskSelector extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(right: 8),
                 child: Opacity(
-                  opacity: withContent.contains(h) || selected == h ? 1 : 0.4,
+                  opacity: withContent.contains(h) || selected == h ? 1 : 0.5,
                   child: GestureDetector(
                     onTap: () => onSelect(h),
                     child: Container(
@@ -352,7 +338,6 @@ class _HskSelector extends StatelessWidget {
   }
 }
 
-// Green unit header card (Duolingo "1. KISIM, 1. ÜNİTE" + title + REHBER).
 class _UnitHeader extends StatelessWidget {
   final PathStep step;
   final bool tr;
@@ -360,16 +345,13 @@ class _UnitHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = LifeCategory.labelFor(step.themeKey, isTr: tr);
     return Container(
       margin: const EdgeInsets.fromLTRB(8, 8, 8, 8),
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       decoration: BoxDecoration(
         color: _duoGreen,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: _duoGreenDark, offset: Offset(0, 4)),
-        ],
+        boxShadow: const [BoxShadow(color: _duoGreenDark, offset: Offset(0, 4))],
       ),
       child: Row(
         children: [
@@ -377,16 +359,14 @@ class _UnitHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  '${tr ? 'HSK ${step.hsk}, ADIM' : 'HSK ${step.hsk}, STEP'} ${step.index + 1}',
-                  style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5),
-                ),
+                Text('HSK ${step.hsk}, ${tr ? 'ADIM' : 'STEP'} ${step.index + 1}',
+                    style: const TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5)),
                 const SizedBox(height: 4),
-                Text(theme,
+                Text(step.title,
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 19,
@@ -420,7 +400,6 @@ class _UnitHeader extends StatelessWidget {
   }
 }
 
-// One step: a section label + its phase nodes in a gentle zigzag.
 class _StepBlock extends StatelessWidget {
   final PathStep step;
   final PathTopic topic;
@@ -435,39 +414,60 @@ class _StepBlock extends StatelessWidget {
     required this.tr,
   });
 
-  // Zigzag horizontal offsets, Duolingo-like.
   static const _offsets = [0.0, 48.0, 70.0, 48.0, 0.0, -48.0, -70.0, -48.0];
 
   @override
   Widget build(BuildContext context) {
-    final theme = LifeCategory.labelFor(step.themeKey, isTr: tr);
     return Column(
       children: [
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
         Row(children: [
           const Expanded(child: Divider(color: Color(0xFF2C3B45))),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text('${tr ? 'Adım' : 'Step'} ${step.index + 1} · $theme',
-                style: const TextStyle(
-                    color: Colors.white38,
+            child: Text('${tr ? 'Adım' : 'Step'} ${step.index + 1} · ${step.title}',
+                style: TextStyle(
+                    color: step.hasContent ? Colors.white60 : Colors.white30,
                     fontSize: 12,
                     fontWeight: FontWeight.w700)),
           ),
           const Expanded(child: Divider(color: Color(0xFF2C3B45))),
         ]),
         const SizedBox(height: 8),
-        for (var i = 0; i < step.phases.length; i++)
-          Transform.translate(
-            offset: Offset(_offsets[i % _offsets.length], 0),
-            child: _PhaseNode(
-              phase: step.phases[i],
-              topic: topic,
-              progress: progress,
-              isCurrent: step.phases[i].key == currentKey,
-              tr: tr,
+        if (!step.hasContent)
+          // Locked, content-less step (shown so the whole curriculum is visible).
+          Column(
+            children: [
+              Container(
+                width: 66,
+                height: 62,
+                decoration: BoxDecoration(
+                  color: _duoLocked,
+                  borderRadius: BorderRadius.circular(34),
+                  boxShadow: const [
+                    BoxShadow(color: Color(0xFF2A363D), offset: Offset(0, 5))
+                  ],
+                ),
+                child: const Icon(Icons.lock_rounded,
+                    color: Colors.white38, size: 24),
+              ),
+              const SizedBox(height: 6),
+              Text(tr ? 'yakında' : 'soon',
+                  style: const TextStyle(color: Colors.white24, fontSize: 11)),
+            ],
+          )
+        else
+          for (var i = 0; i < step.phases.length; i++)
+            Transform.translate(
+              offset: Offset(_offsets[i % _offsets.length], 0),
+              child: _PhaseNode(
+                phase: step.phases[i],
+                topic: topic,
+                progress: progress,
+                isCurrent: step.phases[i].key == currentKey,
+                tr: tr,
+              ),
             ),
-          ),
       ],
     );
   }
@@ -515,7 +515,8 @@ class _PhaseNode extends ConsumerWidget {
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => PhaseRunnerScreen(
           phase: phase,
-          title: 'HSK ${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
+          title:
+              'HSK ${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
         ),
       ));
       ref.invalidate(pathProgressProvider);
@@ -525,8 +526,7 @@ class _PhaseNode extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: [
-          if (isCurrent)
-            _StartBubble(tr: tr),
+          if (isCurrent) const _StartBubble(),
           GestureDetector(
             onTap: open,
             child: Container(
@@ -547,8 +547,7 @@ class _PhaseNode extends ConsumerWidget {
 }
 
 class _StartBubble extends StatelessWidget {
-  final bool tr;
-  const _StartBubble({required this.tr});
+  const _StartBubble();
 
   @override
   Widget build(BuildContext context) {
@@ -562,8 +561,8 @@ class _StartBubble extends StatelessWidget {
           BoxShadow(color: Color(0x22000000), blurRadius: 6, offset: Offset(0, 2)),
         ],
       ),
-      child: Text(tr ? 'BAŞLAT' : 'START',
-          style: const TextStyle(
+      child: const Text('BAŞLAT',
+          style: TextStyle(
               color: _duoGreen, fontSize: 14, fontWeight: FontWeight.w800)),
     );
   }
@@ -577,7 +576,8 @@ class _RightSidebar extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final score = ref.watch(currentUserProvider).valueOrNull?.stats.totalScore ?? 0;
+    final score =
+        ref.watch(currentUserProvider).valueOrNull?.stats.totalScore ?? 0;
     final curriculum = ref.watch(curriculumProvider).valueOrNull ?? const [];
     final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
     var totalPhases = 0, donePhases = 0;
@@ -599,7 +599,6 @@ class _RightSidebar extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Stat row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -638,12 +637,10 @@ class _RightSidebar extends ConsumerWidget {
             title: tr ? 'Günlük Görev' : 'Daily quest',
             child: Row(
               children: [
-                const Icon(Icons.bolt_rounded,
-                    color: Color(0xFFFFC800), size: 28),
+                const Icon(Icons.bolt_rounded, color: Color(0xFFFFC800), size: 28),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(
-                      tr ? 'Bir faz tamamla' : 'Complete one phase',
+                  child: Text(tr ? 'Bir faz tamamla' : 'Complete one phase',
                       style:
                           const TextStyle(color: Colors.white70, fontSize: 14)),
                 ),
@@ -693,159 +690,10 @@ class _Card extends StatelessWidget {
         children: [
           Text(title,
               style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w800)),
+                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           child,
         ],
-      ),
-    );
-  }
-}
-
-// ── Video slide-out panel ─────────────────────────────────────────────────────
-
-class _VideoSlideOut extends ConsumerWidget {
-  final bool tr;
-  final VoidCallback onClose;
-  const _VideoSlideOut({required this.tr, required this.onClose});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final hsk = ref.watch(selectedHskFilterProvider);
-    final life = ref.watch(selectedLifeCategoryProvider);
-
-    void toggleHsk(int h) {
-      final n = Set<int>.from(hsk);
-      n.contains(h) ? n.remove(h) : n.add(h);
-      ref.read(selectedHskFilterProvider.notifier).state = n;
-      ref.invalidate(videoFeedProvider);
-    }
-
-    void toggleLife(String c) {
-      final n = Set<String>.from(life);
-      n.contains(c) ? n.remove(c) : n.add(c);
-      ref.read(selectedLifeCategoryProvider.notifier).state = n;
-      ref.invalidate(videoFeedProvider);
-    }
-
-    return Container(
-      width: 320,
-      decoration: const BoxDecoration(
-        color: _duoPanel,
-        border: Border(right: BorderSide(color: Color(0xFF24333D))),
-        boxShadow: [BoxShadow(color: Color(0x55000000), blurRadius: 16)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 8, 8),
-            child: Row(children: [
-              Text(tr ? 'Serbest İzle' : 'Free watch',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800)),
-              const Spacer(),
-              IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white54),
-                  onPressed: onClose),
-            ]),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const _FilterTitle('HSK'),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    for (var h = 1; h <= 6; h++)
-                      _Chip(
-                          label: 'HSK $h',
-                          selected: hsk.contains(h),
-                          onTap: () => toggleHsk(h)),
-                  ]),
-                  const SizedBox(height: 18),
-                  _FilterTitle(tr ? 'Konu' : 'Topic'),
-                  Wrap(spacing: 8, runSpacing: 8, children: [
-                    for (final c in LifeCategory.values)
-                      _Chip(
-                          label: LifeCategory.labelFor(c.name, isTr: tr),
-                          selected: life.contains(c.name),
-                          onTap: () => toggleLife(c.name)),
-                  ]),
-                ],
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: SizedBox(
-              height: 50,
-              child: FilledButton.icon(
-                onPressed: () => context.go('/video'),
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(tr ? 'İzlemeye Başla' : 'Start watching'),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _duoGreen,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w800),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterTitle extends StatelessWidget {
-  final String text;
-  const _FilterTitle(this.text);
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Text(text.toUpperCase(),
-          style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5)),
-    );
-  }
-}
-
-class _Chip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _Chip(
-      {required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? _duoGreen : _duoBg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-              color: selected ? _duoGreen : const Color(0xFF3A4A54)),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                color: selected ? Colors.white : Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
       ),
     );
   }
