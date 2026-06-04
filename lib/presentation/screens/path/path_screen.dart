@@ -72,14 +72,15 @@ class _PathScreenState extends ConsumerState<PathScreen> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Right column moved to the LEFT, nav rail moved to the RIGHT.
+            if (right != null && w >= 1100) right,
+            Expanded(child: center),
             _LeftNav(
               compact: compactNav,
               section: _section,
               tr: tr,
               onSelect: (s) => setState(() => _section = s),
             ),
-            Expanded(child: center),
-            if (right != null && w >= 1100) right,
           ],
         ),
       ),
@@ -142,7 +143,7 @@ class _LeftNav extends StatelessWidget {
       width: compact ? 76 : 230,
       decoration: const BoxDecoration(
         color: _duoBg,
-        border: Border(right: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF24333D))),
       ),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       child: Column(
@@ -168,6 +169,13 @@ class _LeftNav extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
+          _NavItem(
+              icon: Icons.person_rounded,
+              color: const Color(0xFF1CB0F6),
+              label: tr ? 'PROFİL' : 'PROFILE',
+              active: section == _Section.profile,
+              compact: compact,
+              onTap: () => onSelect(_Section.profile)),
           _NavItem(
               icon: Icons.home_rounded,
               color: const Color(0xFFFF4B4B),
@@ -210,13 +218,6 @@ class _LeftNav extends StatelessWidget {
               active: section == _Section.shop,
               compact: compact,
               onTap: () => onSelect(_Section.shop)),
-          _NavItem(
-              icon: Icons.person_rounded,
-              color: const Color(0xFF1CB0F6),
-              label: tr ? 'PROFİL' : 'PROFILE',
-              active: section == _Section.profile,
-              compact: compact,
-              onTap: () => onSelect(_Section.profile)),
           _NavItem(
               icon: Icons.more_horiz_rounded,
               color: const Color(0xFFCE82FF),
@@ -688,7 +689,7 @@ class _RightSidebar extends ConsumerWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(right: BorderSide(color: Color(0xFF24333D))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
