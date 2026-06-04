@@ -3233,10 +3233,9 @@ class _WordTagEditorState extends State<_WordTagEditor> {
   void _addLine() => setState(() => _groups.add(<String>[]));
 
   void _addWord(String word) {
-    if (!_groups.any((g) => g.contains(word))) {
-      _groups.last.add(word);
-      _commit();
-    }
+    // Duplicates are allowed — a sentence can repeat the same word (e.g. 好…好).
+    _groups.last.add(word);
+    _commit();
     _ctrl.clear();
     setState(() => _suggestions = []);
   }
@@ -3495,18 +3494,16 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                     subtitle: Text(pinyin,
                         style: const TextStyle(
                             color: AppColors.onSurfaceMuted, fontSize: 11)),
-                    trailing: already
-                        ? const Icon(Icons.check,
-                            color: AppColors.correctAnswer, size: 16)
-                        : const Icon(Icons.add,
-                            color: AppColors.primary, size: 16),
-                    onTap: already ? null : () => _addWord(word),
+                    // Always tappable — duplicates allowed. A check hints it's
+                    // already in the list, but you can still add it again.
+                    trailing: Icon(already ? Icons.add_circle : Icons.add,
+                        color: AppColors.primary, size: 16),
+                    onTap: () => _addWord(word),
                   );
                 }),
                 // Add the typed text even when it isn't in the dictionary.
                 if (!_suggestions
-                        .any((s) => s['simplified'] == _ctrl.text.trim()) &&
-                    !widget.words.contains(_ctrl.text.trim()))
+                    .any((s) => s['simplified'] == _ctrl.text.trim()))
                   ListTile(
                     dense: true,
                     leading: const Icon(Icons.add_circle_outline,
