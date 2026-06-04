@@ -22,12 +22,14 @@ class InlinePlayerSection extends ConsumerStatefulWidget {
   // correctly. Defaults keep the free-feed behaviour (random start, looping).
   final bool phaseMode;
   final void Function(int correct, int total)? onPhaseComplete;
+  final void Function(int index)? onIndexChanged; // phase progress
 
   const InlinePlayerSection({
     super.key,
     required this.segments,
     this.phaseMode = false,
     this.onPhaseComplete,
+    this.onIndexChanged,
   });
 
   @override
@@ -62,6 +64,10 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     super.initState();
     _index = widget.phaseMode ? 0 : Random().nextInt(widget.segments.length);
     _optSwap = Random().nextBool();
+    if (widget.phaseMode) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => widget.onIndexChanged?.call(0));
+    }
   }
 
   @override
@@ -187,6 +193,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         _index += 1;
         _resetState();
       });
+      widget.onIndexChanged?.call(_index);
       return;
     }
     setState(() {

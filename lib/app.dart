@@ -113,6 +113,7 @@ final _router = GoRouter(
       builder: (_, state) =>
           VideoPlayerScreen(videoId: state.pathParameters['id']!),
     ),
+    GoRoute(path: '/home',          builder: (_, __) => const PathScreen()),
     GoRoute(path: '/play',          builder: (_, __) => const VoscreenPlayerScreen()),
     GoRoute(path: '/games/duel',    builder: (_, __) => const MandarinDuelScreen()),
     GoRoute(path: '/games/hanzi',   builder: (_, __) => const HanziBuildScreen()),
@@ -123,7 +124,6 @@ final _router = GoRouter(
       builder: (context, state, child) => _AppShell(child: child),
       routes: [
         GoRoute(path: '/hub',   redirect: (_, __) => '/home'),
-        GoRoute(path: '/home',  builder: (_, __) => const PathScreen()),
         GoRoute(path: '/video', builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),

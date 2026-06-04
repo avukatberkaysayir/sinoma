@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
 import '../home/inline_player_section.dart';
 
-// Plays one phase: the phase's videos in order, "answer to advance". On the last
-// answer it scores the phase; ≥ kPassRatio correct clears it (unlocks the next).
+const _duoGreen = Color(0xFF58CC02);
+const _duoGreenDark = Color(0xFF4CAF00);
+const _duoBg = Color(0xFF131F2A);
+const _duoTrack = Color(0xFF37464F);
+
+// Duolingo-style lesson view: top bar (X + segmented progress + hearts), the
+// video exercise centered, and a result screen at the end. Plays the phase's
+// videos in order; ≥ kPassRatio correct clears the phase.
 class PhaseRunnerScreen extends ConsumerStatefulWidget {
   final PathPhase phase;
-  final String title; // e.g. "HSK 2 · Adım 3 · Faz 2"
+  final String title;
   const PhaseRunnerScreen({super.key, required this.phase, required this.title});
 
   @override
@@ -18,6 +23,7 @@ class PhaseRunnerScreen extends ConsumerStatefulWidget {
 }
 
 class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
+  int _index = 0;
   bool _saving = false;
   ({int correct, int total, bool passed})? _result;
 
@@ -35,42 +41,79 @@ class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
             done: passed,
           );
       ref.invalidate(pathProgressProvider);
-    } catch (_) {/* keep the result UI; user can retry */}
+    } catch (_) {}
     if (mounted) setState(() => _saving = false);
   }
 
   @override
   Widget build(BuildContext context) {
+    final total = widget.phase.videos.length;
     return Scaffold(
-      backgroundColor: AppColors.surface,
-      appBar: AppBar(
-        backgroundColor: AppColors.surfaceVariant,
-        title: Text(widget.title, style: const TextStyle(fontSize: 15)),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
-      body: _result != null
-          ? _ResultView(
-              correct: _result!.correct,
-              total: _result!.total,
-              passed: _result!.passed,
-              saving: _saving,
-            )
-          : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1040),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: InlinePlayerSection(
-                    segments: widget.phase.videos,
-                    phaseMode: true,
-                    onPhaseComplete: _onComplete,
+      backgroundColor: _duoBg,
+      body: SafeArea(
+        child: _result != null
+            ? _ResultView(
+                correct: _result!.correct,
+                total: _result!.total,
+                passed: _result!.passed,
+                saving: _saving)
+            : Column(
+                children: [
+                  // Top bar: X + segmented progress + hearts
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    child: Row(
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.close,
+                              color: Colors.white54, size: 28),
+                          onPressed: () => Navigator.of(context).pop(),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: LinearProgressIndicator(
+                              value: total == 0 ? 0 : (_index) / total,
+                              minHeight: 16,
+                              backgroundColor: _duoTrack,
+                              valueColor:
+                                  const AlwaysStoppedAnimation(_duoGreen),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        const Icon(Icons.favorite_rounded,
+                            color: Color(0xFFFF4B4B), size: 24),
+                        const SizedBox(width: 4),
+                        const Text('5',
+                            style: TextStyle(
+                                color: Color(0xFFFF4B4B),
+                                fontSize: 16,
+                                fontWeight: FontWeight.w800)),
+                      ],
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1040),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: InlinePlayerSection(
+                            segments: widget.phase.videos,
+                            phaseMode: true,
+                            onPhaseComplete: _onComplete,
+                            onIndexChanged: (i) =>
+                                setState(() => _index = i),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ),
+      ),
     );
   }
 }
@@ -89,45 +132,46 @@ class _ResultView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = passed ? AppColors.correctAnswer : AppColors.wrongAnswer;
+    final color = passed ? _duoGreen : const Color(0xFFFF4B4B);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(passed ? Icons.emoji_events_rounded : Icons.refresh_rounded,
-              color: color, size: 72),
+              color: color, size: 80),
           const SizedBox(height: 16),
           Text(
             passed ? 'Tebrikler! Faz tamamlandı' : 'Bu sefer olmadı',
             style: const TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 22,
-                fontWeight: FontWeight.bold),
+                color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           Text('$correct / $total doğru',
-              style: const TextStyle(
-                  color: AppColors.onSurfaceMuted, fontSize: 16)),
+              style: const TextStyle(color: Colors.white60, fontSize: 16)),
           if (!passed) ...[
             const SizedBox(height: 4),
             Text('Geçmek için en az %${(kPassRatio * 100).round()}',
-                style: const TextStyle(
-                    color: AppColors.onSurfaceMuted, fontSize: 13)),
+                style: const TextStyle(color: Colors.white38, fontSize: 13)),
           ],
           const SizedBox(height: 28),
           if (saving)
-            const CircularProgressIndicator(color: AppColors.primary)
+            const CircularProgressIndicator(color: _duoGreen)
           else
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(passed),
-              style: FilledButton.styleFrom(
-                backgroundColor: passed ? AppColors.primary : color,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+            SizedBox(
+              width: 240,
+              height: 52,
+              child: FilledButton(
+                onPressed: () => Navigator.of(context).pop(passed),
+                style: FilledButton.styleFrom(
+                  backgroundColor: passed ? _duoGreen : color,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  shadowColor: _duoGreenDark,
+                ),
+                child: Text(passed ? 'DEVAM ET' : 'GERİ DÖN',
+                    style: const TextStyle(
+                        fontSize: 16, fontWeight: FontWeight.w800)),
               ),
-              child: Text(passed ? 'Devam Et' : 'Geri Dön',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
             ),
         ],
       ),
