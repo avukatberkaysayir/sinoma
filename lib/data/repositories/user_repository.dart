@@ -15,6 +15,40 @@ class UserRepository {
         .map((rows) => rows.isEmpty ? null : UserModel.fromMap(rows.first));
   }
 
+  // ── Learning-path progress (users.path_progress jsonb) ──────────────────────
+
+  Future<Map<String, dynamic>> loadPathProgress() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return {};
+    final data = await _db
+        .from('users')
+        .select('path_progress')
+        .eq('id', uid)
+        .maybeSingle();
+    final p = data?['path_progress'];
+    return p is Map ? Map<String, dynamic>.from(p) : {};
+  }
+
+  Future<void> savePhaseResult(
+    String phaseKey, {
+    required int correct,
+    required int total,
+    required bool done,
+  }) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    final current = await loadPathProgress();
+    final prev = current[phaseKey] as Map?;
+    // Keep the best score; never un-complete a finished phase.
+    final bestCorrect = (prev?['correct'] as int?) ?? 0;
+    current[phaseKey] = {
+      'correct': correct > bestCorrect ? correct : bestCorrect,
+      'total': total,
+      'done': done || (prev?['done'] == true),
+    };
+    await _db.from('users').update({'path_progress': current}).eq('id', uid);
+  }
+
   Future<UserModel?> loadUser(String uid) async {
     final data =
         await _db.from('users').select().eq('id', uid).maybeSingle();

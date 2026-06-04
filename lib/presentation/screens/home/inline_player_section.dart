@@ -17,7 +17,18 @@ import '../../widgets/video/direct_youtube_player.dart';
 class InlinePlayerSection extends ConsumerStatefulWidget {
   final List<VideoSegmentModel> segments;
 
-  const InlinePlayerSection({super.key, required this.segments});
+  // Phase mode (learning path): play [segments] in order from the first; after
+  // the last answer call [onPhaseComplete] with how many were answered
+  // correctly. Defaults keep the free-feed behaviour (random start, looping).
+  final bool phaseMode;
+  final void Function(int correct, int total)? onPhaseComplete;
+
+  const InlinePlayerSection({
+    super.key,
+    required this.segments,
+    this.phaseMode = false,
+    this.onPhaseComplete,
+  });
 
   @override
   ConsumerState<InlinePlayerSection> createState() =>
@@ -44,17 +55,19 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   int _countdown = _choiceSeconds;
   bool _countdownActive = false;
   bool _timedOut = false; // choice window expired without a selection
+  int _correctCount = 0; // phase mode: correct answers so far
 
   @override
   void initState() {
     super.initState();
-    _index = Random().nextInt(widget.segments.length);
+    _index = widget.phaseMode ? 0 : Random().nextInt(widget.segments.length);
     _optSwap = Random().nextBool();
   }
 
   @override
   void didUpdateWidget(InlinePlayerSection old) {
     super.didUpdateWidget(old);
+    if (widget.phaseMode) return; // fixed ordered list — no random reindex
     if (widget.segments != old.segments && widget.segments.isNotEmpty) {
       // Keep showing the current clip if it still exists in the new list (the
       // feed can re-emit for unrelated reasons); only jump when it's gone.
@@ -165,6 +178,17 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
 
   void _goNext() {
     if (!mounted) return;
+    if (widget.phaseMode) {
+      if (_index >= widget.segments.length - 1) {
+        widget.onPhaseComplete?.call(_correctCount, widget.segments.length);
+        return;
+      }
+      setState(() {
+        _index += 1;
+        _resetState();
+      });
+      return;
+    }
     setState(() {
       _index = (_index + 1) % widget.segments.length;
       _resetState();
@@ -205,6 +229,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _stopCountdown();
     final seg = _seg;
     final delta = correct ? _correctPoints(seg) : -_penaltyPoints(seg);
+    if (correct) _correctCount++;
     _addScore(delta);
     _playerCtrl.showScorePopup(delta);
     // No auto-advance — the player shows a "next" arrow; the user taps it.

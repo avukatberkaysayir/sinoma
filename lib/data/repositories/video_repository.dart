@@ -30,6 +30,19 @@ class VideoRepository {
     }
   }
 
+  // All active clips (every HSK level) — the learning path builds its curriculum
+  // from this pool by slicing per HSK level + theme.
+  Future<List<VideoSegmentModel>> loadAllActiveSegments() async {
+    final data = await _db
+        .from('videos')
+        .select()
+        .eq('is_active', true)
+        .order('hsk_level')
+        .order('created_at', ascending: false)
+        .limit(5000);
+    return data.map(VideoSegmentModel.fromMap).toList();
+  }
+
   Future<VideoSegmentModel?> loadSegment(String videoId) async {
     try {
       final data = await _db

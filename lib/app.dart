@@ -17,6 +17,7 @@ import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/landing/landing_screen.dart';
+import 'presentation/screens/path/path_screen.dart';
 import 'presentation/widgets/common/section_sidebar.dart';
 import 'presentation/screens/language/language_selection_screen.dart';
 import 'presentation/screens/legal/privacy_policy_screen.dart';
@@ -122,7 +123,7 @@ final _router = GoRouter(
       builder: (context, state, child) => _AppShell(child: child),
       routes: [
         GoRoute(path: '/hub',   redirect: (_, __) => '/home'),
-        GoRoute(path: '/home',  builder: (_, __) => const HomeScreen()),
+        GoRoute(path: '/home',  builder: (_, __) => const PathScreen()),
         GoRoute(path: '/video', builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
