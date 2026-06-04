@@ -24,6 +24,8 @@ class PhaseRunnerScreen extends ConsumerStatefulWidget {
 
 class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
   int _index = 0;
+  int _wrong = 0;
+  int? _startHearts;
   bool _saving = false;
   ({int correct, int total, bool passed})? _result;
 
@@ -48,6 +50,8 @@ class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
   @override
   Widget build(BuildContext context) {
     final total = widget.phase.videos.length;
+    _startHearts ??= ref.read(pathMetaProvider).hearts;
+    final heartsNow = (_startHearts! - _wrong).clamp(0, 5);
     return Scaffold(
       backgroundColor: _duoBg,
       body: SafeArea(
@@ -86,8 +90,8 @@ class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
                         const Icon(Icons.favorite_rounded,
                             color: Color(0xFFFF4B4B), size: 24),
                         const SizedBox(width: 4),
-                        const Text('5',
-                            style: TextStyle(
+                        Text('$heartsNow',
+                            style: const TextStyle(
                                 color: Color(0xFFFF4B4B),
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800)),
@@ -106,6 +110,9 @@ class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
                             onPhaseComplete: _onComplete,
                             onIndexChanged: (i) =>
                                 setState(() => _index = i),
+                            onAnswered: (correct) {
+                              if (!correct) setState(() => _wrong++);
+                            },
                           ),
                         ),
                       ),

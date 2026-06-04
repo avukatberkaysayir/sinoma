@@ -47,67 +47,144 @@ class PathTopic {
   const PathTopic({required this.hsk, required this.steps});
 }
 
-// Predefined curriculum: topic (step) titles per HSK level. The whole map is
-// always shown (Duolingo-style); steps fill with content as videos are approved
-// and lock otherwise. Extend each list toward ~30 steps over time.
+// Predefined curriculum: 30 topic (step) titles per HSK level. The whole map is
+// always shown (Duolingo-style); steps fill with thematically-matching videos as
+// they are approved and lock otherwise.
 const Map<int, List<String>> kStepTitles = {
   1: [
-    'Selamlaşma', 'Tanışma', 'Sayılar', 'Aile', 'Zaman & Tarih',
-    'Yeme & İçme', 'Renkler & Nesneler', 'Günlük Fiiller', 'Yön & Yer',
-    'Alışveriş', 'Okul', 'Vedalaşma',
+    'Selamlaşma', 'Tanışma', 'Kişisel Bilgiler', 'Sayılar 1-10', 'Sayılar 11-100',
+    'Aile', 'Meslekler', 'Zaman & Saat', 'Günler & Aylar', 'Yeme & İçme',
+    'Meyve & Sebze', 'Renkler', 'Günlük Nesneler', 'Vücut', 'Giysiler',
+    'Hava Durumu', 'Günlük Fiiller', 'Yön & Yer', 'Ev & Odalar', 'Okul',
+    'Alışveriş', 'Para & Fiyat', 'Ulaşım', 'Hayvanlar', 'Temel Duygular',
+    'Temel Sıfatlar', 'Soru Sözcükleri', 'Selam & Veda', 'Tekrar I', 'Tekrar II',
   ],
   2: [
-    'Hobiler', 'Hava Durumu', 'Ulaşım', 'Sağlık', 'Telefon & İletişim',
-    'İş & Meslek', 'Ev & Eşya', 'Duygular', 'Plan Yapma', 'Yemek Tarifi',
-    'Spor', 'Tatil',
+    'Hobiler', 'Boş Zaman', 'Hava & Mevsimler', 'Şehirde Ulaşım', 'Yol Sorma',
+    'Sağlık & Vücut', 'Doktora Gitmek', 'Telefonla Konuşma', 'İnternet & Mesaj',
+    'İş & Meslek', 'Ofiste', 'Ev İşleri', 'Mobilya & Eşya', 'Duygular',
+    'Plan Yapma', 'Randevu', 'Yemek Tarifi', 'Restoranda', 'Spor', 'Egzersiz',
+    'Tatil', 'Otelde', 'Kıyafet Alışverişi', 'Markette', 'Komşular',
+    'Arkadaşlık', 'Davet', 'Kutlama', 'Tekrar I', 'Tekrar II',
   ],
   3: [
-    'Seyahat', 'Restoranda', 'Doktorda', 'Bankada', 'Şehir Hayatı',
-    'Doğa & Çevre', 'Teknoloji', 'Eğitim', 'Kültür & Sanat', 'Görüşme',
-    'Alışkanlıklar', 'Kutlamalar',
+    'Seyahat Planı', 'Havaalanında', 'Otel & Konaklama', 'Restoran Kültürü',
+    'Bankada İşlemler', 'Postanede', 'Şehir Hayatı', 'Kırsal Hayat',
+    'Doğa & Çevre', 'Hayvanlar & Bitkiler', 'Teknoloji', 'Sosyal Medya',
+    'Eğitim & Okul', 'Sınavlar', 'Kültür & Sanat', 'Sinema & Müzik',
+    'Sağlıklı Beslenme', 'Hastalıklar', 'İş Görüşmesi', 'Toplantı',
+    'Alışkanlıklar', 'Karar Verme', 'Kıyaslama', 'Tavsiye', 'Şikayet',
+    'Kutlamalar', 'Gelenekler', 'Anılar', 'Tekrar I', 'Tekrar II',
   ],
   4: [
-    'İş Görüşmesi', 'Toplantılar', 'Haberler', 'Ekonomi', 'Sosyal Medya',
-    'Bilim', 'Tarih', 'Edebiyat', 'Çevre Sorunları', 'Sağlıklı Yaşam',
-    'Hukuk', 'Tartışma',
+    'İş Dünyası', 'Kariyer', 'Mülakat', 'Sunum', 'Ekonomi & Para',
+    'Haberler', 'Medya', 'Sosyal Konular', 'Bilim & Teknoloji', 'İnternet Çağı',
+    'Tarih', 'Coğrafya', 'Edebiyat', 'Sanat & Estetik', 'Çevre Sorunları',
+    'İklim & Doğa', 'Sağlık Sistemi', 'Psikoloji', 'Eğitim Politikası',
+    'Hukuk & Adalet', 'Suç & Ceza', 'Tartışma', 'İkna', 'Görüş Bildirme',
+    'Kültürlerarası', 'Küreselleşme', 'Gelecek', 'Etik', 'Tekrar I', 'Tekrar II',
   ],
   5: [
-    'Akademik Dil', 'İş Dünyası', 'Politika', 'Felsefe', 'Psikoloji',
-    'Sanat Eleştirisi', 'Küresel Konular', 'Teknoloji & Gelecek', 'Edebi Metinler',
-    'Resmî Yazışma', 'Sunum', 'Müzakere',
+    'Akademik Dil', 'Araştırma', 'İş Stratejisi', 'Liderlik', 'Politika',
+    'Diplomasi', 'Felsefe', 'Mantık', 'Psikoloji İleri', 'Sosyoloji',
+    'Sanat Eleştirisi', 'Müzik Teorisi', 'Küresel Ekonomi', 'Finans',
+    'Teknoloji & Gelecek', 'Yapay Zeka', 'Edebi Metinler', 'Şiir & Nesir',
+    'Resmî Yazışma', 'Rapor Yazma', 'Müzakere', 'Anlaşmazlık Çözümü',
+    'Bilimsel Yöntem', 'Tıp & Sağlık', 'Çevre Politikası', 'Sürdürülebilirlik',
+    'Tarih Felsefesi', 'Medeniyetler', 'Tekrar I', 'Tekrar II',
   ],
   6: [
-    'İleri Akademik', 'Deyimler & Atasözleri', 'Klasik Metinler', 'Şiir',
-    'Hukuki Dil', 'Tıbbi Dil', 'Felsefi Tartışma', 'Köşe Yazısı',
-    'Bilimsel Makale', 'Diplomatik Dil', 'Edebi Çeviri', 'Usta Seviyesi',
+    'İleri Akademik', 'Tez & Argüman', 'Deyimler', 'Atasözleri', 'Klasik Metinler',
+    'Klasik Şiir', 'Modern Edebiyat', 'Hukuki Dil', 'Sözleşmeler', 'Tıbbi Dil',
+    'Bilimsel Makale', 'Felsefi Tartışma', 'Eleştirel Düşünme', 'Köşe Yazısı',
+    'Gazetecilik', 'Diplomatik Dil', 'Uluslararası İlişkiler', 'Edebi Çeviri',
+    'Üslup & Retorik', 'Mecaz & İmge', 'Kültürel Göndermeler', 'Tarihî Belgeler',
+    'Bilim Felsefesi', 'Etik Tartışmalar', 'Sanat Tarihi', 'Estetik Kuram',
+    'Söylem Analizi', 'Usta Seviyesi', 'Tekrar I', 'Tekrar II',
   ],
 };
 
-// Build the full curriculum (HSK 1-6). Every predefined step is created; the
-// HSK video pool fills steps' phases in order, the rest stay locked.
+// Map a step title to a content theme (a LifeCategory.name) by keyword, so videos
+// land in thematically-appropriate steps. Falls back to daily_life.
+String _themeForTitle(String title) {
+  final t = title.toLowerCase();
+  bool has(List<String> ks) => ks.any(t.contains);
+  if (has(['aile', 'komşu', 'arkadaş', 'tanış', 'kişisel', 'davet'])) {
+    return 'family';
+  }
+  if (has(['yeme', 'içme', 'meyve', 'sebze', 'yemek', 'restoran', 'tarif', 'beslen', 'market'])) {
+    return 'food';
+  }
+  if (has(['alışveriş', 'para', 'fiyat', 'kıyafet', 'giysi'])) {
+    return 'shopping';
+  }
+  if (has(['seyahat', 'tatil', 'otel', 'ulaşım', 'havaalan', 'yol', 'konaklama', 'coğraf'])) {
+    return 'travel';
+  }
+  if (has(['iş', 'meslek', 'ofis', 'kariyer', 'mülakat', 'görüşme', 'ekonomi', 'finans',
+      'toplantı', 'sunum', 'rapor', 'müzakere', 'strateji', 'liderlik', 'sözleşme', 'ticar'])) {
+    return 'business';
+  }
+  if (has(['okul', 'eğitim', 'sınav', 'akademik', 'araştırma', 'ders', 'tez', 'üniversite'])) {
+    return 'school';
+  }
+  if (has(['sağlık', 'doktor', 'hasta', 'vücut', 'tıbb', 'tıp', 'psikoloji', 'egzersiz'])) {
+    return 'health';
+  }
+  if (has(['teknoloji', 'internet', 'bilim', 'yapay zeka', 'medya', 'dijital', 'sosyal medya'])) {
+    return 'technology';
+  }
+  if (has(['sanat', 'müzik', 'sinema', 'film', 'edebi', 'şiir', 'kültür', 'eğlence', 'estetik'])) {
+    return 'entertainment';
+  }
+  if (has(['spor', 'egzersiz', 'futbol', 'oyun'])) {
+    return 'sports';
+  }
+  if (has(['çocuk', 'hayvan', 'renk', 'sayı'])) {
+    return 'children';
+  }
+  return 'daily_life';
+}
+
+// Build the full curriculum (HSK 1-6). Every predefined step is created and
+// filled with videos whose theme matches the step title (per HSK level), in
+// order; steps without matching content stay locked.
 List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
   final topics = <PathTopic>[];
   for (var hsk = 1; hsk <= 6; hsk++) {
     final titles = kStepTitles[hsk] ?? const [];
+
+    // Group this HSK level's videos by theme into FIFO queues (newest first).
+    final byTheme = <String, List<VideoSegmentModel>>{};
     final pool = all.where((v) => v.hskLevelTags.contains(hsk)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-
-    // Slice the pool into phases of kPhaseSize.
-    final phaseChunks = <List<VideoSegmentModel>>[];
-    for (var i = 0; i < pool.length; i += kPhaseSize) {
-      phaseChunks.add(pool.sublist(
-          i, (i + kPhaseSize) > pool.length ? pool.length : i + kPhaseSize));
+    for (final v in pool) {
+      final theme = v.lifeTags.isNotEmpty ? v.lifeTags.first : 'daily_life';
+      (byTheme[theme] ??= []).add(v);
     }
+    final cursors = {for (final k in byTheme.keys) k: 0};
 
-    var cursor = 0;
     final steps = <PathStep>[];
     for (var s = 0; s < titles.length; s++) {
-      final stepPhases = <PathPhase>[];
-      for (var p = 0; p < kPhasesPerStep && cursor < phaseChunks.length; p++) {
-        stepPhases.add(PathPhase(
-            hsk: hsk, stepIndex: s, phaseIndex: p, videos: phaseChunks[cursor++]));
+      final theme = _themeForTitle(titles[s]);
+      final queue = byTheme[theme] ?? const [];
+      final cur = cursors[theme] ?? 0;
+      const cap = kPhasesPerStep * kPhaseSize;
+      final take = (queue.length - cur).clamp(0, cap);
+      final stepVideos = queue.sublist(cur, cur + take);
+      cursors[theme] = cur + take;
+
+      final phases = <PathPhase>[];
+      for (var i = 0; i < stepVideos.length; i += kPhaseSize) {
+        phases.add(PathPhase(
+          hsk: hsk,
+          stepIndex: s,
+          phaseIndex: i ~/ kPhaseSize,
+          videos: stepVideos.sublist(
+              i, (i + kPhaseSize) > stepVideos.length ? stepVideos.length : i + kPhaseSize),
+        ));
       }
-      steps.add(PathStep(hsk: hsk, index: s, title: titles[s], phases: stepPhases));
+      steps.add(PathStep(hsk: hsk, index: s, title: titles[s], phases: phases));
     }
     topics.add(PathTopic(hsk: hsk, steps: steps));
   }
@@ -167,3 +244,39 @@ final pathProgressProvider = FutureProvider<Map<String, dynamic>>((ref) {
 
 // Which HSK topic the path screen is showing.
 final selectedTopicHskProvider = StateProvider<int>((ref) => 1);
+
+// ── Gamification: hearts (lives) + streak ─────────────────────────────────────
+const int kMaxHearts = 5;
+const Duration kHeartRefill = Duration(hours: 4); // +1 heart every 4h
+
+class PathMeta {
+  final int hearts; // live count (refill applied)
+  final int streak; // consecutive active days
+  final DateTime? nextHeartAt; // when the next heart refills (null if full)
+  const PathMeta({this.hearts = kMaxHearts, this.streak = 0, this.nextHeartAt});
+}
+
+// Hearts/streak live in path_progress under the "__meta" key:
+// {hearts, heartsTs(ISO), streak, lastActive(yyyy-mm-dd)}.
+PathMeta computeMeta(Map<String, dynamic> progress) {
+  final m = progress['__meta'];
+  if (m is! Map) return const PathMeta();
+  var hearts = (m['hearts'] as int?) ?? kMaxHearts;
+  final ts = DateTime.tryParse((m['heartsTs'] as String?) ?? '');
+  DateTime? nextAt;
+  if (hearts < kMaxHearts && ts != null) {
+    final elapsed = DateTime.now().difference(ts);
+    final refills = elapsed.inMinutes ~/ kHeartRefill.inMinutes;
+    hearts = (hearts + refills).clamp(0, kMaxHearts);
+    if (hearts < kMaxHearts) {
+      nextAt = ts.add(kHeartRefill * (refills + 1));
+    }
+  }
+  return PathMeta(
+      hearts: hearts, streak: (m['streak'] as int?) ?? 0, nextHeartAt: nextAt);
+}
+
+final pathMetaProvider = Provider<PathMeta>((ref) {
+  final p = ref.watch(pathProgressProvider).valueOrNull ?? const {};
+  return computeMeta(p);
+});

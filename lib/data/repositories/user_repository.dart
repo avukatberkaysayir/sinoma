@@ -46,7 +46,49 @@ class UserRepository {
       'total': total,
       'done': done || (prev?['done'] == true),
     };
+    current['__meta'] = _updatedMeta(current['__meta'], wrong: total - correct);
     await _db.from('users').update({'path_progress': current}).eq('id', uid);
+  }
+
+  // Apply heart loss (per wrong answer, with 4h refill) + daily streak bump.
+  static const int _maxHearts = 5;
+  static const int _refillMins = 4 * 60;
+
+  Map<String, dynamic> _updatedMeta(dynamic raw, {required int wrong}) {
+    final m = raw is Map ? Map<String, dynamic>.from(raw) : <String, dynamic>{};
+    final now = DateTime.now();
+
+    // Live hearts (apply refill since heartsTs), then subtract wrong answers.
+    var hearts = (m['hearts'] as int?) ?? _maxHearts;
+    final ts = DateTime.tryParse((m['heartsTs'] as String?) ?? '');
+    if (hearts < _maxHearts && ts != null) {
+      hearts = (hearts + now.difference(ts).inMinutes ~/ _refillMins)
+          .clamp(0, _maxHearts);
+    }
+    final newHearts = (hearts - (wrong < 0 ? 0 : wrong)).clamp(0, _maxHearts);
+    m['hearts'] = newHearts;
+    // Reset the refill clock only when hearts drop below full.
+    if (newHearts < _maxHearts) {
+      m['heartsTs'] = now.toIso8601String();
+    } else {
+      m.remove('heartsTs');
+    }
+
+    // Daily streak.
+    String dayKey(DateTime d) =>
+        '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    final today = dayKey(now);
+    final yesterday = dayKey(now.subtract(const Duration(days: 1)));
+    final last = m['lastActive'] as String?;
+    if (last == today) {
+      m['streak'] = (m['streak'] as int?) ?? 1;
+    } else if (last == yesterday) {
+      m['streak'] = ((m['streak'] as int?) ?? 0) + 1;
+    } else {
+      m['streak'] = 1;
+    }
+    m['lastActive'] = today;
+    return m;
   }
 
   Future<UserModel?> loadUser(String uid) async {

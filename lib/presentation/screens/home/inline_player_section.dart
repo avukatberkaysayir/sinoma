@@ -23,6 +23,7 @@ class InlinePlayerSection extends ConsumerStatefulWidget {
   final bool phaseMode;
   final void Function(int correct, int total)? onPhaseComplete;
   final void Function(int index)? onIndexChanged; // phase progress
+  final void Function(bool correct)? onAnswered; // each answer (for hearts)
 
   const InlinePlayerSection({
     super.key,
@@ -30,6 +31,7 @@ class InlinePlayerSection extends ConsumerStatefulWidget {
     this.phaseMode = false,
     this.onPhaseComplete,
     this.onIndexChanged,
+    this.onAnswered,
   });
 
   @override
@@ -169,6 +171,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         final delta = -_penaltyPoints(_seg);
         _addScore(delta, answered: false);
         _playerCtrl.showScorePopup(delta);
+        widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
         setState(() {
           _countdownActive = false;
           _timedOut = true;
@@ -239,6 +242,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     if (correct) _correctCount++;
     _addScore(delta);
     _playerCtrl.showScorePopup(delta);
+    widget.onAnswered?.call(correct);
     // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _pickedAnswer = text);
   }

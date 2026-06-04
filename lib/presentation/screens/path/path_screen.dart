@@ -512,6 +512,16 @@ class _PhaseNode extends ConsumerWidget {
 
     Future<void> open() async {
       if (!unlocked) return;
+      if (ref.read(pathMetaProvider).hearts <= 0) {
+        final next = ref.read(pathMetaProvider).nextHeartAt;
+        final mins = next?.difference(DateTime.now()).inMinutes.clamp(0, 9999);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr
+              ? 'Canın kalmadı. ${mins != null ? '~$mins dk sonra bir can dolacak.' : 'Yenilenmesini bekle.'}'
+              : 'Out of hearts. ${mins != null ? 'A heart refills in ~$mins min.' : 'Wait to refill.'}'),
+        ));
+        return;
+      }
       await Navigator.of(context).push(MaterialPageRoute(
         builder: (_) => PhaseRunnerScreen(
           phase: phase,
@@ -578,6 +588,7 @@ class _RightSidebar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final score =
         ref.watch(currentUserProvider).valueOrNull?.stats.totalScore ?? 0;
+    final meta = ref.watch(pathMetaProvider);
     final curriculum = ref.watch(curriculumProvider).valueOrNull ?? const [];
     final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
     var totalPhases = 0, donePhases = 0;
@@ -602,12 +613,12 @@ class _RightSidebar extends ConsumerWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const _Stat(icon: Icons.local_fire_department_rounded,
-                  color: Color(0xFFFF9600), value: '0'),
+              _Stat(icon: Icons.local_fire_department_rounded,
+                  color: const Color(0xFFFF9600), value: '${meta.streak}'),
               _Stat(icon: Icons.diamond_rounded,
                   color: const Color(0xFF1CB0F6), value: '$score'),
-              const _Stat(icon: Icons.favorite_rounded,
-                  color: Color(0xFFFF4B4B), value: '5'),
+              _Stat(icon: Icons.favorite_rounded,
+                  color: const Color(0xFFFF4B4B), value: '${meta.hearts}'),
             ],
           ),
           const SizedBox(height: 20),
