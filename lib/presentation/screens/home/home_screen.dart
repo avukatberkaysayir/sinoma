@@ -323,24 +323,14 @@ class _FilterSidebar extends ConsumerWidget {
                     hasActive: lifeCategories.isNotEmpty,
                     isDark: isDark,
                     children: [
-                      _SidebarItem(
-                        label: l10n.dailyLife,
-                        selected: lifeCategories.contains('daily_life'),
-                        onTap: () => toggleLife('daily_life'),
-                        isDark: isDark,
-                      ),
-                      _SidebarItem(
-                        label: l10n.businessLife,
-                        selected: lifeCategories.contains('business'),
-                        onTap: () => toggleLife('business'),
-                        isDark: isDark,
-                      ),
-                      _SidebarItem(
-                        label: l10n.childrenLife,
-                        selected: lifeCategories.contains('children'),
-                        onTap: () => toggleLife('children'),
-                        isDark: isDark,
-                      ),
+                      for (final c in LifeCategory.values)
+                        _SidebarItem(
+                          label: LifeCategory.labelFor(c.name,
+                              isTr: l10n.languageCode == 'tr'),
+                          selected: lifeCategories.contains(c.name),
+                          onTap: () => toggleLife(c.name),
+                          isDark: isDark,
+                        ),
                     ],
                   ),
                   _SidebarGroup(
@@ -453,14 +443,8 @@ class _ActiveFilterChips extends ConsumerWidget {
     }
 
     for (final cat in lifeCategories) {
-      final label = switch (cat) {
-        'daily_life' => l10n.dailyLife,
-        'business'   => l10n.businessLife,
-        'children'   => l10n.childrenLife,
-        _            => cat,
-      };
       chips.add(_RemovableChip(
-        label: label,
+        label: LifeCategory.labelFor(cat, isTr: l10n.languageCode == 'tr'),
         onRemove: () => onRemoveLifeCategory(cat),
         isDark: isDark,
       ));

@@ -2531,10 +2531,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     children: [
                       _multiDropdown<String>(
                         label: 'Hayat',
-                        options: const [
-                          (value: 'daily_life', text: 'Günlük Hayat'),
-                          (value: 'business', text: 'İş'),
-                          (value: 'children', text: 'Çocuk'),
+                        options: [
+                          for (final c in LifeCategory.values)
+                            (value: c.name, text: c.tr),
                         ],
                         chosen: _lifeCategories,
                         onAdd: (v) => setState(() => _lifeCategories.add(v)),
@@ -2901,11 +2900,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     );
   }
 
-  String _lifeLabel(String code) => switch (code) {
-        'business' => 'İş',
-        'children' => 'Çocuk',
-        _ => 'Günlük Hayat',
-      };
+  String _lifeLabel(String code) => LifeCategory.labelFor(code, isTr: true);
 
   String _lengthBucket() {
     final s = _targetWords.isNotEmpty

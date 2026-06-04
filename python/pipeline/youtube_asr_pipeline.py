@@ -127,6 +127,97 @@ def _segment_ordered(text: str, valid: set[str]) -> list[str]:
     return result
 
 
+# ── Auto-classification (grammar + life topic) ────────────────────────────────
+# Deterministic, no API. Grammar: surface-form triggers for the salient HSK
+# grammar points (the ubiquitous 的/了/是/不 are skipped — they add no diversity).
+# Ordered most-specific-first so nested patterns (怎么样 before 怎么) win; a matched
+# trigger is consumed so the shorter one does not double-tag. Capped at 4.
+_GRAMMAR_TRIGGERS: list[tuple[str, list[str]]] = [
+    # connectors / complex sentences
+    ("ruguo", ["如果"]), ("yaoshi", ["要是"]), ("jiaru", ["假如"]), ("wanyi", ["万一"]),
+    ("fouze", ["否则"]), ("zhiyao", ["只要"]), ("zhiyou", ["只有"]), ("wulun", ["无论"]),
+    ("buguan", ["不管"]), ("chufei", ["除非"]), ("yinwei", ["因为"]), ("suoyi", ["所以"]),
+    ("jiran", ["既然"]), ("yinci", ["因此"]), ("suiran", ["虽然"]), ("danshi", ["但是", "可是"]),
+    ("raner", ["然而"]), ("jishi", ["即使"]), ("napa", ["哪怕"]), ("jinguan", ["尽管"]),
+    ("budan", ["不但"]), ("bujin", ["不仅"]), ("erqie", ["而且"]), ("shenzhi", ["甚至"]),
+    ("huozhe", ["或者"]), ("yaome", ["要么"]), ("ranhou", ["然后"]), ("yushi", ["于是"]),
+    ("yibian", ["一边"]), ("que", ["却"]),
+    # special patterns / comparison
+    ("yuelaiyue", ["越来越"]), ("genYiyang", ["一样"]), ("buru", ["不如"]),
+    ("ba", ["把"]), ("bei", ["被"]), ("bijiao", ["比较"]), ("bi", ["比"]),
+    # modal verbs
+    ("yinggai", ["应该"]), ("xuyao", ["需要"]), ("bixu", ["必须"]), ("dasuan", ["打算"]),
+    ("keyi", ["可以"]), ("hui", ["会"]), ("neng", ["能"]), ("yao", ["要"]),
+    ("xiang", ["想"]), ("gan", ["敢"]),
+    # question forms
+    ("weishenme", ["为什么"]), ("zenmeyang", ["怎么样"]), ("zenme", ["怎么"]),
+    ("haishi", ["还是"]), ("nandao", ["难道"]),
+    # prepositions
+    ("weile", ["为了"]), ("guanyu", ["关于"]), ("genju", ["根据"]), ("chule", ["除了"]),
+    ("cong", ["从"]), ("gei", ["给"]), ("gen", ["跟"]), ("xiangPrep", ["向"]),
+    ("li", ["离"]), ("lian", ["连"]), ("dui", ["对"]),
+    # adverbs
+    ("yizhi", ["一直"]), ("yijing", ["已经"]), ("changchang", ["常常", "经常"]),
+    ("zhongyu", ["终于"]),
+    ("cai", ["才"]), ("jiu", ["就"]), ("dou", ["都"]), ("zaiAgain", ["再"]),
+    ("youAgain", ["又"]), ("tai", ["太"]), ("geng", ["更"]), ("zui", ["最"]),
+    # aspect / complements / particles
+    ("zhengzai", ["正在"]), ("qilai", ["起来"]), ("xiaqu", ["下去"]),
+    ("guo", ["过"]), ("zhe", ["着"]), ("dehua", ["的话"]),
+    ("ma", ["吗"]), ("ne", ["呢"]), ("baParticle", ["吧"]),
+]
+
+_LIFE_LEXICON: list[tuple[str, list[str]]] = [
+    ("family", ["妈妈", "爸爸", "父母", "孩子", "儿子", "女儿", "家人", "家庭", "哥哥",
+                "姐姐", "弟弟", "妹妹", "爷爷", "奶奶", "老婆", "老公", "丈夫", "妻子", "宝宝"]),
+    ("food", ["吃", "喝", "饭", "菜", "餐厅", "饿", "味道", "好吃", "早餐", "午餐", "晚餐",
+              "咖啡", "水果", "米饭", "点菜", "厨房", "做饭", "饮料"]),
+    ("shopping", ["买", "卖", "商店", "超市", "价格", "多少钱", "便宜", "购物", "商场",
+                  "打折", "付钱", "市场"]),
+    ("travel", ["旅游", "旅行", "飞机", "机场", "酒店", "宾馆", "行李", "护照", "火车",
+                "地铁", "公交", "车站", "出发", "景点", "导游", "签证"]),
+    ("business", ["工作", "公司", "会议", "老板", "合同", "客户", "经理", "上班", "同事",
+                  "办公室", "项目", "业务", "面试", "加班", "销售", "经济"]),
+    ("school", ["学校", "老师", "学生", "考试", "作业", "上课", "学习", "大学", "同学",
+                "教室", "成绩", "毕业", "专业", "图书馆"]),
+    ("health", ["医生", "医院", "生病", "吃药", "身体", "健康", "感冒", "发烧", "看病",
+                "护士", "受伤"]),
+    ("technology", ["电脑", "手机", "网络", "软件", "网站", "科技", "技术", "互联网",
+                    "程序", "数据", "应用", "电子", "系统", "科学", "研究"]),
+    ("entertainment", ["电影", "音乐", "唱歌", "游戏", "电视", "节目", "明星", "演员",
+                       "跳舞", "艺术", "小说", "演出", "娱乐"]),
+    ("sports", ["足球", "篮球", "跑步", "游泳", "比赛", "锻炼", "健身", "体育", "冠军", "球队"]),
+    ("children", ["小朋友", "玩具", "童话", "动画", "幼儿园", "小孩"]),
+]
+
+
+def classify_segment(text: str) -> tuple[list[str], list[str]]:
+    """Return (grammar_categories, life_categories) auto-detected from the text.
+    Multi-label; falls back to 'general' / 'daily_life' when nothing matches."""
+    work = text
+    grammar: list[str] = []
+    for name, triggers in _GRAMMAR_TRIGGERS:
+        for t in triggers:
+            if t and t in work:
+                grammar.append(name)
+                work = work.replace(t, " ", 1)
+                break
+        if len(grammar) >= 4:
+            break
+    if not grammar:
+        grammar = ["general"]
+
+    life: list[str] = []
+    for name, kws in _LIFE_LEXICON:
+        if any(k in text for k in kws):
+            life.append(name)
+        if len(life) >= 3:
+            break
+    if not life:
+        life = ["daily_life"]
+    return grammar, life
+
+
 def analyze_segment(text: str) -> tuple[list[str], int]:
     """Return (words, hsk_level): a clean IN-ORDER word segmentation of the
     sentence plus its HSK level (0 = no dictionary match → caller drops it)."""
@@ -243,6 +334,7 @@ def run(
         matched += 1
         if hsk_filter and hsk_level not in hsk_filter:
             return
+        grammar, life = classify_segment(seg["text"])
         buf.append({
             "source_type": "youtube",
             "youtube_id": youtube_id,
@@ -251,8 +343,12 @@ def run(
             "transcription": seg["text"],
             "pinyin": get_pinyin(seg["text"]),
             "hsk_level": hsk_level,
+            "hsk_levels": [hsk_level],
             "target_words": word_ids,
-            "quiz_category": "general",
+            "quiz_category": grammar[0],
+            "quiz_categories": grammar,
+            "life_category": life[0],
+            "life_categories": life,
             "quiz": {"question": "", "correctAnswer": "", "wrongAnswer": ""},
             "is_active": active,
         })

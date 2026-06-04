@@ -167,6 +167,47 @@ class QuizCategory {
   String get emoji => this == general ? '📖' : '📝';
 }
 
+// Life / topic categories a clip can belong to (multi-label). `name` is the
+// stored id; tr/en are the labels. Auto-assigned at import (python classifier),
+// editable in the admin, filterable on the home feed.
+class LifeCategory {
+  final String name;
+  final String tr;
+  final String en;
+  const LifeCategory._(this.name, this.tr, this.en);
+
+  static const dailyLife =
+      LifeCategory._('daily_life', 'Günlük Hayat', 'Daily Life');
+  static const family = LifeCategory._('family', 'Aile', 'Family');
+  static const food = LifeCategory._('food', 'Yemek & İçecek', 'Food & Drink');
+  static const shopping = LifeCategory._('shopping', 'Alışveriş', 'Shopping');
+  static const travel =
+      LifeCategory._('travel', 'Seyahat & Ulaşım', 'Travel & Transport');
+  static const business =
+      LifeCategory._('business', 'İş & Kariyer', 'Work & Business');
+  static const school =
+      LifeCategory._('school', 'Eğitim & Okul', 'Education & School');
+  static const health = LifeCategory._('health', 'Sağlık', 'Health');
+  static const technology =
+      LifeCategory._('technology', 'Teknoloji & Bilim', 'Tech & Science');
+  static const entertainment =
+      LifeCategory._('entertainment', 'Eğlence & Sanat', 'Entertainment & Arts');
+  static const sports = LifeCategory._('sports', 'Spor', 'Sports');
+  static const children = LifeCategory._('children', 'Çocuk', 'Children');
+
+  static const List<LifeCategory> values = [
+    dailyLife, family, food, shopping, travel, business,
+    school, health, technology, entertainment, sports, children,
+  ];
+
+  static String labelFor(String name, {bool isTr = true}) {
+    for (final c in values) {
+      if (c.name == name) return isTr ? c.tr : c.en;
+    }
+    return name;
+  }
+}
+
 // Sentinel inserted between sentences inside target_words for multi-sentence
 // clips. Joining target_words then yields stacked lines; word-chip renderers
 // and counts must skip it (see spokenWords).

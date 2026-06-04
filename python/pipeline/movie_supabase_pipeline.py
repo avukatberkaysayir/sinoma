@@ -25,6 +25,7 @@ from youtube_asr_pipeline import (
     SUPABASE_URL,
     SUPABASE_SERVICE_KEY,
     analyze_segment,
+    classify_segment,
     gate_coherence,
     insert_segments,
 )
@@ -136,6 +137,7 @@ def run(
                 clip_path.unlink()
             except OSError:
                 pass
+            grammar, life = classify_segment(cand["text"])
             buf.append({
                 "source_type": "self_hosted",
                 "video_url": clip_url,
@@ -144,8 +146,12 @@ def run(
                 "transcription": cand["text"],
                 "pinyin": get_pinyin(cand["text"]),
                 "hsk_level": cand["hsk_level"],
+                "hsk_levels": [cand["hsk_level"]],
                 "target_words": cand["word_ids"],
-                "quiz_category": "general",
+                "quiz_category": grammar[0],
+                "quiz_categories": grammar,
+                "life_category": life[0],
+                "life_categories": life,
                 "quiz": {"question": "", "correctAnswer": "", "wrongAnswer": ""},
                 "is_active": active,
             })
