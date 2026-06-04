@@ -223,12 +223,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         danger: true,
       ),
     );
-    if (ok != true) return;
+    if (ok != true || !mounted) return;
+    final router = GoRouter.of(context); // stays valid across the later await
     try {
       await ref.read(socialRepositoryProvider).updateOnlineStatus(false);
     } catch (_) {}
     await Supabase.instance.client.auth.signOut();
-    if (mounted) context.go('/language');
+    router.go('/');
   }
 
   Future<void> _confirmDeleteAccount() async {
