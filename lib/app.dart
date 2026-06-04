@@ -16,6 +16,7 @@ import 'presentation/screens/games/games_section_screen.dart';
 import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
 import 'presentation/screens/home/home_screen.dart';
+import 'presentation/screens/landing/landing_screen.dart';
 import 'presentation/widgets/common/section_sidebar.dart';
 import 'presentation/screens/language/language_selection_screen.dart';
 import 'presentation/screens/legal/privacy_policy_screen.dart';
@@ -85,13 +86,17 @@ class _AuthRefreshStream extends ChangeNotifier {
 }
 
 final _router = GoRouter(
-  initialLocation: '/splash',
+  initialLocation: '/',
   refreshListenable: _AuthRefreshStream(
     Supabase.instance.client.auth.onAuthStateChange,
   ),
   redirect: (context, state) {
     final loc = state.matchedLocation;
     final user = Supabase.instance.client.auth.currentUser;
+
+    // Signed-in users skip the marketing landing → straight into the app
+    // (splash routes to /home, or /onboarding if their profile is incomplete).
+    if (loc == '/' && user != null) return '/splash';
 
     if (loc.startsWith('/admin')) {
       if (user?.email != adminEmail) return '/home';
@@ -101,7 +106,7 @@ final _router = GoRouter(
   },
   routes: [
     // ── Full-screen (no persistent top bar) ──────────────────────────────────
-    GoRoute(path: '/',           redirect: (_, __) => '/splash'),
+    GoRoute(path: '/',           builder: (_, __) => const LandingScreen()),
     GoRoute(path: '/splash',     builder: (_, __) => const SplashScreen()),
     GoRoute(path: '/language',   builder: (_, __) => const LanguageSelectionScreen()),
     GoRoute(path: '/onboarding', builder: (_, __) => const OnboardingScreen()),
