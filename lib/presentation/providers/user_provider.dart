@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../data/models/user_model.dart';
 import '../../data/repositories/user_repository.dart';
@@ -8,7 +9,18 @@ final userRepositoryProvider = Provider<UserRepository>((ref) {
   return UserRepository();
 });
 
+// Signed-in user id, reactive to auth changes (login / logout / session). Used
+// to rebuild the user stream so a logout actually clears currentUserProvider.
+final authUidProvider = StreamProvider<String?>((ref) {
+  return Supabase.instance.client.auth.onAuthStateChange
+      .map((s) => s.session?.user.id);
+});
+
 final currentUserProvider = StreamProvider<UserModel?>((ref) {
+  // Recreate the per-uid stream whenever the signed-in uid changes. Without
+  // this the stream kept emitting the old user's DB row after sign-out (the row
+  // still exists), so logout never cleared the UI.
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
   return ref.watch(userRepositoryProvider).watchCurrentUser();
 });
 

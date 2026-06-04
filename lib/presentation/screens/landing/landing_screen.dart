@@ -106,21 +106,49 @@ class _TopBar extends StatelessWidget {
           const Spacer(),
           _LangToggle(tr: tr, onSetLang: onSetLang),
           const SizedBox(width: 12),
-          FilledButton(
-            onPressed: () =>
-                signedIn ? context.go('/home') : showAuthDialog(context),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
+          if (signedIn)
+            FilledButton(
+              onPressed: () => context.go('/home'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(tr ? 'Uygulamaya Git' : 'Enter app',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            )
+          else ...[
+            OutlinedButton(
+              onPressed: () => showAuthDialog(context),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.onSurface,
+                side: BorderSide(
+                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(tr ? 'Giriş Yap' : 'Log in',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
-            child: Text(
-                signedIn
-                    ? (tr ? 'Uygulamaya Git' : 'Enter app')
-                    : (tr ? 'Giriş Yap' : 'Log in'),
-                style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
+            const SizedBox(width: 10),
+            FilledButton(
+              onPressed: () =>
+                  showAuthDialog(context, startWithRegister: true),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+              ),
+              child: Text(tr ? 'Kayıt Ol' : 'Sign up',
+                  style: const TextStyle(fontWeight: FontWeight.w600)),
+            ),
+          ],
         ],
       ),
     );
