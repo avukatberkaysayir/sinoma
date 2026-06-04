@@ -91,6 +91,33 @@ class UserRepository {
     return m;
   }
 
+  // Top users by total score — for the leaderboard ("Puan Tabloları").
+  Future<List<Map<String, dynamic>>> loadLeaderboard({int limit = 25}) async {
+    final data = await _db
+        .from('users')
+        .select('id,display_name,photo_url,stats')
+        .limit(300);
+    final list = List<Map<String, dynamic>>.from(data);
+    int score(Map<String, dynamic> u) =>
+        ((u['stats'] as Map?)?['totalScore'] as num?)?.toInt() ?? 0;
+    list.sort((a, b) => score(b).compareTo(score(a)));
+    return list.take(limit).toList();
+  }
+
+  // Refill hearts to full (free, for now) — Mağaza > Canları Yenile.
+  Future<void> refillHearts() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    final pp = await loadPathProgress();
+    final m = pp['__meta'] is Map
+        ? Map<String, dynamic>.from(pp['__meta'] as Map)
+        : <String, dynamic>{};
+    m['hearts'] = _maxHearts;
+    m.remove('heartsTs');
+    pp['__meta'] = m;
+    await _db.from('users').update({'path_progress': pp}).eq('id', uid);
+  }
+
   Future<UserModel?> loadUser(String uid) async {
     final data =
         await _db.from('users').select().eq('id', uid).maybeSingle();

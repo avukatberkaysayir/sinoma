@@ -6,8 +6,8 @@ import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
 import '../dictionary/dictionary_screen.dart';
-import '../home/home_screen.dart';
 import '../profile/profile_screen.dart';
+import 'path_sections.dart';
 import 'phase_runner_screen.dart';
 
 // Duolingo-style colours.
@@ -17,7 +17,7 @@ const _duoBg = Color(0xFF131F2A);
 const _duoPanel = Color(0xFF1C2A35);
 const _duoLocked = Color(0xFF37464F);
 
-enum _Section { learn, video, dictionary, profile }
+enum _Section { learn, dictionary, video, leaderboard, quests, shop, profile, more }
 
 class PathScreen extends ConsumerStatefulWidget {
   const PathScreen({super.key});
@@ -32,26 +32,39 @@ class _PathScreenState extends ConsumerState<PathScreen> {
   @override
   Widget build(BuildContext context) {
     final w = MediaQuery.sizeOf(context).width;
-    final showRight = w >= 1100 && _section == _Section.learn;
-    final compactNav = w < 760;
+    final compactNav = w < 820;
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
     Widget center;
     switch (_section) {
       case _Section.video:
-        center = const HomeScreen();
+        center = VideoCenter(tr: tr);
         break;
       case _Section.dictionary:
         center = const DictionaryScreen();
+        break;
+      case _Section.leaderboard:
+        center = LeaderboardCenter(tr: tr);
+        break;
+      case _Section.quests:
+        center = QuestsCenter(tr: tr);
+        break;
+      case _Section.shop:
+        center = ShopCenter(tr: tr);
         break;
       case _Section.profile:
         final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
         center = ProfileScreen(uid: uid);
         break;
+      case _Section.more:
+        center = MoreCenter(tr: tr);
+        break;
       case _Section.learn:
         center = const _CenterPath();
         break;
     }
+
+    final right = _rightFor(_section, tr);
 
     return Scaffold(
       backgroundColor: _duoBg,
@@ -66,11 +79,46 @@ class _PathScreenState extends ConsumerState<PathScreen> {
               onSelect: (s) => setState(() => _section = s),
             ),
             Expanded(child: center),
-            if (showRight) _RightSidebar(tr: tr),
+            if (right != null && w >= 1100) right,
           ],
         ),
       ),
     );
+  }
+
+  // Each section gets its own right column (Duolingo-style).
+  Widget? _rightFor(_Section s, bool tr) {
+    switch (s) {
+      case _Section.learn:
+        return _RightSidebar(tr: tr);
+      case _Section.video:
+        return VideoFiltersRight(tr: tr);
+      case _Section.leaderboard:
+        return RightInfoCard(
+            tr: tr,
+            title: tr ? 'Lig Nasıl Çalışır?' : 'How leagues work',
+            body: tr
+                ? 'Ders tamamladıkça puan kazanır, haftalık sıralamada yükselirsin.'
+                : 'Earn points by completing lessons and climb the weekly ranking.');
+      case _Section.quests:
+        return RightInfoCard(
+            tr: tr,
+            title: tr ? 'Aylık Rozetler' : 'Monthly badges',
+            body: tr
+                ? 'Görevleri tamamla, bu ayın rozetini kazan.'
+                : 'Complete quests to earn this month\'s badge.');
+      case _Section.shop:
+        return _RightSidebar(tr: tr);
+      case _Section.profile:
+        return RightInfoCard(
+            tr: tr,
+            title: tr ? 'Etkinlik' : 'Activity',
+            body: tr
+                ? 'Arkadaş etkinliği yakında burada görünecek.'
+                : 'Friend activity will appear here soon.');
+      default:
+        return null;
+    }
   }
 }
 
@@ -116,6 +164,10 @@ class _LeftNav extends StatelessWidget {
               ],
             ),
           ),
+          Expanded(
+            child: ListView(
+              padding: EdgeInsets.zero,
+              children: [
           _NavItem(
               icon: Icons.home_rounded,
               color: const Color(0xFFFF4B4B),
@@ -138,12 +190,43 @@ class _LeftNav extends StatelessWidget {
               compact: compact,
               onTap: () => onSelect(_Section.video)),
           _NavItem(
-              icon: Icons.person_rounded,
+              icon: Icons.shield_rounded,
               color: const Color(0xFFFFC800),
+              label: tr ? 'PUAN TABLOLARI' : 'LEADERBOARDS',
+              active: section == _Section.leaderboard,
+              compact: compact,
+              onTap: () => onSelect(_Section.leaderboard)),
+          _NavItem(
+              icon: Icons.inventory_2_rounded,
+              color: const Color(0xFFFF9600),
+              label: tr ? 'GÖREVLER' : 'QUESTS',
+              active: section == _Section.quests,
+              compact: compact,
+              onTap: () => onSelect(_Section.quests)),
+          _NavItem(
+              icon: Icons.storefront_rounded,
+              color: const Color(0xFFFF4B4B),
+              label: tr ? 'MAĞAZA' : 'SHOP',
+              active: section == _Section.shop,
+              compact: compact,
+              onTap: () => onSelect(_Section.shop)),
+          _NavItem(
+              icon: Icons.person_rounded,
+              color: const Color(0xFF1CB0F6),
               label: tr ? 'PROFİL' : 'PROFILE',
               active: section == _Section.profile,
               compact: compact,
               onTap: () => onSelect(_Section.profile)),
+          _NavItem(
+              icon: Icons.more_horiz_rounded,
+              color: const Color(0xFFCE82FF),
+              label: tr ? 'DAHA FAZLA' : 'MORE',
+              active: section == _Section.more,
+              compact: compact,
+              onTap: () => onSelect(_Section.more)),
+              ],
+            ),
+          ),
         ],
       ),
     );

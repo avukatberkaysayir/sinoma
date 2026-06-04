@@ -280,3 +280,9 @@ final pathMetaProvider = Provider<PathMeta>((ref) {
   final p = ref.watch(pathProgressProvider).valueOrNull ?? const {};
   return computeMeta(p);
 });
+
+final leaderboardProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(userRepositoryProvider).loadLeaderboard();
+});
