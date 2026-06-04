@@ -86,7 +86,7 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
         if (!mounted) return;
         setState(() => _loading = false);
         Navigator.pop(context);
-        if (profile == null) context.go('/onboarding');
+        context.go(profile == null ? '/onboarding' : '/home');
       } else {
         await client.auth.signUp(email: email, password: pass);
         if (mounted) setState(() { _loading = false; _verificationSent = true; });

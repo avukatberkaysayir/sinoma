@@ -609,8 +609,13 @@ class _DropdownCard extends ConsumerWidget {
               isDark: isDark,
               onTap: () async {
                 onClose();
-                await Supabase.instance.client.auth.signOut();
-                if (context.mounted) context.go('/home');
+                try {
+                  await Supabase.instance.client.auth.signOut();
+                } catch (_) {/* clear session anyway */}
+                // Land on the public homepage so the logged-out state is clear
+                // (going to /home would keep showing the app, looking like a
+                // no-op).
+                if (context.mounted) context.go('/');
               },
             ),
             const SizedBox(height: 4),

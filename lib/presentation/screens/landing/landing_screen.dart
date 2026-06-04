@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/user_provider.dart';
 import '../../widgets/common/auth_dialog.dart';
 
 // Public marketing landing page (root URL). Voscreen-style: top bar with a
@@ -17,6 +18,7 @@ class LandingScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(localeProvider).languageCode;
     final tr = lang == 'tr';
+    final signedIn = ref.watch(currentUserProvider).valueOrNull != null;
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= 900;
 
@@ -38,22 +40,27 @@ class LandingScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _TopBar(tr: tr, onSetLang: (code) =>
-                      ref.read(localeProvider.notifier).setLocale(Locale(code))),
+                  _TopBar(
+                    tr: tr,
+                    signedIn: signedIn,
+                    onSetLang: (code) => ref
+                        .read(localeProvider.notifier)
+                        .setLocale(Locale(code)),
+                  ),
                   Padding(
                     padding: EdgeInsets.fromLTRB(24, wide ? 48 : 28, 24, 40),
                     child: wide
                         ? Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
-                              Expanded(child: _Hero(t: t)),
+                              Expanded(child: _Hero(t: t, signedIn: signedIn)),
                               const SizedBox(width: 48),
                               const Expanded(child: _MockPlayer()),
                             ],
                           )
                         : Column(
                             children: [
-                              _Hero(t: t),
+                              _Hero(t: t, signedIn: signedIn),
                               const SizedBox(height: 36),
                               const _MockPlayer(),
                             ],
@@ -84,8 +91,10 @@ class LandingScreen extends ConsumerWidget {
 
 class _TopBar extends StatelessWidget {
   final bool tr;
+  final bool signedIn;
   final void Function(String code) onSetLang;
-  const _TopBar({required this.tr, required this.onSetLang});
+  const _TopBar(
+      {required this.tr, required this.signedIn, required this.onSetLang});
 
   @override
   Widget build(BuildContext context) {
@@ -98,14 +107,18 @@ class _TopBar extends StatelessWidget {
           _LangToggle(tr: tr, onSetLang: onSetLang),
           const SizedBox(width: 12),
           FilledButton(
-            onPressed: () => showAuthDialog(context),
+            onPressed: () =>
+                signedIn ? context.go('/home') : showAuthDialog(context),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primary,
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
-            child: Text(tr ? 'Giriş Yap' : 'Log in',
+            child: Text(
+                signedIn
+                    ? (tr ? 'Uygulamaya Git' : 'Enter app')
+                    : (tr ? 'Giriş Yap' : 'Log in'),
                 style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
         ],
@@ -180,7 +193,8 @@ class _LangToggle extends StatelessWidget {
 
 class _Hero extends StatelessWidget {
   final String Function(String tr, String en) t;
-  const _Hero({required this.t});
+  final bool signedIn;
+  const _Hero({required this.t, required this.signedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -227,9 +241,15 @@ class _Hero extends StatelessWidget {
           runSpacing: 12,
           children: [
             FilledButton.icon(
-              onPressed: () => showAuthDialog(context, startWithRegister: true),
-              icon: const Icon(Icons.rocket_launch, size: 18),
-              label: Text(t('Ücretsiz Başla', 'Start free')),
+              onPressed: () => signedIn
+                  ? context.go('/home')
+                  : showAuthDialog(context, startWithRegister: true),
+              icon: Icon(
+                  signedIn ? Icons.arrow_forward_rounded : Icons.rocket_launch,
+                  size: 18),
+              label: Text(signedIn
+                  ? t('Uygulamaya Devam Et', 'Continue to app')
+                  : t('Ücretsiz Başla', 'Start free')),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding:
@@ -240,22 +260,23 @@ class _Hero extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12)),
               ),
             ),
-            OutlinedButton.icon(
-              onPressed: () => context.go('/home'),
-              icon: const Icon(Icons.play_arrow_rounded, size: 20),
-              label: Text(t('Videolara Göz At', 'Browse videos')),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.onSurface,
-                side: BorderSide(
-                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-                textStyle:
-                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+            if (!signedIn)
+              OutlinedButton.icon(
+                onPressed: () => context.go('/home'),
+                icon: const Icon(Icons.play_arrow_rounded, size: 20),
+                label: Text(t('Videolara Göz At', 'Browse videos')),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.onSurface,
+                  side: BorderSide(
+                      color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                  textStyle: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
               ),
-            ),
           ],
         ),
       ],

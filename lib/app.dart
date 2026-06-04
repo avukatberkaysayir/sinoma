@@ -94,10 +94,6 @@ final _router = GoRouter(
     final loc = state.matchedLocation;
     final user = Supabase.instance.client.auth.currentUser;
 
-    // Signed-in users skip the marketing landing → straight into the app
-    // (splash routes to /home, or /onboarding if their profile is incomplete).
-    if (loc == '/' && user != null) return '/splash';
-
     if (loc.startsWith('/admin')) {
       if (user?.email != adminEmail) return '/home';
     }
