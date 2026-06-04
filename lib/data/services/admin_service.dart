@@ -446,12 +446,17 @@ class AdminService {
   // Dictionary pinyin for each of these words (for display when the edited
   // sentence differs from the original ASR pinyin). Missing words are omitted.
   Future<Map<String, String>> pinyinForWords(List<String> words) async {
-    if (words.isEmpty) return {};
+    // Drop the multi-sentence line-break sentinel + blanks — a literal newline
+    // in the PostgREST `in.()` filter makes the request hang (admin pending tab
+    // stuck spinning).
+    final clean =
+        words.where((w) => w != '\n' && w.trim().isNotEmpty).toSet().toList();
+    if (clean.isEmpty) return {};
     try {
       final data = await _db
           .from('dictionary')
           .select('simplified,pinyin')
-          .inFilter('simplified', words);
+          .inFilter('simplified', clean);
       return {
         for (final m in List<Map<String, dynamic>>.from(data))
           m['simplified'] as String: (m['pinyin'] as String? ?? ''),
@@ -464,13 +469,15 @@ class AdminService {
   // Which of these are in an HSK list (hsk_level 1-6) → green chips.
   // Words absent or with no HSK level count as "not in the list" → red.
   Future<Set<String>> wordsInDictionary(List<String> words) async {
-    if (words.isEmpty) return {};
+    final clean =
+        words.where((w) => w != '\n' && w.trim().isNotEmpty).toSet().toList();
+    if (clean.isEmpty) return {};
     try {
       final data = await _db
           .from('dictionary')
           .select('simplified')
           .gte('hsk_level', 1)
-          .inFilter('simplified', words);
+          .inFilter('simplified', clean);
       return List<Map<String, dynamic>>.from(data)
           .map((e) => e['simplified'] as String)
           .toSet();
