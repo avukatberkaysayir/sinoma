@@ -444,7 +444,6 @@ class SettingsCenter extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
-    final isAdmin = ref.watch(isAdminProvider);
     final lang = ref.watch(localeProvider).languageCode;
 
     Future<void> logout() async {
@@ -523,12 +522,6 @@ class SettingsCenter extends ConsumerWidget {
                 ),
                 const SizedBox(height: 20),
                 _GroupLabel(tr ? 'Hesap' : 'Account'),
-                if (isAdmin)
-                  _MoreRow(
-                      icon: Icons.admin_panel_settings,
-                      label: 'Admin Paneli',
-                      color: _green,
-                      onTap: () => context.go('/admin')),
                 _MoreRow(
                     icon: Icons.workspace_premium_rounded,
                     label: tr ? 'Abonelik' : 'Subscription',

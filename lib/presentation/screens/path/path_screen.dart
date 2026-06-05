@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../providers/locale_provider.dart';
@@ -29,24 +30,39 @@ enum _Section {
   more,
 }
 
-class PathScreen extends ConsumerStatefulWidget {
+// Each left-nav section is its own URL.
+const Map<_Section, String> _sectionPaths = {
+  _Section.learn: '/home',
+  _Section.profile: '/profile',
+  _Section.editProfile: '/settings/profile',
+  _Section.video: '/video',
+  _Section.dictionary: '/dictionary',
+  _Section.leaderboard: '/leaderboard',
+  _Section.quests: '/quests',
+  _Section.shop: '/shop',
+  _Section.more: '/settings',
+};
+
+_Section _sectionFromLoc(String loc) {
+  for (final e in _sectionPaths.entries) {
+    if (e.value == loc) return e.key;
+  }
+  return _Section.learn;
+}
+
+class PathScreen extends ConsumerWidget {
   const PathScreen({super.key});
 
   @override
-  ConsumerState<PathScreen> createState() => _PathScreenState();
-}
-
-class _PathScreenState extends ConsumerState<PathScreen> {
-  _Section _section = _Section.learn;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final loc = GoRouterState.of(context).matchedLocation;
+    final section = _sectionFromLoc(loc);
     final w = MediaQuery.sizeOf(context).width;
     final compactNav = w < 820;
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
     Widget center;
-    switch (_section) {
+    switch (section) {
       case _Section.video:
         center = VideoCenter(tr: tr);
         break;
@@ -64,8 +80,7 @@ class _PathScreenState extends ConsumerState<PathScreen> {
         break;
       case _Section.profile:
         center = ProfileView(
-            tr: tr,
-            onEdit: () => setState(() => _section = _Section.editProfile));
+            tr: tr, onEdit: () => context.go('/settings/profile'));
         break;
       case _Section.editProfile:
         final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
@@ -79,7 +94,7 @@ class _PathScreenState extends ConsumerState<PathScreen> {
         break;
     }
 
-    final right = _rightFor(_section, tr);
+    final right = _rightFor(section, tr, context);
 
     return Scaffold(
       backgroundColor: _duoBg,
@@ -89,9 +104,9 @@ class _PathScreenState extends ConsumerState<PathScreen> {
           children: [
             _LeftNav(
               compact: compactNav,
-              section: _section,
+              section: section,
               tr: tr,
-              onSelect: (s) => setState(() => _section = s),
+              onSelect: (s) => context.go(_sectionPaths[s]!),
             ),
             Expanded(child: center),
             if (right != null && w >= 1100) right,
@@ -102,7 +117,7 @@ class _PathScreenState extends ConsumerState<PathScreen> {
   }
 
   // Each section gets its own right column (Duolingo-style).
-  Widget? _rightFor(_Section s, bool tr) {
+  Widget? _rightFor(_Section s, bool tr, BuildContext context) {
     switch (s) {
       case _Section.learn:
         return _RightSidebar(tr: tr);
@@ -134,8 +149,7 @@ class _PathScreenState extends ConsumerState<PathScreen> {
       case _Section.more:
       case _Section.editProfile:
         return SettingsRight(
-            tr: tr,
-            onProfile: () => setState(() => _section = _Section.editProfile));
+            tr: tr, onProfile: () => context.go('/settings/profile'));
       default:
         return null;
     }

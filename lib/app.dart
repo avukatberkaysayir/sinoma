@@ -15,7 +15,6 @@ import 'presentation/screens/dictionary/dictionary_screen.dart';
 import 'presentation/screens/games/games_section_screen.dart';
 import 'presentation/screens/games/hanzi_build/hanzi_build_screen.dart';
 import 'presentation/screens/games/mandarin_duel/mandarin_duel_screen.dart';
-import 'presentation/screens/home/home_screen.dart';
 import 'presentation/screens/landing/landing_screen.dart';
 import 'presentation/screens/path/path_screen.dart';
 import 'presentation/widgets/common/section_sidebar.dart';
@@ -25,7 +24,6 @@ import 'presentation/screens/legal/terms_screen.dart';
 import 'presentation/screens/onboarding/onboarding_screen.dart';
 import 'presentation/screens/onboarding/hsk_retest_screen.dart';
 import 'presentation/screens/profile/profile_screen.dart';
-import 'presentation/screens/settings/settings_screen.dart';
 import 'presentation/screens/social/social_screen.dart';
 import 'presentation/screens/splash/splash_screen.dart';
 import 'presentation/screens/subscription/subscription_screen.dart';
@@ -113,7 +111,17 @@ final _router = GoRouter(
       builder: (_, state) =>
           VideoPlayerScreen(videoId: state.pathParameters['id']!),
     ),
-    GoRoute(path: '/home',          builder: (_, __) => const PathScreen()),
+    // Learning-path sections — each is its own URL, all render PathScreen
+    // (which picks the active section from the location).
+    GoRoute(path: '/home',             builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/profile',          builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/settings',         builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/settings/profile', builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/video',            builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/dictionary',       builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/leaderboard',      builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/quests',           builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/shop',             builder: (_, __) => const PathScreen()),
     GoRoute(path: '/play',          builder: (_, __) => const VoscreenPlayerScreen()),
     GoRoute(path: '/games/duel',    builder: (_, __) => const MandarinDuelScreen()),
     GoRoute(path: '/games/hanzi',   builder: (_, __) => const HanziBuildScreen()),
@@ -124,15 +132,10 @@ final _router = GoRouter(
       builder: (context, state, child) => _AppShell(child: child),
       routes: [
         GoRoute(path: '/hub',   redirect: (_, __) => '/home'),
-        GoRoute(path: '/video', builder: (_, __) => const HomeScreen()),
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
         GoRoute(path: '/admin',           builder: (_, __) => const AdminScreen()),
         GoRoute(path: '/admin/add-video', builder: (_, __) => const AddVideoScreen()),
-        GoRoute(
-          path: '/dictionary',
-          builder: (_, __) => const DictionaryScreen(),
-        ),
         GoRoute(
           path: '/dictionary/:wordId',
           builder: (_, state) => DictionaryScreen(
@@ -140,18 +143,10 @@ final _router = GoRouter(
           ),
         ),
         GoRoute(
-          path: '/profile',
-          builder: (_, __) {
-            final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
-            return ProfileScreen(uid: uid);
-          },
-        ),
-        GoRoute(
           path: '/profile/:uid',
           builder: (_, state) =>
               ProfileScreen(uid: state.pathParameters['uid']!),
         ),
-        GoRoute(path: '/settings',     builder: (_, __) => const SettingsScreen()),
         GoRoute(path: '/subscription', builder: (_, __) => const SubscriptionScreen()),
       ],
     ),

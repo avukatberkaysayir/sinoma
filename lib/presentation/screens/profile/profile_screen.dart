@@ -260,6 +260,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final userAsync = ref.watch(currentUserProvider);
     final user      = userAsync.valueOrNull;
     final isDark    = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final isAdmin   = ref.watch(isAdminProvider);
     final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
 
     if (user != null) {
@@ -268,6 +269,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     return Scaffold(
+      backgroundColor: const Color(0xFF131F2A), // Duolingo bg, matches the path
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(
@@ -422,10 +424,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   FilledButton(
                     onPressed: _saving ? null : _save,
                     style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      minimumSize: const Size.fromHeight(48),
+                      backgroundColor: const Color(0xFF58CC02), // Duolingo green
+                      minimumSize: const Size.fromHeight(50),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
+                          borderRadius: BorderRadius.circular(14)),
                     ),
                     child: _saving
                         ? const SizedBox(
@@ -501,6 +503,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ],
                       ),
                       const Divider(color: AppColors.surface, height: 20),
+                      if (isAdmin) ...[
+                        _ActionRow(
+                          icon: Icons.admin_panel_settings,
+                          label: 'Admin Paneli',
+                          onTap: () => context.go('/admin'),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       _ActionRow(
                         icon: Icons.logout,
                         label: l10n.signOut,
@@ -616,9 +626,9 @@ class _ProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.surface),
+        color: const Color(0xFF1C2A35), // Duolingo panel
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2C3B45)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
