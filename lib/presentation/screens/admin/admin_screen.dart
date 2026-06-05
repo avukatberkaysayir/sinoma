@@ -10,6 +10,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../data/services/admin_service.dart';
 import '../../providers/video_provider.dart';
+import '../../providers/path_provider.dart';
 
 // ── Navigation sections ───────────────────────────────────────────────────────
 
@@ -2386,8 +2387,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
   }
 
-  // "Kelimeleri Onayla": lock in the current word list AND instantly refresh the
-  // ASR pinyin field + the collapsed card title/pinyin from the confirmed words.
+  // "Kelimeleri Onayla": lock in the current word list, refresh the pinyin, AND
+  // re-evaluate the word-driven filters (grammar prune + L/Ünite/Bölüm + length)
+  // by persisting the confirmed words + clearing the placement so the DB trigger
+  // recomputes; the returned row drives the live chips.
   Future<void> _onConfirmWords() async {
     final words = List<String>.from(_targetWords);
     setState(() {
@@ -2409,6 +2412,35 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         });
       }
     } catch (_) {/* keep existing pinyin on failure */}
+
+    // Persist words + reset placement → trigger prunes grammar & re-derives the
+    // slot from the confirmed words; reflect the result in the chips.
+    try {
+      final row = await widget.service.patchVideoFields(widget.data['id'] as String, {
+        'target_words': words,
+        'level': null,
+        'unit': null,
+        'phase': null,
+        'slot_grammar': null,
+        'slot_word': null,
+      });
+      if (row != null && mounted) {
+        setState(() {
+          _quizCategories
+            ..clear()
+            ..addAll(((row['quiz_categories'] as List<dynamic>?) ?? [])
+                .map((e) => e.toString()));
+          if (_quizCategories.isEmpty) {
+            _quizCategories.add(row['quiz_category'] as String? ?? 'general');
+          }
+          _level = (row['level'] as num?)?.toInt();
+          _unit = (row['unit'] as num?)?.toInt();
+          _phase = (row['phase'] as num?)?.toInt();
+        });
+        ref.invalidate(curriculumProvider);
+        ref.invalidate(allActiveVideosProvider);
+      }
+    } catch (_) {/* keep current tags on failure */}
     finally {
       if (mounted) setState(() => _pinyinBusy = false);
     }

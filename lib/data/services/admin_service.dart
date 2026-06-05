@@ -334,9 +334,17 @@ class AdminService {
     return seedIds.length;
   }
 
-  Future<void> patchVideoFields(
+  // Returns the updated row so callers can read values the DB trigger derived
+  // (level/unit/phase, pruned quiz_categories, …).
+  Future<Map<String, dynamic>?> patchVideoFields(
       String docId, Map<String, dynamic> fields) async {
-    await _db.from('videos').update(fields).eq('id', docId);
+    final row = await _db
+        .from('videos')
+        .update(fields)
+        .eq('id', docId)
+        .select()
+        .maybeSingle();
+    return row;
   }
 
   Future<Map<String, dynamic>> processMovieFileBytes(

@@ -39,49 +39,81 @@ INSERT INTO public.grammar_levels(name, level, unit) VALUES
   ('napa',6,1),('jinguan',6,2),('chufei',6,3),('fanwen',6,4),('shuangchong',6,5)
 ON CONFLICT (name) DO UPDATE SET level = EXCLUDED.level, unit = EXCLUDED.unit;
 
--- Which slot word a grammar-less clip was pinned through (one clip per word).
-ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS slot_word text;
+-- Which grammar rule / slot word a clip was pinned through. ONE clip per grammar
+-- rule and ONE clip per slot word (so each teaching item hosts a distinct clip).
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS slot_word    text;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS slot_grammar text;
 CREATE INDEX IF NOT EXISTS idx_videos_slot_word
   ON public.videos(slot_word) WHERE slot_word IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_videos_slot_grammar
+  ON public.videos(slot_grammar) WHERE slot_grammar IS NOT NULL;
 
--- Fills level + unit + phase when null:
---  • grammar clip → from grammar_levels; phase distributes 8 per circle
---    (kPhaseSize), capped at 4, by how many already sit in that (level, unit).
---  • grammar-less HSK1 clip → pinned to the slot (path_word_slots) of the FIRST
---    of its words whose slot-word is still FREE (one clip per slot word, so each
---    word in a circle hosts a distinct clip). Records that word in slot_word.
---  • anything else (e.g. grammar-less HSK4-6 with no slot yet) → left null.
--- Fires on target_words changes too, since that's when a clip's words become
--- known (admin "Kelimeleri Onayla").
+-- Matchable core symbol per grammar (NULL = structural pattern, e.g. 把字句 /
+-- 结果补语 / A不A — never pruned). Populated from kGrammarMeaning.zh:
+-- contains 补语/句/否定 or = 'A不A' → NULL; contains '…' → part before '…'; else zh.
+ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS symbol text;
+-- (symbol values set by the app's one-off generator; see project notes.)
+
+-- BEFORE INSERT / UPDATE OF quiz_category|quiz_categories|target_words.
+-- (1) Prune: drop grammar tags whose symbol no longer appears in target_words
+--     (don't add). quiz_category := first remaining grammar (else 'general').
+-- (2) Placement (only when level is null and not "Diğer"=phase 0):
+--      a. first grammar tag whose grammar is still FREE → its unit, phase 1,
+--         slot_grammar (one clip per grammar rule);
+--      b. else (HSK1) first word whose slot word is still FREE → its slot,
+--         slot_word (one clip per word);
+--      c. else left null (unplaced).
 CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
-DECLARE g public.grammar_levels%ROWTYPE;
-DECLARE n integer;
-DECLARE ws record;
+DECLARE
+  do_prune boolean := false;
+  do_place boolean := false;
+  joined text;
+  rec_g record;
+  ws record;
 BEGIN
-  IF NEW.level IS NULL OR NEW.unit IS NULL OR NEW.phase IS NULL THEN
-    SELECT * INTO g FROM public.grammar_levels WHERE name = NEW.quiz_category;
+  IF TG_OP = 'INSERT' THEN
+    do_prune := (NEW.target_words IS NOT NULL);
+  ELSIF (NEW.target_words   IS DISTINCT FROM OLD.target_words)
+     OR (NEW.quiz_categories IS DISTINCT FROM OLD.quiz_categories)
+     OR (NEW.quiz_category   IS DISTINCT FROM OLD.quiz_category) THEN
+    do_prune := true;
+  END IF;
+  do_place := (NEW.level IS NULL AND COALESCE(NEW.phase, -1) <> 0);
+
+  IF do_prune THEN
+    joined := array_to_string(COALESCE(NEW.target_words, '{}'::text[]), '');
+    NEW.quiz_categories := ARRAY(
+      SELECT t.cat
+      FROM unnest(COALESCE(NEW.quiz_categories, '{}'::text[])) WITH ORDINALITY t(cat, ord)
+      LEFT JOIN public.grammar_levels gl ON gl.name = t.cat
+      WHERE gl.name IS NULL OR gl.symbol IS NULL OR position(gl.symbol IN joined) > 0
+      ORDER BY t.ord);
+    NEW.quiz_category := COALESCE(
+      (SELECT t.cat FROM unnest(NEW.quiz_categories) WITH ORDINALITY t(cat, ord)
+       JOIN public.grammar_levels gl ON gl.name = t.cat ORDER BY t.ord LIMIT 1),
+      'general');
+  END IF;
+
+  IF do_place THEN
+    NEW.slot_grammar := NULL; NEW.slot_word := NULL;
+    SELECT gl.level AS level, gl.unit AS unit, gl.name AS name INTO rec_g
+      FROM unnest(COALESCE(NEW.quiz_categories, '{}'::text[])) WITH ORDINALITY t(cat, ord)
+      JOIN public.grammar_levels gl ON gl.name = t.cat
+      WHERE NOT EXISTS (SELECT 1 FROM public.videos v2
+        WHERE v2.slot_grammar = gl.name AND v2.status IN ('active','pending') AND v2.id <> NEW.id)
+      ORDER BY t.ord LIMIT 1;
     IF FOUND THEN
-      IF NEW.level IS NULL THEN NEW.level := g.level; END IF;
-      IF NEW.unit  IS NULL THEN NEW.unit  := g.unit;  END IF;
-      IF NEW.phase IS NULL THEN
-        SELECT count(*) INTO n FROM public.videos v
-          WHERE v.level = g.level AND v.unit = g.unit
-            AND v.status IN ('active','pending') AND v.id <> NEW.id;
-        NEW.phase := LEAST(4, (n / 8) + 1);
-      END IF;
-    ELSIF NEW.level IS NULL
-       AND (NEW.hsk_level = 1 OR (NEW.hsk_levels IS NOT NULL AND 1 = ANY(NEW.hsk_levels))) THEN
-      SELECT s.level AS level, s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
-        FROM unnest(NEW.target_words) WITH ORDINALITY t(w, ord)
+      NEW.level := rec_g.level; NEW.unit := rec_g.unit; NEW.phase := 1;
+      NEW.slot_grammar := rec_g.name;
+    ELSIF (NEW.hsk_level = 1 OR (NEW.hsk_levels IS NOT NULL AND 1 = ANY(NEW.hsk_levels))) THEN
+      SELECT s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
+        FROM unnest(COALESCE(NEW.target_words, '{}'::text[])) WITH ORDINALITY t(w, ord)
         JOIN public.path_word_slots s ON s.word = t.w AND s.level = 1
-        WHERE NOT EXISTS (
-          SELECT 1 FROM public.videos v2
-          WHERE v2.slot_word = s.word
-            AND v2.status IN ('active','pending') AND v2.id <> NEW.id
-        )
+        WHERE NOT EXISTS (SELECT 1 FROM public.videos v2
+          WHERE v2.slot_word = s.word AND v2.status IN ('active','pending') AND v2.id <> NEW.id)
         ORDER BY t.ord LIMIT 1;
       IF FOUND THEN
-        NEW.level := ws.level; NEW.unit := ws.unit; NEW.phase := ws.phase;
+        NEW.level := 1; NEW.unit := ws.unit; NEW.phase := ws.phase;
         NEW.slot_word := ws.word;
       END IF;
     END IF;
@@ -92,5 +124,5 @@ $func$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_assign_video_path ON public.videos;
 CREATE TRIGGER trg_assign_video_path
-  BEFORE INSERT OR UPDATE OF quiz_category, target_words ON public.videos
+  BEFORE INSERT OR UPDATE OF quiz_category, quiz_categories, target_words ON public.videos
   FOR EACH ROW EXECUTE FUNCTION public.assign_video_path();
