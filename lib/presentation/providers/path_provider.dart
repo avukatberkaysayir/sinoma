@@ -215,6 +215,23 @@ extension PathProgressMap on Map<String, dynamic> {
   }
 }
 
+// The "continue where you left off" phase: the first unlocked, not-done phase
+// scanning HSK 1→6 in order. Null when there's nothing to do (no content / all
+// done).
+PathPhase? currentPhaseFor(
+    List<PathTopic> topics, Map<String, dynamic> progress) {
+  for (final t in topics) {
+    for (final s in t.steps) {
+      for (final p in s.phases) {
+        if (!progress.phase(p.key).done && isPhaseUnlocked(t, p, progress)) {
+          return p;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 // A phase is unlocked if it's the first in the topic or the PREVIOUS phase (in
 // flat order across steps) is done.
 bool isPhaseUnlocked(

@@ -11,6 +11,7 @@ import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../home/inline_player_section.dart';
+import 'phase_runner_screen.dart';
 
 // Duolingo palette (kept local to this file).
 const _green = Color(0xFF58CC02);
@@ -977,6 +978,44 @@ class ProfileView extends ConsumerWidget {
                             fontWeight: FontWeight.bold)),
                   ),
                 ]),
+                const SizedBox(height: 24),
+                // "Continue where you left off" → opens the current phase lesson.
+                SizedBox(
+                  height: 54,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      final topics = ref.read(curriculumProvider).valueOrNull;
+                      final progress =
+                          ref.read(pathProgressProvider).valueOrNull ?? const {};
+                      final phase = topics == null
+                          ? null
+                          : currentPhaseFor(topics, progress);
+                      if (phase != null) {
+                        ref
+                            .read(selectedTopicHskProvider.notifier)
+                            .state = phase.hsk;
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => PhaseRunnerScreen(
+                            phase: phase,
+                            title:
+                                'HSK ${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
+                          ),
+                        ));
+                      } else {
+                        context.go('/learn');
+                      }
+                    },
+                    icon: const Icon(Icons.play_arrow_rounded, size: 22),
+                    label: Text(tr ? 'BAŞLA' : 'START',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800)),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _green,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 24),
                 Text(tr ? 'İstatistikler' : 'Statistics',
                     style: const TextStyle(
