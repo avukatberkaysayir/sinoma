@@ -39,11 +39,17 @@ INSERT INTO public.grammar_levels(name, level, unit) VALUES
   ('napa',6,1),('jinguan',6,2),('chufei',6,3),('fanwen',6,4),('shuangchong',6,5)
 ON CONFLICT (name) DO UPDATE SET level = EXCLUDED.level, unit = EXCLUDED.unit;
 
+-- Which slot word a grammar-less clip was pinned through (one clip per word).
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS slot_word text;
+CREATE INDEX IF NOT EXISTS idx_videos_slot_word
+  ON public.videos(slot_word) WHERE slot_word IS NOT NULL;
+
 -- Fills level + unit + phase when null:
 --  • grammar clip → from grammar_levels; phase distributes 8 per circle
 --    (kPhaseSize), capped at 4, by how many already sit in that (level, unit).
 --  • grammar-less HSK1 clip → pinned to the slot (path_word_slots) of the FIRST
---    assigned word it contains, so it lands directly in that circle (not "Diğer").
+--    of its words whose slot-word is still FREE (one clip per slot word, so each
+--    word in a circle hosts a distinct clip). Records that word in slot_word.
 --  • anything else (e.g. grammar-less HSK4-6 with no slot yet) → left null.
 -- Fires on target_words changes too, since that's when a clip's words become
 -- known (admin "Kelimeleri Onayla").
@@ -65,12 +71,18 @@ BEGIN
       END IF;
     ELSIF NEW.level IS NULL
        AND (NEW.hsk_level = 1 OR (NEW.hsk_levels IS NOT NULL AND 1 = ANY(NEW.hsk_levels))) THEN
-      SELECT s.level AS level, s.unit AS unit, s.phase AS phase INTO ws
+      SELECT s.level AS level, s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
         FROM unnest(NEW.target_words) WITH ORDINALITY t(w, ord)
         JOIN public.path_word_slots s ON s.word = t.w AND s.level = 1
+        WHERE NOT EXISTS (
+          SELECT 1 FROM public.videos v2
+          WHERE v2.slot_word = s.word
+            AND v2.status IN ('active','pending') AND v2.id <> NEW.id
+        )
         ORDER BY t.ord LIMIT 1;
       IF FOUND THEN
         NEW.level := ws.level; NEW.unit := ws.unit; NEW.phase := ws.phase;
+        NEW.slot_word := ws.word;
       END IF;
     END IF;
   END IF;

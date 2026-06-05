@@ -100,8 +100,7 @@ class WordSlot {
       );
 }
 
-List<PathTopic> buildCurriculum(List<VideoSegmentModel> all,
-    [List<WordSlot> wordSlots = const []]) {
+List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
   // slot[hsk][unitIndex][phaseIndex] -> videos placed there.
   final slot = <int, List<List<List<VideoSegmentModel>>>>{
     for (var hsk = 1; hsk <= 6; hsk++)
@@ -133,29 +132,9 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all,
     placed.add(v.videoId);
   }
 
-  // Pass 1.5 — vocabulary placement: a clip with no grammar rule lands in the
-  // slot of the FIRST assigned word it contains (matching that slot's level).
-  final wordToSlot = {for (final w in wordSlots) w.word: w};
-  if (wordToSlot.isNotEmpty) {
-    for (final v in sorted) {
-      if (placed.contains(v.videoId)) continue;
-      if (hskOfGrammar(primaryGrammarOf(v)) != null) continue; // a grammar clip
-      for (final w in v.spokenWords) {
-        final s = wordToSlot[w];
-        if (s == null) continue;
-        if (!v.hskLevelTags.contains(s.level)) continue;
-        if (s.unit < 1 ||
-            s.unit > kUnitsPerLevel ||
-            s.phase < 1 ||
-            s.phase > kPhasesPerStep) {
-          break;
-        }
-        slot[s.level]![s.unit - 1][s.phase - 1].add(v);
-        placed.add(v.videoId);
-        break;
-      }
-    }
-  }
+  // (Grammar-less HSK1 clips are pinned to a word slot at write time by the
+  // trg_assign_video_path trigger — one clip per slot word — so they arrive here
+  // already carrying level/unit/phase and are handled by Pass 1 above.)
 
   // Pass 2 — fallback for un-placed videos: group by the grammar's natural unit
   // and fill its phases in order (keeps the path populated before curation).
@@ -288,8 +267,7 @@ final wordsBySlotProvider = Provider<Map<String, List<WordSlot>>>((ref) {
 
 final curriculumProvider = FutureProvider<List<PathTopic>>((ref) async {
   final vids = await ref.watch(allActiveVideosProvider.future);
-  final slots = await ref.watch(pathWordSlotsProvider.future);
-  return buildCurriculum(vids, slots);
+  return buildCurriculum(vids);
 });
 
 final pathProgressProvider = FutureProvider<Map<String, dynamic>>((ref) {
