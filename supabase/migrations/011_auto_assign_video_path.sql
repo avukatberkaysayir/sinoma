@@ -48,23 +48,20 @@ CREATE INDEX IF NOT EXISTS idx_videos_slot_word
 CREATE INDEX IF NOT EXISTS idx_videos_slot_grammar
   ON public.videos(slot_grammar) WHERE slot_grammar IS NOT NULL;
 
--- Matchable core symbol per grammar (NULL = structural pattern, e.g. 把字句 /
--- 结果补语 / A不A — never pruned). Populated from kGrammarMeaning.zh:
--- contains 补语/句/否定 or = 'A不A' → NULL; contains '…' → part before '…'; else zh.
+-- Matchable token per grammar (NULL = multi-token pattern, e.g. 是…的 / A不A /
+-- 把字句 / 结果补语 — can't be matched as a single word). Populated from
+-- kGrammarMeaning.zh: contains 补语/句/否定/… or = 'A不A' → NULL; else zh.
 ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS symbol text;
 -- (symbol values set by the app's one-off generator; see project notes.)
 
--- Unambiguous particles auto-ADDED to the grammar tags when present in the words
--- (pure grammatical particles, no content meaning). Content-ambiguous symbols
--- (在/想/会…) are NOT auto-added — only pruned if a stale tag — to avoid false
--- positives. Set: le 了, ma 吗, ne 呢, baParticle 吧, a 啊, guo 过, zhe 着.
-ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS auto_add boolean NOT NULL DEFAULT false;
-UPDATE public.grammar_levels SET auto_add = (name IN ('le','ma','ne','baParticle','a','guo','zhe'));
+-- Standard: grammar words are already a separate set from vocab (path_word_slots
+-- excludes them). So ANY confirmed word that IS a grammar token (= grammar_levels
+-- .symbol) is treated as that grammar — no ambiguity heuristics. (The older
+-- auto_add allow-list was dropped.)
 
 -- BEFORE INSERT / UPDATE OF quiz_category|quiz_categories|target_words.
--- (1) Detect grammar from the confirmed words: keep existing tags whose symbol is
---     still present (prune stale; structural NULL-symbol tags always kept), then
---     APPEND auto_add particles present and not already tagged (reading order).
+-- (1) Detect grammar: every confirmed word equal to a grammar token → that
+--     grammar (reading order); plus existing pattern tags (NULL symbol) kept.
 --     quiz_category := first tag (else 'general').
 -- (2) Placement (only when level is null and not "Diğer"=phase 0):
 --      a. first grammar tag whose grammar is still FREE → its unit, phase 1,
@@ -76,7 +73,6 @@ CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE
   do_detect boolean := false;
   do_place boolean := false;
-  joined text;
   rec_g record;
   ws record;
 BEGIN
@@ -90,18 +86,17 @@ BEGIN
   do_place := (NEW.level IS NULL AND COALESCE(NEW.phase, -1) <> 0);
 
   IF do_detect THEN
-    joined := array_to_string(COALESCE(NEW.target_words, '{}'::text[]), '');
     NEW.quiz_categories :=
-      ( SELECT COALESCE(array_agg(cat ORDER BY ord), '{}'::text[])
-        FROM ( SELECT t.cat AS cat, t.ord AS ord
-               FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
-               JOIN public.grammar_levels gl ON gl.name = t.cat
-               WHERE gl.symbol IS NULL OR position(gl.symbol IN joined) > 0 ) e )
+      ( SELECT COALESCE(array_agg(name ORDER BY pos), '{}'::text[])
+        FROM ( SELECT gl.name AS name, min(t.ord) AS pos
+               FROM unnest(COALESCE(NEW.target_words,'{}'::text[])) WITH ORDINALITY t(w,ord)
+               JOIN public.grammar_levels gl ON gl.symbol = t.w
+               GROUP BY gl.name ) m )
       ||
-      ( SELECT COALESCE(array_agg(gl.name ORDER BY position(gl.symbol IN joined)), '{}'::text[])
-        FROM public.grammar_levels gl
-        WHERE gl.auto_add AND gl.symbol IS NOT NULL AND position(gl.symbol IN joined) > 0
-          AND NOT (gl.name = ANY(COALESCE(NEW.quiz_categories,'{}'::text[]))) );
+      ( SELECT COALESCE(array_agg(t.cat ORDER BY t.ord), '{}'::text[])
+        FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
+        JOIN public.grammar_levels gl ON gl.name = t.cat
+        WHERE gl.symbol IS NULL );
     NEW.quiz_category := COALESCE(NEW.quiz_categories[1], 'general');
     IF NEW.quiz_category IS NULL THEN NEW.quiz_category := 'general'; END IF;
   END IF;
