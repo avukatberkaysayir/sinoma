@@ -19,6 +19,7 @@ const _duoPanel = Color(0xFF1C2A35);
 const _duoLocked = Color(0xFF37464F);
 
 enum _Section {
+  home, // post-login dashboard (no nav item highlighted)
   learn,
   dictionary,
   video,
@@ -32,6 +33,7 @@ enum _Section {
 
 // Each left-nav section is its own URL.
 const Map<_Section, String> _sectionPaths = {
+  _Section.home: '/home',
   _Section.learn: '/learn',
   _Section.profile: '/profile',
   _Section.editProfile: '/settings/profile',
@@ -63,6 +65,9 @@ class PathScreen extends ConsumerWidget {
 
     Widget center;
     switch (section) {
+      case _Section.home:
+        center = HomeDashboard(tr: tr, onStart: () => context.go('/learn'));
+        break;
       case _Section.video:
         center = VideoCenter(tr: tr);
         break;
@@ -119,6 +124,7 @@ class PathScreen extends ConsumerWidget {
   // Each section gets its own right column (Duolingo-style).
   Widget? _rightFor(_Section s, bool tr, BuildContext context) {
     switch (s) {
+      case _Section.home:
       case _Section.learn:
         return _RightSidebar(tr: tr);
       case _Section.video:
@@ -182,20 +188,26 @@ class _LeftNav extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 6, bottom: 24, top: 4),
-            child: Row(
-              children: [
-                const Icon(Icons.play_circle_fill, color: _duoGreen, size: 28),
-                if (!compact) ...[
-                  const SizedBox(width: 8),
-                  const Text('Sinoma',
-                      style: TextStyle(
-                          color: _duoGreen,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800)),
+          // Logo → back to the public landing page.
+          InkWell(
+            onTap: () => context.go('/'),
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 6, bottom: 24, top: 4),
+              child: Row(
+                children: [
+                  const Icon(Icons.play_circle_fill,
+                      color: _duoGreen, size: 28),
+                  if (!compact) ...[
+                    const SizedBox(width: 8),
+                    const Text('Sinoma',
+                        style: TextStyle(
+                            color: _duoGreen,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800)),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
           Expanded(

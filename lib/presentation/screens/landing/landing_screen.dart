@@ -108,7 +108,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 12),
           if (signedIn)
             FilledButton(
-              onPressed: () => context.go('/profile'),
+              onPressed: () => context.go('/home'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding:
@@ -270,7 +270,7 @@ class _Hero extends StatelessWidget {
           children: [
             FilledButton.icon(
               onPressed: () => signedIn
-                  ? context.go('/profile')
+                  ? context.go('/home')
                   : showAuthDialog(context, startWithRegister: true),
               icon: Icon(
                   signedIn ? Icons.arrow_forward_rounded : Icons.rocket_launch,

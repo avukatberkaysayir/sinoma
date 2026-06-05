@@ -113,8 +113,8 @@ final _router = GoRouter(
     ),
     // Learning-path sections — each is its own URL, all render PathScreen
     // (which picks the active section from the location).
+    GoRoute(path: '/home',             builder: (_, __) => const PathScreen()),
     GoRoute(path: '/learn',            builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/home',             redirect: (_, __) => '/learn'),
     GoRoute(path: '/profile',          builder: (_, __) => const PathScreen()),
     GoRoute(path: '/settings',         builder: (_, __) => const PathScreen()),
     GoRoute(path: '/settings/profile', builder: (_, __) => const PathScreen()),

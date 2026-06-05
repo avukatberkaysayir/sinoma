@@ -1105,3 +1105,121 @@ class _StatCard extends StatelessWidget {
     );
   }
 }
+
+// ── Home dashboard (post-login welcome) ───────────────────────────────────────
+
+class HomeDashboard extends ConsumerWidget {
+  final bool tr;
+  final VoidCallback onStart;
+  const HomeDashboard({super.key, required this.tr, required this.onStart});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final name = user?.displayName.trim().isNotEmpty == true
+        ? user!.displayName.trim().split(' ').first
+        : null;
+
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 560),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Hero visual
+              AspectRatio(
+                aspectRatio: 16 / 9,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF58CC02), Color(0xFF1CB0F6)],
+                    ),
+                    borderRadius: BorderRadius.circular(24),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFF58CC02).withValues(alpha: 0.35),
+                        blurRadius: 30,
+                        offset: const Offset(0, 14),
+                      ),
+                    ],
+                  ),
+                  child: Stack(
+                    children: [
+                      const Positioned(
+                          top: 18,
+                          left: 20,
+                          child: Icon(Icons.auto_awesome,
+                              color: Colors.white70, size: 26)),
+                      const Positioned(
+                          bottom: 20,
+                          right: 26,
+                          child: Icon(Icons.auto_awesome,
+                              color: Colors.white54, size: 20)),
+                      const Positioned(
+                          top: 40,
+                          right: 40,
+                          child: Icon(Icons.star_rounded,
+                              color: Colors.white38, size: 22)),
+                      Center(
+                        child: Container(
+                          width: 96,
+                          height: 96,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.2),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.school_rounded,
+                              color: Colors.white, size: 54),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 28),
+              Text(
+                name != null
+                    ? (tr ? 'Hoş geldin, $name!' : 'Welcome, $name!')
+                    : (tr ? 'Hoş geldin!' : 'Welcome!'),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w800),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                tr
+                    ? 'Öğrenmeye kaldığın yerden devam et.'
+                    : 'Continue learning where you left off.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white60, fontSize: 15),
+              ),
+              const SizedBox(height: 28),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: FilledButton.icon(
+                  onPressed: onStart,
+                  icon: const Icon(Icons.play_arrow_rounded, size: 24),
+                  label: Text(tr ? 'BAŞLA' : 'START',
+                      style: const TextStyle(
+                          fontSize: 17, fontWeight: FontWeight.w800)),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _green,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
