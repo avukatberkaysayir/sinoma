@@ -54,9 +54,18 @@ CREATE INDEX IF NOT EXISTS idx_videos_slot_grammar
 ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS symbol text;
 -- (symbol values set by the app's one-off generator; see project notes.)
 
+-- Unambiguous particles auto-ADDED to the grammar tags when present in the words
+-- (pure grammatical particles, no content meaning). Content-ambiguous symbols
+-- (在/想/会…) are NOT auto-added — only pruned if a stale tag — to avoid false
+-- positives. Set: le 了, ma 吗, ne 呢, baParticle 吧, a 啊, guo 过, zhe 着.
+ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS auto_add boolean NOT NULL DEFAULT false;
+UPDATE public.grammar_levels SET auto_add = (name IN ('le','ma','ne','baParticle','a','guo','zhe'));
+
 -- BEFORE INSERT / UPDATE OF quiz_category|quiz_categories|target_words.
--- (1) Prune: drop grammar tags whose symbol no longer appears in target_words
---     (don't add). quiz_category := first remaining grammar (else 'general').
+-- (1) Detect grammar from the confirmed words: keep existing tags whose symbol is
+--     still present (prune stale; structural NULL-symbol tags always kept), then
+--     APPEND auto_add particles present and not already tagged (reading order).
+--     quiz_category := first tag (else 'general').
 -- (2) Placement (only when level is null and not "Diğer"=phase 0):
 --      a. first grammar tag whose grammar is still FREE → its unit, phase 1,
 --         slot_grammar (one clip per grammar rule);
@@ -65,33 +74,36 @@ ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS symbol text;
 --      c. else left null (unplaced).
 CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE
-  do_prune boolean := false;
+  do_detect boolean := false;
   do_place boolean := false;
   joined text;
   rec_g record;
   ws record;
 BEGIN
   IF TG_OP = 'INSERT' THEN
-    do_prune := (NEW.target_words IS NOT NULL);
+    do_detect := (NEW.target_words IS NOT NULL);
   ELSIF (NEW.target_words   IS DISTINCT FROM OLD.target_words)
      OR (NEW.quiz_categories IS DISTINCT FROM OLD.quiz_categories)
      OR (NEW.quiz_category   IS DISTINCT FROM OLD.quiz_category) THEN
-    do_prune := true;
+    do_detect := true;
   END IF;
   do_place := (NEW.level IS NULL AND COALESCE(NEW.phase, -1) <> 0);
 
-  IF do_prune THEN
+  IF do_detect THEN
     joined := array_to_string(COALESCE(NEW.target_words, '{}'::text[]), '');
-    NEW.quiz_categories := ARRAY(
-      SELECT t.cat
-      FROM unnest(COALESCE(NEW.quiz_categories, '{}'::text[])) WITH ORDINALITY t(cat, ord)
-      LEFT JOIN public.grammar_levels gl ON gl.name = t.cat
-      WHERE gl.name IS NULL OR gl.symbol IS NULL OR position(gl.symbol IN joined) > 0
-      ORDER BY t.ord);
-    NEW.quiz_category := COALESCE(
-      (SELECT t.cat FROM unnest(NEW.quiz_categories) WITH ORDINALITY t(cat, ord)
-       JOIN public.grammar_levels gl ON gl.name = t.cat ORDER BY t.ord LIMIT 1),
-      'general');
+    NEW.quiz_categories :=
+      ( SELECT COALESCE(array_agg(cat ORDER BY ord), '{}'::text[])
+        FROM ( SELECT t.cat AS cat, t.ord AS ord
+               FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
+               JOIN public.grammar_levels gl ON gl.name = t.cat
+               WHERE gl.symbol IS NULL OR position(gl.symbol IN joined) > 0 ) e )
+      ||
+      ( SELECT COALESCE(array_agg(gl.name ORDER BY position(gl.symbol IN joined)), '{}'::text[])
+        FROM public.grammar_levels gl
+        WHERE gl.auto_add AND gl.symbol IS NOT NULL AND position(gl.symbol IN joined) > 0
+          AND NOT (gl.name = ANY(COALESCE(NEW.quiz_categories,'{}'::text[]))) );
+    NEW.quiz_category := COALESCE(NEW.quiz_categories[1], 'general');
+    IF NEW.quiz_category IS NULL THEN NEW.quiz_category := 'general'; END IF;
   END IF;
 
   IF do_place THEN
