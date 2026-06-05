@@ -39,13 +39,18 @@ INSERT INTO public.grammar_levels(name, level, unit) VALUES
   ('napa',6,1),('jinguan',6,2),('chufei',6,3),('fanwen',6,4),('shuangchong',6,5)
 ON CONFLICT (name) DO UPDATE SET level = EXCLUDED.level, unit = EXCLUDED.unit;
 
--- Fills level + unit + phase from the grammar rule when null. Phase distributes
--- 8 clips per circle (kPhaseSize), capped at 4, by how many already sit in that
--- (level, unit). General/unknown grammar leaves all null (word-slot placement
--- handles those).
+-- Fills level + unit + phase when null:
+--  • grammar clip → from grammar_levels; phase distributes 8 per circle
+--    (kPhaseSize), capped at 4, by how many already sit in that (level, unit).
+--  • grammar-less HSK1 clip → pinned to the slot (path_word_slots) of the FIRST
+--    assigned word it contains, so it lands directly in that circle (not "Diğer").
+--  • anything else (e.g. grammar-less HSK4-6 with no slot yet) → left null.
+-- Fires on target_words changes too, since that's when a clip's words become
+-- known (admin "Kelimeleri Onayla").
 CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE g public.grammar_levels%ROWTYPE;
 DECLARE n integer;
+DECLARE ws record;
 BEGIN
   IF NEW.level IS NULL OR NEW.unit IS NULL OR NEW.phase IS NULL THEN
     SELECT * INTO g FROM public.grammar_levels WHERE name = NEW.quiz_category;
@@ -58,6 +63,15 @@ BEGIN
             AND v.status IN ('active','pending') AND v.id <> NEW.id;
         NEW.phase := LEAST(4, (n / 8) + 1);
       END IF;
+    ELSIF NEW.level IS NULL
+       AND (NEW.hsk_level = 1 OR (NEW.hsk_levels IS NOT NULL AND 1 = ANY(NEW.hsk_levels))) THEN
+      SELECT s.level AS level, s.unit AS unit, s.phase AS phase INTO ws
+        FROM unnest(NEW.target_words) WITH ORDINALITY t(w, ord)
+        JOIN public.path_word_slots s ON s.word = t.w AND s.level = 1
+        ORDER BY t.ord LIMIT 1;
+      IF FOUND THEN
+        NEW.level := ws.level; NEW.unit := ws.unit; NEW.phase := ws.phase;
+      END IF;
     END IF;
   END IF;
   RETURN NEW;
@@ -66,5 +80,5 @@ $func$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS trg_assign_video_path ON public.videos;
 CREATE TRIGGER trg_assign_video_path
-  BEFORE INSERT OR UPDATE OF quiz_category ON public.videos
+  BEFORE INSERT OR UPDATE OF quiz_category, target_words ON public.videos
   FOR EACH ROW EXECUTE FUNCTION public.assign_video_path();
