@@ -55,40 +55,75 @@ class PathTopic {
 // grammar list are empty/locked placeholders). Each unit has kPhasesPerStep
 // phases; videos tagged with the unit's grammar fill the phases in order, the
 // rest stay locked. (Video→grammar tagging is curated separately in the admin.)
+// The grammar this video primarily teaches: the first tag that maps to a level.
+String? primaryGrammarOf(VideoSegmentModel v) {
+  for (final c in v.categoryTags) {
+    if (hskOfGrammar(c) != null) return c;
+  }
+  return v.categoryTags.isNotEmpty ? v.categoryTags.first : null;
+}
+
 List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
+  // slot[hsk][unitIndex][phaseIndex] -> videos placed there.
+  final slot = <int, List<List<List<VideoSegmentModel>>>>{
+    for (var hsk = 1; hsk <= 6; hsk++)
+      hsk: [
+        for (var u = 0; u < kUnitsPerLevel; u++)
+          [for (var p = 0; p < kPhasesPerStep; p++) <VideoSegmentModel>[]],
+      ],
+  };
+
+  final sorted = all.toList()
+    ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+  // Pass 1 — explicit manual placement (admin-set unit + phase). Level (L) is
+  // derived from the grammar rule.
+  final placed = <String>{};
+  for (final v in sorted) {
+    if (v.unit == null || v.phase == null) continue;
+    final l = hskOfGrammar(primaryGrammarOf(v)) ?? v.hskLevel;
+    final u = v.unit! - 1, p = v.phase! - 1;
+    if (l < 1 || l > 6) continue;
+    if (u < 0 || u >= kUnitsPerLevel || p < 0 || p >= kPhasesPerStep) continue;
+    slot[l]![u][p].add(v);
+    placed.add(v.videoId);
+  }
+
+  // Pass 2 — fallback for un-placed videos: group by the grammar's natural unit
+  // and fill its phases in order (keeps the path populated before curation).
+  for (var hsk = 1; hsk <= 6; hsk++) {
+    final grammar = kGrammarByHsk[hsk] ?? const <QuizCategory>[];
+    final unitOf = {for (var u = 0; u < grammar.length; u++) grammar[u].name: u};
+    final byUnit = <int, List<VideoSegmentModel>>{};
+    for (final v in sorted) {
+      if (placed.contains(v.videoId)) continue;
+      if (!v.hskLevelTags.contains(hsk)) continue;
+      final g = primaryGrammarOf(v);
+      final u = g == null ? null : unitOf[g];
+      if (u == null) continue;
+      (byUnit[u] ??= []).add(v);
+    }
+    byUnit.forEach((u, vids) {
+      for (var i = 0; i < vids.length; i++) {
+        final p = (i ~/ kPhaseSize).clamp(0, kPhasesPerStep - 1);
+        slot[hsk]![u][p].add(vids[i]);
+      }
+    });
+  }
+
   final topics = <PathTopic>[];
   for (var hsk = 1; hsk <= 6; hsk++) {
     final grammar = kGrammarByHsk[hsk] ?? const <QuizCategory>[];
-
-    // Group this level's active videos by the grammar points they teach.
-    final byGrammar = <String, List<VideoSegmentModel>>{};
-    final pool = all.where((v) => v.hskLevelTags.contains(hsk)).toList()
-      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    for (final v in pool) {
-      for (final cat in v.categoryTags) {
-        (byGrammar[cat] ??= []).add(v);
-      }
-    }
-
     final steps = <PathStep>[];
     for (var u = 0; u < kUnitsPerLevel; u++) {
       final g = u < grammar.length ? grammar[u] : null;
-      final vids = g != null
-          ? (byGrammar[g.name] ?? const <VideoSegmentModel>[])
-          : const <VideoSegmentModel>[];
       final phases = <PathPhase>[
         for (var p = 0; p < kPhasesPerStep; p++)
           PathPhase(
             hsk: hsk,
             stepIndex: u,
             phaseIndex: p,
-            videos: (p * kPhaseSize) < vids.length
-                ? vids.sublist(
-                    p * kPhaseSize,
-                    ((p + 1) * kPhaseSize) > vids.length
-                        ? vids.length
-                        : (p + 1) * kPhaseSize)
-                : const <VideoSegmentModel>[],
+            videos: slot[hsk]![u][p],
           ),
       ];
       steps.add(PathStep(

@@ -360,6 +360,15 @@ String grammarLabel(String? name, {required bool tr}) {
   return '${tr ? m.tr : m.en} (${m.zh})';
 }
 
+// Reverse lookup: which level (L = HSK 1-6) a grammar point belongs to. Drives
+// the auto "L" badge in the admin and the path placement of a tagged video.
+final Map<String, int> _grammarHsk = {
+  for (final e in kGrammarByHsk.entries)
+    for (final c in e.value) c.name: e.key,
+};
+
+int? hskOfGrammar(String? name) => name == null ? null : _grammarHsk[name];
+
 // Life / topic categories a clip can belong to (multi-label). `name` is the
 // stored id; tr/en are the labels. Auto-assigned at import (python classifier),
 // editable in the admin, filterable on the home feed.
@@ -425,6 +434,10 @@ class VideoSegmentModel {
   final List<int> hskLevels;
   final List<String> quizCategories;
   final List<String> lifeCategories;
+  // Manual learning-path placement (admin-set). Level (L) is derived from the
+  // grammar rule; unit (1-30) and phase circle (1-4) are picked by hand.
+  final int? unit;
+  final int? phase;
   final bool isActive;
   final DateTime createdAt;
 
@@ -445,6 +458,8 @@ class VideoSegmentModel {
     this.hskLevels = const [],
     this.quizCategories = const [],
     this.lifeCategories = const [],
+    this.unit,
+    this.phase,
     this.isActive = true,
     required this.createdAt,
   });
@@ -512,6 +527,8 @@ class VideoSegmentModel {
       lifeCategories: ((data['life_categories'] as List<dynamic>?) ?? [])
           .map((e) => e.toString())
           .toList(),
+      unit: (data['unit'] as num?)?.toInt(),
+      phase: (data['phase'] as num?)?.toInt(),
       isActive: data['is_active'] as bool? ?? true,
       createdAt: data['created_at'] != null
           ? DateTime.parse(data['created_at'] as String)
@@ -546,6 +563,8 @@ class VideoSegmentModel {
       lifeCategories: ((data['lifeCategories'] as List<dynamic>?) ?? [])
           .map((e) => e.toString())
           .toList(),
+      unit: (data['unit'] as num?)?.toInt(),
+      phase: (data['phase'] as num?)?.toInt(),
       isActive: data['isActive'] as bool? ?? true,
       createdAt: data['createdAt'] is int
           ? DateTime.fromMillisecondsSinceEpoch(data['createdAt'] as int)
@@ -570,6 +589,8 @@ class VideoSegmentModel {
         'hsk_levels': hskLevels,
         'quiz_categories': quizCategories,
         'life_categories': lifeCategories,
+        'unit': unit,
+        'phase': phase,
         'is_active': isActive,
         'created_at': createdAt.toIso8601String(),
       };
@@ -590,6 +611,8 @@ class VideoSegmentModel {
         'hskLevels': hskLevels,
         'quizCategories': quizCategories,
         'lifeCategories': lifeCategories,
+        'unit': unit,
+        'phase': phase,
         'isActive': isActive,
         'createdAt': createdAt.millisecondsSinceEpoch,
       };

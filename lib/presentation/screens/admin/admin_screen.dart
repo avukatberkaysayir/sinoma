@@ -1442,6 +1442,24 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
   String? _error;
   final Set<String> _selected = {};
   bool _bulkLoading = false;
+  // Active-tab path filters (cascading): level (L) → unit → phase.
+  int? _fL;
+  int? _fUnit;
+  int? _fPhase;
+
+  // The level (L) a video sits on = HSK of its primary grammar rule.
+  static int? _videoLevel(Map<String, dynamic> v) {
+    final cats = <String>[
+      ...((v['quiz_categories'] as List<dynamic>?) ?? const [])
+          .map((e) => e.toString()),
+      if (v['quiz_category'] != null) v['quiz_category'].toString(),
+    ];
+    for (final c in cats) {
+      final l = hskOfGrammar(c);
+      if (l != null) return l;
+    }
+    return null;
+  }
 
   static String _sentenceLengthBucket(int n) {
     if (n <= 5) return '1-5字';
@@ -1486,6 +1504,19 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
             [];
         return t.contains(q) || p.contains(q) || words.any((w) => w.contains(q));
       }).toList();
+    }
+    // Cascading path filters (active tab). Partial selection is honoured:
+    // L alone → all of that level; L+unit → that unit; +phase → that circle.
+    if (_fL != null) {
+      result = result.where((v) => _videoLevel(v) == _fL).toList();
+    }
+    if (_fUnit != null) {
+      result =
+          result.where((v) => (v['unit'] as num?)?.toInt() == _fUnit).toList();
+    }
+    if (_fPhase != null) {
+      result =
+          result.where((v) => (v['phase'] as num?)?.toInt() == _fPhase).toList();
     }
     return result;
   }
@@ -1757,6 +1788,130 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
             onPressed: onPressed, style: style, child: Text(label));
   }
 
+  // Cascading L → Ünite → Bölüm filters. Ünite is disabled until L is picked;
+  // Bölüm until both L and Ünite are picked. Each narrows the list below.
+  Widget _buildPathFilters(int shown) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 4, 8, 8),
+      color: AppColors.surfaceVariant.withValues(alpha: 0.5),
+      child: Row(
+        children: [
+          _filterDropdown<int>(
+            label: 'Seviye',
+            value: _fL,
+            hint: 'L',
+            enabled: true,
+            options: [for (var i = 1; i <= 6; i++) (value: i, text: 'L$i')],
+            onSelected: (v) => setState(() {
+              _fL = v;
+              _fUnit = null;
+              _fPhase = null;
+            }),
+          ),
+          const SizedBox(width: 6),
+          _filterDropdown<int>(
+            label: 'Ünite',
+            value: _fUnit,
+            hint: 'Ünite',
+            enabled: _fL != null,
+            options: [
+              for (var i = 1; i <= kUnitsPerLevel; i++) (value: i, text: '$i')
+            ],
+            onSelected: (v) => setState(() {
+              _fUnit = v;
+              _fPhase = null;
+            }),
+          ),
+          const SizedBox(width: 6),
+          _filterDropdown<int>(
+            label: 'Bölüm',
+            value: _fPhase,
+            hint: 'Bölüm',
+            enabled: _fL != null && _fUnit != null,
+            options: [for (var i = 1; i <= 4; i++) (value: i, text: '$i')],
+            onSelected: (v) => setState(() => _fPhase = v),
+          ),
+          const SizedBox(width: 8),
+          if (_fL != null)
+            Text('$shown video',
+                style: const TextStyle(
+                    color: AppColors.onSurfaceMuted, fontSize: 11)),
+          const Spacer(),
+          if (_fL != null || _fUnit != null || _fPhase != null)
+            TextButton.icon(
+              onPressed: () => setState(() {
+                _fL = null;
+                _fUnit = null;
+                _fPhase = null;
+              }),
+              icon: const Icon(Icons.clear, size: 14),
+              label: const Text('Temizle', style: TextStyle(fontSize: 11)),
+              style: TextButton.styleFrom(
+                  foregroundColor: AppColors.onSurfaceMuted,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  minimumSize: Size.zero),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _filterDropdown<T>({
+    required String label,
+    required T? value,
+    required String hint,
+    required bool enabled,
+    required List<({T value, String text})> options,
+    required ValueChanged<T> onSelected,
+  }) {
+    final fg = enabled ? AppColors.onSurface : AppColors.onSurfaceMuted;
+    return PopupMenuButton<T>(
+      enabled: enabled,
+      onSelected: onSelected,
+      color: AppColors.surfaceVariant.withValues(alpha: 0.95),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      itemBuilder: (_) => [
+        for (final o in options)
+          PopupMenuItem<T>(
+            value: o.value,
+            height: 34,
+            child: Text(o.text,
+                style: TextStyle(
+                    color: o.value == value
+                        ? AppColors.primary
+                        : AppColors.onSurface,
+                    fontSize: 12)),
+          ),
+      ],
+      child: Opacity(
+        opacity: enabled ? 1 : 0.45,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+                color: value != null
+                    ? AppColors.primary.withValues(alpha: 0.6)
+                    : AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                  value != null
+                      ? (label == 'Seviye' ? 'L$value' : '$label $value')
+                      : hint,
+                  style: TextStyle(color: fg, fontSize: 12)),
+              const SizedBox(width: 4),
+              Icon(Icons.keyboard_arrow_down, color: fg, size: 16),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -1785,6 +1940,7 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     return Column(
       children: [
         _buildBulkActions(),
+        if (widget.status == 'active') _buildPathFilters(filtered.length),
         Expanded(
           child: filtered.isEmpty
               ? Center(
@@ -1870,6 +2026,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   final Set<int> _hskLevels = {};
   final Set<String> _quizCategories = {};
   final Set<String> _lifeCategories = {};
+  int? _unit; // manual path unit (1-30)
+  int? _phase; // manual path phase circle (1-4)
   late List<String> _targetWords;
   late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
@@ -1917,6 +2075,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     if (_lifeCategories.isEmpty) {
       _lifeCategories.add(v['life_category'] as String? ?? 'daily_life');
     }
+    _unit = (v['unit'] as num?)?.toInt();
+    _phase = (v['phase'] as num?)?.toInt();
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
     final tr = v['transcription'] as String? ?? '';
@@ -2157,6 +2317,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'hsk_levels': hskList,
         'quiz_categories': catList,
         'life_categories': lifeList,
+        'unit': _unit,
+        'phase': _phase,
         'target_words': _targetWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
@@ -2585,6 +2747,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                             () => setState(() => _lifeCategories.remove(lc))),
                     ],
                   ),
+                  const SizedBox(height: 10),
+                  _pathPlacementRow(),
                   const SizedBox(height: 14),
                   // Left = ASR (auto-caption), Right = Whisper (clip range only).
                   Row(
@@ -3015,6 +3179,118 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               const Icon(Icons.lock_outline,
                   color: AppColors.onSurfaceMuted, size: 13),
             ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // Auto level (L) from the chosen grammar + manual unit / phase placement on
+  // the learning path. L is read-only (driven by the grammar rule); unit (1-30)
+  // and phase circle (1-4) are picked by hand.
+  int? get _autoLevel {
+    for (final c in _quizCategories) {
+      final l = hskOfGrammar(c);
+      if (l != null) return l;
+    }
+    return null;
+  }
+
+  Widget _pathPlacementRow() {
+    final l = _autoLevel;
+    return Wrap(
+      spacing: 10,
+      runSpacing: 8,
+      crossAxisAlignment: WrapCrossAlignment.start,
+      children: [
+        _readonlyFilter('Seviye (L)', l != null ? 'L$l' : '— (gramer seç)'),
+        _singleDropdown<int>(
+          label: 'Ünite',
+          value: _unit,
+          hint: _unit == null ? 'Ünite…' : 'Ünite $_unit',
+          options: [for (var i = 1; i <= kUnitsPerLevel; i++) (value: i, text: 'Ünite $i')],
+          onSelected: (v) => setState(() => _unit = v),
+        ),
+        _singleDropdown<int>(
+          label: 'Bölüm',
+          value: _phase,
+          hint: _phase == null ? 'Bölüm…' : 'Bölüm $_phase',
+          options: [for (var i = 1; i <= 4; i++) (value: i, text: 'Bölüm $i')],
+          onSelected: (v) => setState(() => _phase = v),
+        ),
+        if (_unit != null || _phase != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 22),
+            child: IconButton(
+              tooltip: 'Yerleşimi temizle',
+              icon: const Icon(Icons.close, size: 16, color: AppColors.onSurfaceMuted),
+              onPressed: () => setState(() { _unit = null; _phase = null; }),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _singleDropdown<T>({
+    required String label,
+    required T? value,
+    required String hint,
+    required List<({T value, String text})> options,
+    required ValueChanged<T> onSelected,
+  }) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(
+                color: AppColors.onSurfaceMuted,
+                fontSize: 11,
+                fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        PopupMenuButton<T>(
+          onSelected: onSelected,
+          color: AppColors.surfaceVariant.withValues(alpha: 0.92),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          itemBuilder: (_) => [
+            for (final o in options)
+              PopupMenuItem<T>(
+                value: o.value,
+                height: 36,
+                child: Text(o.text,
+                    style: TextStyle(
+                        color: o.value == value
+                            ? AppColors.primary
+                            : AppColors.onSurface,
+                        fontSize: 12)),
+              ),
+          ],
+          child: Container(
+            width: 110,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                  color: value != null
+                      ? AppColors.primary.withValues(alpha: 0.6)
+                      : AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(hint,
+                      style: TextStyle(
+                          color: value != null
+                              ? AppColors.onSurface
+                              : AppColors.onSurfaceMuted,
+                          fontSize: 12),
+                      overflow: TextOverflow.ellipsis),
+                ),
+                const Icon(Icons.keyboard_arrow_down,
+                    color: AppColors.onSurfaceMuted, size: 18),
+              ],
+            ),
           ),
         ),
       ],
