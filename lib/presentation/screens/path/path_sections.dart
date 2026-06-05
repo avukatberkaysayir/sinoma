@@ -553,10 +553,19 @@ class SettingsCenter extends ConsumerWidget {
 
 class SettingsRight extends StatelessWidget {
   final bool tr;
-  const SettingsRight({super.key, required this.tr});
+  final VoidCallback onProfile;
+  const SettingsRight({super.key, required this.tr, required this.onProfile});
 
   @override
   Widget build(BuildContext context) {
+    Future<void> logout() async {
+      final router = GoRouter.of(context);
+      try {
+        await Supabase.instance.client.auth.signOut();
+      } catch (_) {}
+      router.go('/');
+    }
+
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
@@ -567,15 +576,45 @@ class SettingsRight extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _LinkCard(title: tr ? 'Hesap' : 'Account', links: [
+              (tr ? 'Tercihler' : 'Preferences', () {}),
+              (tr ? 'Profil' : 'Profile', onProfile),
+              (tr ? 'Gizlilik ayarları' : 'Privacy settings',
+                  () => context.go('/legal/privacy')),
+            ]),
+            const SizedBox(height: 16),
             _LinkCard(title: tr ? 'Abonelik' : 'Subscription', links: [
               (tr ? 'Bir plan seç' : 'Choose a plan',
                   () => context.go('/subscription')),
             ]),
             const SizedBox(height: 16),
             _LinkCard(title: tr ? 'Destek' : 'Support', links: [
-              (tr ? 'Şartlar' : 'Terms', () => context.go('/legal/terms')),
-              (tr ? 'Gizlilik' : 'Privacy', () => context.go('/legal/privacy')),
+              (tr ? 'Yardım Merkezi' : 'Help Center',
+                  () => context.go('/legal/terms')),
             ]),
+            const SizedBox(height: 16),
+            Container(
+              decoration: BoxDecoration(
+                color: _panel,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: const Color(0xFF2C3B45)),
+              ),
+              child: InkWell(
+                onTap: logout,
+                borderRadius: BorderRadius.circular(16),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Center(
+                    child: Text(tr ? 'OTURUMU KAPAT' : 'LOG OUT',
+                        style: const TextStyle(
+                            color: Color(0xFF1CB0F6),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5)),
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),

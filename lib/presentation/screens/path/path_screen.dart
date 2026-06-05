@@ -117,7 +117,9 @@ class _PathScreenState extends ConsumerState<PathScreen> {
                 ? 'Arkadaş etkinliği yakında burada görünecek.'
                 : 'Friend activity will appear here soon.');
       case _Section.more:
-        return SettingsRight(tr: tr);
+        return SettingsRight(
+            tr: tr,
+            onProfile: () => setState(() => _section = _Section.profile));
       default:
         return null;
     }
