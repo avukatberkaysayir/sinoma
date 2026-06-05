@@ -39,14 +39,25 @@ INSERT INTO public.grammar_levels(name, level, unit) VALUES
   ('napa',6,1),('jinguan',6,2),('chufei',6,3),('fanwen',6,4),('shuangchong',6,5)
 ON CONFLICT (name) DO UPDATE SET level = EXCLUDED.level, unit = EXCLUDED.unit;
 
+-- Fills level + unit + phase from the grammar rule when null. Phase distributes
+-- 8 clips per circle (kPhaseSize), capped at 4, by how many already sit in that
+-- (level, unit). General/unknown grammar leaves all null (word-slot placement
+-- handles those).
 CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE g public.grammar_levels%ROWTYPE;
+DECLARE n integer;
 BEGIN
-  IF NEW.level IS NULL OR NEW.unit IS NULL THEN
+  IF NEW.level IS NULL OR NEW.unit IS NULL OR NEW.phase IS NULL THEN
     SELECT * INTO g FROM public.grammar_levels WHERE name = NEW.quiz_category;
     IF FOUND THEN
       IF NEW.level IS NULL THEN NEW.level := g.level; END IF;
       IF NEW.unit  IS NULL THEN NEW.unit  := g.unit;  END IF;
+      IF NEW.phase IS NULL THEN
+        SELECT count(*) INTO n FROM public.videos v
+          WHERE v.level = g.level AND v.unit = g.unit
+            AND v.status IN ('active','pending') AND v.id <> NEW.id;
+        NEW.phase := LEAST(4, (n / 8) + 1);
+      END IF;
     END IF;
   END IF;
   RETURN NEW;

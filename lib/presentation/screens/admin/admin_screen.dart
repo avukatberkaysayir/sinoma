@@ -3219,46 +3219,62 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   // manual (1-4, or "Diğer").
   Widget _pathPlacementRow() {
     final l = _effectiveLevel;
-    return Wrap(
-      spacing: 10,
-      runSpacing: 8,
-      crossAxisAlignment: WrapCrossAlignment.start,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _singleDropdown<int>(
-          label: 'Seviye',
-          value: l,
-          hint: l == null ? 'L (gramer seç)' : 'L$l',
-          options: [for (var i = 1; i <= 6; i++) (value: i, text: 'L$i')],
-          onSelected: (v) => setState(() => _level = v),
-        ),
-        _singleDropdown<int>(
-          label: 'Ünite',
-          value: _unit,
-          hint: _unit == null ? 'Ünite…' : 'Ünite $_unit',
-          options: [for (var i = 1; i <= kUnitsPerLevel; i++) (value: i, text: 'Ünite $i')],
-          onSelected: (v) => setState(() => _unit = v),
-        ),
-        _singleDropdown<int>(
-          label: 'Bölüm',
-          value: _phase,
-          hint: _phase == null
-              ? 'Bölüm…'
-              : (_phase == 0 ? 'Diğer' : 'Bölüm $_phase'),
-          options: [
-            for (var i = 1; i <= 4; i++) (value: i, text: 'Bölüm $i'),
-            (value: 0, text: 'Diğer'),
-          ],
-          onSelected: (v) => setState(() => _phase = v),
-        ),
-        if (_unit != null || _phase != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 22),
-            child: IconButton(
-              tooltip: 'Yerleşimi temizle',
-              icon: const Icon(Icons.close, size: 16, color: AppColors.onSurfaceMuted),
-              onPressed: () => setState(() { _unit = null; _phase = null; }),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.start,
+          children: [
+            _singleDropdown<int>(
+              label: 'Seviye',
+              value: l,
+              hint: l == null ? 'L (gramer seç)' : 'L$l',
+              options: [for (var i = 1; i <= 6; i++) (value: i, text: 'L$i')],
+              onSelected: (v) => setState(() => _level = v),
             ),
+            _singleDropdown<int>(
+              label: 'Ünite',
+              value: _unit,
+              hint: _unit == null ? 'Ünite…' : 'Ünite $_unit',
+              options: [
+                for (var i = 1; i <= kUnitsPerLevel; i++)
+                  (value: i, text: 'Ünite $i')
+              ],
+              onSelected: (v) => setState(() => _unit = v),
+            ),
+            _singleDropdown<int>(
+              label: 'Bölüm',
+              value: _phase,
+              hint: _phase == null
+                  ? 'Bölüm…'
+                  : (_phase == 0 ? 'Diğer' : 'Bölüm $_phase'),
+              options: [
+                for (var i = 1; i <= 4; i++) (value: i, text: 'Bölüm $i'),
+                (value: 0, text: 'Diğer'),
+              ],
+              onSelected: (v) => setState(() => _phase = v),
+            ),
+          ],
+        ),
+        // Selected placement shown as removable chips (like the tag chips above).
+        if (l != null || _unit != null || _phase != null) ...[
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: [
+              if (l != null)
+                _tagChip('L$l', () => setState(() => _level = null)),
+              if (_unit != null)
+                _tagChip('Ünite $_unit', () => setState(() => _unit = null)),
+              if (_phase != null)
+                _tagChip(_phase == 0 ? 'Diğer' : 'Bölüm $_phase',
+                    () => setState(() => _phase = null)),
+            ],
           ),
+        ],
       ],
     );
   }
