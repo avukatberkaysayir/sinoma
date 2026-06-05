@@ -224,7 +224,7 @@ const Map<int, List<QuizCategory>> kGrammarByHsk = {
 };
 
 // Units shown per level on the learning path.
-const int kUnitsPerLevel = 30;
+const int kUnitsPerLevel = 24;
 
 // Localized name + core symbol for each grammar point. Unit titles read
 // "{meaning} ({zh})" → e.g. "Geçmiş Zaman (了)" / "Past Tense (了)".

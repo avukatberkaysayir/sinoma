@@ -710,28 +710,159 @@ class _PhaseNode extends ConsumerWidget {
       ref.invalidate(pathProgressProvider);
     }
 
+    final words = ref.watch(wordsBySlotProvider)[phase.wordSlotKey] ??
+        const <WordSlot>[];
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: [
           if (isCurrent) const _StartBubble(),
-          GestureDetector(
-            onTap: open,
-            child: Container(
-              width: 74,
-              height: 70,
-              decoration: BoxDecoration(
-                color: top,
-                borderRadius: BorderRadius.circular(38),
-                boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GestureDetector(
+                onTap: open,
+                child: Container(
+                  width: 74,
+                  height: 70,
+                  decoration: BoxDecoration(
+                    color: top,
+                    borderRadius: BorderRadius.circular(38),
+                    boxShadow: [
+                      BoxShadow(color: shadow, offset: const Offset(0, 6))
+                    ],
+                  ),
+                  child: icon,
+                ),
               ),
-              child: icon,
-            ),
+              if (words.isNotEmpty) ...[
+                const SizedBox(width: 8),
+                _BrowseButton(
+                  tr: tr,
+                  onTap: () => _showWordPanel(context, words, tr),
+                ),
+              ],
+            ],
           ),
         ],
       ),
     );
   }
+}
+
+// Speech-bubble "gözat" button shown next to a circle that has assigned words.
+class _BrowseButton extends StatelessWidget {
+  final bool tr;
+  final VoidCallback onTap;
+  const _BrowseButton({required this.tr, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _duoPanel,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+          child: Row(mainAxisSize: MainAxisSize.min, children: [
+            const Icon(Icons.chat_bubble_outline_rounded,
+                color: Colors.white70, size: 14),
+            const SizedBox(width: 5),
+            Text(tr ? 'gözat' : 'browse',
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// Small square panel listing a slot's words + dictionary meaning. Up to ~5 rows
+// visible, the rest scroll; X (top-right) closes it.
+void _showWordPanel(BuildContext context, List<WordSlot> words, bool tr) {
+  showDialog<void>(
+    context: context,
+    barrierColor: Colors.black54,
+    builder: (ctx) => Dialog(
+      backgroundColor: _duoPanel,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      child: SizedBox(
+        width: 300,
+        height: 340,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(tr ? 'Bu bölümün kelimeleri' : 'Words in this set',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close_rounded,
+                        color: Colors.white60, size: 20),
+                    onPressed: () => Navigator.of(ctx).pop(),
+                    tooltip: tr ? 'Kapat' : 'Close',
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: Colors.white12, height: 1),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: words.length,
+                separatorBuilder: (_, __) =>
+                    const Divider(color: Colors.white10, height: 14),
+                itemBuilder: (_, i) {
+                  final w = words[i];
+                  final meaning = tr ? w.tr : w.en;
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(w.word,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (w.pinyin.isNotEmpty)
+                              Text(w.pinyin,
+                                  style: const TextStyle(
+                                      color: _duoGreen,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w600)),
+                            Text(meaning.isNotEmpty ? meaning : '—',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 13)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _StartBubble extends StatelessWidget {

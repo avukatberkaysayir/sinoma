@@ -24,6 +24,8 @@ class PathPhase {
   });
 
   String get key => 'hsk$hsk.s$stepIndex.p$phaseIndex';
+  // Matches WordSlot.slotKey (1-based level/unit/phase) for the "gözat" panel.
+  String get wordSlotKey => 'L$hsk.u${stepIndex + 1}.p${phaseIndex + 1}';
   bool get hasVideos => videos.isNotEmpty;
 }
 
@@ -63,7 +65,40 @@ String? primaryGrammarOf(VideoSegmentModel v) {
   return v.categoryTags.isNotEmpty ? v.categoryTags.first : null;
 }
 
-List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
+// A vocabulary word pinned to a path slot (level/unit/phase), with its meaning.
+class WordSlot {
+  final String word;
+  final int level;
+  final int unit;
+  final int phase;
+  final String pinyin;
+  final String tr;
+  final String en;
+  const WordSlot({
+    required this.word,
+    required this.level,
+    required this.unit,
+    required this.phase,
+    this.pinyin = '',
+    this.tr = '',
+    this.en = '',
+  });
+
+  String get slotKey => 'L$level.u$unit.p$phase';
+
+  factory WordSlot.fromMap(Map<String, dynamic> m) => WordSlot(
+        word: m['word'] as String? ?? '',
+        level: (m['level'] as num?)?.toInt() ?? 1,
+        unit: (m['unit'] as num?)?.toInt() ?? 1,
+        phase: (m['phase'] as num?)?.toInt() ?? 1,
+        pinyin: m['pinyin'] as String? ?? '',
+        tr: m['tr'] as String? ?? '',
+        en: m['en'] as String? ?? '',
+      );
+}
+
+List<PathTopic> buildCurriculum(List<VideoSegmentModel> all,
+    [List<WordSlot> wordSlots = const []]) {
   // slot[hsk][unitIndex][phaseIndex] -> videos placed there.
   final slot = <int, List<List<List<VideoSegmentModel>>>>{
     for (var hsk = 1; hsk <= 6; hsk++)
@@ -93,6 +128,30 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
     if (u < 0 || u >= kUnitsPerLevel || p < 0 || p >= kPhasesPerStep) continue;
     slot[l]![u][p].add(v);
     placed.add(v.videoId);
+  }
+
+  // Pass 1.5 — vocabulary placement: a clip with no grammar rule lands in the
+  // slot of the FIRST assigned word it contains (matching that slot's level).
+  final wordToSlot = {for (final w in wordSlots) w.word: w};
+  if (wordToSlot.isNotEmpty) {
+    for (final v in sorted) {
+      if (placed.contains(v.videoId)) continue;
+      if (hskOfGrammar(primaryGrammarOf(v)) != null) continue; // a grammar clip
+      for (final w in v.spokenWords) {
+        final s = wordToSlot[w];
+        if (s == null) continue;
+        if (!v.hskLevelTags.contains(s.level)) continue;
+        if (s.unit < 1 ||
+            s.unit > kUnitsPerLevel ||
+            s.phase < 1 ||
+            s.phase > kPhasesPerStep) {
+          break;
+        }
+        slot[s.level]![s.unit - 1][s.phase - 1].add(v);
+        placed.add(v.videoId);
+        break;
+      }
+    }
   }
 
   // Pass 2 — fallback for un-placed videos: group by the grammar's natural unit
@@ -208,9 +267,25 @@ final allActiveVideosProvider = FutureProvider<List<VideoSegmentModel>>((ref) {
   return ref.watch(videoRepositoryProvider).loadAllActiveSegments();
 });
 
+final pathWordSlotsProvider = FutureProvider<List<WordSlot>>((ref) async {
+  final rows = await ref.watch(videoRepositoryProvider).loadPathWordSlots();
+  return rows.map(WordSlot.fromMap).toList();
+});
+
+// Slot key ('L1.u1.p1') -> the words pinned to it (for the "gözat" panel).
+final wordsBySlotProvider = Provider<Map<String, List<WordSlot>>>((ref) {
+  final slots = ref.watch(pathWordSlotsProvider).valueOrNull ?? const [];
+  final map = <String, List<WordSlot>>{};
+  for (final w in slots) {
+    (map[w.slotKey] ??= []).add(w);
+  }
+  return map;
+});
+
 final curriculumProvider = FutureProvider<List<PathTopic>>((ref) async {
   final vids = await ref.watch(allActiveVideosProvider.future);
-  return buildCurriculum(vids);
+  final slots = await ref.watch(pathWordSlotsProvider.future);
+  return buildCurriculum(vids, slots);
 });
 
 final pathProgressProvider = FutureProvider<Map<String, dynamic>>((ref) {

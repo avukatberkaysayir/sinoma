@@ -43,6 +43,14 @@ class VideoRepository {
     return data.map(VideoSegmentModel.fromMap).toList();
   }
 
+  // Vocabulary→slot map for the path: each HSK word is pinned to a (level, unit,
+  // phase) so no-grammar clips containing it surface in that circle. Also feeds
+  // the "gözat" panel (word + dictionary meaning per slot).
+  Future<List<Map<String, dynamic>>> loadPathWordSlots() async {
+    final data = await _db.from('path_word_slots').select().limit(5000);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   Future<VideoSegmentModel?> loadSegment(String videoId) async {
     try {
       final data = await _db

@@ -2723,12 +2723,12 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       ),
                       _multiDropdown<QuizCategory>(
                         label: 'Gramer',
-                        // Grouped by HSK level: each level's grammar rules listed
-                        // under an "L1 · …" prefix, in curriculum order.
+                        // Grammar rules only (no level prefix), in curriculum
+                        // order across HSK 1-6.
                         options: [
                           for (var lvl = 1; lvl <= 6; lvl++)
                             for (final c in (kGrammarByHsk[lvl] ?? const []))
-                              (value: c, text: 'L$lvl · ${c.displayName}'),
+                              (value: c, text: c.displayName),
                           (value: QuizCategory.general,
                               text: QuizCategory.general.displayName),
                         ],
