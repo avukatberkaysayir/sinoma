@@ -13,6 +13,14 @@ CREATE TABLE IF NOT EXISTS public.path_word_slots (
   en     text
 );
 
+-- Public read (reference data) — without this the app's anon/authenticated role
+-- can't load the words (RLS is on by default, and a table with 0 policies denies
+-- all SELECTs). grammar_levels gets the same so the trigger can read it too.
+DROP POLICY IF EXISTS read_path_word_slots ON public.path_word_slots;
+CREATE POLICY read_path_word_slots ON public.path_word_slots FOR SELECT USING (true);
+DROP POLICY IF EXISTS read_grammar_levels ON public.grammar_levels;
+CREATE POLICY read_grammar_levels ON public.grammar_levels FOR SELECT USING (true);
+
 -- Populate L1: all HSK1 words minus grammar-rule symbols, shuffled once and
 -- spread round-robin across the 24×4 = 96 slots (2-3 words each). Re-running
 -- reshuffles; run only for the initial setup. Grammar symbols come from
