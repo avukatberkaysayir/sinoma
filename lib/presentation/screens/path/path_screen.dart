@@ -344,6 +344,7 @@ class _NavItem extends StatelessWidget {
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
 const double _kUnitHeight = 400; // fixed height per unit section
+const double _kBannerLead = 120; // switch banner this early (boundary offset)
 
 Color _unitColor(PathStep step) {
   if (step.grammarName == null) return _duoLocked;
@@ -383,7 +384,9 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
 
   void _onScroll() {
     if (!_scroll.hasClients) return;
-    final u = (_scroll.offset / _kUnitHeight)
+    // Switch the banner once the next unit's title rises to just under it
+    // (the boundary), not after a full unit has scrolled past.
+    final u = ((_scroll.offset + _kBannerLead) / _kUnitHeight)
         .floor()
         .clamp(0, kUnitsPerLevel - 1);
     if (u != _topUnit) setState(() => _topUnit = u);
@@ -611,12 +614,24 @@ class _UnitNodes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = step.grammarName != null
+        ? grammarLabel(step.grammarName, tr: tr)
+        : (tr ? 'Yakında' : 'Soon');
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
         child: Column(
           children: [
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
+            // Per-unit caption (the boundary the banner switches on): grammar
+            // translation + Chinese, by locale.
+            Text(label,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 8),
             for (var i = 0; i < step.phases.length; i++)
               Transform.translate(
                 offset: Offset(_offsets[i % _offsets.length], 0),

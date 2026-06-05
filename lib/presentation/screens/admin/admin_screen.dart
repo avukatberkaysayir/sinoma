@@ -1828,7 +1828,10 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
             value: _fPhase,
             hint: 'Bölüm',
             enabled: _fL != null && _fUnit != null,
-            options: [for (var i = 1; i <= 4; i++) (value: i, text: '$i')],
+            options: [
+              for (var i = 1; i <= 4; i++) (value: i, text: '$i'),
+              (value: 0, text: 'Diğer'),
+            ],
             onSelected: (v) => setState(() => _fPhase = v),
           ),
           const SizedBox(width: 8),
@@ -1899,9 +1902,11 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                  value != null
-                      ? (label == 'Seviye' ? 'L$value' : '$label $value')
-                      : hint,
+                  value == null
+                      ? hint
+                      : value == 0
+                          ? 'Diğer'
+                          : (label == 'Seviye' ? 'L$value' : '$label $value'),
                   style: TextStyle(color: fg, fontSize: 12)),
               const SizedBox(width: 4),
               Icon(Icons.keyboard_arrow_down, color: fg, size: 16),
@@ -3185,25 +3190,14 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     );
   }
 
-  // Auto level (L) from the chosen grammar + manual unit / phase placement on
-  // the learning path. L is read-only (driven by the grammar rule); unit (1-30)
-  // and phase circle (1-4) are picked by hand.
-  int? get _autoLevel {
-    for (final c in _quizCategories) {
-      final l = hskOfGrammar(c);
-      if (l != null) return l;
-    }
-    return null;
-  }
-
+  // Manual unit / phase placement on the learning path. Level (L) is derived
+  // from the grammar rule (the Gramer dropdown), so it isn't shown here.
   Widget _pathPlacementRow() {
-    final l = _autoLevel;
     return Wrap(
       spacing: 10,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.start,
       children: [
-        _readonlyFilter('Seviye (L)', l != null ? 'L$l' : '— (gramer seç)'),
         _singleDropdown<int>(
           label: 'Ünite',
           value: _unit,
@@ -3214,8 +3208,13 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         _singleDropdown<int>(
           label: 'Bölüm',
           value: _phase,
-          hint: _phase == null ? 'Bölüm…' : 'Bölüm $_phase',
-          options: [for (var i = 1; i <= 4; i++) (value: i, text: 'Bölüm $i')],
+          hint: _phase == null
+              ? 'Bölüm…'
+              : (_phase == 0 ? 'Diğer' : 'Bölüm $_phase'),
+          options: [
+            for (var i = 1; i <= 4; i++) (value: i, text: 'Bölüm $i'),
+            (value: 0, text: 'Diğer'),
+          ],
           onSelected: (v) => setState(() => _phase = v),
         ),
         if (_unit != null || _phase != null)

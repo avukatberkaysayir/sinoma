@@ -81,6 +81,12 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
   final placed = <String>{};
   for (final v in sorted) {
     if (v.unit == null || v.phase == null) continue;
+    // phase 0 = "Diğer" (ungrouped holding bucket): kept out of the path but
+    // still considered placed so the fallback doesn't re-add it.
+    if (v.phase == 0) {
+      placed.add(v.videoId);
+      continue;
+    }
     final l = hskOfGrammar(primaryGrammarOf(v)) ?? v.hskLevel;
     final u = v.unit! - 1, p = v.phase! - 1;
     if (l < 1 || l > 6) continue;
