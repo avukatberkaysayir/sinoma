@@ -283,6 +283,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user      = userAsync.valueOrNull;
     final isDark    = ref.watch(themeModeProvider) == ThemeMode.dark;
     final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final isAdmin   = ref.watch(isAdminProvider);
 
     if (user != null) {
       _initFromUser(user);
@@ -523,6 +524,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ],
                       ),
                       const Divider(color: AppColors.surface, height: 20),
+                      if (isAdmin) ...[
+                        _ActionRow(
+                          icon: Icons.admin_panel_settings,
+                          label: 'Admin Paneli',
+                          color: AppColors.primary,
+                          onTap: () => context.go('/admin'),
+                        ),
+                        const SizedBox(height: 4),
+                      ],
                       _ActionRow(
                         icon: Icons.logout,
                         label: l10n.signOut,
