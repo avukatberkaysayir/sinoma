@@ -4,7 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../data/models/video_segment_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../home/inline_player_section.dart';
@@ -432,14 +435,18 @@ class _ShopRow extends StatelessWidget {
   }
 }
 
-// ── More ──────────────────────────────────────────────────────────────────────
+// ── Settings ("Tercihler") ────────────────────────────────────────────────────
 
-class MoreCenter extends ConsumerWidget {
+class SettingsCenter extends ConsumerWidget {
   final bool tr;
-  const MoreCenter({super.key, required this.tr});
+  const SettingsCenter({super.key, required this.tr});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final isDark = ref.watch(themeModeProvider) == ThemeMode.dark;
+    final isAdmin = ref.watch(isAdminProvider);
+    final lang = ref.watch(localeProvider).languageCode;
+
     Future<void> logout() async {
       final router = GoRouter.of(context);
       try {
@@ -448,40 +455,256 @@ class MoreCenter extends ConsumerWidget {
       router.go('/');
     }
 
+    Future<void> deleteAccount() async {
+      final uid = ref.read(currentUidProvider);
+      if (uid == null) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: _panel,
+          title: Text(tr ? 'Hesabı Kalıcı Sil' : 'Delete account',
+              style: const TextStyle(color: Colors.white)),
+          content: Text(
+              tr
+                  ? 'Hesabın ve tüm verilerin kalıcı olarak silinecek. Bu işlem geri alınamaz.'
+                  : 'Your account and all data will be permanently deleted. This cannot be undone.',
+              style: const TextStyle(color: Colors.white70)),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: Text(tr ? 'Vazgeç' : 'Cancel')),
+            TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: Text(tr ? 'Sil' : 'Delete',
+                    style: const TextStyle(color: Color(0xFFFF4B4B)))),
+          ],
+        ),
+      );
+      if (ok != true || !context.mounted) return;
+      final router = GoRouter.of(context);
+      try {
+        await ref.read(userRepositoryProvider).deleteAccount(uid);
+        router.go('/');
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('$e')));
+        }
+      }
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 80),
       children: [
         Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
+            constraints: const BoxConstraints(maxWidth: 620),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _MoreRow(
-                    icon: Icons.settings_rounded,
-                    label: tr ? 'Ayarlar' : 'Settings',
-                    onTap: () => context.go('/settings')),
+                Text(tr ? 'Tercihler' : 'Preferences',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 20),
+                _GroupLabel(tr ? 'Görünüm' : 'Appearance'),
+                _ToggleRow(
+                  label: tr ? 'Karanlık mod' : 'Dark mode',
+                  value: isDark,
+                  onChanged: (_) =>
+                      ref.read(themeModeProvider.notifier).toggleTheme(),
+                ),
+                _LangRow(
+                  tr: tr,
+                  lang: lang,
+                  onSelect: (c) =>
+                      ref.read(localeProvider.notifier).setLocale(Locale(c)),
+                ),
+                const SizedBox(height: 20),
+                _GroupLabel(tr ? 'Hesap' : 'Account'),
+                if (isAdmin)
+                  _MoreRow(
+                      icon: Icons.admin_panel_settings,
+                      label: 'Admin Paneli',
+                      color: _green,
+                      onTap: () => context.go('/admin')),
                 _MoreRow(
                     icon: Icons.workspace_premium_rounded,
                     label: tr ? 'Abonelik' : 'Subscription',
                     onTap: () => context.go('/subscription')),
                 _MoreRow(
-                    icon: Icons.menu_book_rounded,
-                    label: tr ? 'Şartlar' : 'Terms',
-                    onTap: () => context.go('/legal/terms')),
-                _MoreRow(
-                    icon: Icons.privacy_tip_rounded,
-                    label: tr ? 'Gizlilik' : 'Privacy',
-                    onTap: () => context.go('/legal/privacy')),
-                _MoreRow(
                     icon: Icons.logout_rounded,
                     label: tr ? 'Çıkış Yap' : 'Log out',
-                    color: const Color(0xFFFF4B4B),
                     onTap: logout),
+                _MoreRow(
+                    icon: Icons.delete_forever_rounded,
+                    label: tr ? 'Hesabı Kalıcı Sil' : 'Delete account',
+                    color: const Color(0xFFFF4B4B),
+                    onTap: deleteAccount),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class SettingsRight extends StatelessWidget {
+  final bool tr;
+  const SettingsRight({super.key, required this.tr});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 340,
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _LinkCard(title: tr ? 'Abonelik' : 'Subscription', links: [
+              (tr ? 'Bir plan seç' : 'Choose a plan',
+                  () => context.go('/subscription')),
+            ]),
+            const SizedBox(height: 16),
+            _LinkCard(title: tr ? 'Destek' : 'Support', links: [
+              (tr ? 'Şartlar' : 'Terms', () => context.go('/legal/terms')),
+              (tr ? 'Gizlilik' : 'Privacy', () => context.go('/legal/privacy')),
+            ]),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _LinkCard extends StatelessWidget {
+  final String title;
+  final List<(String, VoidCallback)> links;
+  const _LinkCard({required this.title, required this.links});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          for (final l in links)
+            InkWell(
+              onTap: l.$2,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Text(l.$1,
+                    style: const TextStyle(
+                        color: Color(0xFF1CB0F6),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GroupLabel extends StatelessWidget {
+  final String text;
+  const _GroupLabel(this.text);
+  @override
+  Widget build(BuildContext context) => Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(text,
+            style: const TextStyle(
+                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+      );
+}
+
+class _ToggleRow extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  const _ToggleRow(
+      {required this.label, required this.value, required this.onChanged});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Text(label,
+              style: const TextStyle(color: Colors.white, fontSize: 15)),
+        ),
+        Switch(
+            value: value, activeThumbColor: _green, onChanged: onChanged),
+      ]),
+    );
+  }
+}
+
+class _LangRow extends StatelessWidget {
+  final bool tr;
+  final String lang;
+  final void Function(String) onSelect;
+  const _LangRow(
+      {required this.tr, required this.lang, required this.onSelect});
+  @override
+  Widget build(BuildContext context) {
+    Widget chip(String code, String label) {
+      final on = lang == code;
+      return GestureDetector(
+        onTap: () => onSelect(code),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: on ? _green : _bg,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Text(label,
+              style: TextStyle(
+                  color: on ? Colors.white : Colors.white60,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13)),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Text(tr ? 'Uygulama dili' : 'App language',
+              style: const TextStyle(color: Colors.white, fontSize: 15)),
+        ),
+        chip('tr', 'TR'),
+        const SizedBox(width: 8),
+        chip('en', 'EN'),
+      ]),
     );
   }
 }

@@ -232,28 +232,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     router.go('/');
   }
 
-  Future<void> _confirmDeleteAccount() async {
-    final uid  = ref.read(currentUidProvider);
-    if (uid == null) return;
-    final l10n = AppL10n.fromCode(ref.read(localeProvider).languageCode);
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (_) => _ConfirmDialog(
-        title: l10n.deleteAccount,
-        message: l10n.deleteAccountMsg,
-        confirmLabel: l10n.deleteAccount,
-        danger: true,
-      ),
-    );
-    if (ok != true) return;
-    try {
-      await ref.read(userRepositoryProvider).deleteAccount(uid);
-      if (mounted) context.go('/language');
-    } catch (e) {
-      if (mounted) _snack(e.toString(), error: true);
-    }
-  }
-
   // ── Helpers ───────────────────────────────────────────────────────────────────
 
   void _snack(String msg, {bool success = false, bool error = false}) {
@@ -283,7 +261,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final user      = userAsync.valueOrNull;
     final isDark    = ref.watch(themeModeProvider) == ThemeMode.dark;
     final l10n      = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
-    final isAdmin   = ref.watch(isAdminProvider);
 
     if (user != null) {
       _initFromUser(user);
@@ -524,26 +501,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                         ],
                       ),
                       const Divider(color: AppColors.surface, height: 20),
-                      if (isAdmin) ...[
-                        _ActionRow(
-                          icon: Icons.admin_panel_settings,
-                          label: 'Admin Paneli',
-                          color: AppColors.primary,
-                          onTap: () => context.go('/admin'),
-                        ),
-                        const SizedBox(height: 4),
-                      ],
                       _ActionRow(
                         icon: Icons.logout,
                         label: l10n.signOut,
                         onTap: _confirmSignOut,
-                      ),
-                      const SizedBox(height: 4),
-                      _ActionRow(
-                        icon: Icons.delete_outline,
-                        label: l10n.deleteAccount,
-                        color: AppColors.wrongAnswer,
-                        onTap: _confirmDeleteAccount,
                       ),
                     ],
                   ),
@@ -858,16 +819,12 @@ class _ActionRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  final Color? color;
   const _ActionRow(
-      {required this.icon,
-      required this.label,
-      required this.onTap,
-      this.color});
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final c = color ?? AppColors.onSurface;
+    const c = AppColors.onSurface;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -878,7 +835,7 @@ class _ActionRow extends StatelessWidget {
             Icon(icon, size: 18, color: c),
             const SizedBox(width: 12),
             Text(label,
-                style: TextStyle(color: c, fontSize: 14)),
+                style: const TextStyle(color: c, fontSize: 14)),
           ],
         ),
       ),

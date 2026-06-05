@@ -57,7 +57,7 @@ class _PathScreenState extends ConsumerState<PathScreen> {
         center = ProfileScreen(uid: uid);
         break;
       case _Section.more:
-        center = MoreCenter(tr: tr);
+        center = SettingsCenter(tr: tr);
         break;
       case _Section.learn:
         center = const _CenterPath();
@@ -116,6 +116,8 @@ class _PathScreenState extends ConsumerState<PathScreen> {
             body: tr
                 ? 'Arkadaş etkinliği yakında burada görünecek.'
                 : 'Friend activity will appear here soon.');
+      case _Section.more:
+        return SettingsRight(tr: tr);
       default:
         return null;
     }
@@ -218,9 +220,9 @@ class _LeftNav extends StatelessWidget {
               compact: compact,
               onTap: () => onSelect(_Section.shop)),
           _NavItem(
-              icon: Icons.more_horiz_rounded,
+              icon: Icons.settings_rounded,
               color: const Color(0xFFCE82FF),
-              label: tr ? 'DAHA FAZLA' : 'MORE',
+              label: tr ? 'AYARLAR' : 'SETTINGS',
               active: section == _Section.more,
               compact: compact,
               onTap: () => onSelect(_Section.more)),
