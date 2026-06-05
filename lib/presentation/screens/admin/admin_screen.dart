@@ -1447,8 +1447,11 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
   int? _fUnit;
   int? _fPhase;
 
-  // The level (L) a video sits on = HSK of its primary grammar rule.
+  // The level (L) a video sits on: explicit override, else HSK of its primary
+  // grammar rule.
   static int? _videoLevel(Map<String, dynamic> v) {
+    final ov = (v['level'] as num?)?.toInt();
+    if (ov != null) return ov;
     final cats = <String>[
       ...((v['quiz_categories'] as List<dynamic>?) ?? const [])
           .map((e) => e.toString()),
@@ -2031,8 +2034,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   final Set<int> _hskLevels = {};
   final Set<String> _quizCategories = {};
   final Set<String> _lifeCategories = {};
+  int? _level; // path level (L1-L6) override; defaults to grammar's level
   int? _unit; // manual path unit (1-30)
-  int? _phase; // manual path phase circle (1-4)
+  int? _phase; // manual path phase circle (1-4, 0 = Diğer)
   late List<String> _targetWords;
   late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
@@ -2080,6 +2084,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     if (_lifeCategories.isEmpty) {
       _lifeCategories.add(v['life_category'] as String? ?? 'daily_life');
     }
+    _level = (v['level'] as num?)?.toInt();
     _unit = (v['unit'] as num?)?.toInt();
     _phase = (v['phase'] as num?)?.toInt();
     _targetWords = List<String>.from(
@@ -2322,6 +2327,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'hsk_levels': hskList,
         'quiz_categories': catList,
         'life_categories': lifeList,
+        'level': _effectiveLevel,
         'unit': _unit,
         'phase': _phase,
         'target_words': _targetWords,
@@ -2729,8 +2735,12 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         chosen: _quizCategories
                             .map(QuizCategory.fromString)
                             .toSet(),
-                        onAdd: (v) =>
-                            setState(() => _quizCategories.add(v.name)),
+                        onAdd: (v) => setState(() {
+                          _quizCategories.add(v.name);
+                          // Auto-fill the unit from the grammar's position when
+                          // the admin hasn't set one yet (level follows via auto).
+                          _unit ??= unitOfGrammar(v.name);
+                        }),
                       ),
                       // Length (SinoRhythm) is derived from the sentence.
                       _readonlyFilter('Uzunluk', _lengthBucket()),
@@ -3190,14 +3200,37 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     );
   }
 
-  // Manual unit / phase placement on the learning path. Level (L) is derived
-  // from the grammar rule (the Gramer dropdown), so it isn't shown here.
+  // The level (L) a clip sits on = HSK of its primary grammar rule. Read-only:
+  // it follows the Gramer selection automatically.
+  int? get _autoLevel {
+    for (final c in _quizCategories) {
+      final l = hskOfGrammar(c);
+      if (l != null) return l;
+    }
+    return null;
+  }
+
+  // The effective level shown in the L dropdown: explicit override, else auto
+  // from the grammar rule.
+  int? get _effectiveLevel => _level ?? _autoLevel;
+
+  // Path placement. Level (L1-L6) defaults to the grammar's level but is
+  // editable; unit is auto-filled from the grammar yet stays editable; phase is
+  // manual (1-4, or "Diğer").
   Widget _pathPlacementRow() {
+    final l = _effectiveLevel;
     return Wrap(
       spacing: 10,
       runSpacing: 8,
       crossAxisAlignment: WrapCrossAlignment.start,
       children: [
+        _singleDropdown<int>(
+          label: 'Seviye',
+          value: l,
+          hint: l == null ? 'L (gramer seç)' : 'L$l',
+          options: [for (var i = 1; i <= 6; i++) (value: i, text: 'L$i')],
+          onSelected: (v) => setState(() => _level = v),
+        ),
         _singleDropdown<int>(
           label: 'Ünite',
           value: _unit,

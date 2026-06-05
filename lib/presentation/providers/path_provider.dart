@@ -87,7 +87,7 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
       placed.add(v.videoId);
       continue;
     }
-    final l = hskOfGrammar(primaryGrammarOf(v)) ?? v.hskLevel;
+    final l = v.level ?? hskOfGrammar(primaryGrammarOf(v)) ?? v.hskLevel;
     final u = v.unit! - 1, p = v.phase! - 1;
     if (l < 1 || l > 6) continue;
     if (u < 0 || u >= kUnitsPerLevel || p < 0 || p >= kPhasesPerStep) continue;

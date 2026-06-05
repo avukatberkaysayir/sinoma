@@ -369,6 +369,17 @@ final Map<String, int> _grammarHsk = {
 
 int? hskOfGrammar(String? name) => name == null ? null : _grammarHsk[name];
 
+// The 1-based unit number a grammar point occupies within its level (its
+// position in kGrammarByHsk). Drives the admin's auto unit assignment.
+int? unitOfGrammar(String? name) {
+  if (name == null) return null;
+  final l = _grammarHsk[name];
+  if (l == null) return null;
+  final list = kGrammarByHsk[l]!;
+  final i = list.indexWhere((c) => c.name == name);
+  return i < 0 ? null : i + 1;
+}
+
 // Life / topic categories a clip can belong to (multi-label). `name` is the
 // stored id; tr/en are the labels. Auto-assigned at import (python classifier),
 // editable in the admin, filterable on the home feed.
@@ -434,8 +445,10 @@ class VideoSegmentModel {
   final List<int> hskLevels;
   final List<String> quizCategories;
   final List<String> lifeCategories;
-  // Manual learning-path placement (admin-set). Level (L) is derived from the
-  // grammar rule; unit (1-30) and phase circle (1-4) are picked by hand.
+  // Manual learning-path placement (admin-set). Level (L1-L6) defaults to the
+  // grammar rule's level but can be overridden; unit (1-30) and phase circle
+  // (1-4, 0 = "Diğer") are picked by hand.
+  final int? level;
   final int? unit;
   final int? phase;
   final bool isActive;
@@ -458,6 +471,7 @@ class VideoSegmentModel {
     this.hskLevels = const [],
     this.quizCategories = const [],
     this.lifeCategories = const [],
+    this.level,
     this.unit,
     this.phase,
     this.isActive = true,
@@ -527,6 +541,7 @@ class VideoSegmentModel {
       lifeCategories: ((data['life_categories'] as List<dynamic>?) ?? [])
           .map((e) => e.toString())
           .toList(),
+      level: (data['level'] as num?)?.toInt(),
       unit: (data['unit'] as num?)?.toInt(),
       phase: (data['phase'] as num?)?.toInt(),
       isActive: data['is_active'] as bool? ?? true,
@@ -563,6 +578,7 @@ class VideoSegmentModel {
       lifeCategories: ((data['lifeCategories'] as List<dynamic>?) ?? [])
           .map((e) => e.toString())
           .toList(),
+      level: (data['level'] as num?)?.toInt(),
       unit: (data['unit'] as num?)?.toInt(),
       phase: (data['phase'] as num?)?.toInt(),
       isActive: data['isActive'] as bool? ?? true,
@@ -589,6 +605,7 @@ class VideoSegmentModel {
         'hsk_levels': hskLevels,
         'quiz_categories': quizCategories,
         'life_categories': lifeCategories,
+        'level': level,
         'unit': unit,
         'phase': phase,
         'is_active': isActive,
@@ -611,6 +628,7 @@ class VideoSegmentModel {
         'hskLevels': hskLevels,
         'quizCategories': quizCategories,
         'lifeCategories': lifeCategories,
+        'level': level,
         'unit': unit,
         'phase': phase,
         'isActive': isActive,
