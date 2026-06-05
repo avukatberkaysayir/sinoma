@@ -620,31 +620,36 @@ class _UnitNodes extends StatelessWidget {
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
-        child: Column(
-          children: [
-            const SizedBox(height: 12),
-            // Per-unit caption (the boundary the banner switches on): grammar
-            // translation + Chinese, by locale.
-            Text(label,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.white38,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 8),
-            for (var i = 0; i < step.phases.length; i++)
-              Transform.translate(
-                offset: Offset(_offsets[i % _offsets.length], 0),
-                child: _PhaseNode(
-                  phase: step.phases[i],
-                  topic: topic,
-                  progress: progress,
-                  isCurrent: step.phases[i].key == currentKey,
-                  tr: tr,
+        // Full width so the zigzag-translated nodes stay inside the bounds and
+        // remain tappable (a shrink-wrapped column clipped their hit area).
+        child: SizedBox(
+          width: double.infinity,
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              // Per-unit caption (the boundary the banner switches on): grammar
+              // translation + Chinese, by locale.
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: Colors.white38,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              for (var i = 0; i < step.phases.length; i++)
+                Transform.translate(
+                  offset: Offset(_offsets[i % _offsets.length], 0),
+                  child: _PhaseNode(
+                    phase: step.phases[i],
+                    topic: topic,
+                    progress: progress,
+                    isCurrent: step.phases[i].key == currentKey,
+                    tr: tr,
+                  ),
                 ),
-              ),
-            const SizedBox(height: 6),
-          ],
+              const SizedBox(height: 6),
+            ],
+          ),
         ),
       ),
     );
