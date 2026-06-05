@@ -14,7 +14,7 @@ const double kPassRatio = 0.6; // ≥60% correct to clear a phase
 class PathPhase {
   final int hsk;
   final int stepIndex;
-  final int phaseIndex; // within the step (0..3)
+  final int phaseIndex; // within the unit (0..3)
   final List<VideoSegmentModel> videos;
   const PathPhase({
     required this.hsk,
@@ -24,21 +24,24 @@ class PathPhase {
   });
 
   String get key => 'hsk$hsk.s$stepIndex.p$phaseIndex';
+  bool get hasVideos => videos.isNotEmpty;
 }
 
 class PathStep {
   final int hsk;
   final int index;
-  final String title; // predefined Turkish topic title
-  final List<PathPhase> phases; // empty → step shown locked ("coming soon")
+  final String title; // grammar point (Chinese) or unit label
+  final String? grammarName; // QuizCategory.name this unit teaches (null = empty)
+  final List<PathPhase> phases; // always 4; phases without videos are locked
   const PathStep({
     required this.hsk,
     required this.index,
     required this.title,
+    required this.grammarName,
     required this.phases,
   });
 
-  bool get hasContent => phases.isNotEmpty;
+  bool get hasContent => phases.any((p) => p.hasVideos);
 }
 
 class PathTopic {
@@ -47,144 +50,54 @@ class PathTopic {
   const PathTopic({required this.hsk, required this.steps});
 }
 
-// Predefined curriculum: 30 topic (step) titles per HSK level. The whole map is
-// always shown (Duolingo-style); steps fill with thematically-matching videos as
-// they are approved and lock otherwise.
-const Map<int, List<String>> kStepTitles = {
-  1: [
-    'Selamlaşma', 'Tanışma', 'Kişisel Bilgiler', 'Sayılar 1-10', 'Sayılar 11-100',
-    'Aile', 'Meslekler', 'Zaman & Saat', 'Günler & Aylar', 'Yeme & İçme',
-    'Meyve & Sebze', 'Renkler', 'Günlük Nesneler', 'Vücut', 'Giysiler',
-    'Hava Durumu', 'Günlük Fiiller', 'Yön & Yer', 'Ev & Odalar', 'Okul',
-    'Alışveriş', 'Para & Fiyat', 'Ulaşım', 'Hayvanlar', 'Temel Duygular',
-    'Temel Sıfatlar', 'Soru Sözcükleri', 'Selam & Veda', 'Tekrar I', 'Tekrar II',
-  ],
-  2: [
-    'Hobiler', 'Boş Zaman', 'Hava & Mevsimler', 'Şehirde Ulaşım', 'Yol Sorma',
-    'Sağlık & Vücut', 'Doktora Gitmek', 'Telefonla Konuşma', 'İnternet & Mesaj',
-    'İş & Meslek', 'Ofiste', 'Ev İşleri', 'Mobilya & Eşya', 'Duygular',
-    'Plan Yapma', 'Randevu', 'Yemek Tarifi', 'Restoranda', 'Spor', 'Egzersiz',
-    'Tatil', 'Otelde', 'Kıyafet Alışverişi', 'Markette', 'Komşular',
-    'Arkadaşlık', 'Davet', 'Kutlama', 'Tekrar I', 'Tekrar II',
-  ],
-  3: [
-    'Seyahat Planı', 'Havaalanında', 'Otel & Konaklama', 'Restoran Kültürü',
-    'Bankada İşlemler', 'Postanede', 'Şehir Hayatı', 'Kırsal Hayat',
-    'Doğa & Çevre', 'Hayvanlar & Bitkiler', 'Teknoloji', 'Sosyal Medya',
-    'Eğitim & Okul', 'Sınavlar', 'Kültür & Sanat', 'Sinema & Müzik',
-    'Sağlıklı Beslenme', 'Hastalıklar', 'İş Görüşmesi', 'Toplantı',
-    'Alışkanlıklar', 'Karar Verme', 'Kıyaslama', 'Tavsiye', 'Şikayet',
-    'Kutlamalar', 'Gelenekler', 'Anılar', 'Tekrar I', 'Tekrar II',
-  ],
-  4: [
-    'İş Dünyası', 'Kariyer', 'Mülakat', 'Sunum', 'Ekonomi & Para',
-    'Haberler', 'Medya', 'Sosyal Konular', 'Bilim & Teknoloji', 'İnternet Çağı',
-    'Tarih', 'Coğrafya', 'Edebiyat', 'Sanat & Estetik', 'Çevre Sorunları',
-    'İklim & Doğa', 'Sağlık Sistemi', 'Psikoloji', 'Eğitim Politikası',
-    'Hukuk & Adalet', 'Suç & Ceza', 'Tartışma', 'İkna', 'Görüş Bildirme',
-    'Kültürlerarası', 'Küreselleşme', 'Gelecek', 'Etik', 'Tekrar I', 'Tekrar II',
-  ],
-  5: [
-    'Akademik Dil', 'Araştırma', 'İş Stratejisi', 'Liderlik', 'Politika',
-    'Diplomasi', 'Felsefe', 'Mantık', 'Psikoloji İleri', 'Sosyoloji',
-    'Sanat Eleştirisi', 'Müzik Teorisi', 'Küresel Ekonomi', 'Finans',
-    'Teknoloji & Gelecek', 'Yapay Zeka', 'Edebi Metinler', 'Şiir & Nesir',
-    'Resmî Yazışma', 'Rapor Yazma', 'Müzakere', 'Anlaşmazlık Çözümü',
-    'Bilimsel Yöntem', 'Tıp & Sağlık', 'Çevre Politikası', 'Sürdürülebilirlik',
-    'Tarih Felsefesi', 'Medeniyetler', 'Tekrar I', 'Tekrar II',
-  ],
-  6: [
-    'İleri Akademik', 'Tez & Argüman', 'Deyimler', 'Atasözleri', 'Klasik Metinler',
-    'Klasik Şiir', 'Modern Edebiyat', 'Hukuki Dil', 'Sözleşmeler', 'Tıbbi Dil',
-    'Bilimsel Makale', 'Felsefi Tartışma', 'Eleştirel Düşünme', 'Köşe Yazısı',
-    'Gazetecilik', 'Diplomatik Dil', 'Uluslararası İlişkiler', 'Edebi Çeviri',
-    'Üslup & Retorik', 'Mecaz & İmge', 'Kültürel Göndermeler', 'Tarihî Belgeler',
-    'Bilim Felsefesi', 'Etik Tartışmalar', 'Sanat Tarihi', 'Estetik Kuram',
-    'Söylem Analizi', 'Usta Seviyesi', 'Tekrar I', 'Tekrar II',
-  ],
-};
-
-// Map a step title to a content theme (a LifeCategory.name) by keyword, so videos
-// land in thematically-appropriate steps. Falls back to daily_life.
-String _themeForTitle(String title) {
-  final t = title.toLowerCase();
-  bool has(List<String> ks) => ks.any(t.contains);
-  if (has(['aile', 'komşu', 'arkadaş', 'tanış', 'kişisel', 'davet'])) {
-    return 'family';
-  }
-  if (has(['yeme', 'içme', 'meyve', 'sebze', 'yemek', 'restoran', 'tarif', 'beslen', 'market'])) {
-    return 'food';
-  }
-  if (has(['alışveriş', 'para', 'fiyat', 'kıyafet', 'giysi'])) {
-    return 'shopping';
-  }
-  if (has(['seyahat', 'tatil', 'otel', 'ulaşım', 'havaalan', 'yol', 'konaklama', 'coğraf'])) {
-    return 'travel';
-  }
-  if (has(['iş', 'meslek', 'ofis', 'kariyer', 'mülakat', 'görüşme', 'ekonomi', 'finans',
-      'toplantı', 'sunum', 'rapor', 'müzakere', 'strateji', 'liderlik', 'sözleşme', 'ticar'])) {
-    return 'business';
-  }
-  if (has(['okul', 'eğitim', 'sınav', 'akademik', 'araştırma', 'ders', 'tez', 'üniversite'])) {
-    return 'school';
-  }
-  if (has(['sağlık', 'doktor', 'hasta', 'vücut', 'tıbb', 'tıp', 'psikoloji', 'egzersiz'])) {
-    return 'health';
-  }
-  if (has(['teknoloji', 'internet', 'bilim', 'yapay zeka', 'medya', 'dijital', 'sosyal medya'])) {
-    return 'technology';
-  }
-  if (has(['sanat', 'müzik', 'sinema', 'film', 'edebi', 'şiir', 'kültür', 'eğlence', 'estetik'])) {
-    return 'entertainment';
-  }
-  if (has(['spor', 'egzersiz', 'futbol', 'oyun'])) {
-    return 'sports';
-  }
-  if (has(['çocuk', 'hayvan', 'renk', 'sayı'])) {
-    return 'children';
-  }
-  return 'daily_life';
-}
-
-// Build the full curriculum (HSK 1-6). Every predefined step is created and
-// filled with videos whose theme matches the step title (per HSK level), in
-// order; steps without matching content stay locked.
+// Build the curriculum: levels L1-L6 (= HSK 1-6). Each level has kUnitsPerLevel
+// units; unit u teaches grammar point kGrammarByHsk[hsk][u] (units past the
+// grammar list are empty/locked placeholders). Each unit has kPhasesPerStep
+// phases; videos tagged with the unit's grammar fill the phases in order, the
+// rest stay locked. (Video→grammar tagging is curated separately in the admin.)
 List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
   final topics = <PathTopic>[];
   for (var hsk = 1; hsk <= 6; hsk++) {
-    final titles = kStepTitles[hsk] ?? const [];
+    final grammar = kGrammarByHsk[hsk] ?? const <QuizCategory>[];
 
-    // Group this HSK level's videos by theme into FIFO queues (newest first).
-    final byTheme = <String, List<VideoSegmentModel>>{};
+    // Group this level's active videos by the grammar points they teach.
+    final byGrammar = <String, List<VideoSegmentModel>>{};
     final pool = all.where((v) => v.hskLevelTags.contains(hsk)).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     for (final v in pool) {
-      final theme = v.lifeTags.isNotEmpty ? v.lifeTags.first : 'daily_life';
-      (byTheme[theme] ??= []).add(v);
+      for (final cat in v.categoryTags) {
+        (byGrammar[cat] ??= []).add(v);
+      }
     }
-    final cursors = {for (final k in byTheme.keys) k: 0};
 
     final steps = <PathStep>[];
-    for (var s = 0; s < titles.length; s++) {
-      final theme = _themeForTitle(titles[s]);
-      final queue = byTheme[theme] ?? const [];
-      final cur = cursors[theme] ?? 0;
-      const cap = kPhasesPerStep * kPhaseSize;
-      final take = (queue.length - cur).clamp(0, cap);
-      final stepVideos = queue.sublist(cur, cur + take);
-      cursors[theme] = cur + take;
-
-      final phases = <PathPhase>[];
-      for (var i = 0; i < stepVideos.length; i += kPhaseSize) {
-        phases.add(PathPhase(
-          hsk: hsk,
-          stepIndex: s,
-          phaseIndex: i ~/ kPhaseSize,
-          videos: stepVideos.sublist(
-              i, (i + kPhaseSize) > stepVideos.length ? stepVideos.length : i + kPhaseSize),
-        ));
-      }
-      steps.add(PathStep(hsk: hsk, index: s, title: titles[s], phases: phases));
+    for (var u = 0; u < kUnitsPerLevel; u++) {
+      final g = u < grammar.length ? grammar[u] : null;
+      final vids = g != null
+          ? (byGrammar[g.name] ?? const <VideoSegmentModel>[])
+          : const <VideoSegmentModel>[];
+      final phases = <PathPhase>[
+        for (var p = 0; p < kPhasesPerStep; p++)
+          PathPhase(
+            hsk: hsk,
+            stepIndex: u,
+            phaseIndex: p,
+            videos: (p * kPhaseSize) < vids.length
+                ? vids.sublist(
+                    p * kPhaseSize,
+                    ((p + 1) * kPhaseSize) > vids.length
+                        ? vids.length
+                        : (p + 1) * kPhaseSize)
+                : const <VideoSegmentModel>[],
+          ),
+      ];
+      steps.add(PathStep(
+        hsk: hsk,
+        index: u,
+        title: g?.displayName ?? '—',
+        grammarName: g?.name,
+        phases: phases,
+      ));
     }
     topics.add(PathTopic(hsk: hsk, steps: steps));
   }
@@ -232,11 +145,17 @@ PathPhase? currentPhaseFor(
   return null;
 }
 
-// A phase is unlocked if it's the first in the topic or the PREVIOUS phase (in
-// flat order across steps) is done.
+// A phase is unlocked if it's the first PLAYABLE phase in the topic or the
+// previous playable phase is done. Empty (content-less) phases are not part of
+// the chain — they render locked and never block content that comes after them.
 bool isPhaseUnlocked(
     PathTopic topic, PathPhase phase, Map<String, dynamic> progress) {
-  final flat = <PathPhase>[for (final s in topic.steps) ...s.phases];
+  if (!phase.hasVideos) return false;
+  final flat = <PathPhase>[
+    for (final s in topic.steps)
+      for (final p in s.phases)
+        if (p.hasVideos) p
+  ];
   final idx = flat.indexWhere((p) => p.key == phase.key);
   if (idx <= 0) return true;
   return progress.phase(flat[idx - 1].key).done;

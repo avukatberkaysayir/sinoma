@@ -450,7 +450,7 @@ class _HskSelector extends StatelessWidget {
                         color: selected == h ? _duoGreen : _duoPanel,
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: Text('HSK $h',
+                      child: Text('L$h',
                           style: TextStyle(
                               color:
                                   selected == h ? Colors.white : Colors.white60,
@@ -488,7 +488,7 @@ class _UnitHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('HSK ${step.hsk}, ${tr ? 'ADIM' : 'STEP'} ${step.index + 1}',
+                Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
                     style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
@@ -547,6 +547,10 @@ class _StepBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final unitLabel = '${tr ? 'Ünite' : 'Unit'} ${step.index + 1}';
+    final label = step.grammarName != null
+        ? '$unitLabel · ${step.title}'
+        : unitLabel;
     return Column(
       children: [
         const SizedBox(height: 22),
@@ -554,49 +558,27 @@ class _StepBlock extends StatelessWidget {
           const Expanded(child: Divider(color: Color(0xFF2C3B45))),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text('${tr ? 'Adım' : 'Step'} ${step.index + 1} · ${step.title}',
+            child: Text(label,
                 style: TextStyle(
-                    color: step.hasContent ? Colors.white60 : Colors.white30,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
+                    color: step.hasContent ? Colors.white : Colors.white30,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800)),
           ),
           const Expanded(child: Divider(color: Color(0xFF2C3B45))),
         ]),
         const SizedBox(height: 8),
-        if (!step.hasContent)
-          // Locked, content-less step (shown so the whole curriculum is visible).
-          Column(
-            children: [
-              Container(
-                width: 66,
-                height: 62,
-                decoration: BoxDecoration(
-                  color: _duoLocked,
-                  borderRadius: BorderRadius.circular(34),
-                  boxShadow: const [
-                    BoxShadow(color: Color(0xFF2A363D), offset: Offset(0, 5))
-                  ],
-                ),
-                child: const Icon(Icons.lock_rounded,
-                    color: Colors.white38, size: 24),
-              ),
-              const SizedBox(height: 6),
-              Text(tr ? 'yakında' : 'soon',
-                  style: const TextStyle(color: Colors.white24, fontSize: 11)),
-            ],
-          )
-        else
-          for (var i = 0; i < step.phases.length; i++)
-            Transform.translate(
-              offset: Offset(_offsets[i % _offsets.length], 0),
-              child: _PhaseNode(
-                phase: step.phases[i],
-                topic: topic,
-                progress: progress,
-                isCurrent: step.phases[i].key == currentKey,
-                tr: tr,
-              ),
+        // Always 4 phase circles; ones without content render locked.
+        for (var i = 0; i < step.phases.length; i++)
+          Transform.translate(
+            offset: Offset(_offsets[i % _offsets.length], 0),
+            child: _PhaseNode(
+              phase: step.phases[i],
+              topic: topic,
+              progress: progress,
+              isCurrent: step.phases[i].key == currentKey,
+              tr: tr,
             ),
+          ),
       ],
     );
   }
@@ -655,7 +637,7 @@ class _PhaseNode extends ConsumerWidget {
         builder: (_) => PhaseRunnerScreen(
           phase: phase,
           title:
-              'HSK ${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
+              'L${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
         ),
       ));
       ref.invalidate(pathProgressProvider);

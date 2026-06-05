@@ -998,7 +998,7 @@ class ProfileView extends ConsumerWidget {
                           builder: (_) => PhaseRunnerScreen(
                             phase: phase,
                             title:
-                                'HSK ${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
+                                'L${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
                           ),
                         ));
                       } else {

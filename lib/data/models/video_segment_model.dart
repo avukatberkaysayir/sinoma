@@ -167,6 +167,65 @@ class QuizCategory {
   String get emoji => this == general ? '📖' : '📝';
 }
 
+// ── HSK grammar curriculum ────────────────────────────────────────────────────
+// Every grammar point (QuizCategory) assigned to its HSK level (HSK 3.0 ordered
+// progression). Drives: the admin "Gramer" filter (grouped by HSK level) and the
+// learning path (each level L1-L6 = these grammar points, one per unit, in order).
+const Map<int, List<QuizCategory>> kGrammarByHsk = {
+  1: [
+    QuizCategory.shi, QuizCategory.deStruct, QuizCategory.you, QuizCategory.le,
+    QuizCategory.ma, QuizCategory.ne, QuizCategory.baParticle, QuizCategory.a,
+    QuizCategory.bu, QuizCategory.mei, QuizCategory.zai, QuizCategory.hui,
+    QuizCategory.neng, QuizCategory.keyi, QuizCategory.yao, QuizCategory.xiang,
+    QuizCategory.dou, QuizCategory.zenme, QuizCategory.zhengfan, QuizCategory.tai,
+    QuizCategory.dui, QuizCategory.gei, QuizCategory.gen, QuizCategory.zaiAgain,
+  ],
+  2: [
+    QuizCategory.guo, QuizCategory.zhe, QuizCategory.deComplement,
+    QuizCategory.deAdverbial, QuizCategory.jiu, QuizCategory.hai,
+    QuizCategory.yijing, QuizCategory.cai, QuizCategory.bi,
+    QuizCategory.weishenme, QuizCategory.zenmeyang, QuizCategory.yinwei,
+    QuizCategory.suoyi, QuizCategory.qilai, QuizCategory.jieguo,
+    QuizCategory.cong, QuizCategory.li, QuizCategory.wei,
+    QuizCategory.changchang, QuizCategory.bijiao, QuizCategory.youAgain,
+    QuizCategory.geng, QuizCategory.zui, QuizCategory.haishi,
+  ],
+  3: [
+    QuizCategory.ba, QuizCategory.bei, QuizCategory.shiDe, QuizCategory.yinggai,
+    QuizCategory.dei, QuizCategory.dasuan, QuizCategory.ruguo,
+    QuizCategory.danshi, QuizCategory.suiran, QuizCategory.genYiyang,
+    QuizCategory.quxiang, QuizCategory.weile, QuizCategory.guanyu,
+    QuizCategory.chule, QuizCategory.yizhi, QuizCategory.gan,
+    QuizCategory.xuyao, QuizCategory.yibian, QuizCategory.ranhou,
+    QuizCategory.yueyue, QuizCategory.yuelaiyue, QuizCategory.dehua,
+    QuizCategory.zhongyu, QuizCategory.nandao,
+  ],
+  4: [
+    QuizCategory.keneng, QuizCategory.chengdu, QuizCategory.dongliang,
+    QuizCategory.shiliang, QuizCategory.zhengzai, QuizCategory.xiaqu,
+    QuizCategory.meiyou, QuizCategory.buru, QuizCategory.zhiyao,
+    QuizCategory.zhiyou, QuizCategory.wulun, QuizCategory.buguan,
+    QuizCategory.jiran, QuizCategory.budan, QuizCategory.erqie,
+    QuizCategory.huozhe, QuizCategory.lian, QuizCategory.liandou,
+    QuizCategory.genju, QuizCategory.anzhao, QuizCategory.jiaru,
+    QuizCategory.yaoshi, QuizCategory.yinci, QuizCategory.que,
+  ],
+  5: [
+    QuizCategory.cunxian, QuizCategory.jianyu, QuizCategory.liandong,
+    QuizCategory.chongdong, QuizCategory.bixu, QuizCategory.fouze,
+    QuizCategory.raner, QuizCategory.jishi, QuizCategory.bujin,
+    QuizCategory.shenzhi, QuizCategory.yaome, QuizCategory.yushi,
+    QuizCategory.wanyi, QuizCategory.xiangPrep,
+  ],
+  6: [
+    QuizCategory.napa, QuizCategory.jinguan, QuizCategory.chufei,
+    QuizCategory.fanwen, QuizCategory.shuangchong,
+  ],
+};
+
+// Units shown per level on the learning path.
+const int kUnitsPerLevel = 30;
+
 // Life / topic categories a clip can belong to (multi-label). `name` is the
 // stored id; tr/en are the labels. Auto-assigned at import (python classifier),
 // editable in the admin, filterable on the home feed.

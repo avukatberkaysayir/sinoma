@@ -1306,9 +1306,11 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                 _FilterDropdown<String>(
                   value: _filterCategory,
                   hint: 'Tümü',
-                  options: QuizCategory.values
-                      .map((c) => (c.displayName, c.name))
-                      .toList(),
+                  options: [
+                    for (var lvl = 1; lvl <= 6; lvl++)
+                      for (final c in (kGrammarByHsk[lvl] ?? const []))
+                        ('L$lvl · ${c.displayName}', c.name),
+                  ],
                   onChanged: (v) => setState(() => _filterCategory = v),
                 ),
                 const SizedBox(width: 10),
@@ -2548,9 +2550,14 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       ),
                       _multiDropdown<QuizCategory>(
                         label: 'Gramer',
+                        // Grouped by HSK level: each level's grammar rules listed
+                        // under an "L1 · …" prefix, in curriculum order.
                         options: [
-                          for (final c in QuizCategory.values)
-                            (value: c, text: c.displayName),
+                          for (var lvl = 1; lvl <= 6; lvl++)
+                            for (final c in (kGrammarByHsk[lvl] ?? const []))
+                              (value: c, text: 'L$lvl · ${c.displayName}'),
+                          (value: QuizCategory.general,
+                              text: QuizCategory.general.displayName),
                         ],
                         chosen: _quizCategories
                             .map(QuizCategory.fromString)
