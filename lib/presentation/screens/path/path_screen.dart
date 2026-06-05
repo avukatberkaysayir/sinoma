@@ -690,6 +690,14 @@ class _PhaseNode extends ConsumerWidget {
 
     Future<void> open() async {
       if (!unlocked) return;
+      if (phase.videos.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(tr
+              ? 'Bu bölümde henüz video yok.'
+              : 'No videos in this set yet.'),
+        ));
+        return;
+      }
       if (ref.read(pathMetaProvider).hearts <= 0) {
         final next = ref.read(pathMetaProvider).nextHeartAt;
         final mins = next?.difference(DateTime.now()).inMinutes.clamp(0, 9999);
