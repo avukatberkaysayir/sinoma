@@ -63,20 +63,27 @@ UPDATE public.grammar_levels SET symbol = NULL WHERE name = 'dei';
 -- auto_add allow-list was dropped.)
 
 -- BEFORE INSERT / UPDATE OF quiz_category|quiz_categories|target_words.
--- (1) Detect grammar: every confirmed word equal to a grammar token → that
---     grammar (reading order); plus existing pattern tags (NULL symbol) kept.
+-- (1) Detect grammar, in priority order:
+--     A. multi-token PATTERN grammars by their characteristic shape (these have no
+--        single token symbol): 正反问 X不X '(.)不\1'; 是…的 '是.+的$'; 跟…一样
+--        '跟.+一样'; 连…都 '连.+都'; 越…越 '越.+越' (not 越来越). Patterns rank
+--        above their component single grammars (跟/连/都…).
+--     B. every confirmed word equal to a grammar token (grammar_levels.symbol).
+--     C. existing structural tags kept (NULL symbol & no pattern: 补语/句/否定/反问
+--        — abstract structures with no fixed characters; pipeline/manual only).
 --     quiz_category := first tag (else 'general').
 -- (2) Placement (only when level is null and not "Diğer"=phase 0):
 --      a. first grammar tag whose grammar is still FREE → its unit, phase 1,
 --         slot_grammar (one clip per grammar rule);
---      b. else (HSK1) first word whose slot word is still FREE → its slot,
---         slot_word (one clip per word);
+--      b. else first word (at the clip's HSK level) whose slot word is FREE →
+--         its slot, slot_word (one clip per word);
 --      c. else left null (unplaced).
 CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE
   do_detect boolean := false;
   do_place boolean := false;
   joined text;
+  pat_arr text[];
   rec_g record;
   ws record;
 BEGIN
@@ -91,22 +98,30 @@ BEGIN
 
   IF do_detect THEN
     joined := array_to_string(COALESCE(NEW.target_words,'{}'::text[]), '');
+    pat_arr := ARRAY(
+      SELECT name FROM ( VALUES
+        ('zhengfan',  CASE WHEN joined ~ '(.)不\1'  THEN position('不' IN joined) ELSE 0 END),
+        ('shiDe',     CASE WHEN joined ~ '是.+的$'   THEN position('是' IN joined) ELSE 0 END),
+        ('genYiyang', CASE WHEN joined ~ '跟.+一样'  THEN position('跟' IN joined) ELSE 0 END),
+        ('liandou',   CASE WHEN joined ~ '连.+都'    THEN position('连' IN joined) ELSE 0 END),
+        ('yueyue',    CASE WHEN joined ~ '越.+越' AND joined NOT LIKE '%越来越%'
+                                                    THEN position('越' IN joined) ELSE 0 END)
+      ) v(name, pos) WHERE pos > 0 ORDER BY pos );
     NEW.quiz_categories :=
+      pat_arr
+      ||
       ( SELECT COALESCE(array_agg(name ORDER BY pos), '{}'::text[])
         FROM ( SELECT gl.name AS name, min(t.ord) AS pos
                FROM unnest(COALESCE(NEW.target_words,'{}'::text[])) WITH ORDINALITY t(w,ord)
                JOIN public.grammar_levels gl ON gl.symbol = t.w
-               GROUP BY gl.name ) m )
+               GROUP BY gl.name ) m
+        WHERE NOT (name = ANY(pat_arr)) )
       ||
       ( SELECT COALESCE(array_agg(t.cat ORDER BY t.ord), '{}'::text[])
         FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
         JOIN public.grammar_levels gl ON gl.name = t.cat
-        WHERE gl.symbol IS NULL AND gl.name <> 'zhengfan' );
-    -- 正反问 (A不A) detected by its real X不X pattern (是不是/好不好/对不对), never
-    -- by a plain 不 — so it never collides with 不 (bu).
-    IF joined ~ '(.)不\1' AND NOT ('zhengfan' = ANY(NEW.quiz_categories)) THEN
-      NEW.quiz_categories := NEW.quiz_categories || ARRAY['zhengfan'];
-    END IF;
+        WHERE gl.symbol IS NULL
+          AND gl.name NOT IN ('zhengfan','shiDe','genYiyang','liandou','yueyue') );
     NEW.quiz_category := COALESCE(NEW.quiz_categories[1], 'general');
     IF NEW.quiz_category IS NULL THEN NEW.quiz_category := 'general'; END IF;
   END IF;
