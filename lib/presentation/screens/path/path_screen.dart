@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../data/models/video_segment_model.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
@@ -375,7 +376,6 @@ class _CenterPath extends ConsumerWidget {
             break;
           }
         }
-        final currentStep = current != null ? topic.steps[current.stepIndex] : null;
 
         return Column(
           children: [
@@ -386,28 +386,27 @@ class _CenterPath extends ConsumerWidget {
                   ref.read(selectedTopicHskProvider.notifier).state = h,
             ),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                children: [
-                  Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 600),
-                      child: Column(
-                        children: [
-                          if (currentStep != null)
-                            _UnitHeader(step: currentStep, tr: tr),
-                          for (final step in topic.steps)
-                            _StepBlock(
-                              step: step,
-                              topic: topic,
-                              progress: progress,
-                              currentKey: current?.key,
-                              tr: tr,
-                            ),
-                        ],
+              // Pinned colored banner per unit (Duolingo-style): as you scroll
+              // into a unit its banner stays at the top and its colour changes.
+              child: CustomScrollView(
+                slivers: [
+                  for (final step in topic.steps) ...[
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _UnitBannerDelegate(
+                          step: step, tr: tr, color: _unitColor(step)),
+                    ),
+                    SliverToBoxAdapter(
+                      child: _UnitNodes(
+                        step: step,
+                        topic: topic,
+                        progress: progress,
+                        currentKey: current?.key,
+                        tr: tr,
                       ),
                     ),
-                  ),
+                  ],
+                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
                 ],
               ),
             ),
@@ -415,6 +414,20 @@ class _CenterPath extends ConsumerWidget {
         );
       },
     );
+  }
+
+  static Color _unitColor(PathStep step) {
+    if (step.grammarName == null) return _duoLocked;
+    const palette = [
+      Color(0xFF58CC02), // green
+      Color(0xFFCE82FF), // purple
+      Color(0xFF1CB0F6), // blue
+      Color(0xFFFF9600), // orange
+      Color(0xFFFF4B4B), // red
+      Color(0xFF2BC4C4), // teal
+      Color(0xFFFFC800), // yellow
+    ];
+    return palette[step.index % palette.length];
   }
 }
 
@@ -467,75 +480,111 @@ class _HskSelector extends StatelessWidget {
   }
 }
 
-class _UnitHeader extends StatelessWidget {
+// Pinned, colored unit banner (changes per unit as you scroll).
+class _UnitBannerDelegate extends SliverPersistentHeaderDelegate {
   final PathStep step;
   final bool tr;
-  const _UnitHeader({required this.step, required this.tr});
+  final Color color;
+  _UnitBannerDelegate(
+      {required this.step, required this.tr, required this.color});
 
   @override
-  Widget build(BuildContext context) {
+  double get minExtent => 86;
+  @override
+  double get maxExtent => 86;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final hasGrammar = step.grammarName != null;
+    final title =
+        hasGrammar ? grammarLabel(step.grammarName, tr: tr) : (tr ? 'Yakında' : 'Soon');
     return Container(
-      margin: const EdgeInsets.fromLTRB(8, 8, 8, 8),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: _duoGreen,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: _duoGreenDark, offset: Offset(0, 4))],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
-                    style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5)),
-                const SizedBox(height: 4),
-                Text(step.title,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 19,
-                        fontWeight: FontWeight.w800)),
-              ],
-            ),
+      color: _duoBg,
+      alignment: Alignment.center,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.25),
+                  offset: const Offset(0, 3)),
+            ],
           ),
-          Material(
-            color: Colors.white.withValues(alpha: 0.18),
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () {},
-              child: const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.menu_book_rounded, color: Colors.white, size: 18),
-                  SizedBox(width: 6),
-                  Text('REHBER',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800)),
-                ]),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                        'L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5)),
+                    const SizedBox(height: 3),
+                    Text(title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
               ),
-            ),
+              Material(
+                color: Colors.white.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(12),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(12),
+                  onTap: () {},
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.menu_book_rounded,
+                          color: Colors.white, size: 16),
+                      SizedBox(width: 5),
+                      Text('REHBER',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800)),
+                    ]),
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
+
+  @override
+  bool shouldRebuild(covariant _UnitBannerDelegate old) =>
+      old.step.hsk != step.hsk ||
+      old.step.index != step.index ||
+      old.color != color ||
+      old.tr != tr;
 }
 
-class _StepBlock extends StatelessWidget {
+// The 4 phase circles of a unit (zigzag).
+class _UnitNodes extends StatelessWidget {
   final PathStep step;
   final PathTopic topic;
   final Map<String, dynamic> progress;
   final String? currentKey;
   final bool tr;
-  const _StepBlock({
+  const _UnitNodes({
     required this.step,
     required this.topic,
     required this.progress,
@@ -547,39 +596,27 @@ class _StepBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final unitLabel = '${tr ? 'Ünite' : 'Unit'} ${step.index + 1}';
-    final label = step.grammarName != null
-        ? '$unitLabel · ${step.title}'
-        : unitLabel;
-    return Column(
-      children: [
-        const SizedBox(height: 22),
-        Row(children: [
-          const Expanded(child: Divider(color: Color(0xFF2C3B45))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Text(label,
-                style: TextStyle(
-                    color: step.hasContent ? Colors.white : Colors.white30,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800)),
-          ),
-          const Expanded(child: Divider(color: Color(0xFF2C3B45))),
-        ]),
-        const SizedBox(height: 8),
-        // Always 4 phase circles; ones without content render locked.
-        for (var i = 0; i < step.phases.length; i++)
-          Transform.translate(
-            offset: Offset(_offsets[i % _offsets.length], 0),
-            child: _PhaseNode(
-              phase: step.phases[i],
-              topic: topic,
-              progress: progress,
-              isCurrent: step.phases[i].key == currentKey,
-              tr: tr,
-            ),
-          ),
-      ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 600),
+        child: Column(
+          children: [
+            const SizedBox(height: 14),
+            for (var i = 0; i < step.phases.length; i++)
+              Transform.translate(
+                offset: Offset(_offsets[i % _offsets.length], 0),
+                child: _PhaseNode(
+                  phase: step.phases[i],
+                  topic: topic,
+                  progress: progress,
+                  isCurrent: step.phases[i].key == currentKey,
+                  tr: tr,
+                ),
+              ),
+            const SizedBox(height: 6),
+          ],
+        ),
+      ),
     );
   }
 }
