@@ -343,11 +343,54 @@ class _NavItem extends StatelessWidget {
 
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
-class _CenterPath extends ConsumerWidget {
+const double _kUnitHeight = 400; // fixed height per unit section
+
+Color _unitColor(PathStep step) {
+  if (step.grammarName == null) return _duoLocked;
+  const palette = [
+    Color(0xFF58CC02), // green
+    Color(0xFFCE82FF), // purple
+    Color(0xFF1CB0F6), // blue
+    Color(0xFFFF9600), // orange
+    Color(0xFFFF4B4B), // red
+    Color(0xFF2BC4C4), // teal
+    Color(0xFFFFC800), // yellow
+  ];
+  return palette[step.index % palette.length];
+}
+
+class _CenterPath extends ConsumerStatefulWidget {
   const _CenterPath();
+  @override
+  ConsumerState<_CenterPath> createState() => _CenterPathState();
+}
+
+class _CenterPathState extends ConsumerState<_CenterPath> {
+  final _scroll = ScrollController();
+  int _topUnit = 0;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  void initState() {
+    super.initState();
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    final u = (_scroll.offset / _kUnitHeight)
+        .floor()
+        .clamp(0, kUnitsPerLevel - 1);
+    if (u != _topUnit) setState(() => _topUnit = u);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final curriculum = ref.watch(curriculumProvider);
     final progressAsync = ref.watch(pathProgressProvider);
     final selectedHsk = ref.watch(selectedTopicHskProvider);
@@ -377,57 +420,42 @@ class _CenterPath extends ConsumerWidget {
           }
         }
 
+        final topUnit = _topUnit.clamp(0, topic.steps.length - 1);
+        final bannerStep = topic.steps[topUnit];
+
         return Column(
           children: [
             _HskSelector(
               selected: selectedHsk,
               withContent: withContent,
-              onSelect: (h) =>
-                  ref.read(selectedTopicHskProvider.notifier).state = h,
+              onSelect: (h) {
+                ref.read(selectedTopicHskProvider.notifier).state = h;
+                if (_scroll.hasClients) _scroll.jumpTo(0);
+                setState(() => _topUnit = 0);
+              },
             ),
+            // Single banner that swaps to the unit currently at the top — no
+            // stacking/overlap.
+            _UnitBanner(step: bannerStep, tr: tr, color: _unitColor(bannerStep)),
             Expanded(
-              // Pinned colored banner per unit (Duolingo-style): as you scroll
-              // into a unit its banner stays at the top and its colour changes.
-              child: CustomScrollView(
-                slivers: [
-                  for (final step in topic.steps) ...[
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _UnitBannerDelegate(
-                          step: step, tr: tr, color: _unitColor(step)),
-                    ),
-                    SliverToBoxAdapter(
-                      child: _UnitNodes(
-                        step: step,
-                        topic: topic,
-                        progress: progress,
-                        currentKey: current?.key,
-                        tr: tr,
-                      ),
-                    ),
-                  ],
-                  const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                ],
+              child: ListView.builder(
+                controller: _scroll,
+                padding: const EdgeInsets.only(bottom: 60),
+                itemExtent: _kUnitHeight,
+                itemCount: topic.steps.length,
+                itemBuilder: (_, i) => _UnitNodes(
+                  step: topic.steps[i],
+                  topic: topic,
+                  progress: progress,
+                  currentKey: current?.key,
+                  tr: tr,
+                ),
               ),
             ),
           ],
         );
       },
     );
-  }
-
-  static Color _unitColor(PathStep step) {
-    if (step.grammarName == null) return _duoLocked;
-    const palette = [
-      Color(0xFF58CC02), // green
-      Color(0xFFCE82FF), // purple
-      Color(0xFF1CB0F6), // blue
-      Color(0xFFFF9600), // orange
-      Color(0xFFFF4B4B), // red
-      Color(0xFF2BC4C4), // teal
-      Color(0xFFFFC800), // yellow
-    ];
-    return palette[step.index % palette.length];
   }
 }
 
@@ -480,22 +508,16 @@ class _HskSelector extends StatelessWidget {
   }
 }
 
-// Pinned, colored unit banner (changes per unit as you scroll).
-class _UnitBannerDelegate extends SliverPersistentHeaderDelegate {
+// Single colored unit banner (the one currently at the top of the scroll).
+class _UnitBanner extends StatelessWidget {
   final PathStep step;
   final bool tr;
   final Color color;
-  _UnitBannerDelegate(
+  const _UnitBanner(
       {required this.step, required this.tr, required this.color});
 
   @override
-  double get minExtent => 86;
-  @override
-  double get maxExtent => 86;
-
-  @override
-  Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
+  Widget build(BuildContext context) {
     final hasGrammar = step.grammarName != null;
     final title =
         hasGrammar ? grammarLabel(step.grammarName, tr: tr) : (tr ? 'Yakında' : 'Soon');
@@ -568,13 +590,6 @@ class _UnitBannerDelegate extends SliverPersistentHeaderDelegate {
       ),
     );
   }
-
-  @override
-  bool shouldRebuild(covariant _UnitBannerDelegate old) =>
-      old.step.hsk != step.hsk ||
-      old.step.index != step.index ||
-      old.color != color ||
-      old.tr != tr;
 }
 
 // The 4 phase circles of a unit (zigzag).
