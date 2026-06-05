@@ -866,3 +866,210 @@ class _Chip extends StatelessWidget {
     );
   }
 }
+
+// ── Profile view (read-only) ──────────────────────────────────────────────────
+
+const List<String> _trMonths = [
+  '', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
+  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
+];
+
+class ProfileView extends ConsumerWidget {
+  final bool tr;
+  final VoidCallback onEdit;
+  const ProfileView({super.key, required this.tr, required this.onEdit});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider).valueOrNull;
+    final meta = ref.watch(pathMetaProvider);
+    if (user == null) {
+      return Center(
+        child: Text(tr ? 'Giriş yapın' : 'Please sign in',
+            style: const TextStyle(color: Colors.white54, fontSize: 15)),
+      );
+    }
+    final name = [user.displayName, user.lastName]
+        .where((s) => s.trim().isNotEmpty)
+        .join(' ');
+    final username = user.email.contains('@')
+        ? user.email.split('@').first
+        : user.email;
+    final d = user.createdAt;
+    final joined = tr
+        ? '${_trMonths[d.month]} ${d.year} tarihinde katıldı'
+        : 'Joined ${d.month}/${d.year}';
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Banner + photo
+                Container(
+                  height: 150,
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [Color(0xFF26314F), Color(0xFF101626)],
+                    ),
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: CircleAvatar(
+                          radius: 48,
+                          backgroundColor: _bg,
+                          backgroundImage: user.photoUrl.isNotEmpty
+                              ? NetworkImage(user.photoUrl)
+                              : null,
+                          child: user.photoUrl.isEmpty
+                              ? const Icon(Icons.person,
+                                  color: Colors.white38, size: 48)
+                              : null,
+                        ),
+                      ),
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Material(
+                          color: Colors.black26,
+                          shape: const CircleBorder(),
+                          child: IconButton(
+                            icon: const Icon(Icons.edit,
+                                color: Colors.white, size: 18),
+                            tooltip: tr ? 'Düzenle' : 'Edit',
+                            onPressed: onEdit,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(name.isNotEmpty ? name : username,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text('@$username',
+                    style: const TextStyle(color: Colors.white54, fontSize: 14)),
+                const SizedBox(height: 6),
+                Row(children: [
+                  const Icon(Icons.calendar_today_rounded,
+                      color: Colors.white38, size: 14),
+                  const SizedBox(width: 6),
+                  Text(joined,
+                      style:
+                          const TextStyle(color: Colors.white54, fontSize: 13)),
+                  const SizedBox(width: 14),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: _green,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text('HSK ${user.hskLevel}',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ]),
+                const SizedBox(height: 24),
+                Text(tr ? 'İstatistikler' : 'Statistics',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 12),
+                GridView.count(
+                  crossAxisCount: 2,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  childAspectRatio: 2.6,
+                  crossAxisSpacing: 12,
+                  mainAxisSpacing: 12,
+                  children: [
+                    _StatCard(
+                        icon: Icons.local_fire_department_rounded,
+                        color: const Color(0xFFFF9600),
+                        value: '${meta.streak}',
+                        label: tr ? 'Günlük seri' : 'Day streak'),
+                    _StatCard(
+                        icon: Icons.bolt_rounded,
+                        color: const Color(0xFFFFC800),
+                        value: '${user.stats.totalScore}',
+                        label: tr ? 'Toplam Puan' : 'Total XP'),
+                    _StatCard(
+                        icon: Icons.favorite_rounded,
+                        color: const Color(0xFFFF4B4B),
+                        value: '${meta.hearts}',
+                        label: tr ? 'Can' : 'Hearts'),
+                    _StatCard(
+                        icon: Icons.check_circle_rounded,
+                        color: const Color(0xFF1CB0F6),
+                        value: '${user.stats.questionsAnswered}',
+                        label: tr ? 'Cevaplanan' : 'Answered'),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String value;
+  final String label;
+  const _StatCard(
+      {required this.icon,
+      required this.color,
+      required this.value,
+      required this.label});
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: Row(children: [
+        Icon(icon, color: color, size: 28),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(value,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
+              Text(label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            ],
+          ),
+        ),
+      ]),
+    );
+  }
+}

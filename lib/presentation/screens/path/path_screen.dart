@@ -17,7 +17,17 @@ const _duoBg = Color(0xFF131F2A);
 const _duoPanel = Color(0xFF1C2A35);
 const _duoLocked = Color(0xFF37464F);
 
-enum _Section { learn, dictionary, video, leaderboard, quests, shop, profile, more }
+enum _Section {
+  learn,
+  dictionary,
+  video,
+  leaderboard,
+  quests,
+  shop,
+  profile, // read-only profile view (nav)
+  editProfile, // profile edit form (Settings > Profil)
+  more,
+}
 
 class PathScreen extends ConsumerStatefulWidget {
   const PathScreen({super.key});
@@ -53,6 +63,11 @@ class _PathScreenState extends ConsumerState<PathScreen> {
         center = ShopCenter(tr: tr);
         break;
       case _Section.profile:
+        center = ProfileView(
+            tr: tr,
+            onEdit: () => setState(() => _section = _Section.editProfile));
+        break;
+      case _Section.editProfile:
         final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
         center = ProfileScreen(uid: uid);
         break;
@@ -117,9 +132,10 @@ class _PathScreenState extends ConsumerState<PathScreen> {
                 ? 'Arkadaş etkinliği yakında burada görünecek.'
                 : 'Friend activity will appear here soon.');
       case _Section.more:
+      case _Section.editProfile:
         return SettingsRight(
             tr: tr,
-            onProfile: () => setState(() => _section = _Section.profile));
+            onProfile: () => setState(() => _section = _Section.editProfile));
       default:
         return null;
     }
