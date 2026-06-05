@@ -49,7 +49,7 @@ class _HanziBuildScreenState extends ConsumerState<HanziBuildScreen> {
           HanziBuildStatus.finished => _FinishedView(
               state: state,
               onPlayAgain: notifier.startGame,
-              onHome: () => context.go('/home'),
+              onHome: () => context.go('/learn'),
             ),
           _ => _GameView(
               state: state,

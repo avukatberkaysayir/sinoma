@@ -108,7 +108,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 12),
           if (signedIn)
             FilledButton(
-              onPressed: () => context.go('/home'),
+              onPressed: () => context.go('/profile'),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primary,
                 padding:
@@ -270,7 +270,7 @@ class _Hero extends StatelessWidget {
           children: [
             FilledButton.icon(
               onPressed: () => signedIn
-                  ? context.go('/home')
+                  ? context.go('/profile')
                   : showAuthDialog(context, startWithRegister: true),
               icon: Icon(
                   signedIn ? Icons.arrow_forward_rounded : Icons.rocket_launch,
@@ -290,7 +290,7 @@ class _Hero extends StatelessWidget {
             ),
             if (!signedIn)
               OutlinedButton.icon(
-                onPressed: () => context.go('/home'),
+                onPressed: () => context.go('/learn'),
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
                 label: Text(t('Videolara Göz At', 'Browse videos')),
                 style: OutlinedButton.styleFrom(

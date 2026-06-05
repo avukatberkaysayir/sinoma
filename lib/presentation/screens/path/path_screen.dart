@@ -32,7 +32,7 @@ enum _Section {
 
 // Each left-nav section is its own URL.
 const Map<_Section, String> _sectionPaths = {
-  _Section.learn: '/home',
+  _Section.learn: '/learn',
   _Section.profile: '/profile',
   _Section.editProfile: '/settings/profile',
   _Section.video: '/video',

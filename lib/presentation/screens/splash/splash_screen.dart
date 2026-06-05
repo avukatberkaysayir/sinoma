@@ -17,7 +17,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _route().timeout(const Duration(seconds: 10)).catchError((_) {
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/learn');
     });
   }
 
@@ -67,7 +67,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     if (user == null) {
-      context.go('/home');
+      context.go('/learn');
       return;
     }
 
@@ -81,9 +81,9 @@ class _SplashScreenState extends State<SplashScreen> {
           .timeout(const Duration(seconds: 5));
 
       if (!mounted) return;
-      context.go(profile == null ? '/onboarding' : '/home');
+      context.go(profile == null ? '/onboarding' : '/profile');
     } catch (_) {
-      if (mounted) context.go('/home');
+      if (mounted) context.go('/learn');
     }
   }
 

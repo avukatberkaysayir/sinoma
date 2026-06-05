@@ -38,7 +38,7 @@ class _AppShell extends StatelessWidget {
   final Widget child;
   const _AppShell({required this.child});
 
-  static const _sectionRoutes = {'/video', '/home', '/dictionary', '/social', '/games'};
+  static const _sectionRoutes = {'/video', '/learn', '/dictionary', '/social', '/games'};
 
   static AppSection _sectionFromRoute(String loc) => switch (loc) {
     '/dictionary' => AppSection.dictionary,
@@ -94,7 +94,7 @@ final _router = GoRouter(
     final user = Supabase.instance.client.auth.currentUser;
 
     if (loc.startsWith('/admin')) {
-      if (user?.email != adminEmail) return '/home';
+      if (user?.email != adminEmail) return '/learn';
     }
 
     return null;
@@ -113,7 +113,8 @@ final _router = GoRouter(
     ),
     // Learning-path sections — each is its own URL, all render PathScreen
     // (which picks the active section from the location).
-    GoRoute(path: '/home',             builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/learn',            builder: (_, __) => const PathScreen()),
+    GoRoute(path: '/home',             redirect: (_, __) => '/learn'),
     GoRoute(path: '/profile',          builder: (_, __) => const PathScreen()),
     GoRoute(path: '/settings',         builder: (_, __) => const PathScreen()),
     GoRoute(path: '/settings/profile', builder: (_, __) => const PathScreen()),
@@ -131,7 +132,7 @@ final _router = GoRouter(
     ShellRoute(
       builder: (context, state, child) => _AppShell(child: child),
       routes: [
-        GoRoute(path: '/hub',   redirect: (_, __) => '/home'),
+        GoRoute(path: '/hub',   redirect: (_, __) => '/learn'),
         GoRoute(path: '/games', builder: (_, __) => const GamesSectionScreen()),
         GoRoute(path: '/social', builder: (_, __) => const SocialScreen()),
         GoRoute(path: '/admin',           builder: (_, __) => const AdminScreen()),

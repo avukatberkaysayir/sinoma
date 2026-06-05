@@ -66,12 +66,12 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
                 color: isDark ? Colors.white70 : Colors.black54,
               ),
               onPressed: () =>
-                  context.canPop() ? context.pop() : context.go('/home'),
+                  context.canPop() ? context.pop() : context.go('/learn'),
               visualDensity: VisualDensity.compact,
               padding: EdgeInsets.zero,
             ),
           GestureDetector(
-            onTap: () => context.go('/home'),
+            onTap: () => context.go('/learn'),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
               child: _LogoSection(hskLevel: hskLevel),

@@ -30,7 +30,7 @@ extension AppSectionX on AppSection {
   };
 
   String get route => switch (this) {
-    AppSection.video       => '/home', // learning path is the primary screen
+    AppSection.video       => '/learn', // learning path is the primary screen
     AppSection.dictionary  => '/dictionary',
     AppSection.social      => '/social',
     AppSection.games       => '/games',

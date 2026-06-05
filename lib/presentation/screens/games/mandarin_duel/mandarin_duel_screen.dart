@@ -86,7 +86,7 @@ class _MandarinDuelScreenState extends ConsumerState<MandarinDuelScreen> {
           DuelStatus.finished => _FinishedView(
               state: state,
               onPlayAgain: notifier.startGame,
-              onHome: () => context.go('/home'),
+              onHome: () => context.go('/learn'),
               onRestoreLife: _buildRestoreLifeCallback(ref, notifier),
             ),
           DuelStatus.wheelSpinning => _WheelSection(

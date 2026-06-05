@@ -60,7 +60,7 @@ class HubScreen extends ConsumerWidget {
                           icon: Icons.play_circle_outline,
                           label: 'Video',
                           color: AppColors.primary,
-                          onTap: () => context.go('/home'),
+                          onTap: () => context.go('/learn'),
                         ),
                         _HubCard(
                           size: cardSize,
