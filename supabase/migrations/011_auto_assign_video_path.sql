@@ -73,6 +73,7 @@ CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE
   do_detect boolean := false;
   do_place boolean := false;
+  joined text;
   rec_g record;
   ws record;
 BEGIN
@@ -86,6 +87,7 @@ BEGIN
   do_place := (NEW.level IS NULL AND COALESCE(NEW.phase, -1) <> 0);
 
   IF do_detect THEN
+    joined := array_to_string(COALESCE(NEW.target_words,'{}'::text[]), '');
     NEW.quiz_categories :=
       ( SELECT COALESCE(array_agg(name ORDER BY pos), '{}'::text[])
         FROM ( SELECT gl.name AS name, min(t.ord) AS pos
@@ -96,7 +98,12 @@ BEGIN
       ( SELECT COALESCE(array_agg(t.cat ORDER BY t.ord), '{}'::text[])
         FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
         JOIN public.grammar_levels gl ON gl.name = t.cat
-        WHERE gl.symbol IS NULL );
+        WHERE gl.symbol IS NULL AND gl.name <> 'zhengfan' );
+    -- 正反问 (A不A) detected by its real X不X pattern (是不是/好不好/对不对), never
+    -- by a plain 不 — so it never collides with 不 (bu).
+    IF joined ~ '(.)不\1' AND NOT ('zhengfan' = ANY(NEW.quiz_categories)) THEN
+      NEW.quiz_categories := NEW.quiz_categories || ARRAY['zhengfan'];
+    END IF;
     NEW.quiz_category := COALESCE(NEW.quiz_categories[1], 'general');
     IF NEW.quiz_category IS NULL THEN NEW.quiz_category := 'general'; END IF;
   END IF;
