@@ -53,6 +53,9 @@ CREATE INDEX IF NOT EXISTS idx_videos_slot_grammar
 -- kGrammarMeaning.zh: contains 补语/句/否定/… or = 'A不A' → NULL; else zh.
 ALTER TABLE public.grammar_levels ADD COLUMN IF NOT EXISTS symbol text;
 -- (symbol values set by the app's one-off generator; see project notes.)
+-- 得 is shared by deComplement (得 complement) + dei (得 must) — keep one
+-- matchable so a 得 word maps to a single grammar; dei → NULL (pipeline/manual).
+UPDATE public.grammar_levels SET symbol = NULL WHERE name = 'dei';
 
 -- Standard: grammar words are already a separate set from vocab (path_word_slots
 -- excludes them). So ANY confirmed word that IS a grammar token (= grammar_levels
@@ -119,15 +122,18 @@ BEGIN
     IF FOUND THEN
       NEW.level := rec_g.level; NEW.unit := rec_g.unit; NEW.phase := 1;
       NEW.slot_grammar := rec_g.name;
-    ELSIF (NEW.hsk_level = 1 OR (NEW.hsk_levels IS NOT NULL AND 1 = ANY(NEW.hsk_levels))) THEN
-      SELECT s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
+    ELSE
+      -- else first word (at this clip's HSK level) whose slot word is still free
+      SELECT s.level AS level, s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
         FROM unnest(COALESCE(NEW.target_words, '{}'::text[])) WITH ORDINALITY t(w, ord)
-        JOIN public.path_word_slots s ON s.word = t.w AND s.level = 1
-        WHERE NOT EXISTS (SELECT 1 FROM public.videos v2
-          WHERE v2.slot_word = s.word AND v2.status IN ('active','pending') AND v2.id <> NEW.id)
+        JOIN public.path_word_slots s ON s.word = t.w
+        WHERE (s.level = NEW.hsk_level
+               OR (NEW.hsk_levels IS NOT NULL AND s.level = ANY(NEW.hsk_levels)))
+          AND NOT EXISTS (SELECT 1 FROM public.videos v2
+            WHERE v2.slot_word = s.word AND v2.status IN ('active','pending') AND v2.id <> NEW.id)
         ORDER BY t.ord LIMIT 1;
       IF FOUND THEN
-        NEW.level := 1; NEW.unit := ws.unit; NEW.phase := ws.phase;
+        NEW.level := ws.level; NEW.unit := ws.unit; NEW.phase := ws.phase;
         NEW.slot_word := ws.word;
       END IF;
     END IF;

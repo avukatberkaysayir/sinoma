@@ -37,3 +37,8 @@ CREATE POLICY read_grammar_levels ON public.grammar_levels FOR SELECT USING (tru
 -- )
 -- SELECT word, 1, ((rn % 96) / 4)::int + 1, ((rn % 96) % 4)::int + 1, pinyin, tr, en
 -- FROM base;
+--
+-- L2-L6 populated the same way (loop h IN 2..6, hsk_level = h), excluding grammar
+-- tokens via: simplified NOT IN (SELECT symbol FROM grammar_levels WHERE symbol
+-- IS NOT NULL). Words/slot grow with level (L2 ~2 … L6 ~25); the gözat panel
+-- scrolls past 5. ~5856 rows total.

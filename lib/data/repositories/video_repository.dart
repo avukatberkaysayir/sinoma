@@ -47,7 +47,7 @@ class VideoRepository {
   // phase) so no-grammar clips containing it surface in that circle. Also feeds
   // the "gözat" panel (word + dictionary meaning per slot).
   Future<List<Map<String, dynamic>>> loadPathWordSlots() async {
-    final data = await _db.from('path_word_slots').select().limit(5000);
+    final data = await _db.from('path_word_slots').select().limit(20000);
     return List<Map<String, dynamic>>.from(data);
   }
 
