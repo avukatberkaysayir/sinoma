@@ -8,9 +8,9 @@ import 'video_provider.dart';
 const int kPhaseSize = 8; // target videos per phase
 const int kPhasesPerStep = 4;
 const double kPassRatio = 0.6; // ≥60% correct to clear a phase
-// TEMP: unlock every L1 circle so the gözat words can be inspected freely.
-// Revert to false once L1 review is done.
-const bool kUnlockAllL1 = true;
+// TEMP: unlock every circle on ALL levels so the gözat words can be inspected
+// freely. Revert to false once review is done.
+const bool kUnlockAll = true;
 
 // ── Curriculum model ──────────────────────────────────────────────────────────
 
@@ -232,7 +232,7 @@ PathPhase? currentPhaseFor(
 // the chain — they render locked and never block content that comes after them.
 bool isPhaseUnlocked(
     PathTopic topic, PathPhase phase, Map<String, dynamic> progress) {
-  if (kUnlockAllL1 && phase.hsk == 1) return true; // TEMP inspection override
+  if (kUnlockAll) return true; // TEMP inspection override (all levels)
   if (!phase.hasVideos) return false;
   final flat = <PathPhase>[
     for (final s in topic.steps)
