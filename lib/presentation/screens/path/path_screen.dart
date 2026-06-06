@@ -343,7 +343,7 @@ class _NavItem extends StatelessWidget {
 
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
-const double _kUnitHeight = 400; // fixed height per unit section
+const double _kUnitHeight = 520; // fixed height per unit section (5 nodes)
 const double _kBannerLead = 120; // switch banner this early (boundary offset)
 
 Color _unitColor(PathStep step) {
@@ -610,13 +610,37 @@ class _UnitNodes extends StatelessWidget {
     required this.tr,
   });
 
-  static const _offsets = [0.0, 48.0, 70.0, 48.0, 0.0, -48.0, -70.0, -48.0];
+  // Zigzag x-offsets for the 5 nodes per unit: phase1(center) → phase2(right) →
+  // REWARD(center) → phase3(left) → phase4(center). First & last circle aligned.
+  static const _r = 74.0;
+  static const _slots = [0.0, _r, 0.0, -_r, 0.0];
 
   @override
   Widget build(BuildContext context) {
     final label = step.grammarName != null
         ? grammarLabel(step.grammarName, tr: tr)
         : (tr ? 'Yakında' : 'Soon');
+    // Interleave the 4 phase steps with a reward node in the middle (index 2).
+    final nodes = <Widget>[];
+    var slot = 0;
+    for (var i = 0; i < step.phases.length; i++) {
+      if (i == 2) {
+        nodes.add(Transform.translate(
+          offset: Offset(_slots[slot++], 0),
+          child: _RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'),
+        ));
+      }
+      nodes.add(Transform.translate(
+        offset: Offset(_slots[slot++], 0),
+        child: _PhaseNode(
+          phase: step.phases[i],
+          topic: topic,
+          progress: progress,
+          isCurrent: step.phases[i].key == currentKey,
+          tr: tr,
+        ),
+      ));
+    }
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
@@ -636,17 +660,7 @@ class _UnitNodes extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              for (var i = 0; i < step.phases.length; i++)
-                Transform.translate(
-                  offset: Offset(_offsets[i % _offsets.length], 0),
-                  child: _PhaseNode(
-                    phase: step.phases[i],
-                    topic: topic,
-                    progress: progress,
-                    isCurrent: step.phases[i].key == currentKey,
-                    tr: tr,
-                  ),
-                ),
+              ...nodes,
               const SizedBox(height: 6),
             ],
           ),
@@ -769,7 +783,7 @@ class _PhaseNode extends ConsumerWidget {
   }
 }
 
-// Speech-bubble "gözat" button shown next to a circle that has assigned words.
+// Round speech-bubble "gözat" button (icon only) next to a circle.
 class _BrowseButton extends StatelessWidget {
   final bool tr;
   final VoidCallback onTap;
@@ -779,22 +793,23 @@ class _BrowseButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: _duoPanel,
-      borderRadius: BorderRadius.circular(14),
+      shape: const CircleBorder(),
+      elevation: 2,
+      shadowColor: Colors.black54,
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
+        customBorder: const CircleBorder(),
         onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          child: Row(mainAxisSize: MainAxisSize.min, children: [
-            const Icon(Icons.chat_bubble_outline_rounded,
-                color: Colors.white70, size: 14),
-            const SizedBox(width: 5),
-            Text(tr ? 'gözat' : 'browse',
-                style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700)),
-          ]),
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(
+                color: Colors.white.withValues(alpha: 0.12), width: 1.5),
+          ),
+          alignment: Alignment.center,
+          child: const Icon(Icons.chat_bubble_outline_rounded,
+              color: Colors.white70, size: 19),
         ),
       ),
     );
@@ -926,6 +941,61 @@ class _StartBubble extends StatelessWidget {
       child: const Text('BAŞLAT',
           style: TextStyle(
               color: _duoGreen, fontSize: 14, fontWeight: FontWeight.w800)),
+    );
+  }
+}
+
+// Reward chest in the middle of each unit. Tap (once) to claim points.
+const _rewardGold = Color(0xFFFFC800);
+const _rewardGoldDark = Color(0xFFE0A800);
+
+class _RewardNode extends ConsumerWidget {
+  final String rewardKey;
+  const _RewardNode({required this.rewardKey});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
+    final rewards = progress['__rewards'];
+    final claimed = rewards is Map && rewards[rewardKey] == true;
+    final tr = ref.watch(localeProvider).languageCode == 'tr';
+
+    Future<void> claim() async {
+      final ok = await ref.read(userRepositoryProvider).claimReward(rewardKey);
+      if (!context.mounted) return;
+      if (ok) {
+        ref.invalidate(pathProgressProvider);
+        ref.invalidate(currentUserProvider);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 2),
+          content: Text(tr ? '+20 puan kazandın! 🎉' : '+20 points! 🎉'),
+        ));
+      }
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: GestureDetector(
+        onTap: claimed ? null : claim,
+        child: Container(
+          width: 64,
+          height: 60,
+          decoration: BoxDecoration(
+            color: claimed ? _duoLocked : _rewardGold,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: [
+              BoxShadow(
+                  color: claimed ? const Color(0xFF2A363D) : _rewardGoldDark,
+                  offset: const Offset(0, 5)),
+            ],
+          ),
+          child: Icon(
+            claimed ? Icons.redeem_rounded : Icons.card_giftcard_rounded,
+            color: claimed ? Colors.white30 : Colors.white,
+            size: 32,
+          ),
+        ),
+      ),
     );
   }
 }

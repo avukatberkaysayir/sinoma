@@ -50,6 +50,35 @@ class UserRepository {
     await _db.from('users').update({'path_progress': current}).eq('id', uid);
   }
 
+  // Claim a path reward once: marks it under path_progress.__rewards and adds
+  // points to stats.totalScore. Returns false if already claimed.
+  Future<bool> claimReward(String rewardKey, {int points = 20}) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return false;
+    final data = await _db
+        .from('users')
+        .select('path_progress, stats')
+        .eq('id', uid)
+        .maybeSingle();
+    final pp = data?['path_progress'] is Map
+        ? Map<String, dynamic>.from(data!['path_progress'] as Map)
+        : <String, dynamic>{};
+    final rewards = pp['__rewards'] is Map
+        ? Map<String, dynamic>.from(pp['__rewards'] as Map)
+        : <String, dynamic>{};
+    if (rewards[rewardKey] == true) return false;
+    rewards[rewardKey] = true;
+    pp['__rewards'] = rewards;
+    final stats = data?['stats'] is Map
+        ? Map<String, dynamic>.from(data!['stats'] as Map)
+        : <String, dynamic>{};
+    stats['totalScore'] = ((stats['totalScore'] as num?)?.toInt() ?? 0) + points;
+    await _db
+        .from('users')
+        .update({'path_progress': pp, 'stats': stats}).eq('id', uid);
+    return true;
+  }
+
   // Apply heart loss (per wrong answer, with 4h refill) + daily streak bump.
   static const int _maxHearts = 5;
   static const int _refillMins = 4 * 60;
