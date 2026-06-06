@@ -638,6 +638,7 @@ class _UnitNodes extends StatelessWidget {
           progress: progress,
           isCurrent: step.phases[i].key == currentKey,
           tr: tr,
+          browseLeft: i >= 2, // 3rd & 4th circles: gözat on the left
         ),
       ));
     }
@@ -676,12 +677,14 @@ class _PhaseNode extends ConsumerWidget {
   final Map<String, dynamic> progress;
   final bool isCurrent;
   final bool tr;
+  final bool browseLeft; // gözat button on the left of the circle
   const _PhaseNode({
     required this.phase,
     required this.topic,
     required this.progress,
     required this.isCurrent,
     required this.tr,
+    this.browseLeft = false,
   });
 
   @override
@@ -737,6 +740,34 @@ class _PhaseNode extends ConsumerWidget {
       ref.invalidate(pathProgressProvider);
     }
 
+    final circle = GestureDetector(
+      onTap: open,
+      child: Container(
+        width: 74,
+        height: 70,
+        decoration: BoxDecoration(
+          color: top,
+          borderRadius: BorderRadius.circular(38),
+          boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
+        ),
+        child: icon,
+      ),
+    );
+    // Every slot carries vocabulary; words are fetched when opened.
+    final browse = _BrowseButton(
+      tr: tr,
+      onTap: () => showDialog<void>(
+        context: context,
+        barrierColor: Colors.black54,
+        builder: (_) => _SlotWordPanel(
+          level: phase.hsk,
+          unit: phase.stepIndex + 1,
+          phase: phase.phaseIndex + 1,
+          tr: tr,
+        ),
+      ),
+    );
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -744,38 +775,9 @@ class _PhaseNode extends ConsumerWidget {
           if (isCurrent) const _StartBubble(),
           Row(
             mainAxisSize: MainAxisSize.min,
-            children: [
-              GestureDetector(
-                onTap: open,
-                child: Container(
-                  width: 74,
-                  height: 70,
-                  decoration: BoxDecoration(
-                    color: top,
-                    borderRadius: BorderRadius.circular(38),
-                    boxShadow: [
-                      BoxShadow(color: shadow, offset: const Offset(0, 6))
-                    ],
-                  ),
-                  child: icon,
-                ),
-              ),
-              // Every slot carries vocabulary; words are fetched when opened.
-              const SizedBox(width: 8),
-              _BrowseButton(
-                tr: tr,
-                onTap: () => showDialog<void>(
-                  context: context,
-                  barrierColor: Colors.black54,
-                  builder: (_) => _SlotWordPanel(
-                    level: phase.hsk,
-                    unit: phase.stepIndex + 1,
-                    phase: phase.phaseIndex + 1,
-                    tr: tr,
-                  ),
-                ),
-              ),
-            ],
+            children: browseLeft
+                ? [browse, const SizedBox(width: 8), circle]
+                : [circle, const SizedBox(width: 8), browse],
           ),
         ],
       ),
