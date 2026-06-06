@@ -48,6 +48,13 @@ CREATE INDEX IF NOT EXISTS idx_videos_slot_word
 CREATE INDEX IF NOT EXISTS idx_videos_slot_grammar
   ON public.videos(slot_grammar) WHERE slot_grammar IS NOT NULL;
 
+-- Backup ("Yedek") store: a clip that couldn't become an active occupant records
+-- the slot it WOULD belong to (ignoring occupancy) so it can be swapped in later.
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_level int;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_unit  int;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_phase int;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_kind  text; -- 'grammar' | 'word'
+
 -- Matchable token per grammar (NULL = multi-token pattern, e.g. 是…的 / A不A /
 -- 把字句 / 结果补语 — can't be matched as a single word). Populated from
 -- kGrammarMeaning.zh: contains 补语/句/否定/… or = 'A不A' → NULL; else zh.
@@ -105,7 +112,10 @@ BEGIN
         ('genYiyang', CASE WHEN joined ~ '跟.+一样'  THEN position('跟' IN joined) ELSE 0 END),
         ('liandou',   CASE WHEN joined ~ '连.+都'    THEN position('连' IN joined) ELSE 0 END),
         ('yueyue',    CASE WHEN joined ~ '越.+越' AND joined NOT LIKE '%越来越%'
-                                                    THEN position('越' IN joined) ELSE 0 END)
+                                                    THEN position('越' IN joined) ELSE 0 END),
+        -- common fixed patterns for otherwise abstract structures (raise match rate)
+        ('fanwen',      CASE WHEN joined LIKE '%难道%'   THEN position('难道' IN joined) ELSE 0 END),
+        ('shuangchong', CASE WHEN joined LIKE '%不得不%' THEN position('不得不' IN joined) ELSE 0 END)
       ) v(name, pos) WHERE pos > 0 ORDER BY pos );
     NEW.quiz_categories :=
       pat_arr
@@ -121,7 +131,7 @@ BEGIN
         FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
         JOIN public.grammar_levels gl ON gl.name = t.cat
         WHERE gl.symbol IS NULL
-          AND gl.name NOT IN ('zhengfan','shiDe','genYiyang','liandou','yueyue') );
+          AND gl.name NOT IN ('zhengfan','shiDe','genYiyang','liandou','yueyue','fanwen','shuangchong') );
     NEW.quiz_category := COALESCE(NEW.quiz_categories[1], 'general');
     IF NEW.quiz_category IS NULL THEN NEW.quiz_category := 'general'; END IF;
   END IF;
@@ -151,6 +161,34 @@ BEGIN
         NEW.level := ws.level; NEW.unit := ws.unit; NEW.phase := ws.phase;
         NEW.slot_word := ws.word;
       END IF;
+    END IF;
+
+    -- Backup: if not an active occupant, record the would-be slot (no occupancy
+    -- check); if it did become active, clear backup_*.
+    IF NEW.level IS NULL THEN
+      SELECT gl.level AS level, gl.unit AS unit INTO rec_g
+        FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
+        JOIN public.grammar_levels gl ON gl.name = t.cat ORDER BY t.ord LIMIT 1;
+      IF FOUND THEN
+        NEW.backup_level := rec_g.level; NEW.backup_unit := rec_g.unit;
+        NEW.backup_phase := 1; NEW.backup_kind := 'grammar';
+      ELSE
+        SELECT s.level AS level, s.unit AS unit, s.phase AS phase INTO ws
+          FROM unnest(COALESCE(NEW.target_words,'{}'::text[])) WITH ORDINALITY t(w,ord)
+          JOIN public.path_word_slots s ON s.word = t.w
+          WHERE (s.level = NEW.hsk_level OR (NEW.hsk_levels IS NOT NULL AND s.level = ANY(NEW.hsk_levels)))
+          ORDER BY t.ord LIMIT 1;
+        IF FOUND THEN
+          NEW.backup_level := ws.level; NEW.backup_unit := ws.unit;
+          NEW.backup_phase := ws.phase; NEW.backup_kind := 'word';
+        ELSE
+          NEW.backup_level := NULL; NEW.backup_unit := NULL;
+          NEW.backup_phase := NULL; NEW.backup_kind := NULL;
+        END IF;
+      END IF;
+    ELSE
+      NEW.backup_level := NULL; NEW.backup_unit := NULL;
+      NEW.backup_phase := NULL; NEW.backup_kind := NULL;
     END IF;
   END IF;
   RETURN NEW;

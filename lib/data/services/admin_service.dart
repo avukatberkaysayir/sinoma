@@ -264,6 +264,21 @@ class AdminService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  // Backup ("Yedek") store: active/pending clips that couldn't become an active
+  // slot occupant (one-clip-per-item) but carry a would-be slot (backup_*).
+  Future<List<Map<String, dynamic>>> listBackupVideos() async {
+    final data = await _db
+        .from('videos')
+        .select()
+        .inFilter('status', ['active', 'pending'])
+        .not('backup_kind', 'is', null)
+        .order('backup_level')
+        .order('backup_unit')
+        .order('backup_phase')
+        .limit(5000);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   Future<List<Map<String, dynamic>>> listVideosByStatus(String status) async {
     final data = await _db
         .from('videos')

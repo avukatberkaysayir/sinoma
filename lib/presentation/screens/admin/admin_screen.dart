@@ -1223,7 +1223,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -1359,6 +1359,9 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                   icon: Icon(Icons.check_circle_outline, size: 16),
                   text: 'Aktif'),
               Tab(
+                  icon: Icon(Icons.inventory_2_outlined, size: 16),
+                  text: 'Yedek'),
+              Tab(
                   icon: Icon(Icons.delete_outline, size: 16),
                   text: 'Silinmiş'),
             ],
@@ -1389,6 +1392,11 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                 filterLength: _filterLength,
                 searchQuery: _searchQuery,
                 sourceType: widget.sourceType,
+              ),
+              _BackupTab(
+                key: ValueKey('backup-$_refreshCount'),
+                service: widget.service,
+                onRefresh: refresh,
               ),
               _VideoStatusTab(
                 key: ValueKey('deleted-$_refreshCount'),
@@ -2012,6 +2020,203 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
 
 // ── Video Card ────────────────────────────────────────────────────────────────
 
+// ── Backup ("Yedek") tab ──────────────────────────────────────────────────────
+// Clips that couldn't become an active slot occupant (one-clip-per-item) but
+// carry a would-be slot. Browse: Seviye → Ünite → Bölüm → (Gramer | Kelime).
+class _BackupTab extends StatefulWidget {
+  final AdminService service;
+  final VoidCallback onRefresh;
+  const _BackupTab({super.key, required this.service, required this.onRefresh});
+
+  @override
+  State<_BackupTab> createState() => _BackupTabState();
+}
+
+class _BackupTabState extends State<_BackupTab> {
+  List<Map<String, dynamic>> _all = [];
+  bool _loading = true;
+  String? _error;
+  int? _lvl;
+  int? _unit;
+  int? _phase;
+  String? _kind; // 'grammar' | 'word'
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final list = await widget.service.listBackupVideos();
+      if (mounted) setState(() { _all = list; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  int _bi(Map<String, dynamic> v, String k) => (v[k] as num?)?.toInt() ?? -1;
+
+  List<Map<String, dynamic>> get _selected {
+    if (_lvl == null || _unit == null || _kind == null) return const [];
+    return _all.where((v) {
+      if (v['backup_kind'] != _kind) return false;
+      if (_bi(v, 'backup_level') != _lvl) return false;
+      if (_bi(v, 'backup_unit') != _unit) return false;
+      if (_kind == 'word' && _phase != null && _bi(v, 'backup_phase') != _phase) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(child: Text(_error!, style: const TextStyle(color: AppColors.wrongAnswer)));
+    }
+    return Column(
+      children: [
+        SizedBox(
+          height: 188,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _navCol('Seviye', [for (var i = 1; i <= 6; i++) i],
+                    (i) => 'L$i', _lvl, (i) => setState(() {
+                          _lvl = i; _unit = null; _phase = null; _kind = null;
+                        }),
+                    has: (i) => _all.any((v) => _bi(v, 'backup_level') == i)),
+                if (_lvl != null)
+                  _navCol('Ünite', [for (var i = 1; i <= kUnitsPerLevel; i++) i],
+                      (i) => '$i', _unit, (i) => setState(() {
+                            _unit = i; _phase = null; _kind = null;
+                          }),
+                      has: (i) => _all.any((v) =>
+                          _bi(v, 'backup_level') == _lvl && _bi(v, 'backup_unit') == i)),
+                if (_unit != null)
+                  _navCol('Bölüm', [for (var i = 1; i <= 4; i++) i],
+                      (i) => '$i', _phase, (i) => setState(() {
+                            _phase = i; _kind = null;
+                          }),
+                      has: (i) => _all.any((v) =>
+                          _bi(v, 'backup_level') == _lvl &&
+                          _bi(v, 'backup_unit') == _unit &&
+                          (v['backup_kind'] == 'grammar' || _bi(v, 'backup_phase') == i))),
+                if (_phase != null)
+                  _navCol('Tür', const ['grammar', 'word'],
+                      (k) => k == 'grammar' ? 'Gramer' : 'Kelime', _kind,
+                      (k) => setState(() => _kind = k),
+                      has: (k) => _all.any((v) =>
+                          v['backup_kind'] == k &&
+                          _bi(v, 'backup_level') == _lvl &&
+                          _bi(v, 'backup_unit') == _unit &&
+                          (k == 'grammar' || _bi(v, 'backup_phase') == _phase))),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1, color: Colors.white12),
+        Expanded(
+          child: _kind == null
+              ? const Center(
+                  child: Text('Seviye → Ünite → Bölüm → Tür seç',
+                      style: TextStyle(color: AppColors.onSurfaceMuted)))
+              : (_selected.isEmpty
+                  ? const Center(
+                      child: Text('Bu slotta yedek video yok.',
+                          style: TextStyle(color: AppColors.onSurfaceMuted)))
+                  : ListView(
+                      padding: const EdgeInsets.all(8),
+                      children: [
+                        for (final v in _selected)
+                          _VideoCard(
+                            key: ValueKey(v['id']),
+                            data: v,
+                            service: widget.service,
+                            onSaved: () { widget.onRefresh(); _load(); },
+                          ),
+                      ],
+                    )),
+        ),
+      ],
+    );
+  }
+
+  Widget _navCol<T>(String title, List<T> items, String Function(T) label,
+      T? selected, void Function(T) onTap,
+      {required bool Function(T) has}) {
+    return Container(
+      width: 104,
+      margin: const EdgeInsets.only(right: 6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
+            child: Text(title,
+                style: const TextStyle(
+                    color: AppColors.onSurfaceMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+          ),
+          Expanded(
+            child: SingleChildScrollView(
+              child: Column(
+                children: [
+                  for (final it in items)
+                    _navTile(label(it), selected == it, has(it), () => onTap(it)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _navTile(String text, bool sel, bool has, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+      child: Material(
+        color: sel ? AppColors.primary : AppColors.surface,
+        borderRadius: BorderRadius.circular(7),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(7),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(text,
+                      style: TextStyle(
+                          color: sel
+                              ? Colors.white
+                              : (has ? AppColors.onSurface : AppColors.onSurfaceMuted),
+                          fontSize: 12,
+                          fontWeight: has ? FontWeight.w600 : FontWeight.w400)),
+                ),
+                if (has && !sel)
+                  Container(
+                    width: 6, height: 6,
+                    decoration: const BoxDecoration(
+                        color: AppColors.primary, shape: BoxShape.circle),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _VideoCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> data;
   final AdminService service;
@@ -2331,6 +2536,13 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'level': _effectiveLevel,
         'unit': _unit,
         'phase': _phase,
+        // Once a clip carries a placement it's no longer a backup.
+        if (_effectiveLevel != null) ...{
+          'backup_level': null,
+          'backup_unit': null,
+          'backup_phase': null,
+          'backup_kind': null,
+        },
         'target_words': _targetWords,
         'quiz': {
           'question': _questionCtrl.text.trim(),
