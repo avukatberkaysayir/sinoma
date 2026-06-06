@@ -1393,10 +1393,17 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                 searchQuery: _searchQuery,
                 sourceType: widget.sourceType,
               ),
-              _BackupTab(
+              _VideoStatusTab(
                 key: ValueKey('backup-$_refreshCount'),
+                status: 'backup',
+                backupMode: true,
                 service: widget.service,
                 onRefresh: refresh,
+                filterHsk: _filterHsk,
+                filterCategory: _filterCategory,
+                filterLength: _filterLength,
+                searchQuery: _searchQuery,
+                sourceType: widget.sourceType,
               ),
               _VideoStatusTab(
                 key: ValueKey('deleted-$_refreshCount'),
@@ -1428,6 +1435,9 @@ class _VideoStatusTab extends StatefulWidget {
   final String? filterLength;
   final String searchQuery;
   final String? sourceType;
+  // Backup ("Yedek") tab: path filters + level/unit/phase read the backup_* slot
+  // (the would-be placement) instead of the active placement.
+  final bool backupMode;
 
   const _VideoStatusTab({
     super.key,
@@ -1439,6 +1449,7 @@ class _VideoStatusTab extends StatefulWidget {
     this.filterLength,
     this.searchQuery = '',
     this.sourceType,
+    this.backupMode = false,
   });
 
   @override
@@ -1456,9 +1467,10 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
   int? _fUnit;
   int? _fPhase;
 
-  // The level (L) a video sits on: explicit override, else HSK of its primary
-  // grammar rule.
-  static int? _videoLevel(Map<String, dynamic> v) {
+  // The level (L) a video sits on: in backup mode the would-be backup_level;
+  // otherwise the explicit override, else HSK of its primary grammar rule.
+  int? _videoLevel(Map<String, dynamic> v) {
+    if (widget.backupMode) return (v['backup_level'] as num?)?.toInt();
     final ov = (v['level'] as num?)?.toInt();
     if (ov != null) return ov;
     final cats = <String>[
@@ -1519,16 +1531,18 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     }
     // Cascading path filters (active tab). Partial selection is honoured:
     // L alone → all of that level; L+unit → that unit; +phase → that circle.
+    final unitKey = widget.backupMode ? 'backup_unit' : 'unit';
+    final phaseKey = widget.backupMode ? 'backup_phase' : 'phase';
     if (_fL != null) {
       result = result.where((v) => _videoLevel(v) == _fL).toList();
     }
     if (_fUnit != null) {
       result =
-          result.where((v) => (v['unit'] as num?)?.toInt() == _fUnit).toList();
+          result.where((v) => (v[unitKey] as num?)?.toInt() == _fUnit).toList();
     }
     if (_fPhase != null) {
       result =
-          result.where((v) => (v['phase'] as num?)?.toInt() == _fPhase).toList();
+          result.where((v) => (v[phaseKey] as num?)?.toInt() == _fPhase).toList();
     }
     return result;
   }
@@ -1631,6 +1645,20 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     try {
       await widget.service.restoreVideos(_selected.toList());
       if (mounted) _snack('${_selected.length} video pasife alındı');
+      widget.onRefresh();
+    } catch (e) {
+      if (mounted) _snack('Hata: $e');
+    } finally {
+      if (mounted) setState(() => _bulkLoading = false);
+    }
+  }
+
+  Future<void> _bulkToPending() async {
+    if (_selected.isEmpty) return;
+    setState(() => _bulkLoading = true);
+    try {
+      await widget.service.restoreVideos(_selected.toList());
+      if (mounted) _snack('${_selected.length} video onay bekleyene alındı');
       widget.onRefresh();
     } catch (e) {
       if (mounted) _snack('Hata: $e');
@@ -1752,6 +1780,13 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
             if (widget.status == 'active') ...[
               _actionBtn('Pasife Al', AppColors.onSurfaceMuted,
                   onPressed: disabled ? null : _bulkDeactivate),
+              const SizedBox(width: 6),
+              _actionBtn('Sil', AppColors.wrongAnswer,
+                  onPressed: disabled ? null : _bulkSoftDelete),
+            ],
+            if (widget.status == 'backup') ...[
+              _actionBtn('Onaya Al', AppColors.primary, filled: true,
+                  onPressed: disabled ? null : _bulkToPending),
               const SizedBox(width: 6),
               _actionBtn('Sil', AppColors.wrongAnswer,
                   onPressed: disabled ? null : _bulkSoftDelete),
@@ -1957,7 +1992,8 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     return Column(
       children: [
         _buildBulkActions(),
-        if (widget.status == 'active') _buildPathFilters(filtered.length),
+        if (widget.status == 'active' || widget.backupMode)
+          _buildPathFilters(filtered.length),
         Expanded(
           child: filtered.isEmpty
               ? Center(
@@ -1966,6 +2002,7 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
                         ? switch (widget.status) {
                             'pending' => 'Onay bekleyen video yok.',
                             'active' => 'Aktif video yok.',
+                            'backup' => 'Yedek video yok.',
                             'deleted' => 'Silinmiş video yok.',
                             _ => 'Video yok.',
                           }
@@ -2020,202 +2057,6 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
 
 // ── Video Card ────────────────────────────────────────────────────────────────
 
-// ── Backup ("Yedek") tab ──────────────────────────────────────────────────────
-// Clips that couldn't become an active slot occupant (one-clip-per-item) but
-// carry a would-be slot. Browse: Seviye → Ünite → Bölüm → (Gramer | Kelime).
-class _BackupTab extends StatefulWidget {
-  final AdminService service;
-  final VoidCallback onRefresh;
-  const _BackupTab({super.key, required this.service, required this.onRefresh});
-
-  @override
-  State<_BackupTab> createState() => _BackupTabState();
-}
-
-class _BackupTabState extends State<_BackupTab> {
-  List<Map<String, dynamic>> _all = [];
-  bool _loading = true;
-  String? _error;
-  int? _lvl;
-  int? _unit;
-  int? _phase;
-  String? _kind; // 'grammar' | 'word'
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    setState(() { _loading = true; _error = null; });
-    try {
-      final list = await widget.service.listBackupVideos();
-      if (mounted) setState(() { _all = list; _loading = false; });
-    } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
-    }
-  }
-
-  int _bi(Map<String, dynamic> v, String k) => (v[k] as num?)?.toInt() ?? -1;
-
-  List<Map<String, dynamic>> get _selected {
-    if (_lvl == null || _unit == null || _kind == null) return const [];
-    return _all.where((v) {
-      if (v['backup_kind'] != _kind) return false;
-      if (_bi(v, 'backup_level') != _lvl) return false;
-      if (_bi(v, 'backup_unit') != _unit) return false;
-      if (_kind == 'word' && _phase != null && _bi(v, 'backup_phase') != _phase) {
-        return false;
-      }
-      return true;
-    }).toList();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_error != null) {
-      return Center(child: Text(_error!, style: const TextStyle(color: AppColors.wrongAnswer)));
-    }
-    return Column(
-      children: [
-        SizedBox(
-          height: 188,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _navCol('Seviye', [for (var i = 1; i <= 6; i++) i],
-                    (i) => 'L$i', _lvl, (i) => setState(() {
-                          _lvl = i; _unit = null; _phase = null; _kind = null;
-                        }),
-                    has: (i) => _all.any((v) => _bi(v, 'backup_level') == i)),
-                if (_lvl != null)
-                  _navCol('Ünite', [for (var i = 1; i <= kUnitsPerLevel; i++) i],
-                      (i) => '$i', _unit, (i) => setState(() {
-                            _unit = i; _phase = null; _kind = null;
-                          }),
-                      has: (i) => _all.any((v) =>
-                          _bi(v, 'backup_level') == _lvl && _bi(v, 'backup_unit') == i)),
-                if (_unit != null)
-                  _navCol('Bölüm', [for (var i = 1; i <= 4; i++) i],
-                      (i) => '$i', _phase, (i) => setState(() {
-                            _phase = i; _kind = null;
-                          }),
-                      has: (i) => _all.any((v) =>
-                          _bi(v, 'backup_level') == _lvl &&
-                          _bi(v, 'backup_unit') == _unit &&
-                          (v['backup_kind'] == 'grammar' || _bi(v, 'backup_phase') == i))),
-                if (_phase != null)
-                  _navCol('Tür', const ['grammar', 'word'],
-                      (k) => k == 'grammar' ? 'Gramer' : 'Kelime', _kind,
-                      (k) => setState(() => _kind = k),
-                      has: (k) => _all.any((v) =>
-                          v['backup_kind'] == k &&
-                          _bi(v, 'backup_level') == _lvl &&
-                          _bi(v, 'backup_unit') == _unit &&
-                          (k == 'grammar' || _bi(v, 'backup_phase') == _phase))),
-              ],
-            ),
-          ),
-        ),
-        const Divider(height: 1, color: Colors.white12),
-        Expanded(
-          child: _kind == null
-              ? const Center(
-                  child: Text('Seviye → Ünite → Bölüm → Tür seç',
-                      style: TextStyle(color: AppColors.onSurfaceMuted)))
-              : (_selected.isEmpty
-                  ? const Center(
-                      child: Text('Bu slotta yedek video yok.',
-                          style: TextStyle(color: AppColors.onSurfaceMuted)))
-                  : ListView(
-                      padding: const EdgeInsets.all(8),
-                      children: [
-                        for (final v in _selected)
-                          _VideoCard(
-                            key: ValueKey(v['id']),
-                            data: v,
-                            service: widget.service,
-                            onSaved: () { widget.onRefresh(); _load(); },
-                          ),
-                      ],
-                    )),
-        ),
-      ],
-    );
-  }
-
-  Widget _navCol<T>(String title, List<T> items, String Function(T) label,
-      T? selected, void Function(T) onTap,
-      {required bool Function(T) has}) {
-    return Container(
-      width: 104,
-      margin: const EdgeInsets.only(right: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(6, 6, 6, 4),
-            child: Text(title,
-                style: const TextStyle(
-                    color: AppColors.onSurfaceMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700)),
-          ),
-          Expanded(
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  for (final it in items)
-                    _navTile(label(it), selected == it, has(it), () => onTap(it)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _navTile(String text, bool sel, bool has, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-      child: Material(
-        color: sel ? AppColors.primary : AppColors.surface,
-        borderRadius: BorderRadius.circular(7),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(7),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Text(text,
-                      style: TextStyle(
-                          color: sel
-                              ? Colors.white
-                              : (has ? AppColors.onSurface : AppColors.onSurfaceMuted),
-                          fontSize: 12,
-                          fontWeight: has ? FontWeight.w600 : FontWeight.w400)),
-                ),
-                if (has && !sel)
-                  Container(
-                    width: 6, height: 6,
-                    decoration: const BoxDecoration(
-                        color: AppColors.primary, shape: BoxShape.circle),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _VideoCard extends ConsumerStatefulWidget {
   final Map<String, dynamic> data;
@@ -2707,6 +2548,71 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         mode: LaunchMode.externalApplication);
   }
 
+  // Move this clip into the backup ("Yedek") store at its would-be slot.
+  Future<void> _moveToBackup() async {
+    setState(() => _saving = true);
+    try {
+      await widget.service.moveVideosToBackup([widget.data['id'] as String]);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✓ Yedeğe alındı')));
+        widget.onSaved();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Hata: $e')));
+        setState(() => _saving = false);
+      }
+    }
+  }
+
+  // Header chip: "Yedeğe Al" action (pending) or a read-only slot badge (Yedek).
+  Widget _backupChip(String slotText, {required bool action}) {
+    final child = Container(
+      margin: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: action
+            ? AppColors.primary.withValues(alpha: 0.12)
+            : AppColors.surface,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: action
+                ? AppColors.primary.withValues(alpha: 0.6)
+                : AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (action) ...[
+            const Icon(Icons.inventory_2_outlined,
+                size: 14, color: AppColors.primary),
+            const SizedBox(width: 5),
+            const Text('Yedeğe Al',
+                style: TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(width: 8),
+          ],
+          Text(slotText,
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 11)),
+        ],
+      ),
+    );
+    if (!action) return child;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: _saving ? null : _moveToBackup,
+        child: child,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final v = widget.data;
@@ -2716,6 +2622,17 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final ytId = v['youtube_id'] as String?;
     final id = v['id'] as String;
     final status = v['status'] as String? ?? '';
+    // Would-be backup slot (clip couldn't be an active occupant): drives the
+    // "Yedeğe Al" button (pending) and the slot badge (Yedek tab).
+    final bl = (v['backup_level'] as num?)?.toInt();
+    final bu = (v['backup_unit'] as num?)?.toInt();
+    final bp = (v['backup_phase'] as num?)?.toInt();
+    final bk = v['backup_kind'] as String?;
+    final hasBackupSlot = bl != null && bk != null;
+    final placed = (v['level'] as num?) != null;
+    final backupSlotText = hasBackupSlot
+        ? 'L$bl Ünite $bu Bölüm $bp · ${bk == 'grammar' ? 'Gramer' : 'Kelime'}'
+        : '';
     // Title shows the confirmed word order (target_words), falling back to the
     // ASR transcription, so an edited sentence is reflected here too. A live
     // override (set on "Kelimeleri Onayla") updates it instantly before save.
@@ -2804,18 +2721,30 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                           color: AppColors.onSurfaceMuted, fontSize: 11)),
               ],
             ),
-            trailing: IconButton(
-              icon: Icon(
-                _expanded ? Icons.edit : Icons.edit_outlined,
-                color:
-                    _expanded ? AppColors.primary : AppColors.onSurfaceMuted,
-                size: 20,
-              ),
-              onPressed: () {
-                setState(() => _expanded = !_expanded);
-                // Show the player in the left column right away, like home.
-                if (_expanded && _ytController == null) _openInlinePlayer();
-              },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Pending + unplaceable → offer to move it into the backup store
+                // at the slot it would have belonged to.
+                if (status == 'pending' && !placed && hasBackupSlot)
+                  _backupChip(backupSlotText, action: true),
+                // Yedek tab card → show which slot it backs up (read-only).
+                if (status == 'backup' && hasBackupSlot)
+                  _backupChip(backupSlotText, action: false),
+                IconButton(
+                  icon: Icon(
+                    _expanded ? Icons.edit : Icons.edit_outlined,
+                    color: _expanded
+                        ? AppColors.primary
+                        : AppColors.onSurfaceMuted,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    setState(() => _expanded = !_expanded);
+                    if (_expanded && _ytController == null) _openInlinePlayer();
+                  },
+                ),
+              ],
             ),
           ),
           if (_expanded) ...[

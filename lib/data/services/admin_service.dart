@@ -318,6 +318,13 @@ class AdminService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  // Move clips into the backup ("Yedek") store (kept out of the active feed).
+  Future<void> moveVideosToBackup(List<String> ids) async {
+    await _db
+        .from('videos')
+        .update({'status': 'backup', 'is_active': false}).inFilter('id', ids);
+  }
+
   Future<void> restoreVideos(List<String> ids) async {
     await _db
         .from('videos')
