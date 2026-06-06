@@ -723,9 +723,6 @@ class _PhaseNode extends ConsumerWidget {
       ref.invalidate(pathProgressProvider);
     }
 
-    final words = ref.watch(wordsBySlotProvider)[phase.wordSlotKey] ??
-        const <WordSlot>[];
-
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
@@ -749,13 +746,21 @@ class _PhaseNode extends ConsumerWidget {
                   child: icon,
                 ),
               ),
-              if (words.isNotEmpty) ...[
-                const SizedBox(width: 8),
-                _BrowseButton(
-                  tr: tr,
-                  onTap: () => _showWordPanel(context, words, tr),
+              // Every slot carries vocabulary; words are fetched when opened.
+              const SizedBox(width: 8),
+              _BrowseButton(
+                tr: tr,
+                onTap: () => showDialog<void>(
+                  context: context,
+                  barrierColor: Colors.black54,
+                  builder: (_) => _SlotWordPanel(
+                    level: phase.hsk,
+                    unit: phase.stepIndex + 1,
+                    phase: phase.phaseIndex + 1,
+                    tr: tr,
+                  ),
                 ),
-              ],
+              ),
             ],
           ),
         ],
@@ -796,13 +801,24 @@ class _BrowseButton extends StatelessWidget {
   }
 }
 
-// Small square panel listing a slot's words + dictionary meaning. Up to ~5 rows
-// visible, the rest scroll; X (top-right) closes it.
-void _showWordPanel(BuildContext context, List<WordSlot> words, bool tr) {
-  showDialog<void>(
-    context: context,
-    barrierColor: Colors.black54,
-    builder: (ctx) => Dialog(
+// Small square panel listing a slot's words + dictionary meaning, fetched on
+// demand. Up to ~5 rows visible, the rest scroll; X (top-right) closes it.
+class _SlotWordPanel extends ConsumerWidget {
+  final int level;
+  final int unit;
+  final int phase;
+  final bool tr;
+  const _SlotWordPanel(
+      {required this.level,
+      required this.unit,
+      required this.phase,
+      required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(
+        slotWordsProvider((level: level, unit: unit, phase: phase)));
+    return Dialog(
       backgroundColor: _duoPanel,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       child: SizedBox(
@@ -816,7 +832,8 @@ void _showWordPanel(BuildContext context, List<WordSlot> words, bool tr) {
               child: Row(
                 children: [
                   Expanded(
-                    child: Text(tr ? 'Bu bölümün kelimeleri' : 'Words in this set',
+                    child: Text(
+                        tr ? 'Bu bölümün kelimeleri' : 'Words in this set',
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -825,7 +842,7 @@ void _showWordPanel(BuildContext context, List<WordSlot> words, bool tr) {
                   IconButton(
                     icon: const Icon(Icons.close_rounded,
                         color: Colors.white60, size: 20),
-                    onPressed: () => Navigator.of(ctx).pop(),
+                    onPressed: () => Navigator.of(context).pop(),
                     tooltip: tr ? 'Kapat' : 'Close',
                   ),
                 ],
@@ -833,49 +850,62 @@ void _showWordPanel(BuildContext context, List<WordSlot> words, bool tr) {
             ),
             const Divider(color: Colors.white12, height: 1),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                itemCount: words.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(color: Colors.white10, height: 14),
-                itemBuilder: (_, i) {
-                  final w = words[i];
-                  final meaning = tr ? w.tr : w.en;
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(w.word,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (w.pinyin.isNotEmpty)
-                              Text(w.pinyin,
+              child: async.when(
+                loading: () => const Center(
+                    child: CircularProgressIndicator(color: _duoGreen)),
+                error: (e, _) => Center(
+                    child: Text(tr ? 'Yüklenemedi' : 'Failed',
+                        style: const TextStyle(color: Colors.white54))),
+                data: (words) => words.isEmpty
+                    ? Center(
+                        child: Text(tr ? 'Kelime yok' : 'No words',
+                            style: const TextStyle(color: Colors.white54)))
+                    : ListView.separated(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 8),
+                        itemCount: words.length,
+                        separatorBuilder: (_, __) =>
+                            const Divider(color: Colors.white10, height: 14),
+                        itemBuilder: (_, i) {
+                          final w = words[i];
+                          final meaning = tr ? w.tr : w.en;
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(w.word,
                                   style: const TextStyle(
-                                      color: _duoGreen,
-                                      fontSize: 13,
-                                      fontWeight: FontWeight.w600)),
-                            Text(meaning.isNotEmpty ? meaning : '—',
-                                style: const TextStyle(
-                                    color: Colors.white70, fontSize: 13)),
-                          ],
-                        ),
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700)),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    if (w.pinyin.isNotEmpty)
+                                      Text(w.pinyin,
+                                          style: const TextStyle(
+                                              color: _duoGreen,
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600)),
+                                    Text(meaning.isNotEmpty ? meaning : '—',
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 13)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
+                        },
                       ),
-                    ],
-                  );
-                },
               ),
             ),
           ],
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class _StartBubble extends StatelessWidget {

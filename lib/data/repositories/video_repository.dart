@@ -46,8 +46,19 @@ class VideoRepository {
   // Vocabulary→slot map for the path: each HSK word is pinned to a (level, unit,
   // phase) so no-grammar clips containing it surface in that circle. Also feeds
   // the "gözat" panel (word + dictionary meaning per slot).
-  Future<List<Map<String, dynamic>>> loadPathWordSlots() async {
-    final data = await _db.from('path_word_slots').select().limit(20000);
+  // Words pinned to one path slot (on demand for the "gözat" panel). Loading the
+  // whole table up-front hit PostgREST's 1000-row cap, so higher levels showed
+  // empty — fetch per slot instead.
+  Future<List<Map<String, dynamic>>> loadWordsForSlot(
+      int level, int unit, int phase) async {
+    final data = await _db
+        .from('path_word_slots')
+        .select()
+        .eq('level', level)
+        .eq('unit', unit)
+        .eq('phase', phase)
+        .order('word')
+        .limit(500);
     return List<Map<String, dynamic>>.from(data);
   }
 

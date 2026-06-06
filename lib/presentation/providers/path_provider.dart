@@ -250,19 +250,14 @@ final allActiveVideosProvider = FutureProvider<List<VideoSegmentModel>>((ref) {
   return ref.watch(videoRepositoryProvider).loadAllActiveSegments();
 });
 
-final pathWordSlotsProvider = FutureProvider<List<WordSlot>>((ref) async {
-  final rows = await ref.watch(videoRepositoryProvider).loadPathWordSlots();
+// Words pinned to one slot, fetched on demand for the "gözat" panel (per-slot
+// query avoids PostgREST's 1000-row cap that left higher levels empty).
+final slotWordsProvider = FutureProvider.family<List<WordSlot>,
+    ({int level, int unit, int phase})>((ref, k) async {
+  final rows = await ref
+      .watch(videoRepositoryProvider)
+      .loadWordsForSlot(k.level, k.unit, k.phase);
   return rows.map(WordSlot.fromMap).toList();
-});
-
-// Slot key ('L1.u1.p1') -> the words pinned to it (for the "gözat" panel).
-final wordsBySlotProvider = Provider<Map<String, List<WordSlot>>>((ref) {
-  final slots = ref.watch(pathWordSlotsProvider).valueOrNull ?? const [];
-  final map = <String, List<WordSlot>>{};
-  for (final w in slots) {
-    (map[w.slotKey] ??= []).add(w);
-  }
-  return map;
 });
 
 final curriculumProvider = FutureProvider<List<PathTopic>>((ref) async {
