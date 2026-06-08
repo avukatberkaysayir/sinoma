@@ -1871,40 +1871,45 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
             ],
           ),
           if (_fL != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             const Text('Ünite',
                 style: TextStyle(
                     color: AppColors.onSurfaceMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 5,
-              runSpacing: 5,
-              children: [
-                for (var u = 1; u <= kUnitsPerLevel; u++)
-                  _navChip('$u', _fUnit == u, () => setState(() {
-                        _fUnit = _fUnit == u ? null : u;
-                        _fPhase = null;
-                      })),
-              ],
-            ),
+            const SizedBox(height: 5),
+            // Two rows of 12, each filling the width.
+            for (final rowStart in const [1, 13])
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  children: [
+                    for (var u = rowStart; u < rowStart + 12; u++)
+                      Expanded(
+                        child: _navCell('$u', _fUnit == u, () => setState(() {
+                              _fUnit = _fUnit == u ? null : u;
+                              _fPhase = null;
+                            })),
+                      ),
+                  ],
+                ),
+              ),
           ],
           if (_fUnit != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             const Text('Bölüm',
                 style: TextStyle(
                     color: AppColors.onSurfaceMuted,
                     fontSize: 11,
                     fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Wrap(
-              spacing: 5,
-              runSpacing: 5,
+            const SizedBox(height: 5),
+            Row(
               children: [
                 for (var p = 1; p <= 4; p++)
-                  _navChip('Bölüm $p', _fPhase == p,
-                      () => setState(() => _fPhase = _fPhase == p ? null : p)),
+                  Expanded(
+                    child: _navCell('Bölüm $p', _fPhase == p,
+                        () => setState(() => _fPhase = _fPhase == p ? null : p)),
+                  ),
               ],
             ),
           ],
@@ -1934,20 +1939,29 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
     );
   }
 
-  Widget _navChip(String text, bool sel, VoidCallback onTap) {
-    return Material(
-      color: sel ? AppColors.primary : AppColors.surface,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
-          child: Text(text,
-              style: TextStyle(
-                  color: sel ? Colors.white : AppColors.onSurface,
-                  fontSize: 12,
-                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+  // Full-width nav cell (used in Expanded) — centered, taller, bigger text.
+  Widget _navCell(String text, bool sel, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Material(
+        color: sel ? AppColors.primary : AppColors.surface,
+        borderRadius: BorderRadius.circular(9),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(9),
+          onTap: onTap,
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(text,
+                  style: TextStyle(
+                      color: sel ? Colors.white : AppColors.onSurface,
+                      fontSize: 15,
+                      fontWeight:
+                          sel ? FontWeight.w800 : FontWeight.w600)),
+            ),
+          ),
         ),
       ),
     );
