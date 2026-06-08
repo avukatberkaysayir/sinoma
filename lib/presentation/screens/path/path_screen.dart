@@ -239,7 +239,7 @@ class _LeftNav extends StatelessWidget {
           _NavItem(
               icon: Icons.play_circle_outline_rounded,
               color: const Color(0xFFCE82FF),
-              label: 'VIDEO',
+              label: tr ? 'ALIŞTIRMA' : 'PRACTICE',
               active: section == _Section.video,
               compact: compact,
               onTap: () => onSelect(_Section.video)),

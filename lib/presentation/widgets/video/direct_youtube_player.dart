@@ -95,6 +95,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   Timer? _listenTimer;
   int _listenTries = 0;
   bool _eventsFlowing = false;
+  // Wall-clock safety net: if the YouTube JS-API messages don't flow (so we never
+  // see currentTime), end the segment anyway after its duration + a buffer.
+  Timer? _endFallbackTimer;
 
   bool _soundOn = false;
   bool _hasPlayed = false;
@@ -219,7 +222,10 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     // No pointer-events:none — the user controls play/pause by clicking the
     // video (YouTube's native click handler). Our overlays sit above it.
 
-    frame.onLoad.listen((_) => _startListening());
+    frame.onLoad.listen((_) {
+      _startListening();
+      _armEndFallback();
+    });
 
     _iframe = frame;
     html.document.body!.append(frame);
@@ -440,8 +446,11 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
           _applySound(!muted && (volume == null || volume > 0));
         }
 
+        // Process time even before a playerState==1 arrives — on some setups
+        // currentTime flows while state messages don't, and without this the clip
+        // would never reach its end. _handleTime guards t<=0 / pre-start anyway.
         final t = (info['currentTime'] as num?)?.toDouble();
-        if (t != null && _hasPlayed) _handleTime(t);
+        if (t != null) _handleTime(t);
       }
     } else if (event == 'onStateChange') {
       final state = (data['info'] as num?)?.toInt();
@@ -457,16 +466,34 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void _handleTime(double t) {
     if (t <= 0) return;
 
-    if (!_ended && t >= widget.endTime) {
-      _ended = true;
-      _cmd('pauseVideo', []);
-      widget.onSegmentEnded();
+    if (t >= widget.endTime) {
+      _forceEnd();
       return;
     }
 
     if (t < widget.startTime - 1) {
       _cmd('seekTo', [widget.startTime, true]);
     }
+  }
+
+  // Stop the clip at its segment end (from accurate currentTime OR the fallback
+  // timer). Idempotent.
+  void _forceEnd() {
+    if (_ended) return;
+    _ended = true;
+    _endFallbackTimer?.cancel();
+    _cmd('pauseVideo', []);
+    if (mounted) widget.onSegmentEnded();
+  }
+
+  void _armEndFallback() {
+    _endFallbackTimer?.cancel();
+    final dur = widget.endTime - widget.startTime;
+    if (dur <= 0) return;
+    // +4s covers initial buffering; if the JS API works the clip ends accurately
+    // first and this is cancelled, so it never cuts a healthy clip short.
+    _endFallbackTimer =
+        Timer(Duration(milliseconds: ((dur + 4) * 1000).round()), _forceEnd);
   }
 
   void _cmd(String func, List<dynamic> args) {
@@ -486,6 +513,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _hasPlayed = false;
       _cmd('seekTo', [widget.startTime, true]);
       _cmd('playVideo', []);
+      _armEndFallback();
     }
     if (widget.countdown != old.countdown ||
         widget.showCountdown != old.showCountdown ||
@@ -501,6 +529,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void dispose() {
     widget.controller._detach();
     _listenTimer?.cancel();
+    _endFallbackTimer?.cancel();
     if (_msgListener != null) {
       html.window.removeEventListener('message', _msgListener!);
     }
