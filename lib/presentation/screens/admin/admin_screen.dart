@@ -2137,46 +2137,94 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
                         const TextStyle(color: AppColors.onSurfaceMuted),
                   ),
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-                  itemCount: filtered.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 6),
-                  itemBuilder: (_, i) {
-                    final video = filtered[i];
-                    final id = video['id'] as String;
-                    return Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Checkbox(
-                            value: _selected.contains(id),
-                            activeColor: AppColors.primary,
-                            onChanged: (_) => _toggleSelect(id),
-                          ),
-                        ),
-                        Expanded(
-                          child: _VideoCard(
-                            // Stable identity: without a key Flutter reuses a
-                            // card's State by list position, so after a refresh
-                            // (or a streaming insert) the edit fields kept the
-                            // PREVIOUS row's text while thumbnail/time updated —
-                            // the "card shows a different sentence" desync.
-                            key: ValueKey(id),
-                            data: video,
-                            service: widget.service,
-                            // Refresh ALL tabs (not just this one) so an
-                            // approved clip leaves "pending" and shows under
-                            // "active" immediately after Save / Save & Approve.
-                            onSaved: widget.onRefresh,
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
+              : _buildVideoList(filtered),
         ),
       ],
+    );
+  }
+
+  // One card row (checkbox + _VideoCard).
+  Widget _videoRow(Map<String, dynamic> video) {
+    final id = video['id'] as String;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(top: 10),
+          child: Checkbox(
+            value: _selected.contains(id),
+            activeColor: AppColors.primary,
+            // Stable identity: without a key Flutter reuses a card's State by
+            // list position → fields desync after a refresh.
+            onChanged: (_) => _toggleSelect(id),
+          ),
+        ),
+        Expanded(
+          child: _VideoCard(
+            key: ValueKey(id),
+            data: video,
+            service: widget.service,
+            onSaved: widget.onRefresh,
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _grammarZh(String name) => kGrammarMeaning[name]?.zh ?? name;
+
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+        child: Row(
+          children: [
+            Text(text,
+                style: const TextStyle(
+                    color: AppColors.primary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(width: 8),
+            const Expanded(child: Divider(color: AppColors.primary, height: 1)),
+          ],
+        ),
+      );
+
+  Widget _buildVideoList(List<Map<String, dynamic>> filtered) {
+    // Active (level-nav): split grammar clips (with a labelled divider showing the
+    // marked grammar rule) from the word clips, so it's visible at a glance.
+    if (_levelNav) {
+      final grammarVids =
+          filtered.where((v) => v['slot_grammar'] != null).toList();
+      final otherVids =
+          filtered.where((v) => v['slot_grammar'] == null).toList();
+      final rules = grammarVids
+          .map((v) => _grammarZh(v['slot_grammar'] as String))
+          .toSet()
+          .join(' · ');
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+        children: [
+          if (grammarVids.isNotEmpty) ...[
+            _sectionLabel('Gramer: $rules'),
+            for (final v in grammarVids) ...[
+              _videoRow(v),
+              const SizedBox(height: 6),
+            ],
+          ],
+          if (otherVids.isNotEmpty) ...[
+            _sectionLabel('Kelimeler'),
+            for (final v in otherVids) ...[
+              _videoRow(v),
+              const SizedBox(height: 6),
+            ],
+          ],
+        ],
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+      itemCount: filtered.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 6),
+      itemBuilder: (_, i) => _videoRow(filtered[i]),
     );
   }
 }
