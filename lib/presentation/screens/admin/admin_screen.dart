@@ -1836,8 +1836,8 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
   }
 
   // Cascading L → Ünite → Bölüm filters. Ünite is disabled until L is picked;
-  // Active tab uses a Level→Ünite→Bölüm cascade nav instead of the dropdowns.
-  bool get _levelNav => widget.status == 'active';
+  // Active + Yedek use the Level→Ünite→Bölüm cascade nav + slot template.
+  bool get _levelNav => widget.status == 'active' || widget.backupMode;
 
   // The list to render: filtered, and (in level-nav) grammar clips first then word.
   List<Map<String, dynamic>> get _displayList {
@@ -1967,134 +1967,6 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
     );
   }
 
-  // Bölüm until both L and Ünite are picked. Each narrows the list below.
-  Widget _buildPathFilters(int shown) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 4, 8, 8),
-      color: AppColors.surfaceVariant.withValues(alpha: 0.5),
-      child: Row(
-        children: [
-          _filterDropdown<int>(
-            label: 'Seviye',
-            value: _fL,
-            hint: 'L',
-            enabled: true,
-            options: [for (var i = 1; i <= 6; i++) (value: i, text: 'L$i')],
-            onSelected: (v) => setState(() {
-              _fL = v;
-              _fUnit = null;
-              _fPhase = null;
-            }),
-          ),
-          const SizedBox(width: 6),
-          _filterDropdown<int>(
-            label: 'Ünite',
-            value: _fUnit,
-            hint: 'Ünite',
-            enabled: _fL != null,
-            options: [
-              for (var i = 1; i <= kUnitsPerLevel; i++) (value: i, text: '$i')
-            ],
-            onSelected: (v) => setState(() {
-              _fUnit = v;
-              _fPhase = null;
-            }),
-          ),
-          const SizedBox(width: 6),
-          _filterDropdown<int>(
-            label: 'Bölüm',
-            value: _fPhase,
-            hint: 'Bölüm',
-            enabled: _fL != null && _fUnit != null,
-            options: [
-              for (var i = 1; i <= 4; i++) (value: i, text: '$i'),
-              (value: 0, text: 'Diğer'),
-            ],
-            onSelected: (v) => setState(() => _fPhase = v),
-          ),
-          const SizedBox(width: 8),
-          if (_fL != null)
-            Text('$shown video',
-                style: const TextStyle(
-                    color: AppColors.onSurfaceMuted, fontSize: 11)),
-          const Spacer(),
-          if (_fL != null || _fUnit != null || _fPhase != null)
-            TextButton.icon(
-              onPressed: () => setState(() {
-                _fL = null;
-                _fUnit = null;
-                _fPhase = null;
-              }),
-              icon: const Icon(Icons.clear, size: 14),
-              label: const Text('Temizle', style: TextStyle(fontSize: 11)),
-              style: TextButton.styleFrom(
-                  foregroundColor: AppColors.onSurfaceMuted,
-                  padding: const EdgeInsets.symmetric(horizontal: 6),
-                  minimumSize: Size.zero),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterDropdown<T>({
-    required String label,
-    required T? value,
-    required String hint,
-    required bool enabled,
-    required List<({T value, String text})> options,
-    required ValueChanged<T> onSelected,
-  }) {
-    final fg = enabled ? AppColors.onSurface : AppColors.onSurfaceMuted;
-    return PopupMenuButton<T>(
-      enabled: enabled,
-      onSelected: onSelected,
-      color: AppColors.surfaceVariant.withValues(alpha: 0.95),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      itemBuilder: (_) => [
-        for (final o in options)
-          PopupMenuItem<T>(
-            value: o.value,
-            height: 34,
-            child: Text(o.text,
-                style: TextStyle(
-                    color: o.value == value
-                        ? AppColors.primary
-                        : AppColors.onSurface,
-                    fontSize: 12)),
-          ),
-      ],
-      child: Opacity(
-        opacity: enabled ? 1 : 0.45,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-                color: value != null
-                    ? AppColors.primary.withValues(alpha: 0.6)
-                    : AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                  value == null
-                      ? hint
-                      : value == 0
-                          ? 'Diğer'
-                          : (label == 'Seviye' ? 'L$value' : '$label $value'),
-                  style: TextStyle(color: fg, fontSize: 12)),
-              const SizedBox(width: 4),
-              Icon(Icons.keyboard_arrow_down, color: fg, size: 16),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -2126,10 +1998,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
     return Column(
       children: [
         _buildBulkActions(),
-        if (_levelNav)
-          _buildLevelNav()
-        else if (widget.backupMode)
-          _buildPathFilters(filtered.length),
+        if (_levelNav) _buildLevelNav(),
         Expanded(
           child: !showList
               ? const Center(
@@ -2230,7 +2099,9 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
                 fontWeight: FontWeight.w800)),
       );
 
-  Widget _slotEntry(String label, Map<String, dynamic>? video) {
+  // One slot: its grammar/word label, then the clip(s) that filled it (in the
+  // active tab at most one; in Yedek several may share a slot), or a "BOŞ" badge.
+  Widget _slotEntry(String label, List<Map<String, dynamic>> videos) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -2242,28 +2113,41 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
         ),
-        if (video != null) _videoRow(video) else _emptyBadge(),
+        if (videos.isEmpty)
+          _emptyBadge()
+        else
+          for (final v in videos) ...[
+            _videoRow(v),
+            const SizedBox(height: 6),
+          ],
         const SizedBox(height: 12),
       ],
     );
   }
 
   Widget _buildSlotTemplate() {
+    final backup = widget.backupMode;
     final grammars = (ref.watch(grammarByLevelProvider)[_fL] ?? const [])
         .where((g) => g.unit == _fUnit)
         .toList();
     final wordsAsync = ref.watch(
         slotWordsProvider((level: _fL!, unit: _fUnit!, phase: _fPhase!)));
-    // Active clips at this exact slot, keyed by the grammar / word they filled.
+    // Clips at this exact slot, keyed by the grammar / word they filled. Active
+    // reads slot_*; Yedek reads backup_* (and a slot can hold several clips).
+    final lk = backup ? 'backup_level' : 'level';
+    final uk = backup ? 'backup_unit' : 'unit';
+    final pk = backup ? 'backup_phase' : 'phase';
+    final gk = backup ? 'backup_grammar' : 'slot_grammar';
+    final wk = backup ? 'backup_word' : 'slot_word';
     final slotVids = _videos.where((v) =>
-        (v['level'] as num?)?.toInt() == _fL &&
-        (v['unit'] as num?)?.toInt() == _fUnit &&
-        (v['phase'] as num?)?.toInt() == _fPhase);
-    final byGrammar = <String, Map<String, dynamic>>{};
-    final byWord = <String, Map<String, dynamic>>{};
+        (v[lk] as num?)?.toInt() == _fL &&
+        (v[uk] as num?)?.toInt() == _fUnit &&
+        (v[pk] as num?)?.toInt() == _fPhase);
+    final byGrammar = <String, List<Map<String, dynamic>>>{};
+    final byWord = <String, List<Map<String, dynamic>>>{};
     for (final v in slotVids) {
-      if (v['slot_grammar'] != null) byGrammar[v['slot_grammar'] as String] = v;
-      if (v['slot_word'] != null) byWord[v['slot_word'] as String] = v;
+      if (v[gk] != null) (byGrammar[v[gk] as String] ??= []).add(v);
+      if (v[wk] != null) (byWord[v[wk] as String] ??= []).add(v);
     }
     return ListView(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
@@ -2272,7 +2156,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
         if (_fPhase == 1 && grammars.isNotEmpty) ...[
           _sectionLabel('Gramer'),
           for (final g in grammars)
-            _slotEntry('${g.zh}  (${g.tr})', byGrammar[g.name]),
+            _slotEntry('${g.zh}  (${g.tr})', byGrammar[g.name] ?? const []),
         ],
         _sectionLabel('Kelimeler'),
         wordsAsync.when(
@@ -2294,7 +2178,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
                   children: [
                     for (final w in words)
                       _slotEntry(
-                          '${w.word}  (${w.tr})', byWord[w.word]),
+                          '${w.word}  (${w.tr})', byWord[w.word] ?? const []),
                   ],
                 ),
         ),
