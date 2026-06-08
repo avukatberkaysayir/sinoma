@@ -2374,11 +2374,13 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'hsk_levels': hskList,
         'quiz_categories': catList,
         'life_categories': lifeList,
-        'level': _effectiveLevel,
+        // Manual placement override (null → the DB trigger derives it from the
+        // clip's HSK level + grammar/word).
+        'level': _level,
         'unit': _unit,
         'phase': _phase,
-        // Once a clip carries a placement it's no longer a backup.
-        if (_effectiveLevel != null) ...{
+        // Once a clip carries a manual placement it's no longer a backup.
+        if (_level != null) ...{
           'backup_level': null,
           'backup_unit': null,
           'backup_phase': null,
@@ -2908,12 +2910,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         chosen: _quizCategories
                             .map(QuizCategory.fromString)
                             .toSet(),
-                        onAdd: (v) => setState(() {
-                          _quizCategories.add(v.name);
-                          // Auto-fill the unit from the grammar's position when
-                          // the admin hasn't set one yet (level follows via auto).
-                          _unit ??= unitOfGrammar(v.name);
-                        }),
+                        onAdd: (v) =>
+                            setState(() => _quizCategories.add(v.name)),
                       ),
                       // Length (SinoRhythm) is derived from the sentence.
                       _readonlyFilter('Uzunluk', _lengthBucket()),
@@ -3373,25 +3371,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     );
   }
 
-  // The level (L) a clip sits on = HSK of its primary grammar rule. Read-only:
-  // it follows the Gramer selection automatically.
-  int? get _autoLevel {
-    for (final c in _quizCategories) {
-      final l = hskOfGrammar(c);
-      if (l != null) return l;
-    }
-    return null;
-  }
-
-  // The effective level shown in the L dropdown: explicit override, else auto
-  // from the grammar rule.
-  int? get _effectiveLevel => _level ?? _autoLevel;
-
-  // Path placement. Level (L1-L6) defaults to the grammar's level but is
-  // editable; unit is auto-filled from the grammar yet stays editable; phase is
-  // manual (1-4, or "Diğer").
+  // Manual path placement. Empty = let the DB derive it (from the clip's HSK
+  // level + grammar/word). The "Yedeğe Al" badge shows the would-be backup slot.
   Widget _pathPlacementRow() {
-    final l = _effectiveLevel;
+    final l = _level;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
