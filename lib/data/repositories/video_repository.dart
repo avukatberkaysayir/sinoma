@@ -71,6 +71,35 @@ class VideoRepository {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
+  // All distinct vocabulary words of one HSK level (word + meaning) — for the
+  // per-level word picker in the YouTube import content filter.
+  Future<List<Map<String, dynamic>>> loadWordsForLevel(int level) async {
+    final data = await _db
+        .rpc('words_for_level', params: {'p_level': level})
+        .timeout(const Duration(seconds: 12));
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
+  // Grammar rules / words that already have an ACTIVE clip (slot occupant), so the
+  // import filter can flag them red ("already covered, don't pick again").
+  Future<({Set<String> grammars, Set<String> words})>
+      loadUsedActiveSlots() async {
+    final data = await _db
+        .from('videos')
+        .select('slot_grammar, slot_word')
+        .eq('status', 'active');
+    final rows = List<Map<String, dynamic>>.from(data as List);
+    final g = <String>{};
+    final w = <String>{};
+    for (final r in rows) {
+      final sg = r['slot_grammar'] as String?;
+      final sw = r['slot_word'] as String?;
+      if (sg != null && sg.isNotEmpty) g.add(sg);
+      if (sw != null && sw.isNotEmpty) w.add(sw);
+    }
+    return (grammars: g, words: w);
+  }
+
   // Grammar curriculum metadata (name, level, unit, label) — the source of truth
   // for the grammar list (the Dart const maps no longer cover the expanded set).
   Future<List<Map<String, dynamic>>> loadGrammarMeta() async {

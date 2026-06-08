@@ -4274,13 +4274,19 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
   String _asrJobYoutubeId = '';
   List<int>? _asrJobFilter;
   List<String>? _asrJobGrammarFilter;
+  List<String>? _asrJobWordFilter;
 
   final Set<int> _hskFilter = {};
-  // Grammar rules (grammar_levels.name) the import should keep; empty = no
-  // grammar filter. Grouped under HSK levels in the UI; matched against each
-  // segment's quiz_categories after import.
+  // Content filter, grouped under HSK levels. Grammar (grammar_levels.name) is
+  // matched against each clip's quiz_categories; words against target_words.
+  // A clip survives if it matches a selected grammar OR a selected word.
   final Set<String> _grammarFilter = {};
+  final Set<String> _wordFilter = {};
   final Set<int> _expandedGrammarLevels = {};
+  // One search box per level for the (potentially huge) word picker.
+  final Map<int, TextEditingController> _wordCtrls = {
+    for (var l = 1; l <= 6; l++) l: TextEditingController(),
+  };
 
   // ── Countdown ETA + live import stream ────────────────────────────────────
   DateTime? _processingStart;
@@ -4309,6 +4315,9 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     _elapsedTimer?.cancel();
     _liveVideoTimer?.cancel();
     _urlCtrl.dispose();
+    for (final c in _wordCtrls.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -4395,6 +4404,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     final filter = _hskFilter.isEmpty ? null : (_hskFilter.toList()..sort());
     final grammarFilter =
         _grammarFilter.isEmpty ? null : _grammarFilter.toList();
+    final wordFilter = _wordFilter.isEmpty ? null : _wordFilter.toList();
     final videoId = _extractYtId(url);
 
     setState(() { _processing = true; _resultMsg = null; _liveVideos = []; });
@@ -4412,6 +4422,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
         videoId,
         filter,
         grammarFilter: grammarFilter,
+        wordFilter: wordFilter,
       );
       final kept = written - deleted;
       final vids = await _service.listVideosByYoutubeId(videoId);
@@ -4448,6 +4459,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     _asrJobYoutubeId = videoId;
     _asrJobFilter = filter;
     _asrJobGrammarFilter = grammarFilter;
+    _asrJobWordFilter = wordFilter;
     try {
       final jobId = await _service.createYoutubeAsrJob(
         url,
@@ -4526,6 +4538,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
             _asrJobYoutubeId,
             _asrJobFilter,
             grammarFilter: _asrJobGrammarFilter,
+            wordFilter: _asrJobWordFilter,
           );
           final kept = written - deleted;
           if (!mounted) return;
@@ -4560,13 +4573,24 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     });
   }
 
-  // Optional grammar pre-filter: each HSK level expands to its grammar rules
-  // (grammar_levels), selectable individually or all-at-once. Only segments that
-  // carry a selected rule survive the import.
-  Widget _buildGrammarFilter() {
+  void _toggleWord(String word) {
+    setState(() {
+      if (!_wordFilter.remove(word)) _wordFilter.add(word);
+    });
+  }
+
+  // Optional content pre-filter. Each HSK level expands into a "Gramer" section
+  // (grammar_levels rules) and a "Kelimeler" section (that level's vocabulary),
+  // each selectable individually or all-at-once. A clip survives the import if it
+  // matches a selected grammar OR a selected word. Chips already covered by an
+  // active clip are tinted red so the same item isn't re-imported by mistake.
+  Widget _buildContentFilter() {
     final byLevel = ref.watch(grammarByLevelProvider);
-    final byName = ref.watch(grammarByNameProvider);
-    final has = _grammarFilter.isNotEmpty;
+    final used = ref.watch(usedActiveSlotsProvider).valueOrNull;
+    final usedG = used?.grammars ?? const <String>{};
+    final usedW = used?.words ?? const <String>{};
+    final gC = _grammarFilter.length, wC = _wordFilter.length;
+    final has = gC > 0 || wC > 0;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -4588,7 +4612,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                'Gramer Filtresi — yalnızca seçili kurallara uyan segmentler (opsiyonel)',
+                'İçerik Filtresi — yalnızca seçili gramer/kelimeye uyan segmentler (opsiyonel)',
                 style: TextStyle(
                   color: has ? AppColors.primary : AppColors.onSurfaceMuted,
                   fontSize: 12,
@@ -4598,7 +4622,10 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
             ),
             if (has)
               GestureDetector(
-                onTap: () => setState(() => _grammarFilter.clear()),
+                onTap: () => setState(() {
+                  _grammarFilter.clear();
+                  _wordFilter.clear();
+                }),
                 child: const Text('Temizle',
                     style: TextStyle(color: AppColors.primary, fontSize: 11)),
               ),
@@ -4606,50 +4633,39 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
           const SizedBox(height: 2),
           Text(
             has
-                ? '${_grammarFilter.length} gramer kuralı seçili — HSK seviyesiyle birlikte uygulanır'
-                : 'Boş = gramer ayrımı yok. Bir HSK seviyesini açıp kural seçin.',
+                ? '$gC gramer + $wC kelime seçili — HSK seviyesiyle birlikte uygulanır'
+                : 'Boş = içerik ayrımı yok. HSK seviyesini açıp gramer/kelime seç. '
+                    'Kırmızı = aktifte zaten videosu var.',
             style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
           ),
           const SizedBox(height: 8),
           for (int lvl = 1; lvl <= 6; lvl++)
-            _grammarLevelTile(lvl, byLevel[lvl] ?? const []),
-          if (has) ...[
-            const Divider(height: 18, color: AppColors.surface),
-            Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final name in _grammarFilter)
-                  _selectedGrammarChip(name, byName[name]?.zh ?? name),
-              ],
-            ),
-          ],
+            _levelTile(lvl, byLevel[lvl] ?? const [], usedG, usedW),
         ],
       ),
     );
   }
 
-  Widget _grammarLevelTile(int lvl, List<GrammarMeta> grammars) {
-    if (grammars.isEmpty) return const SizedBox.shrink();
-    // De-dup by name (same rule can repeat across units).
+  Widget _levelTile(int lvl, List<GrammarMeta> grammars, Set<String> usedG,
+      Set<String> usedW) {
     final seen = <String>{};
-    final unique = [
+    final uniqueG = [
       for (final g in grammars)
         if (seen.add(g.name)) g
     ];
     final open = _expandedGrammarLevels.contains(lvl);
-    final names = unique.map((g) => g.name).toSet();
-    final selectedHere = names.where(_grammarFilter.contains).length;
-    final allOn = selectedHere == names.length;
+    final gNames = uniqueG.map((g) => g.name).toSet();
+    final selG = gNames.where(_grammarFilter.contains).length;
+    final allG = gNames.isNotEmpty && selG == gNames.length;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         InkWell(
-          onTap: () => setState(() =>
-              open ? _expandedGrammarLevels.remove(lvl)
-                  : _expandedGrammarLevels.add(lvl)),
+          onTap: () => setState(() => open
+              ? _expandedGrammarLevels.remove(lvl)
+              : _expandedGrammarLevels.add(lvl)),
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
+            padding: const EdgeInsets.symmetric(vertical: 6),
             child: Row(children: [
               Icon(open ? Icons.expand_more : Icons.chevron_right,
                   size: 18, color: AppColors.onSurfaceMuted),
@@ -4657,90 +4673,230 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
               Text('HSK $lvl',
                   style: TextStyle(
                       color: AppColors.forHskLevel(lvl),
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(width: 6),
-              Text('(${unique.length} kural${selectedHere > 0 ? ', $selectedHere seçili' : ''})',
-                  style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(width: 8),
+              const Text('gramer + kelimeler',
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
-              const Spacer(),
-              GestureDetector(
-                onTap: () => setState(() {
-                  if (allOn) {
-                    _grammarFilter.removeAll(names);
-                  } else {
-                    _grammarFilter.addAll(names);
-                    _expandedGrammarLevels.add(lvl);
-                  }
-                }),
-                child: Text(allOn ? 'Kaldır' : 'Tümü',
-                    style: const TextStyle(
-                        color: AppColors.primary, fontSize: 11)),
-              ),
             ]),
           ),
         ),
         if (open)
           Padding(
-            padding: const EdgeInsets.only(left: 20, bottom: 6),
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [for (final g in unique) _grammarChip(g)],
+            padding: const EdgeInsets.only(left: 18, bottom: 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _filterSectionLabel(
+                  'Gramer',
+                  count: '${uniqueG.length} kural'
+                      '${selG > 0 ? ', $selG seçili' : ''}',
+                  allOn: allG,
+                  onAll: gNames.isEmpty
+                      ? null
+                      : () => setState(() {
+                            if (allG) {
+                              _grammarFilter.removeAll(gNames);
+                            } else {
+                              _grammarFilter.addAll(gNames);
+                            }
+                          }),
+                ),
+                const SizedBox(height: 6),
+                if (uniqueG.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: Text('Bu seviyede gramer kuralı yok',
+                        style: TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 11)),
+                  )
+                else
+                  Wrap(spacing: 6, runSpacing: 4, children: [
+                    for (final g in uniqueG)
+                      _contentChip(
+                        g.tr.isEmpty ? g.zh : '${g.zh} · ${g.tr}',
+                        _grammarFilter.contains(g.name),
+                        usedG.contains(g.name),
+                        () => _toggleGrammar(g.name),
+                      ),
+                  ]),
+                const SizedBox(height: 12),
+                _wordSection(lvl, usedW),
+              ],
             ),
           ),
+        Divider(height: 1, color: AppColors.surface.withValues(alpha: 0.6)),
       ],
     );
   }
 
-  Widget _grammarChip(GrammarMeta g) {
-    final sel = _grammarFilter.contains(g.name);
-    return GestureDetector(
-      onTap: () => _toggleGrammar(g.name),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(
-          color: sel
-              ? AppColors.primary.withValues(alpha: 0.18)
-              : AppColors.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: sel
-                ? AppColors.primary
-                : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+  Widget _wordSection(int lvl, Set<String> usedW) {
+    final async = ref.watch(wordsForLevelProvider(lvl));
+    final words = async.valueOrNull ?? const <WordSlot>[];
+    final total = words.length;
+    final selW = words.where((w) => _wordFilter.contains(w.word)).length;
+    final allW = total > 0 && selW == total;
+    final q = _wordCtrls[lvl]!.text.trim().toLowerCase();
+
+    List<WordSlot> visible = const [];
+    int hidden = 0;
+    if (!async.isLoading) {
+      if (q.isEmpty) {
+        final s = <String>{};
+        visible = [
+          for (final w in words.where((w) => usedW.contains(w.word)))
+            if (s.add(w.word)) w,
+          for (final w in words.take(40))
+            if (s.add(w.word)) w,
+        ];
+        hidden = total - visible.length;
+      } else {
+        final matches = words
+            .where((w) =>
+                w.word.toLowerCase().contains(q) ||
+                w.tr.toLowerCase().contains(q))
+            .toList();
+        visible = matches.take(80).toList();
+        hidden = matches.length - visible.length;
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _filterSectionLabel(
+          'Kelimeler',
+          count: '$total kelime${selW > 0 ? ', $selW seçili' : ''}',
+          allOn: allW,
+          onAll: total == 0
+              ? null
+              : () => setState(() {
+                    final all = words.map((w) => w.word);
+                    if (allW) {
+                      _wordFilter.removeAll(all);
+                    } else {
+                      _wordFilter.addAll(all);
+                    }
+                  }),
+        ),
+        const SizedBox(height: 6),
+        SizedBox(
+          height: 34,
+          child: TextField(
+            controller: _wordCtrls[lvl],
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+            decoration: InputDecoration(
+              isDense: true,
+              hintText: 'Kelime ara (汉字 ya da anlam)…',
+              hintStyle: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 12),
+              filled: true,
+              fillColor: AppColors.surface,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide.none),
+              prefixIcon: const Icon(Icons.search,
+                  size: 15, color: AppColors.onSurfaceMuted),
+            ),
           ),
         ),
-        child: Text(
-          g.tr.isEmpty ? g.zh : '${g.zh} · ${g.tr}',
-          style: TextStyle(
-            color: sel ? AppColors.primary : AppColors.onSurface,
-            fontSize: 12,
-            fontWeight: sel ? FontWeight.w700 : FontWeight.normal,
-          ),
-        ),
-      ),
+        const SizedBox(height: 6),
+        if (async.isLoading)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 8),
+            child: SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2)),
+          )
+        else ...[
+          Wrap(spacing: 6, runSpacing: 4, children: [
+            for (final w in visible)
+              _contentChip(
+                w.word,
+                _wordFilter.contains(w.word),
+                usedW.contains(w.word),
+                () => _toggleWord(w.word),
+              ),
+          ]),
+          if (hidden > 0)
+            Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(
+                q.isEmpty
+                    ? '+$hidden kelime daha — aramayla bulun'
+                    : '+$hidden eşleşme daha — aramayı daraltın',
+                style: const TextStyle(
+                    color: AppColors.onSurfaceMuted, fontSize: 10),
+              ),
+            ),
+        ],
+      ],
     );
   }
 
-  Widget _selectedGrammarChip(String name, String label) {
-    return GestureDetector(
-      onTap: () => _toggleGrammar(name),
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(9, 4, 5, 4),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.18),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.primary),
+  Widget _filterSectionLabel(String text,
+      {required String count, required bool allOn, VoidCallback? onAll}) {
+    return Row(children: [
+      Text(text,
+          style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w800)),
+      const SizedBox(width: 8),
+      Text(count,
+          style: const TextStyle(
+              color: AppColors.onSurfaceMuted, fontSize: 10)),
+      const SizedBox(width: 8),
+      const Expanded(child: Divider(color: AppColors.surface)),
+      if (onAll != null) ...[
+        const SizedBox(width: 8),
+        GestureDetector(
+          onTap: onAll,
+          child: Text(allOn ? 'Kaldır' : 'Tümü',
+              style: const TextStyle(color: AppColors.primary, fontSize: 11)),
         ),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Text(label,
-              style: const TextStyle(
-                  color: AppColors.primary,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(width: 3),
-          const Icon(Icons.close, size: 13, color: AppColors.primary),
-        ]),
+      ],
+    ]);
+  }
+
+  // One filter chip (grammar or word). Red = selected OR already covered by an
+  // active clip; a solid fill + bold marks the actually selected ones.
+  Widget _contentChip(
+      String label, bool selected, bool used, VoidCallback onTap) {
+    final red = selected || used;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primary.withValues(alpha: 0.20)
+              : used
+                  ? AppColors.primary.withValues(alpha: 0.07)
+                  : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: red
+                ? AppColors.primary
+                : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: red ? AppColors.primary : AppColors.onSurface,
+            fontSize: 12,
+            fontWeight: selected
+                ? FontWeight.w800
+                : (used ? FontWeight.w600 : FontWeight.normal),
+          ),
+        ),
       ),
     );
   }
@@ -4862,7 +5018,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
           ),
           const SizedBox(height: 10),
 
-          _buildGrammarFilter(),
+          _buildContentFilter(),
           const SizedBox(height: 10),
 
           SizedBox(

@@ -407,16 +407,20 @@ class AdminService {
     String youtubeId,
     List<int>? hskFilter, {
     List<String>? grammarFilter,
+    List<String>? wordFilter,
   }) async {
     final data = await _db
         .from('videos')
-        .select('id, hsk_level, quiz_categories')
+        .select('id, hsk_level, quiz_categories, target_words')
         .eq('youtube_id', youtubeId)
         .eq('status', 'pending');
 
     final gf = (grammarFilter == null || grammarFilter.isEmpty)
         ? null
         : grammarFilter.toSet();
+    final wf = (wordFilter == null || wordFilter.isEmpty)
+        ? null
+        : wordFilter.toSet();
     final rows = List<Map<String, dynamic>>.from(data as List);
     final idsToDelete = rows
         .where((r) {
@@ -427,10 +431,16 @@ class AdminService {
               !hskFilter.contains(level)) {
             return true;
           }
-          if (gf != null) {
+          // Content filter: grammar OR word match (either selected dimension
+          // keeps the clip). Only applied when at least one is set.
+          if (gf != null || wf != null) {
             final cats =
                 (r['quiz_categories'] as List?)?.cast<String>() ?? const [];
-            if (!cats.any(gf.contains)) return true; // no selected grammar
+            final words =
+                (r['target_words'] as List?)?.cast<String>() ?? const [];
+            final grammarOk = gf != null && cats.any(gf.contains);
+            final wordOk = wf != null && words.any(wf.contains);
+            if (!grammarOk && !wordOk) return true;
           }
           return false;
         })

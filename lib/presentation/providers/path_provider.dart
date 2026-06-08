@@ -309,6 +309,21 @@ final grammarByLevelProvider = Provider<Map<int, List<GrammarMeta>>>((ref) {
   return m;
 });
 
+// Every distinct word of one HSK level (lazy — loaded when a level's word picker
+// opens in the YouTube import filter). Via the words_for_level RPC.
+final wordsForLevelProvider =
+    FutureProvider.family<List<WordSlot>, int>((ref, level) async {
+  final rows =
+      await ref.watch(videoRepositoryProvider).loadWordsForLevel(level);
+  return rows.map(WordSlot.fromMap).toList();
+});
+
+// Grammar/word slots that already hold an active clip — flagged red in the filter.
+final usedActiveSlotsProvider =
+    FutureProvider<({Set<String> grammars, Set<String> words})>((ref) async {
+  return ref.watch(videoRepositoryProvider).loadUsedActiveSlots();
+});
+
 // Words pinned to one slot, fetched on demand for the "gözat" panel (per-slot
 // query avoids PostgREST's 1000-row cap that left higher levels empty).
 final slotWordsProvider = FutureProvider.family<List<WordSlot>,
