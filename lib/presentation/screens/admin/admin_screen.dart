@@ -1836,6 +1836,123 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
   }
 
   // Cascading L → Ünite → Bölüm filters. Ünite is disabled until L is picked;
+  // Active tab uses a Level→Ünite→Bölüm cascade nav instead of the dropdowns.
+  bool get _levelNav => widget.status == 'active';
+
+  // The list to render: filtered, and (in level-nav) grammar clips first then word.
+  List<Map<String, dynamic>> get _displayList {
+    final list = _filteredVideos;
+    if (!_levelNav) return list;
+    int rank(Map<String, dynamic> v) => v['slot_grammar'] != null
+        ? 0
+        : (v['slot_word'] != null ? 1 : 2);
+    final sorted = [...list]..sort((a, b) => rank(a).compareTo(rank(b)));
+    return sorted;
+  }
+
+  // Level 1-6 transparent tabs → Üniteler (1-24) → Bölümler (1-4).
+  Widget _buildLevelNav() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 2, 10, 8),
+      color: AppColors.surfaceVariant.withValues(alpha: 0.4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              for (var l = 1; l <= 6; l++)
+                Expanded(
+                  child: _levelTab('L$l', _fL == l, () => setState(() {
+                        _fL = _fL == l ? null : l;
+                        _fUnit = null;
+                        _fPhase = null;
+                      })),
+                ),
+            ],
+          ),
+          if (_fL != null) ...[
+            const SizedBox(height: 8),
+            const Text('Ünite',
+                style: TextStyle(
+                    color: AppColors.onSurfaceMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: [
+                for (var u = 1; u <= kUnitsPerLevel; u++)
+                  _navChip('$u', _fUnit == u, () => setState(() {
+                        _fUnit = _fUnit == u ? null : u;
+                        _fPhase = null;
+                      })),
+              ],
+            ),
+          ],
+          if (_fUnit != null) ...[
+            const SizedBox(height: 8),
+            const Text('Bölüm',
+                style: TextStyle(
+                    color: AppColors.onSurfaceMuted,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Wrap(
+              spacing: 5,
+              runSpacing: 5,
+              children: [
+                for (var p = 1; p <= 4; p++)
+                  _navChip('Bölüm $p', _fPhase == p,
+                      () => setState(() => _fPhase = _fPhase == p ? null : p)),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _levelTab(String text, bool sel, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(
+                color: sel ? AppColors.primary : Colors.transparent, width: 2),
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text(text,
+            style: TextStyle(
+                color: sel ? AppColors.primary : AppColors.onSurfaceMuted,
+                fontSize: 13,
+                fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+
+  Widget _navChip(String text, bool sel, VoidCallback onTap) {
+    return Material(
+      color: sel ? AppColors.primary : AppColors.surface,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+          child: Text(text,
+              style: TextStyle(
+                  color: sel ? Colors.white : AppColors.onSurface,
+                  fontSize: 12,
+                  fontWeight: sel ? FontWeight.w700 : FontWeight.w500)),
+        ),
+      ),
+    );
+  }
+
   // Bölüm until both L and Ünite are picked. Each narrows the list below.
   Widget _buildPathFilters(int shown) {
     return Container(
@@ -1988,14 +2105,23 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
       );
     }
 
-    final filtered = _filteredVideos;
+    final filtered = _displayList;
+    // Active tab: a Level→Ünite→Bölüm cascade; the list shows only after a Bölüm
+    // is picked.
+    final showList = !_levelNav || _fPhase != null;
     return Column(
       children: [
         _buildBulkActions(),
-        if (widget.status == 'active' || widget.backupMode)
+        if (_levelNav)
+          _buildLevelNav()
+        else if (widget.backupMode)
           _buildPathFilters(filtered.length),
         Expanded(
-          child: filtered.isEmpty
+          child: !showList
+              ? const Center(
+                  child: Text('Level → Ünite → Bölüm seç',
+                      style: TextStyle(color: AppColors.onSurfaceMuted)))
+              : filtered.isEmpty
               ? Center(
                   child: Text(
                     _videos.isEmpty
@@ -2006,7 +2132,7 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
                             'deleted' => 'Silinmiş video yok.',
                             _ => 'Video yok.',
                           }
-                        : 'Filtreyle eşleşen video yok.',
+                        : 'Bu bölümde video yok.',
                     style:
                         const TextStyle(color: AppColors.onSurfaceMuted),
                   ),
