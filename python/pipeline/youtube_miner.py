@@ -450,7 +450,7 @@ def _parse_vtt_timestamp(ts: str) -> float:
 
 def parse_vtt(content: str) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    seen: set[str] = set()
+    prev_raw = ""  # last committed cue (before simplification) for de-rolling
 
     for block in re.split(r"\n\s*\n", content):
         lines = [l.strip() for l in block.strip().splitlines() if l.strip()]
@@ -470,10 +470,25 @@ def parse_vtt(content: str) -> list[dict[str, Any]]:
         text = re.sub(r"<[^>]+>", "", text)
         text = re.sub(r"\s+", "", text).strip()
 
-        if not text or not re.search(r"[一-鿿]", text) or text in seen:
+        if not text or not re.search(r"[一-鿿]", text):
             continue
-        seen.add(text)
+
+        # De-roll YouTube auto-captions: the same line streams in word-by-word as
+        # several consecutive cues (一 → 一样 → 一样的), each a prefix of the next,
+        # then often repeats once standalone. Collapse such adjacent prefix/equal
+        # cues into one, keeping the most complete line and spanning from the
+        # first partial's start — otherwise the text accumulates ("一一样一样的").
+        if entries and (text == prev_raw
+                        or text.startswith(prev_raw)
+                        or prev_raw.startswith(text)):
+            if len(text) >= len(prev_raw):
+                entries[-1]["end"] = end
+                entries[-1]["text"] = _to_simplified(text)
+                prev_raw = text
+            continue
+
         entries.append({"start": start, "end": end, "text": _to_simplified(text)})
+        prev_raw = text
 
     return entries
 

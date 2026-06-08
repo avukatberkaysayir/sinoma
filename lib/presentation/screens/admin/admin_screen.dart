@@ -4254,15 +4254,15 @@ class _FilterDropdown<T> extends StatelessWidget {
 
 // ── Tab 1: YouTube ────────────────────────────────────────────────────────────
 
-class _YouTubeTab extends StatefulWidget {
+class _YouTubeTab extends ConsumerStatefulWidget {
   final VoidCallback onVideosChanged;
   const _YouTubeTab({required this.onVideosChanged});
 
   @override
-  State<_YouTubeTab> createState() => _YouTubeTabState();
+  ConsumerState<_YouTubeTab> createState() => _YouTubeTabState();
 }
 
-class _YouTubeTabState extends State<_YouTubeTab> {
+class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
   final _service = AdminService();
   final _urlCtrl = TextEditingController();
 
@@ -4273,8 +4273,14 @@ class _YouTubeTabState extends State<_YouTubeTab> {
 
   String _asrJobYoutubeId = '';
   List<int>? _asrJobFilter;
+  List<String>? _asrJobGrammarFilter;
 
   final Set<int> _hskFilter = {};
+  // Grammar rules (grammar_levels.name) the import should keep; empty = no
+  // grammar filter. Grouped under HSK levels in the UI; matched against each
+  // segment's quiz_categories after import.
+  final Set<String> _grammarFilter = {};
+  final Set<int> _expandedGrammarLevels = {};
 
   // ── Countdown ETA + live import stream ────────────────────────────────────
   DateTime? _processingStart;
@@ -4387,6 +4393,8 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     if (url.isEmpty) return;
 
     final filter = _hskFilter.isEmpty ? null : (_hskFilter.toList()..sort());
+    final grammarFilter =
+        _grammarFilter.isEmpty ? null : _grammarFilter.toList();
     final videoId = _extractYtId(url);
 
     setState(() { _processing = true; _resultMsg = null; _liveVideos = []; });
@@ -4400,7 +4408,11 @@ class _YouTubeTabState extends State<_YouTubeTab> {
         hskFilter: filter,
       );
       final written = result['segmentsWritten'] as int? ?? 0;
-      final deleted = await _service.deleteNonMatchingPendingVideos(videoId, filter);
+      final deleted = await _service.deleteNonMatchingPendingVideos(
+        videoId,
+        filter,
+        grammarFilter: grammarFilter,
+      );
       final kept = written - deleted;
       final vids = await _service.listVideosByYoutubeId(videoId);
       if (mounted) {
@@ -4435,6 +4447,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
     // Step 2: Auto-fallback to ASR (transparent to user)
     _asrJobYoutubeId = videoId;
     _asrJobFilter = filter;
+    _asrJobGrammarFilter = grammarFilter;
     try {
       final jobId = await _service.createYoutubeAsrJob(
         url,
@@ -4512,6 +4525,7 @@ class _YouTubeTabState extends State<_YouTubeTab> {
           final deleted = await _service.deleteNonMatchingPendingVideos(
             _asrJobYoutubeId,
             _asrJobFilter,
+            grammarFilter: _asrJobGrammarFilter,
           );
           final kept = written - deleted;
           if (!mounted) return;
@@ -4538,6 +4552,197 @@ class _YouTubeTabState extends State<_YouTubeTab> {
         }
       } catch (_) {}
     });
+  }
+
+  void _toggleGrammar(String name) {
+    setState(() {
+      if (!_grammarFilter.remove(name)) _grammarFilter.add(name);
+    });
+  }
+
+  // Optional grammar pre-filter: each HSK level expands to its grammar rules
+  // (grammar_levels), selectable individually or all-at-once. Only segments that
+  // carry a selected rule survive the import.
+  Widget _buildGrammarFilter() {
+    final byLevel = ref.watch(grammarByLevelProvider);
+    final byName = ref.watch(grammarByNameProvider);
+    final has = _grammarFilter.isNotEmpty;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: has
+              ? AppColors.primary.withValues(alpha: 0.5)
+              : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.rule,
+                size: 14,
+                color: has ? AppColors.primary : AppColors.onSurfaceMuted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Gramer Filtresi — yalnızca seçili kurallara uyan segmentler (opsiyonel)',
+                style: TextStyle(
+                  color: has ? AppColors.primary : AppColors.onSurfaceMuted,
+                  fontSize: 12,
+                  fontWeight: has ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+            if (has)
+              GestureDetector(
+                onTap: () => setState(() => _grammarFilter.clear()),
+                child: const Text('Temizle',
+                    style: TextStyle(color: AppColors.primary, fontSize: 11)),
+              ),
+          ]),
+          const SizedBox(height: 2),
+          Text(
+            has
+                ? '${_grammarFilter.length} gramer kuralı seçili — HSK seviyesiyle birlikte uygulanır'
+                : 'Boş = gramer ayrımı yok. Bir HSK seviyesini açıp kural seçin.',
+            style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
+          ),
+          const SizedBox(height: 8),
+          for (int lvl = 1; lvl <= 6; lvl++)
+            _grammarLevelTile(lvl, byLevel[lvl] ?? const []),
+          if (has) ...[
+            const Divider(height: 18, color: AppColors.surface),
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [
+                for (final name in _grammarFilter)
+                  _selectedGrammarChip(name, byName[name]?.zh ?? name),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _grammarLevelTile(int lvl, List<GrammarMeta> grammars) {
+    if (grammars.isEmpty) return const SizedBox.shrink();
+    // De-dup by name (same rule can repeat across units).
+    final seen = <String>{};
+    final unique = [
+      for (final g in grammars)
+        if (seen.add(g.name)) g
+    ];
+    final open = _expandedGrammarLevels.contains(lvl);
+    final names = unique.map((g) => g.name).toSet();
+    final selectedHere = names.where(_grammarFilter.contains).length;
+    final allOn = selectedHere == names.length;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        InkWell(
+          onTap: () => setState(() =>
+              open ? _expandedGrammarLevels.remove(lvl)
+                  : _expandedGrammarLevels.add(lvl)),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 5),
+            child: Row(children: [
+              Icon(open ? Icons.expand_more : Icons.chevron_right,
+                  size: 18, color: AppColors.onSurfaceMuted),
+              const SizedBox(width: 2),
+              Text('HSK $lvl',
+                  style: TextStyle(
+                      color: AppColors.forHskLevel(lvl),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(width: 6),
+              Text('(${unique.length} kural${selectedHere > 0 ? ', $selectedHere seçili' : ''})',
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() {
+                  if (allOn) {
+                    _grammarFilter.removeAll(names);
+                  } else {
+                    _grammarFilter.addAll(names);
+                    _expandedGrammarLevels.add(lvl);
+                  }
+                }),
+                child: Text(allOn ? 'Kaldır' : 'Tümü',
+                    style: const TextStyle(
+                        color: AppColors.primary, fontSize: 11)),
+              ),
+            ]),
+          ),
+        ),
+        if (open)
+          Padding(
+            padding: const EdgeInsets.only(left: 20, bottom: 6),
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              children: [for (final g in unique) _grammarChip(g)],
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _grammarChip(GrammarMeta g) {
+    final sel = _grammarFilter.contains(g.name);
+    return GestureDetector(
+      onTap: () => _toggleGrammar(g.name),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: sel
+              ? AppColors.primary.withValues(alpha: 0.18)
+              : AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: sel
+                ? AppColors.primary
+                : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+          ),
+        ),
+        child: Text(
+          g.tr.isEmpty ? g.zh : '${g.zh} · ${g.tr}',
+          style: TextStyle(
+            color: sel ? AppColors.primary : AppColors.onSurface,
+            fontSize: 12,
+            fontWeight: sel ? FontWeight.w700 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _selectedGrammarChip(String name, String label) {
+    return GestureDetector(
+      onTap: () => _toggleGrammar(name),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(9, 4, 5, 4),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.18),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.primary),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(label,
+              style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(width: 3),
+          const Icon(Icons.close, size: 13, color: AppColors.primary),
+        ]),
+      ),
+    );
   }
 
   @override
@@ -4655,6 +4860,9 @@ class _YouTubeTabState extends State<_YouTubeTab> {
               ],
             ),
           ),
+          const SizedBox(height: 10),
+
+          _buildGrammarFilter(),
           const SizedBox(height: 10),
 
           SizedBox(

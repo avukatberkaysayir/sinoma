@@ -397,25 +397,40 @@ class AdminService {
   }
 
   /// After an auto-import, deletes pending segments for [youtubeId] that either
-  /// have no dictionary match (hsk_level = 0) or fall outside [hskFilter].
-  /// Safe to call regardless of whether the edge function already filtered.
+  /// have no dictionary match (hsk_level = 0), fall outside [hskFilter], or — when
+  /// [grammarFilter] is set — don't carry any of the selected grammar rules.
+  /// quiz_categories is rebuilt authoritatively by the assign_video_path trigger
+  /// (target words ∩ grammar_levels.symbol + patterns), so matching it against the
+  /// admin's grammar_levels names is exact. Safe to call regardless of whether the
+  /// edge function already filtered.
   Future<int> deleteNonMatchingPendingVideos(
     String youtubeId,
-    List<int>? hskFilter,
-  ) async {
+    List<int>? hskFilter, {
+    List<String>? grammarFilter,
+  }) async {
     final data = await _db
         .from('videos')
-        .select('id, hsk_level')
+        .select('id, hsk_level, quiz_categories')
         .eq('youtube_id', youtubeId)
         .eq('status', 'pending');
 
+    final gf = (grammarFilter == null || grammarFilter.isEmpty)
+        ? null
+        : grammarFilter.toSet();
     final rows = List<Map<String, dynamic>>.from(data as List);
     final idsToDelete = rows
         .where((r) {
           final level = (r['hsk_level'] as num?)?.toInt() ?? 0;
           if (level == 0) return true; // no dictionary match — always purge
-          if (hskFilter != null && hskFilter.isNotEmpty) {
-            return !hskFilter.contains(level);
+          if (hskFilter != null &&
+              hskFilter.isNotEmpty &&
+              !hskFilter.contains(level)) {
+            return true;
+          }
+          if (gf != null) {
+            final cats =
+                (r['quiz_categories'] as List?)?.cast<String>() ?? const [];
+            if (!cats.any(gf.contains)) return true; // no selected grammar
           }
           return false;
         })

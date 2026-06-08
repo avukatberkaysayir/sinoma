@@ -225,11 +225,18 @@ def analyze_segment(text: str) -> tuple[list[str], int]:
     if not candidates:
         return [], 0
     rows = _query_dictionary(candidates)
-    valid = {
-        r["simplified"]: (r.get("hsk_level") or 0)
-        for r in rows
-        if r.get("simplified")
-    }
+    # Deterministic per-word level: a homograph can have several dictionary rows
+    # with different hsk_level; take the lowest positive one (the level the word
+    # is first taught at) instead of whichever row arrived last.
+    valid: dict[str, int] = {}
+    for r in rows:
+        s = r.get("simplified")
+        if not s:
+            continue
+        lvl = r.get("hsk_level") or 0
+        cur = valid.get(s)
+        if cur is None or (lvl and (cur == 0 or lvl < cur)):
+            valid[s] = lvl
     if not valid:
         return [], 0
     words = _segment_ordered(text, set(valid.keys()))
@@ -298,6 +305,7 @@ def run(
     duration_sec = 0.0  # total audio length (Whisper), for the admin ETA
     last_pos = 0.0      # latest segment end-time = how far ASR has progressed
     buf: list[dict[str, Any]] = []
+    emitted_texts: set[str] = set()  # drop repeat clips (same line said twice)
 
     def _report() -> None:
         # Two-arg progress: count + meta (duration + audio position) so the admin
@@ -334,6 +342,10 @@ def run(
         matched += 1
         if hsk_filter and hsk_level not in hsk_filter:
             return
+        norm = re.sub(r"\s+", "", seg["text"])
+        if norm in emitted_texts:
+            return  # identical transcription already imported — skip the dupe
+        emitted_texts.add(norm)
         grammar, life = classify_segment(seg["text"])
         buf.append({
             "source_type": "youtube",
