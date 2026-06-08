@@ -2129,11 +2129,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     _hskLevels.addAll(
         ((v['hsk_levels'] as List<dynamic>?) ?? []).map((e) => (e as num).toInt()));
     if (_hskLevels.isEmpty) _hskLevels.add((v['hsk_level'] as int?) ?? 1);
-    _quizCategories.addAll(
-        ((v['quiz_categories'] as List<dynamic>?) ?? []).map((e) => e.toString()));
-    if (_quizCategories.isEmpty) {
-      _quizCategories.add(v['quiz_category'] as String? ?? 'general');
-    }
+    // 'general' is the no-grammar fallback, not a real grammar rule — never show
+    // it as a Gramer chip (a grammar-less clip shows no grammar chip).
+    _quizCategories.addAll(((v['quiz_categories'] as List<dynamic>?) ?? [])
+        .map((e) => e.toString())
+        .where((c) => c != 'general'));
     _lifeCategories.addAll(
         ((v['life_categories'] as List<dynamic>?) ?? []).map((e) => e.toString()));
     if (_lifeCategories.isEmpty) {
@@ -2500,14 +2500,12 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       });
       if (row != null && mounted) {
         setState(() {
-          // Grammar tags
+          // Grammar tags ('general' = no-grammar fallback, never shown)
           _quizCategories
             ..clear()
             ..addAll(((row['quiz_categories'] as List<dynamic>?) ?? [])
-                .map((e) => e.toString()));
-          if (_quizCategories.isEmpty) {
-            _quizCategories.add(row['quiz_category'] as String? ?? 'general');
-          }
+                .map((e) => e.toString())
+                .where((c) => c != 'general'));
           // HSK (the trigger syncs it to the content level)
           final hl = ((row['hsk_levels'] as List<dynamic>?) ?? [])
               .map((e) => (e as num).toInt())
@@ -2944,8 +2942,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                           for (var lvl = 1; lvl <= 6; lvl++)
                             for (final c in (kGrammarByHsk[lvl] ?? const []))
                               (value: c, text: c.displayName),
-                          (value: QuizCategory.general,
-                              text: QuizCategory.general.displayName),
+                          // 'general' (一般) is the no-grammar fallback, not a rule.
                         ],
                         chosen: _quizCategories
                             .map(QuizCategory.fromString)
