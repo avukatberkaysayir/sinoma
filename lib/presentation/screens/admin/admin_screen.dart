@@ -1426,7 +1426,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
 
 // ── Video Status Tab ──────────────────────────────────────────────────────────
 
-class _VideoStatusTab extends StatefulWidget {
+class _VideoStatusTab extends ConsumerStatefulWidget {
   final String status;
   final AdminService service;
   final VoidCallback onRefresh;
@@ -1453,10 +1453,10 @@ class _VideoStatusTab extends StatefulWidget {
   });
 
   @override
-  State<_VideoStatusTab> createState() => _VideoStatusTabState();
+  ConsumerState<_VideoStatusTab> createState() => _VideoStatusTabState();
 }
 
-class _VideoStatusTabState extends State<_VideoStatusTab> {
+class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
   List<Map<String, dynamic>> _videos = [];
   bool _loading = true;
   String? _error;
@@ -2121,23 +2121,22 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
               ? const Center(
                   child: Text('Level → Ünite → Bölüm seç',
                       style: TextStyle(color: AppColors.onSurfaceMuted)))
-              : filtered.isEmpty
-              ? Center(
-                  child: Text(
-                    _videos.isEmpty
-                        ? switch (widget.status) {
-                            'pending' => 'Onay bekleyen video yok.',
-                            'active' => 'Aktif video yok.',
-                            'backup' => 'Yedek video yok.',
-                            'deleted' => 'Silinmiş video yok.',
-                            _ => 'Video yok.',
-                          }
-                        : 'Bu bölümde video yok.',
-                    style:
-                        const TextStyle(color: AppColors.onSurfaceMuted),
-                  ),
-                )
-              : _buildVideoList(filtered),
+              // Active tab renders the slot template even with no clips (all "BOŞ").
+              : (_levelNav || filtered.isNotEmpty)
+                  ? _buildVideoList(filtered)
+                  : Center(
+                      child: Text(
+                        switch (widget.status) {
+                          'pending' => 'Onay bekleyen video yok.',
+                          'active' => 'Aktif video yok.',
+                          'backup' => 'Yedek video yok.',
+                          'deleted' => 'Silinmiş video yok.',
+                          _ => 'Video yok.',
+                        },
+                        style:
+                            const TextStyle(color: AppColors.onSurfaceMuted),
+                      ),
+                    ),
         ),
       ],
     );
@@ -2171,8 +2170,6 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
     );
   }
 
-  String _grammarZh(String name) => kGrammarMeaning[name]?.zh ?? name;
-
   Widget _sectionLabel(String text) => Padding(
         padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
         child: Row(
@@ -2189,42 +2186,104 @@ class _VideoStatusTabState extends State<_VideoStatusTab> {
       );
 
   Widget _buildVideoList(List<Map<String, dynamic>> filtered) {
-    // Active (level-nav): split grammar clips (with a labelled divider showing the
-    // marked grammar rule) from the word clips, so it's visible at a glance.
-    if (_levelNav) {
-      final grammarVids =
-          filtered.where((v) => v['slot_grammar'] != null).toList();
-      final otherVids =
-          filtered.where((v) => v['slot_grammar'] == null).toList();
-      final rules = grammarVids
-          .map((v) => _grammarZh(v['slot_grammar'] as String))
-          .toSet()
-          .join(' · ');
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
-        children: [
-          if (grammarVids.isNotEmpty) ...[
-            _sectionLabel('Gramer: $rules'),
-            for (final v in grammarVids) ...[
-              _videoRow(v),
-              const SizedBox(height: 6),
-            ],
-          ],
-          if (otherVids.isNotEmpty) ...[
-            _sectionLabel('Kelimeler'),
-            for (final v in otherVids) ...[
-              _videoRow(v),
-              const SizedBox(height: 6),
-            ],
-          ],
-        ],
-      );
+    // Active (level-nav): show the slot TEMPLATE for the picked Bölüm — every
+    // grammar rule (phase 1) and every word of the slot as its own labelled entry,
+    // with the active clip under it (or a green "BOŞ" badge). Clips drop into their
+    // entry as they go active.
+    if (_levelNav && _fL != null && _fUnit != null && _fPhase != null) {
+      return _buildSlotTemplate();
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
       itemCount: filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 6),
       itemBuilder: (_, i) => _videoRow(filtered[i]),
+    );
+  }
+
+  Widget _emptyBadge() => Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.primary.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.primary),
+        ),
+        child: const Text('BOŞ',
+            style: TextStyle(
+                color: AppColors.primary,
+                fontSize: 12,
+                fontWeight: FontWeight.w800)),
+      );
+
+  Widget _slotEntry(String label, Map<String, dynamic>? video) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
+          child: Text(label,
+              style: const TextStyle(
+                  color: AppColors.onSurface,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+        ),
+        if (video != null) _videoRow(video) else _emptyBadge(),
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _buildSlotTemplate() {
+    final grammars = (ref.watch(grammarByLevelProvider)[_fL] ?? const [])
+        .where((g) => g.unit == _fUnit)
+        .toList();
+    final wordsAsync = ref.watch(
+        slotWordsProvider((level: _fL!, unit: _fUnit!, phase: _fPhase!)));
+    // Active clips at this exact slot, keyed by the grammar / word they filled.
+    final slotVids = _videos.where((v) =>
+        (v['level'] as num?)?.toInt() == _fL &&
+        (v['unit'] as num?)?.toInt() == _fUnit &&
+        (v['phase'] as num?)?.toInt() == _fPhase);
+    final byGrammar = <String, Map<String, dynamic>>{};
+    final byWord = <String, Map<String, dynamic>>{};
+    for (final v in slotVids) {
+      if (v['slot_grammar'] != null) byGrammar[v['slot_grammar'] as String] = v;
+      if (v['slot_word'] != null) byWord[v['slot_word'] as String] = v;
+    }
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
+      children: [
+        // Grammar rules belong to circle 1 (where grammar clips are placed).
+        if (_fPhase == 1 && grammars.isNotEmpty) ...[
+          _sectionLabel('Gramer'),
+          for (final g in grammars)
+            _slotEntry('${g.zh}  (${g.tr})', byGrammar[g.name]),
+        ],
+        _sectionLabel('Kelimeler'),
+        wordsAsync.when(
+          loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary))),
+          error: (e, _) => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Kelimeler yüklenemedi',
+                  style: TextStyle(color: AppColors.onSurfaceMuted))),
+          data: (words) => words.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('Bu bölüme atanmış kelime yok.',
+                      style: TextStyle(color: AppColors.onSurfaceMuted)))
+              : Column(
+                  children: [
+                    for (final w in words)
+                      _slotEntry(
+                          '${w.word}  (${w.tr})', byWord[w.word]),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 }
