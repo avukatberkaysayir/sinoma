@@ -2131,9 +2131,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     if (_lifeCategories.isEmpty) {
       _lifeCategories.add(v['life_category'] as String? ?? 'daily_life');
     }
-    _level = (v['level'] as num?)?.toInt();
-    _unit = (v['unit'] as num?)?.toInt();
-    _phase = (v['phase'] as num?)?.toInt();
+    // Show the effective slot: the active placement, or (for a backup clip) the
+    // would-be backup slot — so the Seviye/Ünite/Bölüm fields are auto-filled.
+    _level = (v['level'] as num?)?.toInt() ?? (v['backup_level'] as num?)?.toInt();
+    _unit = (v['unit'] as num?)?.toInt() ?? (v['backup_unit'] as num?)?.toInt();
+    _phase = (v['phase'] as num?)?.toInt() ?? (v['backup_phase'] as num?)?.toInt();
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
     final tr = v['transcription'] as String? ?? '';
@@ -2363,6 +2365,17 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final hskList = _hskLevels.toList()..sort();
     final catList = _quizCategories.toList();
     final lifeList = _lifeCategories.toList();
+    // The dropdowns are auto-filled from the backup slot for a backup clip; a
+    // plain save must NOT promote it — only an actual change is a manual placement.
+    final dbLevel = (widget.data['level'] as num?)?.toInt();
+    final isBackupRow = dbLevel == null && widget.data['backup_kind'] != null;
+    final placementUnchanged = isBackupRow &&
+        _level == (widget.data['backup_level'] as num?)?.toInt() &&
+        _unit == (widget.data['backup_unit'] as num?)?.toInt() &&
+        _phase == (widget.data['backup_phase'] as num?)?.toInt();
+    final outLevel = placementUnchanged ? null : _level;
+    final outUnit = placementUnchanged ? null : _unit;
+    final outPhase = placementUnchanged ? null : _phase;
     setState(() => _saving = true);
     try {
       await widget.service.patchVideoFields(id, {
@@ -2374,13 +2387,12 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'hsk_levels': hskList,
         'quiz_categories': catList,
         'life_categories': lifeList,
-        // Manual placement override (null → the DB trigger derives it from the
-        // clip's HSK level + grammar/word).
-        'level': _level,
-        'unit': _unit,
-        'phase': _phase,
-        // Once a clip carries a manual placement it's no longer a backup.
-        if (_level != null) ...{
+        // Manual placement override (null → the DB trigger derives it).
+        'level': outLevel,
+        'unit': outUnit,
+        'phase': outPhase,
+        // A real manual placement clears the backup marking.
+        if (outLevel != null) ...{
           'backup_level': null,
           'backup_unit': null,
           'backup_phase': null,
