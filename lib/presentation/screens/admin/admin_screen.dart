@@ -4283,10 +4283,6 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
   final Set<String> _grammarFilter = {};
   final Set<String> _wordFilter = {};
   final Set<int> _expandedGrammarLevels = {};
-  // One search box per level for the (potentially huge) word picker.
-  final Map<int, TextEditingController> _wordCtrls = {
-    for (var l = 1; l <= 6; l++) l: TextEditingController(),
-  };
 
   // ── Countdown ETA + live import stream ────────────────────────────────────
   DateTime? _processingStart;
@@ -4315,9 +4311,6 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     _elapsedTimer?.cancel();
     _liveVideoTimer?.cancel();
     _urlCtrl.dispose();
-    for (final c in _wordCtrls.values) {
-      c.dispose();
-    }
     super.dispose();
   }
 
@@ -4737,18 +4730,6 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     final total = words.length;
     final selW = words.where((w) => _wordFilter.contains(w.word)).length;
     final allW = total > 0 && selW == total;
-    final q = _wordCtrls[lvl]!.text.trim().toLowerCase();
-
-    List<WordSlot> visible = const [];
-    if (!async.isLoading) {
-      visible = q.isEmpty
-          ? words // show every word of the level (no cap)
-          : words
-              .where((w) =>
-                  w.word.toLowerCase().contains(q) ||
-                  w.tr.toLowerCase().contains(q))
-              .toList();
-    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4769,30 +4750,6 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                   }),
         ),
         const SizedBox(height: 6),
-        SizedBox(
-          height: 34,
-          child: TextField(
-            controller: _wordCtrls[lvl],
-            onChanged: (_) => setState(() {}),
-            style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
-            decoration: InputDecoration(
-              isDense: true,
-              hintText: 'Kelime ara (汉字 ya da anlam)…',
-              hintStyle: const TextStyle(
-                  color: AppColors.onSurfaceMuted, fontSize: 12),
-              filled: true,
-              fillColor: AppColors.surface,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: BorderSide.none),
-              prefixIcon: const Icon(Icons.search,
-                  size: 15, color: AppColors.onSurfaceMuted),
-            ),
-          ),
-        ),
-        const SizedBox(height: 6),
         if (async.isLoading)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 8),
@@ -4803,7 +4760,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
           )
         else
           Wrap(spacing: 6, runSpacing: 4, children: [
-            for (final w in visible)
+            for (final w in words)
               _contentChip(
                 w.word,
                 _wordFilter.contains(w.word),
