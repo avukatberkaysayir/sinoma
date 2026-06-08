@@ -2087,6 +2087,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   // Whether the admin actually touched the placement dropdowns (vs the auto-shown
   // active/backup slot). Only a manual placement is saved as an override.
   bool _placementManual = false;
+  // The criterion the HSK+Level were decided by (a grammar rule or a word).
+  String? _slotGrammar;
+  String? _slotWord;
+  String? _backupGrammar;
+  String? _backupWord;
   late List<String> _targetWords;
   late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
@@ -2139,6 +2144,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     _level = (v['level'] as num?)?.toInt() ?? (v['backup_level'] as num?)?.toInt();
     _unit = (v['unit'] as num?)?.toInt() ?? (v['backup_unit'] as num?)?.toInt();
     _phase = (v['phase'] as num?)?.toInt() ?? (v['backup_phase'] as num?)?.toInt();
+    _slotGrammar = v['slot_grammar'] as String?;
+    _slotWord = v['slot_word'] as String?;
+    _backupGrammar = v['backup_grammar'] as String?;
+    _backupWord = v['backup_word'] as String?;
     _targetWords = List<String>.from(
         (v['target_words'] as List<dynamic>?) ?? []);
     final tr = v['transcription'] as String? ?? '';
@@ -2517,6 +2526,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               (row['backup_unit'] as num?)?.toInt();
           _phase = (row['phase'] as num?)?.toInt() ??
               (row['backup_phase'] as num?)?.toInt();
+          // Criterion (grammar rule / word) the HSK+Level were decided by.
+          _slotGrammar = row['slot_grammar'] as String?;
+          _slotWord = row['slot_word'] as String?;
+          _backupGrammar = row['backup_grammar'] as String?;
+          _backupWord = row['backup_word'] as String?;
         });
         ref.invalidate(curriculumProvider);
         ref.invalidate(allActiveVideosProvider);
@@ -2941,6 +2955,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       ),
                       // Length (SinoRhythm) is derived from the sentence.
                       _readonlyFilter('Uzunluk', _lengthBucket()),
+                      // The grammar rule / word the HSK+Level were decided by.
+                      _readonlyFilter('Kriter', _criterionText()),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -3284,6 +3300,19 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   }
 
   String _lifeLabel(String code) => LifeCategory.labelFor(code, isTr: true);
+
+  // "Kriter": the grammar rule (its Chinese symbol) or word the HSK+Level were
+  // decided by — e.g. "在 (Gramer)" or "漂亮 (Kelime)".
+  String _criterionText() {
+    final g = _slotGrammar ?? _backupGrammar;
+    if (g != null) {
+      final zh = kGrammarMeaning[g]?.zh ?? g;
+      return '$zh (Gramer)';
+    }
+    final w = _slotWord ?? _backupWord;
+    if (w != null) return '$w (Kelime)';
+    return '—';
+  }
 
   String _lengthBucket() {
     final s = _targetWords.isNotEmpty

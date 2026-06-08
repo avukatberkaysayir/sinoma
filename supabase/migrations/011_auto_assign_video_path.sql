@@ -54,6 +54,11 @@ ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_level int;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_unit  int;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_phase int;
 ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_kind  text; -- 'grammar' | 'word'
+-- The criterion (grammar rule name / word) the HSK+Level were decided by, for a
+-- backup clip (placed clips carry it in slot_grammar / slot_word). Shown as
+-- "Kriter: 在 (Gramer)" / "Kriter: 漂亮 (Kelime)" in the admin.
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_grammar text;
+ALTER TABLE public.videos ADD COLUMN IF NOT EXISTS backup_word    text;
 
 -- Matchable token per grammar (NULL = multi-token pattern, e.g. 是…的 / A不A /
 -- 把字句 / 结果补语 — can't be matched as a single word). Populated from
@@ -146,6 +151,7 @@ BEGIN
     NEW.slot_grammar := NULL; NEW.slot_word := NULL;
     NEW.backup_level := NULL; NEW.backup_unit := NULL;
     NEW.backup_phase := NULL; NEW.backup_kind := NULL;
+    NEW.backup_grammar := NULL; NEW.backup_word := NULL;
 
     -- LEVEL = highest level with placeable content (a grammar rule OR a vocab-slot
     -- word); lower-level grammar/words ignored. HSK synced to it.
@@ -171,6 +177,7 @@ BEGIN
         ELSE
           NEW.backup_level := maxlvl; NEW.backup_unit := rec_g.unit;
           NEW.backup_phase := 1; NEW.backup_kind := 'grammar';
+          NEW.backup_grammar := rec_g.name;
         END IF;
       ELSE
         -- (b) else this level's word-list: first free word-slot at this level
@@ -183,13 +190,14 @@ BEGIN
         IF FOUND THEN
           NEW.level := maxlvl; NEW.unit := ws.unit; NEW.phase := ws.phase; NEW.slot_word := ws.word;
         ELSE
-          SELECT s.unit AS unit, s.phase AS phase INTO ws
+          SELECT s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
             FROM unnest(COALESCE(NEW.target_words, '{}'::text[])) WITH ORDINALITY t(w, ord)
             JOIN public.path_word_slots s ON s.word = t.w AND s.level = maxlvl
             ORDER BY t.ord LIMIT 1;
           IF FOUND THEN
             NEW.backup_level := maxlvl; NEW.backup_unit := ws.unit;
             NEW.backup_phase := ws.phase; NEW.backup_kind := 'word';
+            NEW.backup_word := ws.word;
           END IF;
         END IF;
       END IF;
