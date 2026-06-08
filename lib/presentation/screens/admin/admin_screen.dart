@@ -2205,13 +2205,13 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
         margin: const EdgeInsets.only(left: 4),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.15),
+          color: AppColors.correctAnswer.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.primary),
+          border: Border.all(color: AppColors.correctAnswer),
         ),
         child: const Text('BOŞ',
             style: TextStyle(
-                color: AppColors.primary,
+                color: AppColors.correctAnswer,
                 fontSize: 12,
                 fontWeight: FontWeight.w800)),
       );
@@ -2276,6 +2276,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
                   child: Text('Bu bölüme atanmış kelime yok.',
                       style: TextStyle(color: AppColors.onSurfaceMuted)))
               : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     for (final w in words)
                       _slotEntry(
