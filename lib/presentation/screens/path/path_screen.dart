@@ -833,6 +833,17 @@ class _SlotWordPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(
         slotWordsProvider((level: level, unit: unit, phase: phase)));
+    // A unit can teach several grammar rules; they're distributed across the 4
+    // circles' gözat boxes in this order: 1st→circle1, 2nd→circle3, 3rd→circle4,
+    // 4th→circle2 (and wrap for >4). Only the grammars for THIS circle show here.
+    final unitG = (ref.watch(grammarByLevelProvider)[level] ?? const [])
+        .where((g) => g.unit == unit)
+        .toList();
+    const order = [1, 3, 4, 2];
+    final myG = [
+      for (var i = 0; i < unitG.length; i++)
+        if (order[i % 4] == phase) unitG[i]
+    ];
     return Dialog(
       backgroundColor: _duoPanel,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
@@ -864,6 +875,26 @@ class _SlotWordPanel extends ConsumerWidget {
               ),
             ),
             const Divider(color: Colors.white12, height: 1),
+            // "Gramer: …" header — only on the circles this unit's grammar(s) are
+            // assigned to.
+            if (myG.isNotEmpty)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _duoGreen.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _duoGreen.withValues(alpha: 0.5)),
+                ),
+                child: Text(
+                  '${tr ? 'Gramer' : 'Grammar'}: ${myG.map((g) => g.zh).join(' · ')}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800),
+                ),
+              ),
             Expanded(
               child: async.when(
                 loading: () => const Center(
