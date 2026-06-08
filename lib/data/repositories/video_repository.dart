@@ -62,6 +62,18 @@ class VideoRepository {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  // Grammar curriculum metadata (name, level, unit, label) — the source of truth
+  // for the grammar list (the Dart const maps no longer cover the expanded set).
+  Future<List<Map<String, dynamic>>> loadGrammarMeta() async {
+    final data = await _db
+        .from('grammar_levels')
+        .select('name, level, unit, symbol, zh, tr, en')
+        .order('level')
+        .order('unit')
+        .limit(2000);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   Future<VideoSegmentModel?> loadSegment(String videoId) async {
     try {
       final data = await _db

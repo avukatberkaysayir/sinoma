@@ -522,8 +522,7 @@ class _UnitBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasGrammar = step.grammarName != null;
-    final title =
-        hasGrammar ? grammarLabel(step.grammarName, tr: tr) : (tr ? 'Yakında' : 'Soon');
+    final title = hasGrammar ? step.title : (tr ? 'Yakında' : 'Soon');
     return Container(
       color: _duoBg,
       alignment: Alignment.center,
@@ -617,9 +616,8 @@ class _UnitNodes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = step.grammarName != null
-        ? grammarLabel(step.grammarName, tr: tr)
-        : (tr ? 'Yakında' : 'Soon');
+    final label =
+        step.grammarName != null ? step.title : (tr ? 'Yakında' : 'Soon');
     // Interleave the 4 phase steps with a reward node in the middle (index 2).
     final nodes = <Widget>[];
     var slot = 0;

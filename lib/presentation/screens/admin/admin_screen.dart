@@ -2934,21 +2934,20 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         chosen: _hskLevels,
                         onAdd: (v) => setState(() => _hskLevels.add(v)),
                       ),
-                      _multiDropdown<QuizCategory>(
+                      _multiDropdown<String>(
                         label: 'Gramer',
-                        // Grammar rules only (no level prefix), in curriculum
-                        // order across HSK 1-6.
+                        // Full grammar list from the DB (grammar_levels), ordered
+                        // by level then unit — covers the expanded function words.
                         options: [
                           for (var lvl = 1; lvl <= 6; lvl++)
-                            for (final c in (kGrammarByHsk[lvl] ?? const []))
-                              (value: c, text: c.displayName),
-                          // 'general' (一般) is the no-grammar fallback, not a rule.
+                            for (final g
+                                in (ref.watch(grammarByLevelProvider)[lvl] ??
+                                    const []))
+                              (value: g.name, text: g.zh),
                         ],
-                        chosen: _quizCategories
-                            .map(QuizCategory.fromString)
-                            .toSet(),
-                        onAdd: (v) =>
-                            setState(() => _quizCategories.add(v.name)),
+                        chosen: _quizCategories,
+                        onAdd: (name) =>
+                            setState(() => _quizCategories.add(name)),
                       ),
                       // Length (SinoRhythm) is derived from the sentence.
                       _readonlyFilter('Uzunluk', _lengthBucket()),
@@ -2965,7 +2964,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         _tagChip('HSK $lvl',
                             () => setState(() => _hskLevels.remove(lvl))),
                       for (final c in _quizCategories)
-                        _tagChip(QuizCategory.fromString(c).displayName,
+                        _tagChip(_grammarLabel(c),
                             () => setState(() => _quizCategories.remove(c))),
                       for (final lc in _lifeCategories)
                         _tagChip(_lifeLabel(lc),
@@ -3298,14 +3297,20 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
 
   String _lifeLabel(String code) => LifeCategory.labelFor(code, isTr: true);
 
-  // "Kriter": the grammar rule (its Chinese symbol) or word the HSK+Level were
-  // decided by — e.g. "在 (Gramer)" or "漂亮 (Kelime)".
+  // Grammar's display label (Chinese) from the DB metadata, with fallbacks.
+  String _grammarLabel(String name) {
+    final g = ref.read(grammarByNameProvider)[name];
+    if (g != null) return g.zh;
+    final m = kGrammarMeaning[name];
+    if (m != null) return m.zh;
+    return QuizCategory.fromString(name).displayName;
+  }
+
+  // "Kriter": the grammar rule (its Chinese) or word the HSK+Level were decided
+  // by — e.g. "在 (Gramer)" or "漂亮 (Kelime)".
   String _criterionText() {
     final g = _slotGrammar ?? _backupGrammar;
-    if (g != null) {
-      final zh = kGrammarMeaning[g]?.zh ?? g;
-      return '$zh (Gramer)';
-    }
+    if (g != null) return '${_grammarLabel(g)} (Gramer)';
     final w = _slotWord ?? _backupWord;
     if (w != null) return '$w (Kelime)';
     return '—';

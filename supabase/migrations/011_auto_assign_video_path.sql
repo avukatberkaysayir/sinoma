@@ -7,8 +7,19 @@
 CREATE TABLE IF NOT EXISTS public.grammar_levels (
   name  text PRIMARY KEY,
   level integer NOT NULL,
-  unit  integer NOT NULL
+  unit  integer NOT NULL,
+  -- symbol: matchable token (NULL = multi-token pattern); zh/tr/en: display label.
+  symbol text,
+  zh     text,
+  tr     text,
+  en     text
 );
+-- NOTE: grammar_levels is the SOURCE OF TRUTH for the grammar curriculum and is
+-- larger than the seed below: it also holds the expanded function-word grammars
+-- (every HSK adverb/conjunction/preposition + 一般) loaded from the dictionary,
+-- spread across the 24 units/level (multiple grammars per unit). zh/tr come from
+-- the dictionary for those. The app reads it via loadGrammarMeta(). The seed
+-- below is just the original ~115 grammar points.
 
 -- Populated from kGrammarByHsk (HSK 1-6, in curriculum order). Regenerate with
 -- the generator in the repo if the grammar lists change.

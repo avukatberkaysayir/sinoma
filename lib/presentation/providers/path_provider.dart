@@ -100,7 +100,8 @@ class WordSlot {
       );
 }
 
-List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
+List<PathTopic> buildCurriculum(List<VideoSegmentModel> all,
+    [Map<int, List<GrammarMeta>> grammarByLevel = const {}]) {
   // slot[hsk][unitIndex][phaseIndex] -> videos placed there.
   final slot = <int, List<List<List<VideoSegmentModel>>>>{
     for (var hsk = 1; hsk <= 6; hsk++)
@@ -160,10 +161,11 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
 
   final topics = <PathTopic>[];
   for (var hsk = 1; hsk <= 6; hsk++) {
-    final grammar = kGrammarByHsk[hsk] ?? const <QuizCategory>[];
+    final levelGrammars = grammarByLevel[hsk] ?? const <GrammarMeta>[];
     final steps = <PathStep>[];
     for (var u = 0; u < kUnitsPerLevel; u++) {
-      final g = u < grammar.length ? grammar[u] : null;
+      // A unit can teach several grammar rules (the expanded function-word set).
+      final unitG = levelGrammars.where((g) => g.unit == u + 1).toList();
       final phases = <PathPhase>[
         for (var p = 0; p < kPhasesPerStep; p++)
           PathPhase(
@@ -176,8 +178,8 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all) {
       steps.add(PathStep(
         hsk: hsk,
         index: u,
-        title: g?.displayName ?? '—',
-        grammarName: g?.name,
+        title: unitG.isEmpty ? '—' : unitG.map((g) => g.zh).join(' · '),
+        grammarName: unitG.isEmpty ? null : unitG.first.name,
         phases: phases,
       ));
     }
@@ -250,6 +252,56 @@ final allActiveVideosProvider = FutureProvider<List<VideoSegmentModel>>((ref) {
   return ref.watch(videoRepositoryProvider).loadAllActiveSegments();
 });
 
+// Grammar curriculum metadata from the DB (grammar_levels) — the source of truth
+// for the expanded function-word grammar set (the Dart const maps no longer cover
+// it). Used for chips, the Gramer dropdown, unit titles and the criterion label.
+class GrammarMeta {
+  final String name;
+  final int level;
+  final int unit;
+  final String? symbol;
+  final String zh;
+  final String tr;
+  final String en;
+  const GrammarMeta({
+    required this.name,
+    required this.level,
+    required this.unit,
+    required this.symbol,
+    required this.zh,
+    required this.tr,
+    required this.en,
+  });
+  factory GrammarMeta.fromMap(Map<String, dynamic> m) => GrammarMeta(
+        name: m['name'] as String? ?? '',
+        level: (m['level'] as num?)?.toInt() ?? 1,
+        unit: (m['unit'] as num?)?.toInt() ?? 1,
+        symbol: m['symbol'] as String?,
+        zh: m['zh'] as String? ?? (m['symbol'] as String? ?? ''),
+        tr: m['tr'] as String? ?? '',
+        en: m['en'] as String? ?? '',
+      );
+}
+
+final grammarMetaProvider = FutureProvider<List<GrammarMeta>>((ref) async {
+  final rows = await ref.watch(videoRepositoryProvider).loadGrammarMeta();
+  return rows.map(GrammarMeta.fromMap).toList();
+});
+
+final grammarByNameProvider = Provider<Map<String, GrammarMeta>>((ref) {
+  final list = ref.watch(grammarMetaProvider).valueOrNull ?? const [];
+  return {for (final g in list) g.name: g};
+});
+
+final grammarByLevelProvider = Provider<Map<int, List<GrammarMeta>>>((ref) {
+  final list = ref.watch(grammarMetaProvider).valueOrNull ?? const [];
+  final m = <int, List<GrammarMeta>>{};
+  for (final g in list) {
+    (m[g.level] ??= []).add(g);
+  }
+  return m;
+});
+
 // Words pinned to one slot, fetched on demand for the "gözat" panel (per-slot
 // query avoids PostgREST's 1000-row cap that left higher levels empty).
 final slotWordsProvider = FutureProvider.family<List<WordSlot>,
@@ -262,7 +314,8 @@ final slotWordsProvider = FutureProvider.family<List<WordSlot>,
 
 final curriculumProvider = FutureProvider<List<PathTopic>>((ref) async {
   final vids = await ref.watch(allActiveVideosProvider.future);
-  return buildCurriculum(vids);
+  await ref.watch(grammarMetaProvider.future); // ensure metadata is loaded
+  return buildCurriculum(vids, ref.read(grammarByLevelProvider));
 });
 
 final pathProgressProvider = FutureProvider<Map<String, dynamic>>((ref) {
