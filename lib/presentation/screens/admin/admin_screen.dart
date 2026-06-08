@@ -2084,6 +2084,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   int? _level; // path level (L1-L6) override; defaults to grammar's level
   int? _unit; // manual path unit (1-30)
   int? _phase; // manual path phase circle (1-4, 0 = Diğer)
+  // Whether the admin actually touched the placement dropdowns (vs the auto-shown
+  // active/backup slot). Only a manual placement is saved as an override.
+  bool _placementManual = false;
   late List<String> _targetWords;
   late final TextEditingController _transcriptionCtrl;
   late final TextEditingController _pinyinCtrl;
@@ -2365,17 +2368,12 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final hskList = _hskLevels.toList()..sort();
     final catList = _quizCategories.toList();
     final lifeList = _lifeCategories.toList();
-    // The dropdowns are auto-filled from the backup slot for a backup clip; a
-    // plain save must NOT promote it — only an actual change is a manual placement.
-    final dbLevel = (widget.data['level'] as num?)?.toInt();
-    final isBackupRow = dbLevel == null && widget.data['backup_kind'] != null;
-    final placementUnchanged = isBackupRow &&
-        _level == (widget.data['backup_level'] as num?)?.toInt() &&
-        _unit == (widget.data['backup_unit'] as num?)?.toInt() &&
-        _phase == (widget.data['backup_phase'] as num?)?.toInt();
-    final outLevel = placementUnchanged ? null : _level;
-    final outUnit = placementUnchanged ? null : _unit;
-    final outPhase = placementUnchanged ? null : _phase;
+    // The dropdowns are auto-filled from the active/backup slot; only an actual
+    // admin change is a manual placement override. A plain save leaves placement
+    // to the DB trigger (and keeps a backup clip a backup).
+    final outLevel = _placementManual ? _level : null;
+    final outUnit = _placementManual ? _unit : null;
+    final outPhase = _placementManual ? _phase : null;
     setState(() => _saving = true);
     try {
       await widget.service.patchVideoFields(id, {
@@ -2493,6 +2491,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       });
       if (row != null && mounted) {
         setState(() {
+          // Grammar tags
           _quizCategories
             ..clear()
             ..addAll(((row['quiz_categories'] as List<dynamic>?) ?? [])
@@ -2500,9 +2499,24 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           if (_quizCategories.isEmpty) {
             _quizCategories.add(row['quiz_category'] as String? ?? 'general');
           }
-          _level = (row['level'] as num?)?.toInt();
-          _unit = (row['unit'] as num?)?.toInt();
-          _phase = (row['phase'] as num?)?.toInt();
+          // HSK (the trigger syncs it to the content level)
+          final hl = ((row['hsk_levels'] as List<dynamic>?) ?? [])
+              .map((e) => (e as num).toInt())
+              .toList();
+          _hskLevels
+            ..clear()
+            ..addAll(hl.isNotEmpty
+                ? hl
+                : [(row['hsk_level'] as num?)?.toInt() ?? 1]);
+          // Placement: the active slot, or the would-be backup slot (auto, not a
+          // manual override).
+          _placementManual = false;
+          _level = (row['level'] as num?)?.toInt() ??
+              (row['backup_level'] as num?)?.toInt();
+          _unit = (row['unit'] as num?)?.toInt() ??
+              (row['backup_unit'] as num?)?.toInt();
+          _phase = (row['phase'] as num?)?.toInt() ??
+              (row['backup_phase'] as num?)?.toInt();
         });
         ref.invalidate(curriculumProvider);
         ref.invalidate(allActiveVideosProvider);
@@ -3400,7 +3414,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               value: l,
               hint: l == null ? 'L (gramer seç)' : 'L$l',
               options: [for (var i = 1; i <= 6; i++) (value: i, text: 'L$i')],
-              onSelected: (v) => setState(() => _level = v),
+              onSelected: (v) =>
+                  setState(() { _level = v; _placementManual = true; }),
             ),
             _singleDropdown<int>(
               label: 'Ünite',
@@ -3410,7 +3425,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                 for (var i = 1; i <= kUnitsPerLevel; i++)
                   (value: i, text: 'Ünite $i')
               ],
-              onSelected: (v) => setState(() => _unit = v),
+              onSelected: (v) =>
+                  setState(() { _unit = v; _placementManual = true; }),
             ),
             _singleDropdown<int>(
               label: 'Bölüm',
@@ -3422,7 +3438,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                 for (var i = 1; i <= 4; i++) (value: i, text: 'Bölüm $i'),
                 (value: 0, text: 'Diğer'),
               ],
-              onSelected: (v) => setState(() => _phase = v),
+              onSelected: (v) =>
+                  setState(() { _phase = v; _placementManual = true; }),
             ),
           ],
         ),
@@ -3434,12 +3451,14 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             runSpacing: 6,
             children: [
               if (l != null)
-                _tagChip('L$l', () => setState(() => _level = null)),
+                _tagChip('L$l',
+                    () => setState(() { _level = null; _placementManual = true; })),
               if (_unit != null)
-                _tagChip('Ünite $_unit', () => setState(() => _unit = null)),
+                _tagChip('Ünite $_unit',
+                    () => setState(() { _unit = null; _placementManual = true; })),
               if (_phase != null)
                 _tagChip(_phase == 0 ? 'Diğer' : 'Bölüm $_phase',
-                    () => setState(() => _phase = null)),
+                    () => setState(() { _phase = null; _placementManual = true; })),
             ],
           ),
         ],
