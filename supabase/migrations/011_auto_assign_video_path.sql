@@ -79,22 +79,22 @@ UPDATE public.grammar_levels SET symbol = NULL WHERE name = 'dei';
 --     C. existing structural tags kept (NULL symbol & no pattern: 补语/句/否定/反问
 --        — abstract structures with no fixed characters; pipeline/manual only).
 --     quiz_category := first tag (else 'general').
--- (2) Placement (only when level is null and not "Diğer"=phase 0):
---      a. first grammar tag whose grammar is still FREE → its unit, phase 1,
---         slot_grammar (one clip per grammar rule);
---      b. else first word (at the clip's HSK level) whose slot word is FREE →
---         its slot, slot_word (one clip per word);
---      c. else left null (unplaced).
--- LEVEL = the clip's own HSK level (lvl), not the grammar's level — an HSK4 clip
--- never lands on L1. Occupancy counts only status='active' clips, so a pending
--- clip is placeable unless an ACTIVE clip already holds its slot (→ backup).
+-- (2) Placement (only when level is null and not "Diğer"=phase 0). LEVEL comes
+--     from CONTENT, and hsk_level/hsk_levels are SYNCED to it so the HSK badge
+--     always matches L (no "HSK4 shown at L1" mismatch):
+--      a. has a grammar rule → its level + unit (phase 1); place if its grammar
+--         is free among ACTIVE clips, else backup;
+--      b. else → the hardest (highest-level) word; place at its slot if free among
+--         ACTIVE clips, else backup at the hardest word's slot;
+--      c. else (no grammar, no known word) → left null.
+-- Occupancy counts only status='active', so a pending clip is placeable unless an
+-- ACTIVE clip already holds its slot (→ backup).
 CREATE OR REPLACE FUNCTION public.assign_video_path() RETURNS trigger AS $func$
 DECLARE
   do_detect boolean := false;
   do_place boolean := false;
   joined text;
   pat_arr text[];
-  lvl int;
   rec_g record;
   ws record;
 BEGIN
@@ -106,7 +106,6 @@ BEGIN
     do_detect := true;
   END IF;
   do_place := (NEW.level IS NULL AND COALESCE(NEW.phase, -1) <> 0);
-  lvl := NEW.hsk_level;  -- a clip belongs to its OWN HSK level
 
   IF do_detect THEN
     joined := array_to_string(COALESCE(NEW.target_words,'{}'::text[]), '');
@@ -143,54 +142,47 @@ BEGIN
 
   IF do_place THEN
     NEW.slot_grammar := NULL; NEW.slot_word := NULL;
-    -- (a) first grammar tag AT THIS LEVEL whose grammar is free among ACTIVE clips
-    SELECT gl.unit AS unit, gl.name AS name INTO rec_g
+    NEW.backup_level := NULL; NEW.backup_unit := NULL;
+    NEW.backup_phase := NULL; NEW.backup_kind := NULL;
+
+    -- (a) grammar rule (first tag) → its own level/unit; HSK synced to it.
+    SELECT gl.level AS level, gl.unit AS unit, gl.name AS name INTO rec_g
       FROM unnest(COALESCE(NEW.quiz_categories, '{}'::text[])) WITH ORDINALITY t(cat, ord)
-      JOIN public.grammar_levels gl ON gl.name = t.cat AND gl.level = lvl
-      WHERE NOT EXISTS (SELECT 1 FROM public.videos v2
-        WHERE v2.slot_grammar = gl.name AND v2.status = 'active' AND v2.id <> NEW.id)
+      JOIN public.grammar_levels gl ON gl.name = t.cat
       ORDER BY t.ord LIMIT 1;
     IF FOUND THEN
-      NEW.level := lvl; NEW.unit := rec_g.unit; NEW.phase := 1;
-      NEW.slot_grammar := rec_g.name;
+      NEW.hsk_level := rec_g.level; NEW.hsk_levels := ARRAY[rec_g.level];
+      IF NOT EXISTS (SELECT 1 FROM public.videos v2
+            WHERE v2.slot_grammar = rec_g.name AND v2.status = 'active' AND v2.id <> NEW.id) THEN
+        NEW.level := rec_g.level; NEW.unit := rec_g.unit; NEW.phase := 1;
+        NEW.slot_grammar := rec_g.name;
+      ELSE
+        NEW.backup_level := rec_g.level; NEW.backup_unit := rec_g.unit;
+        NEW.backup_phase := 1; NEW.backup_kind := 'grammar';
+      END IF;
     ELSE
-      -- (b) else first word AT THIS LEVEL whose slot word is free among ACTIVE clips
-      SELECT s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
+      -- (b) hardest FREE word (among ACTIVE occupancy); HSK synced to its level.
+      SELECT s.level AS level, s.unit AS unit, s.phase AS phase, s.word AS word INTO ws
         FROM unnest(COALESCE(NEW.target_words, '{}'::text[])) WITH ORDINALITY t(w, ord)
-        JOIN public.path_word_slots s ON s.word = t.w AND s.level = lvl
+        JOIN public.path_word_slots s ON s.word = t.w
         WHERE NOT EXISTS (SELECT 1 FROM public.videos v2
           WHERE v2.slot_word = s.word AND v2.status = 'active' AND v2.id <> NEW.id)
-        ORDER BY t.ord LIMIT 1;
+        ORDER BY s.level DESC, t.ord ASC LIMIT 1;
       IF FOUND THEN
-        NEW.level := lvl; NEW.unit := ws.unit; NEW.phase := ws.phase;
+        NEW.level := ws.level; NEW.unit := ws.unit; NEW.phase := ws.phase;
         NEW.slot_word := ws.word;
-      END IF;
-    END IF;
-
-    -- Backup: a slot exists at this level but an ACTIVE clip already holds it.
-    IF NEW.level IS NULL THEN
-      SELECT gl.unit AS unit INTO rec_g
-        FROM unnest(COALESCE(NEW.quiz_categories,'{}'::text[])) WITH ORDINALITY t(cat,ord)
-        JOIN public.grammar_levels gl ON gl.name = t.cat AND gl.level = lvl ORDER BY t.ord LIMIT 1;
-      IF FOUND THEN
-        NEW.backup_level := lvl; NEW.backup_unit := rec_g.unit;
-        NEW.backup_phase := 1; NEW.backup_kind := 'grammar';
+        NEW.hsk_level := ws.level; NEW.hsk_levels := ARRAY[ws.level];
       ELSE
-        SELECT s.unit AS unit, s.phase AS phase INTO ws
-          FROM unnest(COALESCE(NEW.target_words,'{}'::text[])) WITH ORDINALITY t(w,ord)
-          JOIN public.path_word_slots s ON s.word = t.w AND s.level = lvl
-          ORDER BY t.ord LIMIT 1;
+        SELECT s.level AS level, s.unit AS unit, s.phase AS phase INTO ws
+          FROM unnest(COALESCE(NEW.target_words, '{}'::text[])) WITH ORDINALITY t(w, ord)
+          JOIN public.path_word_slots s ON s.word = t.w
+          ORDER BY s.level DESC, t.ord ASC LIMIT 1;
         IF FOUND THEN
-          NEW.backup_level := lvl; NEW.backup_unit := ws.unit;
+          NEW.backup_level := ws.level; NEW.backup_unit := ws.unit;
           NEW.backup_phase := ws.phase; NEW.backup_kind := 'word';
-        ELSE
-          NEW.backup_level := NULL; NEW.backup_unit := NULL;
-          NEW.backup_phase := NULL; NEW.backup_kind := NULL;
+          NEW.hsk_level := ws.level; NEW.hsk_levels := ARRAY[ws.level];
         END IF;
       END IF;
-    ELSE
-      NEW.backup_level := NULL; NEW.backup_unit := NULL;
-      NEW.backup_phase := NULL; NEW.backup_kind := NULL;
     END IF;
   END IF;
   RETURN NEW;
