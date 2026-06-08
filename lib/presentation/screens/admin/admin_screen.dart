@@ -4642,9 +4642,16 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
   Widget _levelTile(int lvl, List<GrammarMeta> grammars, Set<String> usedG,
       Set<String> usedW) {
     final seen = <String>{};
-    final uniqueG = [
+    final uniqueG0 = [
       for (final g in grammars)
         if (seen.add(g.name)) g
+    ];
+    // Already-active (red) rules pinned to the front of the list.
+    final uniqueG = [
+      for (final g in uniqueG0)
+        if (usedG.contains(g.name)) g,
+      for (final g in uniqueG0)
+        if (!usedG.contains(g.name)) g,
     ];
     final open = _expandedGrammarLevels.contains(lvl);
     final gNames = uniqueG.map((g) => g.name).toSet();
@@ -4730,6 +4737,13 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     final total = words.length;
     final selW = words.where((w) => _wordFilter.contains(w.word)).length;
     final allW = total > 0 && selW == total;
+    // Already-active (red) words pinned to the front of the list.
+    final ordered = [
+      for (final w in words)
+        if (usedW.contains(w.word)) w,
+      for (final w in words)
+        if (!usedW.contains(w.word)) w,
+    ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -4760,7 +4774,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
           )
         else
           Wrap(spacing: 6, runSpacing: 4, children: [
-            for (final w in words)
+            for (final w in ordered)
               _contentChip(
                 w.word,
                 _wordFilter.contains(w.word),
