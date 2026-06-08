@@ -4740,26 +4740,14 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     final q = _wordCtrls[lvl]!.text.trim().toLowerCase();
 
     List<WordSlot> visible = const [];
-    int hidden = 0;
     if (!async.isLoading) {
-      if (q.isEmpty) {
-        final s = <String>{};
-        visible = [
-          for (final w in words.where((w) => usedW.contains(w.word)))
-            if (s.add(w.word)) w,
-          for (final w in words.take(40))
-            if (s.add(w.word)) w,
-        ];
-        hidden = total - visible.length;
-      } else {
-        final matches = words
-            .where((w) =>
-                w.word.toLowerCase().contains(q) ||
-                w.tr.toLowerCase().contains(q))
-            .toList();
-        visible = matches.take(80).toList();
-        hidden = matches.length - visible.length;
-      }
+      visible = q.isEmpty
+          ? words // show every word of the level (no cap)
+          : words
+              .where((w) =>
+                  w.word.toLowerCase().contains(q) ||
+                  w.tr.toLowerCase().contains(q))
+              .toList();
     }
 
     return Column(
@@ -4813,7 +4801,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2)),
           )
-        else ...[
+        else
           Wrap(spacing: 6, runSpacing: 4, children: [
             for (final w in visible)
               _contentChip(
@@ -4823,18 +4811,6 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                 () => _toggleWord(w.word),
               ),
           ]),
-          if (hidden > 0)
-            Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                q.isEmpty
-                    ? '+$hidden kelime daha — aramayla bulun'
-                    : '+$hidden eşleşme daha — aramayı daraltın',
-                style: const TextStyle(
-                    color: AppColors.onSurfaceMuted, fontSize: 10),
-              ),
-            ),
-        ],
       ],
     );
   }
@@ -4864,33 +4840,36 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
     ]);
   }
 
-  // One filter chip (grammar or word). Red = selected OR already covered by an
-  // active clip; a solid fill + bold marks the actually selected ones.
+  // One filter chip (grammar or word). Selected = green (your pick); not-yet
+  // selected but already covered by an active clip = red (warning: already have
+  // it). Selection wins, so a picked item turns green even if it was red.
   Widget _contentChip(
       String label, bool selected, bool used, VoidCallback onTap) {
-    final red = selected || used;
+    final accent = selected
+        ? AppColors.correctAnswer
+        : used
+            ? AppColors.primary
+            : null;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
         decoration: BoxDecoration(
           color: selected
-              ? AppColors.primary.withValues(alpha: 0.20)
+              ? AppColors.correctAnswer.withValues(alpha: 0.20)
               : used
-                  ? AppColors.primary.withValues(alpha: 0.07)
+                  ? AppColors.primary.withValues(alpha: 0.10)
                   : AppColors.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: red
-                ? AppColors.primary
-                : AppColors.onSurfaceMuted.withValues(alpha: 0.2),
+            color: accent ?? AppColors.onSurfaceMuted.withValues(alpha: 0.2),
             width: selected ? 1.5 : 1,
           ),
         ),
         child: Text(
           label,
           style: TextStyle(
-            color: red ? AppColors.primary : AppColors.onSurface,
+            color: accent ?? AppColors.onSurface,
             fontSize: 12,
             fontWeight: selected
                 ? FontWeight.w800
