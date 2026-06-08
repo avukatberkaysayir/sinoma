@@ -62,6 +62,15 @@ class VideoRepository {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  // A few representative words per (level, unit) — for the unit caption on units
+  // that have no grammar rule (so they show their vocabulary instead of "Soon").
+  Future<List<Map<String, dynamic>>> loadUnitWordSummary() async {
+    final data = await _db
+        .rpc('unit_word_summary')
+        .timeout(const Duration(seconds: 8));
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
   // Grammar curriculum metadata (name, level, unit, label) — the source of truth
   // for the grammar list (the Dart const maps no longer cover the expanded set).
   Future<List<Map<String, dynamic>>> loadGrammarMeta() async {

@@ -101,7 +101,8 @@ class WordSlot {
 }
 
 List<PathTopic> buildCurriculum(List<VideoSegmentModel> all,
-    [Map<int, List<GrammarMeta>> grammarByLevel = const {}]) {
+    [Map<int, List<GrammarMeta>> grammarByLevel = const {},
+    Map<String, List<String>> unitWords = const {}]) {
   // slot[hsk][unitIndex][phaseIndex] -> videos placed there.
   final slot = <int, List<List<List<VideoSegmentModel>>>>{
     for (var hsk = 1; hsk <= 6; hsk++)
@@ -175,10 +176,16 @@ List<PathTopic> buildCurriculum(List<VideoSegmentModel> all,
             videos: slot[hsk]![u][p],
           ),
       ];
+      // Units with a grammar rule show it; the rest (e.g. most of HSK6, whose
+      // dictionary words carry no part-of-speech) show their vocabulary so they
+      // never read as empty "Soon" placeholders.
+      final words = unitWords['L$hsk.u${u + 1}'] ?? const <String>[];
       steps.add(PathStep(
         hsk: hsk,
         index: u,
-        title: unitG.isEmpty ? '—' : unitG.map((g) => g.zh).join(' · '),
+        title: unitG.isNotEmpty
+            ? unitG.map((g) => g.zh).join(' · ')
+            : (words.isEmpty ? '—' : words.join(' · ')),
         grammarName: unitG.isEmpty ? null : unitG.first.name,
         phases: phases,
       ));
@@ -312,10 +319,26 @@ final slotWordsProvider = FutureProvider.family<List<WordSlot>,
   return rows.map(WordSlot.fromMap).toList();
 });
 
+// A few representative words per unit (keyed 'L{level}.u{unit}') — captions for
+// grammar-less units (loaded via the unit_word_summary RPC, one compact query).
+final unitWordSummaryProvider =
+    FutureProvider<Map<String, List<String>>>((ref) async {
+  final rows = await ref.watch(videoRepositoryProvider).loadUnitWordSummary();
+  final m = <String, List<String>>{};
+  for (final r in rows) {
+    final lvl = (r['level'] as num?)?.toInt();
+    final unit = (r['unit'] as num?)?.toInt();
+    final words = (r['words'] as List?)?.cast<String>() ?? const [];
+    if (lvl != null && unit != null) m['L$lvl.u$unit'] = words;
+  }
+  return m;
+});
+
 final curriculumProvider = FutureProvider<List<PathTopic>>((ref) async {
   final vids = await ref.watch(allActiveVideosProvider.future);
   await ref.watch(grammarMetaProvider.future); // ensure metadata is loaded
-  return buildCurriculum(vids, ref.read(grammarByLevelProvider));
+  final unitWords = await ref.watch(unitWordSummaryProvider.future);
+  return buildCurriculum(vids, ref.read(grammarByLevelProvider), unitWords);
 });
 
 final pathProgressProvider = FutureProvider<Map<String, dynamic>>((ref) {

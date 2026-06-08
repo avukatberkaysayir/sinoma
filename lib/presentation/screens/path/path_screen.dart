@@ -347,7 +347,7 @@ const double _kUnitHeight = 520; // fixed height per unit section (5 nodes)
 const double _kBannerLead = 120; // switch banner this early (boundary offset)
 
 Color _unitColor(PathStep step) {
-  if (step.grammarName == null) return _duoLocked;
+  if (step.title == '—') return _duoLocked; // truly empty placeholder
   const palette = [
     Color(0xFF58CC02), // green
     Color(0xFFCE82FF), // purple
@@ -521,8 +521,7 @@ class _UnitBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasGrammar = step.grammarName != null;
-    final title = hasGrammar ? step.title : (tr ? 'Yakında' : 'Soon');
+    final title = step.title != '—' ? step.title : (tr ? 'Yakında' : 'Soon');
     return Container(
       color: _duoBg,
       alignment: Alignment.center,
@@ -617,7 +616,7 @@ class _UnitNodes extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label =
-        step.grammarName != null ? step.title : (tr ? 'Yakında' : 'Soon');
+        step.title != '—' ? step.title : (tr ? 'Yakında' : 'Soon');
     // Interleave the 4 phase steps with a reward node in the middle (index 2).
     final nodes = <Widget>[];
     var slot = 0;
