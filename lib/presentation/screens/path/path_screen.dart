@@ -730,45 +730,26 @@ class _PhaseNode extends ConsumerWidget {
     final unlocked = isPhaseUnlocked(topic, phase, progress);
     final done = pp.done;
 
-    final Color top;
-    final Color shadow;
-    if (done) {
-      top = _duoGreen;
-      shadow = _duoGreenDark;
-    } else if (unlocked) {
-      top = _duoGreen;
-      shadow = _duoGreenDark;
-    } else {
-      top = _duoLocked;
-      shadow = const Color(0xFF2A363D);
-    }
-
-    // The node now shows its city's landmark icon (real asset or generic theme).
-    // State stays legible: faded when locked + a small corner badge (lock/check).
+    // The node IS the city's landmark icon — no circle behind it (real asset or
+    // a generic themed glyph). State stays legible: dimmed when locked + a small
+    // corner badge (lock when locked, check when done).
     final ni = _cityNodeIcon(phase.hsk, phase.stepIndex);
     final available = done || unlocked;
-    final Widget glyph = ni.asset != null
-        ? Opacity(
-            opacity: available ? 1 : 0.4,
-            child: Image.asset(ni.asset!,
-                width: 48, height: 48, fit: BoxFit.contain),
-          )
-        : Icon(ni.icon,
-            size: 34, color: available ? Colors.white : Colors.white30);
+    final Widget glyph;
+    if (ni.asset != null) {
+      final img = Image.asset(ni.asset!,
+          width: 72, height: 72, fit: BoxFit.contain);
+      glyph = available ? img : Opacity(opacity: 0.4, child: img);
+    } else {
+      glyph = Icon(ni.icon,
+          size: 56, color: available ? _duoGreen : _duoLocked);
+    }
     Widget? badge;
     if (done) {
       badge = _nodeBadge(Icons.check_rounded, _duoGreenDark);
     } else if (!unlocked) {
       badge = _nodeBadge(Icons.lock_rounded, const Color(0xFF2A363D));
     }
-    final icon = Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        glyph,
-        if (badge != null) Positioned(right: -3, bottom: -3, child: badge),
-      ],
-    );
 
     Future<void> open() async {
       if (!unlocked) return;
@@ -802,16 +783,19 @@ class _PhaseNode extends ConsumerWidget {
 
     final circle = GestureDetector(
       onTap: open,
-      child: Container(
-        width: 74,
-        height: 70,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: top,
-          borderRadius: BorderRadius.circular(38),
-          boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 76,
+        height: 72,
+        child: Stack(
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            glyph,
+            if (badge != null)
+              Positioned(right: 4, bottom: 4, child: badge),
+          ],
         ),
-        child: icon,
       ),
     );
     // Every slot carries vocabulary; words are fetched when opened.
