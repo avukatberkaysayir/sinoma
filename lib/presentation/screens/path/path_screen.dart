@@ -582,29 +582,32 @@ class _UnitBanner extends StatelessWidget {
         ? 'assets/banners/${city.slug}.png'
         : null;
     const shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
-    final content = Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
-              style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: 0.5,
-                  shadows: bannerAsset != null ? shadow : null)),
-          const SizedBox(height: 3),
-          Text('${city.zh}  ${city.pinyin}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  shadows: bannerAsset != null ? shadow : null)),
-        ],
+    final content = Align(
+      alignment: Alignment.centerLeft,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
+                style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    shadows: bannerAsset != null ? shadow : null)),
+            const SizedBox(height: 3),
+            Text('${city.zh}  ${city.pinyin}',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    shadows: bannerAsset != null ? shadow : null)),
+          ],
+        ),
       ),
     );
     return Container(
@@ -624,18 +627,18 @@ class _UnitBanner extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: bannerAsset == null
-                ? Container(
-                    width: double.infinity, color: color, child: content)
-                : Stack(
-                    children: [
-                      Positioned.fill(
-                        child: Image.asset(bannerAsset, fit: BoxFit.cover),
-                      ),
-                      // Left-weighted dark gradient so the city name stays legible
-                      // over the illustration.
-                      Positioned.fill(
-                        child: DecoratedBox(
+            child: SizedBox(
+              width: double.infinity,
+              height: 92,
+              child: bannerAsset == null
+                  ? Container(color: color, child: content)
+                  : Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        Image.asset(bannerAsset, fit: BoxFit.cover),
+                        // Left-weighted dark gradient so the city name stays
+                        // legible over the illustration.
+                        DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.centerLeft,
@@ -647,10 +650,10 @@ class _UnitBanner extends StatelessWidget {
                             ),
                           ),
                         ),
-                      ),
-                      SizedBox(width: double.infinity, child: content),
-                    ],
-                  ),
+                        content,
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
