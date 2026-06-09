@@ -5277,9 +5277,9 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
     );
   }
 
+  // One stacked record: the video link (prominent + clickable) and its props.
   Widget _historyCard(
       Map<String, dynamic> r, ({int active, int backup})? count) {
-    final ytId = r['youtube_id'] as String? ?? '';
     final url = r['url'] as String? ?? '';
     final title = r['title'] as String?;
     final channel = r['channel'] as String?;
@@ -5288,95 +5288,60 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
       if ((count?.active ?? 0) > 0) '${count!.active} aktif',
       if ((count?.backup ?? 0) > 0) '${count!.backup} yedek',
     ].join(' · ');
-    final date = _fmtDate(r['segmented_at'] as String?);
-    final hsk = (r['hsk_filter'] as List?)?.cast<num>().map((e) => e.toInt());
-    final grammar = (r['grammar_filter'] as List?)?.cast<String>();
-    final word = (r['word_filter'] as List?)?.cast<String>();
-    final filters = <String>[
-      if (hsk != null && hsk.isNotEmpty) 'HSK ${hsk.join("+")}',
-      if (grammar != null && grammar.isNotEmpty) '${grammar.length} gramer',
-      if (word != null && word.isNotEmpty) '${word.length} kelime',
-    ];
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: AppColors.onSurfaceMuted.withValues(alpha: 0.15)),
-      ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        if (ytId.isNotEmpty)
-          ClipRRect(
-            borderRadius:
-                const BorderRadius.horizontal(left: Radius.circular(10)),
-            child: Image.network(
-              'https://img.youtube.com/vi/$ytId/mqdefault.jpg',
-              width: 96,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
-                  width: 96,
-                  color: AppColors.surface,
-                  child: const Icon(Icons.play_circle_outline,
-                      color: AppColors.onSurfaceMuted)),
-            ),
-          ),
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title?.isNotEmpty == true ? title! : '(başlık alınıyor…)',
+    final props = [
+      if (channel?.isNotEmpty == true) channel!,
+      if (year != null) '$year',
+      if (clipsLabel.isNotEmpty) '$clipsLabel klip',
+    ].join(' · ');
+    return InkWell(
+      onTap: () => _open(url),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: AppColors.onSurfaceMuted.withValues(alpha: 0.15)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (title?.isNotEmpty == true)
+              Text(title!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 13,
-                      fontWeight: FontWeight.w600),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  [
-                    if (channel?.isNotEmpty == true) channel!,
-                    if (year != null) '$year'
-                  ].join(' · '),
+                      fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            Row(children: [
+              const Icon(Icons.link, size: 14, color: Color(0xFF4FA3FF)),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(url,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Color(0xFF4FA3FF),
+                        fontSize: 12,
+                        decoration: TextDecoration.underline)),
+              ),
+              const Icon(Icons.open_in_new,
+                  size: 14, color: AppColors.onSurfaceMuted),
+            ]),
+            if (props.isNotEmpty) ...[
+              const SizedBox(height: 3),
+              Text(props,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                      color: AppColors.onSurfaceMuted, fontSize: 11),
-                ),
-                const SizedBox(height: 4),
-                Row(children: [
-                  Text(
-                      [if (date.isNotEmpty) date, if (clipsLabel.isNotEmpty) '$clipsLabel klip']
-                          .join(' · '),
-                      style: const TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 11)),
-                  if (filters.isNotEmpty) ...[
-                    const Text('  ·  ',
-                        style: TextStyle(
-                            color: AppColors.onSurfaceMuted, fontSize: 11)),
-                    Flexible(
-                      child: Text(filters.join(' · '),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                              color: AppColors.primary, fontSize: 11)),
-                    ),
-                  ],
-                ]),
-              ],
-            ),
-          ),
+                      color: AppColors.onSurfaceMuted, fontSize: 11)),
+            ],
+          ],
         ),
-        IconButton(
-          onPressed: () => _open(url),
-          icon: const Icon(Icons.open_in_new,
-              size: 16, color: AppColors.onSurfaceMuted),
-          tooltip: 'YouTube’da aç',
-        ),
-      ]),
+      ),
     );
   }
 
