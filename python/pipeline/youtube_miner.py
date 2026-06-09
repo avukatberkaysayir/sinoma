@@ -179,8 +179,29 @@ def _run_ytdlp(args: list[str], timeout: int = 180) -> subprocess.CompletedProce
 
 
 def fetch_video_meta(url: str) -> dict[str, Any]:
-    """Channel + title + upload year for the import history, via yt-dlp metadata
-    only (no download). Returns {} on any failure (best-effort)."""
+    """Channel + title + upload year for the import history. Tries YouTube oEmbed
+    first (fast, no download, no auth), then falls back to yt-dlp metadata. Returns
+    {} on total failure (best-effort)."""
+    import json as _json
+    from urllib.request import urlopen, Request
+    from urllib.parse import urlencode
+    try:
+        q = urlencode({"url": url, "format": "json"})
+        req = Request("https://www.youtube.com/oembed?" + q,
+                      headers={"User-Agent": "Mozilla/5.0"})
+        with urlopen(req, timeout=20) as resp:
+            j = _json.loads(resp.read().decode("utf-8"))
+        title = j.get("title")
+        if title:
+            m = re.search(r"20\d{6}", title)
+            return {
+                "title": title,
+                "channel": j.get("author_name") or None,
+                "upload_year": int(m.group(0)[:4]) if m else None,
+            }
+    except Exception:
+        pass
+
     for client_args, cookie_args in _STRATEGIES[:8]:
         try:
             result = _run_ytdlp(

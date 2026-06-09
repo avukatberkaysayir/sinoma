@@ -5205,18 +5205,18 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
           unselectedLabelColor: AppColors.onSurfaceMuted,
           indicatorColor: AppColors.primary,
           tabs: const [
-            Tab(text: 'Parçalananlar'),
             Tab(text: 'Aktif'),
             Tab(text: 'Yedek'),
+            Tab(text: 'Tümü'),
           ],
         ),
         Expanded(
           child: TabBarView(
             controller: _tabs,
             children: [
-              _buildHistoryList(),
               _PlacementView(key: _activeKey, backup: false),
               _PlacementView(key: _backupKey, backup: true),
+              _buildHistoryList(),
             ],
           ),
         ),
