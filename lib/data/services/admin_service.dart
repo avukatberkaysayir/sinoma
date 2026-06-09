@@ -145,8 +145,32 @@ class AdminService {
     });
   }
 
-  // Active clips with their placement + source, for the history placement view.
-  Future<List<Map<String, dynamic>>> loadActivePlacements() async {
+  // Clips with their placement + source, for the history placement view. When
+  // [backup] is true, reads the backup_* slot and returns it under the same keys
+  // (level/unit/phase/slot_grammar/slot_word) so the view code is identical.
+  Future<List<Map<String, dynamic>>> loadPlacements(
+      {bool backup = false}) async {
+    if (backup) {
+      final data = await _db
+          .from('videos')
+          .select('youtube_id, source_type, video_url, start_time, end_time, '
+              'backup_level, backup_unit, backup_phase, backup_grammar, '
+              'backup_word, transcription, hsk_level')
+          .eq('status', 'backup')
+          .order('backup_level')
+          .order('backup_unit')
+          .order('backup_phase');
+      return List<Map<String, dynamic>>.from(data)
+          .map((r) => {
+                ...r,
+                'level': r['backup_level'],
+                'unit': r['backup_unit'],
+                'phase': r['backup_phase'],
+                'slot_grammar': r['backup_grammar'],
+                'slot_word': r['backup_word'],
+              })
+          .toList();
+    }
     final data = await _db
         .from('videos')
         .select('youtube_id, source_type, video_url, start_time, end_time, '

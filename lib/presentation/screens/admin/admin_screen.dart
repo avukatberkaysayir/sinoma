@@ -5124,32 +5124,23 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
   final _service = AdminService();
   late final TabController _tabs;
   late Future<List<Map<String, dynamic>>> _historyFut;
-  late Future<({List<Map<String, dynamic>> placements,
-          Map<String, Map<String, dynamic>> hist})>
-      _placementFut;
-
-  // Placement cascade selection.
-  int? _pL, _pU, _pP;
+  // New keys force the placement views to reload on refresh.
+  Key _activeKey = UniqueKey();
+  Key _backupKey = UniqueKey();
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-    _reload();
+    _tabs = TabController(length: 3, vsync: this);
+    _historyFut = _service.loadImportHistory();
   }
 
   void _reload() {
-    _historyFut = _service.loadImportHistory();
-    _placementFut = _loadPlacement();
-  }
-
-  Future<({List<Map<String, dynamic>> placements,
-          Map<String, Map<String, dynamic>> hist})>
-      _loadPlacement() async {
-    final p = await _service.loadActivePlacements();
-    final h = await _service.loadImportHistory();
-    final hm = {for (final r in h) (r['youtube_id'] as String? ?? ''): r};
-    return (placements: p, hist: hm);
+    setState(() {
+      _historyFut = _service.loadImportHistory();
+      _activeKey = UniqueKey();
+      _backupKey = UniqueKey();
+    });
   }
 
   @override
@@ -5183,7 +5174,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
                     fontWeight: FontWeight.w700)),
             const Spacer(),
             IconButton(
-              onPressed: () => setState(_reload),
+              onPressed: _reload,
               icon: const Icon(Icons.refresh,
                   size: 18, color: AppColors.onSurfaceMuted),
               tooltip: 'Yenile',
@@ -5197,13 +5188,18 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
           indicatorColor: AppColors.primary,
           tabs: const [
             Tab(text: 'Parçalananlar'),
-            Tab(text: 'Yerleşim'),
+            Tab(text: 'Aktif'),
+            Tab(text: 'Yedek'),
           ],
         ),
         Expanded(
           child: TabBarView(
             controller: _tabs,
-            children: [_buildHistoryList(), _buildPlacement()],
+            children: [
+              _buildHistoryList(),
+              _PlacementView(key: _activeKey, backup: false),
+              _PlacementView(key: _backupKey, backup: true),
+            ],
           ),
         ),
       ],
@@ -5333,8 +5329,51 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
     );
   }
 
-  // ── Tab 2: placement cascade (same flow as the Active tab) ──────────────────
-  Widget _buildPlacement() {
+}
+
+// ── Placement view (Aktif / Yedek) — same cascade as the Active tab ───────────
+
+class _PlacementView extends ConsumerStatefulWidget {
+  final bool backup;
+  const _PlacementView({super.key, required this.backup});
+  @override
+  ConsumerState<_PlacementView> createState() => _PlacementViewState();
+}
+
+class _PlacementViewState extends ConsumerState<_PlacementView> {
+  final _service = AdminService();
+  late final Future<({List<Map<String, dynamic>> placements,
+          Map<String, Map<String, dynamic>> hist})>
+      _placementFut;
+
+  // Cascade selection.
+  int? _pL, _pU, _pP;
+
+  @override
+  void initState() {
+    super.initState();
+    _placementFut = _loadPlacement();
+  }
+
+  Future<({List<Map<String, dynamic>> placements,
+          Map<String, Map<String, dynamic>> hist})>
+      _loadPlacement() async {
+    final p = await _service.loadPlacements(backup: widget.backup);
+    final h = await _service.loadImportHistory();
+    final hm = {for (final r in h) (r['youtube_id'] as String? ?? ''): r};
+    return (placements: p, hist: hm);
+  }
+
+  Future<void> _open(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return FutureBuilder<
         ({
           List<Map<String, dynamic>> placements,
@@ -5463,9 +5502,11 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
         return ag.compareTo(bg);
       });
     if (here.isEmpty) {
-      return const Center(
-        child: Text('Bu bölümde yerleşmiş aktif video yok.',
-            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
+      return Center(
+        child: Text(
+            'Bu bölümde ${widget.backup ? 'yedek' : 'aktif'} video yok.',
+            style: const TextStyle(
+                color: AppColors.onSurfaceMuted, fontSize: 13)),
       );
     }
     return ListView.separated(
