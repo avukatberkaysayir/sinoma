@@ -70,6 +70,22 @@ def _log(tag: str, msg: str) -> None:
 # yt-dlp strategy matrix
 # ---------------------------------------------------------------------------
 
+# Local bgutil PO-Token provider (HTTP server on :4416, started by dev_server.py).
+# YouTube's web/mweb/tv clients now require a PO Token to pass the "confirm you're
+# not a bot" gate; yt-dlp fetches one from this provider when fetch_pot=always.
+_POT_BASE_URL = os.environ.get("YT_POT_BASE", "http://127.0.0.1:4416")
+
+# Authenticated cookies are the only thing that reliably gets past a *flagged* IP
+# (YouTube starts demanding sign-in after heavy automated traffic). Drop a
+# Netscape-format export of a logged-in YouTube account at python/yt_cookies.txt
+# (or point YT_COOKIES_FILE at one) and every strategy will use it.
+def _cookies_file_args() -> list[str]:
+    p = os.environ.get("YT_COOKIES_FILE") or str(
+        Path(__file__).resolve().parent.parent / "yt_cookies.txt"
+    )
+    return ["--cookies", p] if p and Path(p).is_file() else []
+
+
 _YTDLP_BASE_ARGS = [
     "--no-check-certificates",
     "--no-playlist",
@@ -81,39 +97,44 @@ _YTDLP_BASE_ARGS = [
     # Current yt-dlp requires a JS runtime for YouTube extraction; enable Node
     # (Deno is the only default). Without it many videos fail as "not available".
     "--js-runtimes", "node",
+    # Throttle ourselves so YouTube stops flagging this IP as a bot. The old
+    # matrix hammered YouTube (19 attempts × every video) which is what triggered
+    # the account-wide "Sign in to confirm you're not a bot" block.
+    "--sleep-requests", "1.0",
+    # Tell yt-dlp where the local PO-Token provider lives.
+    "--extractor-args", f"youtubepot-bgutilhttp:base_url={_POT_BASE_URL}",
 ]
 
-# Ordered by what actually works on current yt-dlp (2026+): the `android` client
-# returns a downloadable progressive stream without PO-token/DRM issues; the
-# others are fallbacks. (`tv_embedded` was REMOVED from yt-dlp and is skipped, so
-# it no longer belongs here.)
+# PO-token clients (web/mweb/tv) come FIRST now — they pass the bot gate when a PO
+# token is available. android/ios are kept as fallback (different attestation, no
+# PO token). fetch_pot=always forces a token request for the web-family clients.
 _CLIENTS: list[list[str]] = [
+    ["--extractor-args", "youtube:player_client=web;fetch_pot=always"],
+    ["--extractor-args", "youtube:player_client=mweb;fetch_pot=always"],
+    ["--extractor-args", "youtube:player_client=tv;fetch_pot=always"],
     ["--extractor-args", "youtube:player_client=android"],
     ["--extractor-args", "youtube:player_client=ios"],
-    ["--extractor-args", "youtube:player_client=mweb"],
-    ["--extractor-args", "youtube:player_client=web_safari"],
-    ["--extractor-args", "youtube:player_client=web"],
     [],  # yt-dlp default
 ]
 
-# Cookie sources; empty list = no cookies (fastest, tried first).
-_COOKIE_GROUPS: list[list[str]] = [
-    [],
-    ["--cookies-from-browser", "chrome"],
-    ["--cookies-from-browser", "edge"],
-    ["--cookies-from-browser", "firefox"],
-]
 
-# Full strategy matrix: (client_args, cookie_args)
-# First phase: no cookies × all clients (most common fix — tv_embedded bypasses PO Token).
-# Second phase: chrome cookies × all clients (handles bot-detection gating).
-# Third phase: edge/firefox if chrome not available.
-_STRATEGIES: list[tuple[list[str], list[str]]] = (
-    [(c, []) for c in _CLIENTS]
-    + [(c, ["--cookies-from-browser", "chrome"]) for c in _CLIENTS]
-    + [(c, ["--cookies-from-browser", "edge"]) for c in _CLIENTS[:2]]
-    + [(c, ["--cookies-from-browser", "firefox"]) for c in _CLIENTS[:2]]
-)
+def current_strategies() -> list[tuple[list[str], list[str]]]:
+    """(client_args, cookie_args) pairs, strongest first, computed per call so a
+    freshly-dropped cookies.txt is picked up without a restart.
+
+    Phase 1 — cookies.txt × all clients (only if the file exists): beats a flagged IP.
+    Phase 2 — no cookies × all clients (PO-token web clients first).
+    Phase 3 — browser cookies × top clients (best-effort; unreliable on Windows
+              where Chrome/Edge app-bound encryption blocks extraction).
+    """
+    cf = _cookies_file_args()
+    strats: list[tuple[list[str], list[str]]] = []
+    if cf:
+        strats += [(c, cf) for c in _CLIENTS]
+    strats += [(c, []) for c in _CLIENTS]
+    strats += [(c, ["--cookies-from-browser", "chrome"]) for c in _CLIENTS[:3]]
+    strats += [(c, ["--cookies-from-browser", "edge"]) for c in _CLIENTS[:3]]
+    return strats
 
 
 def _strategy_label(client_args: list[str], cookie_args: list[str]) -> str:
@@ -151,7 +172,7 @@ def _probe_accessible(url: str) -> str | None:
     Returns video title string, or None if all probe strategies fail.
     """
     _log("PROBE", f"checking real accessibility: {url}")
-    for client_args, cookie_args in _STRATEGIES[:8]:
+    for client_args, cookie_args in current_strategies()[:8]:
         sl = _strategy_label(client_args, cookie_args)
         try:
             result = _run_ytdlp(
@@ -252,7 +273,7 @@ def download_subtitles(url: str, output_dir: Path) -> Path | None:
         if auto and no_auto_sub_confirmed:
             continue
 
-        for client_args, cookie_args in _STRATEGIES:
+        for client_args, cookie_args in current_strategies():
             sl = _strategy_label(client_args, cookie_args)
             _log("SUBTITLE_SEARCH", f"{label} {sl}")
 
@@ -333,7 +354,7 @@ def download_audio(url: str, output_dir: Path) -> Path | None:
                 return hits[0]
         return None
 
-    for client_args, cookie_args in _STRATEGIES:
+    for client_args, cookie_args in current_strategies():
         sl = _strategy_label(client_args, cookie_args)
         _log("AUDIO_DOWNLOAD", sl)
 
@@ -366,24 +387,29 @@ def download_audio(url: str, output_dir: Path) -> Path | None:
         # Log the actual yt-dlp error and continue to next strategy
         _log("AUDIO_DOWNLOAD", f"failed (rc={result.returncode}): {combined[:200]}")
 
-    # All 19 strategies exhausted without a permanent block.
+    # All strategies exhausted without a permanent block.
     # Probe metadata to distinguish "extraction failure" from "truly unavailable".
     _log("AUDIO_DOWNLOAD", "all strategies exhausted — running accessibility probe…")
+    has_cookies = bool(_cookies_file_args())
     title = _probe_accessible(url)
-    if title:
+    if title or not has_cookies:
+        who = f"'{title[:80]}' erişilebilir durumda ama " if title else ""
         raise RuntimeError(
-            f"YouTube ses indirme katmanı engellendi (anti-bot / IP kısıtlaması).\n"
-            f"Video '{title[:80]}' erişilebilir durumdadır ama yt-dlp indiremedi.\n"
-            f"Öneriler:\n"
-            f"  1. yt-dlp güncelleyin: py -m pip install -U yt-dlp\n"
-            f"  2. Birkaç dakika bekleyip tekrar deneyin (YouTube rate-limit)\n"
-            f"  3. Chrome oturumu açık bırakın (cookie stratejisi daha iyi çalışır)"
+            "YouTube bu makinenin IP'sini geçici olarak 'bot' işaretledi "
+            "(\"Sign in to confirm you're not a bot\").\n"
+            f"Video {who}yt-dlp indiremedi — Whisper ve 'Yönet → parçala' aynı "
+            "indiriciyi kullandığı için ikisi de bu hatayı verir.\n"
+            "Çözüm (en kalıcısı): oturum açık bir YouTube hesabının çerezlerini\n"
+            "Netscape formatında python/yt_cookies.txt olarak kaydedin "
+            "(YT_COOKIES_FILE ile de gösterilebilir).\n"
+            "Alternatif: birkaç saat bekleyin — YouTube IP bloğunu kaldırınca "
+            "PO-token'lı yeni hafif strateji tekrar çalışır."
         )
     raise RuntimeError(
-        "Video erişilemiyor — tüm 19 strateji denendi ve hiçbiri başarılı olmadı.\n"
-        "Olası nedenler: video gerçekten kaldırılmış, sadece belirli bölgelerde erişilebilir,\n"
-        "veya çok agresif YouTube IP bloğu.\n"
-        "Normal tarayıcıda videoyu açıp kontrol edin."
+        "Video erişilemiyor — tüm stratejiler (çerez dosyası dahil) başarısız.\n"
+        "Olası nedenler: video gerçekten kaldırılmış, bölge kısıtlı, çerezler "
+        "süresi dolmuş, veya çok agresif YouTube IP bloğu.\n"
+        "Çerezleri yenileyin veya normal tarayıcıda videoyu açıp kontrol edin."
     )
 
 

@@ -2254,7 +2254,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   late final TextEditingController _wrongCtrl;
   late final TextEditingController _correctCtrlEn;
   late final TextEditingController _wrongCtrlEn;
-  String _selectedQuizLang = 'tr';
+  String _selectedQuizLang = 'en'; // EN first (reference for the other langs)
   bool _enApproved = false; // English options approved as the pivot source
   bool _saving = false;
   bool _generating = false;
@@ -3372,9 +3372,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                               fontWeight: FontWeight.bold,
                               fontSize: 13)),
                       const SizedBox(width: 12),
-                      _quizLangTab('TR', 'tr'),
-                      const SizedBox(width: 6),
+                      // English first — it's the reference for the other langs.
                       _quizLangTab('EN', 'en'),
+                      const SizedBox(width: 6),
+                      _quizLangTab('TR', 'tr'),
                     ],
                   ),
                   const SizedBox(height: 8),

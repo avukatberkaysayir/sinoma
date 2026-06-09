@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import subprocess
 import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -24,6 +25,53 @@ PORT = 9302
 PIPELINE_DIR = Path(__file__).parent
 CLIPS_DIR = PIPELINE_DIR.parent / "clips"
 CLIPS_DIR.mkdir(parents=True, exist_ok=True)
+
+# bgutil PO-Token provider: YouTube's web clients need a PO token to pass the
+# "confirm you're not a bot" gate. The node server mints tokens locally on :4416;
+# youtube_miner points yt-dlp at it. Start it here so the worker has it ready.
+POT_PORT = 4416
+POT_SERVER_JS = Path(
+    os.environ.get("BGUTIL_POT_JS", r"D:\UserData\bgutil-pot\server\build\main.js")
+)
+
+
+def _pot_running() -> bool:
+    import urllib.request
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{POT_PORT}/ping", timeout=2):
+            return True
+    except Exception:
+        return False
+
+
+def _ensure_pot_server() -> None:
+    if _pot_running():
+        print(f"✓ PO-Token sunucusu zaten çalışıyor (:{POT_PORT})")
+        return
+    if not POT_SERVER_JS.is_file():
+        print(f"⚠️  PO-Token sunucusu yok ({POT_SERVER_JS}) — yt-dlp token'sız den/ "
+              "bgutil-pot derleyin")
+        return
+    try:
+        flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+        subprocess.Popen(
+            ["node", str(POT_SERVER_JS)],
+            cwd=str(POT_SERVER_JS.parent),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            creationflags=flags,
+        )
+        import time
+        for _ in range(15):
+            time.sleep(0.4)
+            if _pot_running():
+                print(f"🔑 PO-Token sunucusu başlatıldı (:{POT_PORT})")
+                return
+        print("⚠️  PO-Token sunucusu başladı ama yanıt vermiyor")
+    except FileNotFoundError:
+        print("⚠️  node bulunamadı — PO-Token sunucusu atlandı")
+    except Exception as e:
+        print(f"⚠️  PO-Token sunucusu başlatılamadı: {e}")
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -243,6 +291,9 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
+    # Start the local PO-Token provider first so the worker's downloads have it.
+    _ensure_pot_server()
+
     # Start Supabase job poller in background thread
     try:
         from youtube_asr_pipeline import SUPABASE_URL, SUPABASE_SERVICE_KEY

@@ -248,16 +248,43 @@ def analyze_segment(text: str) -> tuple[list[str], int]:
 # ── Supabase insert ───────────────────────────────────────────────────────────
 
 def insert_segments(rows: list[dict[str, Any]]) -> None:
-    resp = requests.post(
-        f"{SUPABASE_URL}/rest/v1/videos",
-        json=rows,
-        headers={**_supabase_headers(), "Prefer": "return=minimal"},
-        timeout=60,
-    )
-    if resp.status_code >= 300:
-        raise RuntimeError(
-            f"Supabase insert failed {resp.status_code}: {resp.text[:300]}"
+    # Retry transient network drops (e.g. "Connection aborted / RemoteDisconnected"
+    # mid-stream) so one hiccup doesn't fail the whole job and force a re-run.
+    last = ""
+    for attempt in range(4):
+        try:
+            resp = requests.post(
+                f"{SUPABASE_URL}/rest/v1/videos",
+                json=rows,
+                headers={**_supabase_headers(), "Prefer": "return=minimal"},
+                timeout=60,
+            )
+            if resp.status_code < 300:
+                return
+            last = f"Supabase insert failed {resp.status_code}: {resp.text[:200]}"
+            if resp.status_code < 500:
+                raise RuntimeError(last)  # client error — won't fix on retry
+        except requests.exceptions.RequestException as exc:
+            last = f"insert network error: {exc}"
+        import time as _t
+        _t.sleep(0.6 * (attempt + 1))
+    raise RuntimeError(last or "Supabase insert failed")
+
+
+def _delete_pending_for(youtube_id: str) -> None:
+    """Clear this video's previous PENDING segments before a (re)run so a retried
+    job never piles up duplicates. Active/approved clips are kept."""
+    if not youtube_id or youtube_id == "unknown":
+        return
+    try:
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending"},
+            headers={**_supabase_headers(), "Prefer": "return=minimal"},
+            timeout=30,
         )
+    except Exception:
+        pass
 
 
 # ── Main pipeline ─────────────────────────────────────────────────────────────
@@ -296,6 +323,10 @@ def run(
     url = normalize_youtube_url(url)
     youtube_id = extract_youtube_id(url)
     print(f"\n▶ YouTube ASR pipeline: {url} ({youtube_id})")
+
+    # Idempotent (re)run: drop any leftover PENDING segments of this video first,
+    # so a retried/re-queued job never produces duplicate clips.
+    _delete_pending_for(youtube_id)
 
     method = "subtitles"
     inserted = 0
