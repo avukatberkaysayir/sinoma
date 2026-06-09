@@ -398,12 +398,14 @@ const Map<String, IconData> _cityIconOverrides = {
   'beihai': Icons.beach_access,
 };
 
-// The icon for a unit's nodes: a real landmark asset when one is bundled, else a
-// generic themed icon (override > deterministic spread).
-({String? asset, IconData icon}) _cityNodeIcon(int hsk, int unitIndex) {
+// The icon for one phase circle: the city's curated landmark for that phase (4 per
+// city, in order) when the city has a set, else a generic themed icon.
+({String? asset, IconData icon}) _cityNodeIcon(
+    int hsk, int unitIndex, int phaseIndex) {
   final c = cityForUnit(hsk, unitIndex);
+  final set = kCityIconSets[c.slug];
   final asset =
-      kCityIconAssets.contains(c.slug) ? 'assets/cities/${c.slug}.png' : null;
+      set != null ? cityIconAsset(c.slug, set[phaseIndex % set.length]) : null;
   final generic = _cityIconOverrides[c.slug] ??
       _genericCityIcons[(hsk * 31 + unitIndex) % _genericCityIcons.length];
   return (asset: asset, icon: generic);
@@ -578,9 +580,8 @@ class _UnitBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final city = cityForUnit(step.hsk, step.index);
-    final bannerAsset = kCityBannerAssets.contains(city.slug)
-        ? 'assets/banners/${city.slug}.png'
-        : null;
+    final iconSet = kCityIconSets[city.slug];
+    final hasBanner = iconSet != null;
     const shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
     final content = Align(
       alignment: Alignment.centerLeft,
@@ -596,7 +597,7 @@ class _UnitBanner extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5,
-                    shadows: bannerAsset != null ? shadow : null)),
+                    shadows: hasBanner ? shadow : null)),
             const SizedBox(height: 3),
             Text('${city.zh}  ${city.pinyin}',
                 maxLines: 1,
@@ -605,7 +606,7 @@ class _UnitBanner extends StatelessWidget {
                     color: Colors.white,
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
-                    shadows: bannerAsset != null ? shadow : null)),
+                    shadows: hasBanner ? shadow : null)),
           ],
         ),
       ),
@@ -630,22 +631,50 @@ class _UnitBanner extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               height: 92,
-              child: bannerAsset == null
+              child: !hasBanner
                   ? Container(color: color, child: content)
                   : Stack(
                       fit: StackFit.expand,
                       children: [
-                        Image.asset(bannerAsset, fit: BoxFit.cover),
-                        // Left-weighted dark gradient so the city name stays
-                        // legible over the illustration.
-                        DecoratedBox(
+                        // Dusk sky gradient.
+                        const DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [Color(0xFF283A60), Color(0xFFF0A878)],
+                            ),
+                          ),
+                        ),
+                        // Left-weighted dark gradient so the name stays legible
+                        // (under the icons so they stay bright on the right).
+                        const DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.centerLeft,
                               end: Alignment.centerRight,
-                              colors: [
-                                Colors.black.withValues(alpha: 0.62),
-                                Colors.black.withValues(alpha: 0.12),
+                              colors: [Color(0xCC000000), Color(0x00000000)],
+                              stops: [0.0, 0.55],
+                            ),
+                          ),
+                        ),
+                        // The unit's four landmarks, bottom-right, in phase order.
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: Padding(
+                            padding:
+                                const EdgeInsets.only(right: 12, bottom: 8),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                for (final n in iconSet)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 10),
+                                    child: Image.asset(
+                                        cityIconAsset(city.slug, n),
+                                        height: 58),
+                                  ),
                               ],
                             ),
                           ),
@@ -772,7 +801,7 @@ class _PhaseNode extends ConsumerWidget {
     // (a test for now); the rest keep the coloured circle with a generic themed
     // icon. State stays legible: a small corner badge (lock when locked, check
     // when done).
-    final ni = _cityNodeIcon(phase.hsk, phase.stepIndex);
+    final ni = _cityNodeIcon(phase.hsk, phase.stepIndex, phase.phaseIndex);
     final available = done || unlocked;
     Widget? badge;
     if (done) {

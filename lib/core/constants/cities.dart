@@ -12,18 +12,16 @@ class City {
   String get slug => pinyin.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
 
-// Cities that ship a real landmark icon at assets/cities/<slug>.png. Others fall
-// back to a generic themed icon (see _cityNodeIcon in path_screen). Add a slug
-// here once its PNG is dropped into assets/cities/.
-const Set<String> kCityIconAssets = {
-  'beijing',
+// Cities with a curated 4-landmark icon set: one icon per phase circle (in order)
+// and the same four shown in the unit banner. Names map to the asset files
+// assets/cities/<slug>-<name>.png. Cities not listed fall back to a generic themed
+// icon on the coloured circle + a plain coloured banner.
+const Map<String, List<String>> kCityIconSets = {
+  'beijing': ['great-wall', 'temple', 'pagoda', 'opera'],
 };
 
-// Cities that ship a wide banner illustration at assets/banners/<slug>.png, shown
-// behind the unit banner's city name. Others keep the plain coloured banner.
-const Set<String> kCityBannerAssets = {
-  'beijing',
-};
+String cityIconAsset(String slug, String name) =>
+    'assets/cities/$slug-$name.png';
 
 const List<City> kChineseCities = [
   // ── Most well-known (0-95) → HSK 1-4 ────────────────────────────────────────
