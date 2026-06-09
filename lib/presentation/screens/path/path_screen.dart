@@ -730,20 +730,12 @@ class _PhaseNode extends ConsumerWidget {
     final unlocked = isPhaseUnlocked(topic, phase, progress);
     final done = pp.done;
 
-    // The node IS the city's landmark icon — no circle behind it (real asset or
-    // a generic themed glyph). State stays legible: dimmed when locked + a small
-    // corner badge (lock when locked, check when done).
+    // Cities with a real landmark icon drop the circle and show the icon alone
+    // (a test for now); the rest keep the coloured circle with a generic themed
+    // icon. State stays legible: a small corner badge (lock when locked, check
+    // when done).
     final ni = _cityNodeIcon(phase.hsk, phase.stepIndex);
     final available = done || unlocked;
-    final Widget glyph;
-    if (ni.asset != null) {
-      final img = Image.asset(ni.asset!,
-          width: 72, height: 72, fit: BoxFit.contain);
-      glyph = available ? img : Opacity(opacity: 0.4, child: img);
-    } else {
-      glyph = Icon(ni.icon,
-          size: 56, color: available ? _duoGreen : _duoLocked);
-    }
     Widget? badge;
     if (done) {
       badge = _nodeBadge(Icons.check_rounded, _duoGreenDark);
@@ -781,23 +773,57 @@ class _PhaseNode extends ConsumerWidget {
       ref.invalidate(pathProgressProvider);
     }
 
-    final circle = GestureDetector(
-      onTap: open,
-      behavior: HitTestBehavior.opaque,
-      child: SizedBox(
-        width: 76,
-        height: 72,
-        child: Stack(
-          clipBehavior: Clip.none,
-          alignment: Alignment.center,
-          children: [
-            glyph,
-            if (badge != null)
-              Positioned(right: 4, bottom: 4, child: badge),
-          ],
+    final Widget circle;
+    if (ni.asset != null) {
+      // Real landmark icon — no circle behind it.
+      final img =
+          Image.asset(ni.asset!, width: 72, height: 72, fit: BoxFit.contain);
+      circle = GestureDetector(
+        onTap: open,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: 76,
+          height: 72,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              available ? img : Opacity(opacity: 0.4, child: img),
+              if (badge != null)
+                Positioned(right: 4, bottom: 4, child: badge),
+            ],
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      // Generic city icon on the coloured circle (until a real icon is added).
+      final topColor = available ? _duoGreen : _duoLocked;
+      final shadow = available ? _duoGreenDark : const Color(0xFF2A363D);
+      circle = GestureDetector(
+        onTap: open,
+        child: Container(
+          width: 74,
+          height: 70,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: topColor,
+            borderRadius: BorderRadius.circular(38),
+            boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
+          ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              Icon(ni.icon,
+                  size: 34,
+                  color: available ? Colors.white : Colors.white30),
+              if (badge != null)
+                Positioned(right: -3, bottom: -3, child: badge),
+            ],
+          ),
+        ),
+      );
+    }
     // Every slot carries vocabulary; words are fetched when opened.
     final browse = _BrowseButton(
       tr: tr,
