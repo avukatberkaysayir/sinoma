@@ -91,6 +91,73 @@ class AdminService {
     return res['id'] as String;
   }
 
+  // ── Import history ─────────────────────────────────────────────────────────
+
+  // Record (or refresh) that this YouTube video was segmented. Upsert by
+  // youtube_id so a re-import updates the row instead of duplicating it.
+  Future<void> recordImport(
+    String youtubeId,
+    String url, {
+    int clipCount = 0,
+    List<int>? hskFilter,
+    List<String>? grammarFilter,
+    List<String>? wordFilter,
+  }) async {
+    await _db.from('import_history').upsert({
+      'youtube_id': youtubeId,
+      'url': url,
+      'clip_count': clipCount,
+      'hsk_filter': hskFilter,
+      'grammar_filter': grammarFilter,
+      'word_filter': wordFilter,
+      'segmented_at': DateTime.now().toUtc().toIso8601String(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'youtube_id');
+  }
+
+  // The prior import of this video, or null — drives the re-import warning.
+  Future<Map<String, dynamic>?> findImport(String youtubeId) async {
+    final data = await _db
+        .from('import_history')
+        .select()
+        .eq('youtube_id', youtubeId)
+        .maybeSingle();
+    return data == null ? null : Map<String, dynamic>.from(data);
+  }
+
+  // Full segmentation history, newest first.
+  Future<List<Map<String, dynamic>>> loadImportHistory() async {
+    final data = await _db
+        .from('import_history')
+        .select()
+        .order('segmented_at', ascending: false)
+        .limit(500);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  // Ask the local worker to fetch channel/title/year for this video (yt-dlp) and
+  // fill them into import_history. Fire-and-forget; works only while the worker
+  // runs, but history + the warning don't depend on it.
+  Future<void> enqueueVideoMeta(String youtubeId, String url) async {
+    await _db.from('pipeline_jobs').insert({
+      'job_type': 'video_meta',
+      'payload': {'url': url, 'youtube_id': youtubeId},
+    });
+  }
+
+  // Active clips with their placement + source, for the history placement view.
+  Future<List<Map<String, dynamic>>> loadActivePlacements() async {
+    final data = await _db
+        .from('videos')
+        .select('youtube_id, source_type, video_url, start_time, end_time, '
+            'level, unit, phase, slot_grammar, slot_word, transcription, hsk_level')
+        .eq('status', 'active')
+        .order('level')
+        .order('unit')
+        .order('phase');
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   // Enqueue a movie job. The local poller reads videoPath (a path on the
   // machine running the worker) from disk, extracts clips, uploads them to
   // Supabase Storage and inserts self_hosted rows. No localhost call, no

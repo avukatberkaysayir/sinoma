@@ -92,7 +92,20 @@ def _poll_loop(base_url: str, service_key: str) -> None:
     from youtube_asr_pipeline import run as asr_run
     from youtube_asr_pipeline import transcribe_clip
     from movie_supabase_pipeline import run as movie_run
+    from youtube_miner import fetch_video_meta
     from pathlib import Path
+
+    def _write_video_meta(youtube_id: str, url: str) -> dict[str, Any]:
+        meta = fetch_video_meta(url)
+        if meta and youtube_id:
+            requests.patch(
+                f"{base_url}/rest/v1/import_history",
+                params={"youtube_id": f"eq.{youtube_id}"},
+                json={**meta, "updated_at": datetime.now(timezone.utc).isoformat()},
+                headers=_headers(service_key),
+                timeout=15,
+            )
+        return meta or {}
 
     while True:
         try:
@@ -108,7 +121,10 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                 try:
                     def _progress(n: int, meta: dict[str, Any] | None = None) -> None:
                         _update_progress(base_url, service_key, job_id, n, meta)
-                    if job_type == "whisper_clip":
+                    if job_type == "video_meta":
+                        result = _write_video_meta(
+                            payload.get("youtube_id", ""), url)
+                    elif job_type == "whisper_clip":
                         result = transcribe_clip(
                             url,
                             float(payload.get("start", 0)),

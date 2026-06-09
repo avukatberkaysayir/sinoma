@@ -178,6 +178,36 @@ def _run_ytdlp(args: list[str], timeout: int = 180) -> subprocess.CompletedProce
     )
 
 
+def fetch_video_meta(url: str) -> dict[str, Any]:
+    """Channel + title + upload year for the import history, via yt-dlp metadata
+    only (no download). Returns {} on any failure (best-effort)."""
+    for client_args, cookie_args in _STRATEGIES[:8]:
+        try:
+            result = _run_ytdlp(
+                _YTDLP_BASE_ARGS + cookie_args + client_args + [
+                    "--skip-download",
+                    "--print", "%(channel|uploader)s\n%(upload_date)s\n%(title)s",
+                    url,
+                ],
+                timeout=40,
+            )
+        except subprocess.TimeoutExpired:
+            continue
+        lines = result.stdout.strip().splitlines()
+        if result.returncode == 0 and len(lines) >= 3 and lines[2].strip():
+            channel = lines[0].strip()
+            upload = lines[1].strip()
+            year = None
+            if len(upload) >= 4 and upload[:4].isdigit():
+                year = int(upload[:4])
+            return {
+                "channel": channel if channel not in ("NA", "") else None,
+                "upload_year": year,
+                "title": lines[2].strip(),
+            }
+    return {}
+
+
 # ---------------------------------------------------------------------------
 # Subtitle download
 # ---------------------------------------------------------------------------

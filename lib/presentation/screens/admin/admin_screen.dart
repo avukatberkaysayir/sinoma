@@ -16,7 +16,7 @@ import '../../providers/path_provider.dart';
 
 enum _Section { video, dictionary, users, social, game }
 enum _VideoSub { youtube, movie }
-enum _VideoAction { add, manage }
+enum _VideoAction { add, manage, history }
 
 // ── Admin Screen ──────────────────────────────────────────────────────────────
 
@@ -104,9 +104,13 @@ class _AdminScreenState extends State<AdminScreen> {
 
   Widget _buildVideoBody() {
     if (_activeSub == _VideoSub.youtube) {
-      return _activeAction == _VideoAction.add
-          ? _YouTubeTab(onVideosChanged: () => _ytReviewKey.currentState?.refresh())
-          : _VideoReviewPanel(key: _ytReviewKey, service: _service, sourceType: 'youtube');
+      return switch (_activeAction) {
+        _VideoAction.add =>
+          _YouTubeTab(onVideosChanged: () => _ytReviewKey.currentState?.refresh()),
+        _VideoAction.history => const _HistoryPanel(),
+        _VideoAction.manage => _VideoReviewPanel(
+            key: _ytReviewKey, service: _service, sourceType: 'youtube'),
+      };
     } else {
       return _activeAction == _VideoAction.add
           ? _MovieImportTab(onVideosChanged: () => _mvReviewKey.currentState?.refresh())
@@ -149,6 +153,7 @@ class _NavRail extends StatelessWidget {
   bool get _mvActive => _videoActive && activeSub == _VideoSub.movie;
   bool get _ytAddActive => _ytActive && activeAction == _VideoAction.add;
   bool get _ytManageActive => _ytActive && activeAction == _VideoAction.manage;
+  bool get _ytHistoryActive => _ytActive && activeAction == _VideoAction.history;
   bool get _mvAddActive => _mvActive && activeAction == _VideoAction.add;
   bool get _mvManageActive => _mvActive && activeAction == _VideoAction.manage;
 
@@ -186,6 +191,12 @@ class _NavRail extends StatelessWidget {
                 label: 'Yönet',
                 selected: _ytManageActive,
                 onTap: () => onSelectAction(_VideoSub.youtube, _VideoAction.manage),
+              ),
+              _LeafItem(
+                label: 'Geçmiş',
+                selected: _ytHistoryActive,
+                onTap: () =>
+                    onSelectAction(_VideoSub.youtube, _VideoAction.history),
               ),
             ],
             _MidItem(
@@ -4284,6 +4295,10 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
   final Set<String> _wordFilter = {};
   final Set<int> _expandedGrammarLevels = {};
 
+  // Re-import warning: the prior import_history row for the URL in the box (if any).
+  Map<String, dynamic>? _priorImport;
+  String _checkedYtId = '';
+
   // ── Countdown ETA + live import stream ────────────────────────────────────
   DateTime? _processingStart;
   DateTime? _lastProgressAt; // last time new segments appeared (stall detection)
@@ -4294,6 +4309,37 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
   double? _etaTotalSec;    // estimated total processing time (re-anchored per poll)
   List<Map<String, dynamic>> _liveVideos = [];
   Timer? _liveVideoTimer;
+
+  // Persist that this video was segmented + ask the worker for its metadata.
+  Future<void> _recordImport(String id, String url, int clipCount,
+      List<int>? hsk, List<String>? grammar, List<String>? word) async {
+    if (id.isEmpty) return;
+    try {
+      await _service.recordImport(id, url,
+          clipCount: clipCount,
+          hskFilter: hsk,
+          grammarFilter: grammar,
+          wordFilter: word);
+      await _service.enqueueVideoMeta(id, url);
+    } catch (_) {}
+  }
+
+  // Look up whether the URL in the box was already segmented (debounced by id).
+  Future<void> _checkPriorImport(String input) async {
+    final id = _extractYtId(input);
+    if (id == _checkedYtId) return;
+    _checkedYtId = id;
+    if (id.length != 11) {
+      if (_priorImport != null && mounted) {
+        setState(() => _priorImport = null);
+      }
+      return;
+    }
+    try {
+      final prior = await _service.findImport(id);
+      if (mounted && id == _checkedYtId) setState(() => _priorImport = prior);
+    } catch (_) {}
+  }
 
   void _toggleHskFilter(int lvl) {
     setState(() {
@@ -4418,6 +4464,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
         wordFilter: wordFilter,
       );
       final kept = written - deleted;
+      await _recordImport(videoId, url, kept, filter, grammarFilter, wordFilter);
       final vids = await _service.listVideosByYoutubeId(videoId);
       if (mounted) {
         _stopTimers();
@@ -4534,6 +4581,8 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
             wordFilter: _asrJobWordFilter,
           );
           final kept = written - deleted;
+          await _recordImport(_asrJobYoutubeId, _urlCtrl.text.trim(), kept,
+              _asrJobFilter, _asrJobGrammarFilter, _asrJobWordFilter);
           if (!mounted) return;
           final vids = await _service.listVideosByYoutubeId(_asrJobYoutubeId);
           _jobPollTimer?.cancel();
@@ -4873,7 +4922,10 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
 
           TextField(
             controller: _urlCtrl,
-            onChanged: (_) => setState(() {}),
+            onChanged: (v) {
+              setState(() {});
+              _checkPriorImport(v);
+            },
             style: const TextStyle(color: AppColors.onSurface),
             decoration: InputDecoration(
               hintText: 'https://www.youtube.com/watch?v=...',
@@ -4887,6 +4939,10 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                   color: AppColors.onSurfaceMuted, size: 18),
             ),
           ),
+          if (_priorImport != null) ...[
+            const SizedBox(height: 8),
+            _ReimportWarning(data: _priorImport!),
+          ],
           const SizedBox(height: 10),
 
           Container(
@@ -5051,6 +5107,502 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
           ],
         ],
       ),
+    );
+  }
+}
+
+// ── History panel (Geçmiş) ────────────────────────────────────────────────────
+
+class _HistoryPanel extends ConsumerStatefulWidget {
+  const _HistoryPanel();
+  @override
+  ConsumerState<_HistoryPanel> createState() => _HistoryPanelState();
+}
+
+class _HistoryPanelState extends ConsumerState<_HistoryPanel>
+    with SingleTickerProviderStateMixin {
+  final _service = AdminService();
+  late final TabController _tabs;
+  late Future<List<Map<String, dynamic>>> _historyFut;
+  late Future<({List<Map<String, dynamic>> placements,
+          Map<String, Map<String, dynamic>> hist})>
+      _placementFut;
+
+  // Placement cascade selection.
+  int? _pL, _pU, _pP;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+    _reload();
+  }
+
+  void _reload() {
+    _historyFut = _service.loadImportHistory();
+    _placementFut = _loadPlacement();
+  }
+
+  Future<({List<Map<String, dynamic>> placements,
+          Map<String, Map<String, dynamic>> hist})>
+      _loadPlacement() async {
+    final p = await _service.loadActivePlacements();
+    final h = await _service.loadImportHistory();
+    final hm = {for (final r in h) (r['youtube_id'] as String? ?? ''): r};
+    return (placements: p, hist: hm);
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  Future<void> _open(String? url) async {
+    if (url == null || url.isEmpty) return;
+    final uri = Uri.tryParse(url);
+    if (uri != null) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: Row(children: [
+            const Icon(Icons.history, size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            const Text('Geçmiş',
+                style: TextStyle(
+                    color: AppColors.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700)),
+            const Spacer(),
+            IconButton(
+              onPressed: () => setState(_reload),
+              icon: const Icon(Icons.refresh,
+                  size: 18, color: AppColors.onSurfaceMuted),
+              tooltip: 'Yenile',
+            ),
+          ]),
+        ),
+        TabBar(
+          controller: _tabs,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.onSurfaceMuted,
+          indicatorColor: AppColors.primary,
+          tabs: const [
+            Tab(text: 'Parçalananlar'),
+            Tab(text: 'Yerleşim'),
+          ],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [_buildHistoryList(), _buildPlacement()],
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Tab 1: list of segmented videos ─────────────────────────────────────────
+  Widget _buildHistoryList() {
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: _historyFut,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final rows = snap.data ?? const [];
+        if (rows.isEmpty) {
+          return const Center(
+            child: Text('Henüz video parçalanmadı.',
+                style:
+                    TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.all(16),
+          itemCount: rows.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (_, i) => _historyCard(rows[i]),
+        );
+      },
+    );
+  }
+
+  Widget _historyCard(Map<String, dynamic> r) {
+    final ytId = r['youtube_id'] as String? ?? '';
+    final url = r['url'] as String? ?? '';
+    final title = r['title'] as String?;
+    final channel = r['channel'] as String?;
+    final year = (r['upload_year'] as num?)?.toInt();
+    final clips = (r['clip_count'] as num?)?.toInt() ?? 0;
+    final date = _fmtDate(r['segmented_at'] as String?);
+    final hsk = (r['hsk_filter'] as List?)?.cast<num>().map((e) => e.toInt());
+    final grammar = (r['grammar_filter'] as List?)?.cast<String>();
+    final word = (r['word_filter'] as List?)?.cast<String>();
+    final filters = <String>[
+      if (hsk != null && hsk.isNotEmpty) 'HSK ${hsk.join("+")}',
+      if (grammar != null && grammar.isNotEmpty) '${grammar.length} gramer',
+      if (word != null && word.isNotEmpty) '${word.length} kelime',
+    ];
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+            color: AppColors.onSurfaceMuted.withValues(alpha: 0.15)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (ytId.isNotEmpty)
+          ClipRRect(
+            borderRadius:
+                const BorderRadius.horizontal(left: Radius.circular(10)),
+            child: Image.network(
+              'https://img.youtube.com/vi/$ytId/mqdefault.jpg',
+              width: 96,
+              fit: BoxFit.cover,
+              errorBuilder: (_, __, ___) => Container(
+                  width: 96,
+                  color: AppColors.surface,
+                  child: const Icon(Icons.play_circle_outline,
+                      color: AppColors.onSurfaceMuted)),
+            ),
+          ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title?.isNotEmpty == true ? title! : '(başlık alınıyor…)',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: AppColors.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  [
+                    if (channel?.isNotEmpty == true) channel!,
+                    if (year != null) '$year'
+                  ].join(' · '),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11),
+                ),
+                const SizedBox(height: 4),
+                Row(children: [
+                  Text('$date · $clips klip',
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 11)),
+                  if (filters.isNotEmpty) ...[
+                    const Text('  ·  ',
+                        style: TextStyle(
+                            color: AppColors.onSurfaceMuted, fontSize: 11)),
+                    Flexible(
+                      child: Text(filters.join(' · '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: AppColors.primary, fontSize: 11)),
+                    ),
+                  ],
+                ]),
+              ],
+            ),
+          ),
+        ),
+        IconButton(
+          onPressed: () => _open(url),
+          icon: const Icon(Icons.open_in_new,
+              size: 16, color: AppColors.onSurfaceMuted),
+          tooltip: 'YouTube’da aç',
+        ),
+      ]),
+    );
+  }
+
+  // ── Tab 2: placement cascade (same flow as the Active tab) ──────────────────
+  Widget _buildPlacement() {
+    return FutureBuilder<
+        ({
+          List<Map<String, dynamic>> placements,
+          Map<String, Map<String, dynamic>> hist
+        })>(
+      future: _placementFut,
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final placements = snap.data?.placements ?? const [];
+        final hist = snap.data?.hist ?? const {};
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _levelRow(),
+            if (_pL != null) _unitGrid(),
+            if (_pL != null && _pU != null) _phaseRow(),
+            const Divider(height: 1, color: AppColors.surfaceVariant),
+            Expanded(
+              child: (_pL == null || _pU == null || _pP == null)
+                  ? const Center(
+                      child: Text('Level → Ünite → Bölüm seç',
+                          style: TextStyle(
+                              color: AppColors.onSurfaceMuted, fontSize: 13)))
+                  : _placementList(placements, hist),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _levelRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+      child: Row(children: [
+        for (int l = 1; l <= 6; l++)
+          Expanded(
+            child: _cell('L$l', _pL == l, AppColors.forHskLevel(l), () {
+              setState(() {
+                _pL = _pL == l ? null : l;
+                _pU = null;
+                _pP = null;
+              });
+            }),
+          ),
+      ]),
+    );
+  }
+
+  Widget _unitGrid() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 4),
+      child: Column(children: [
+        for (final start in [1, 13])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Row(children: [
+              for (int u = start; u < start + 12; u++)
+                Expanded(
+                  child: _cell('$u', _pU == u, AppColors.primary, () {
+                    setState(() {
+                      _pU = _pU == u ? null : u;
+                      _pP = null;
+                    });
+                  }),
+                ),
+            ]),
+          ),
+      ]),
+    );
+  }
+
+  Widget _phaseRow() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 2, 12, 8),
+      child: Row(children: [
+        for (int p = 1; p <= 4; p++)
+          Expanded(
+            child: _cell('Bölüm $p', _pP == p, AppColors.primary,
+                () => setState(() => _pP = _pP == p ? null : p)),
+          ),
+      ]),
+    );
+  }
+
+  Widget _cell(String text, bool sel, Color accent, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 3),
+      child: Material(
+        color: sel ? accent : AppColors.surface,
+        borderRadius: BorderRadius.circular(9),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(9),
+          child: Container(
+            height: 38,
+            alignment: Alignment.center,
+            child: FittedBox(
+              child: Text(text,
+                  style: TextStyle(
+                      color: sel ? Colors.white : AppColors.onSurfaceMuted,
+                      fontSize: 14,
+                      fontWeight: sel ? FontWeight.w800 : FontWeight.w600)),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _placementList(List<Map<String, dynamic>> placements,
+      Map<String, Map<String, dynamic>> hist) {
+    final byName = ref.watch(grammarByNameProvider);
+    final here = placements
+        .where((v) =>
+            (v['level'] as num?)?.toInt() == _pL &&
+            (v['unit'] as num?)?.toInt() == _pU &&
+            (v['phase'] as num?)?.toInt() == _pP)
+        .toList()
+      // grammar slots first, then words
+      ..sort((a, b) {
+        final ag = a['slot_grammar'] != null ? 0 : 1;
+        final bg = b['slot_grammar'] != null ? 0 : 1;
+        return ag.compareTo(bg);
+      });
+    if (here.isEmpty) {
+      return const Center(
+        child: Text('Bu bölümde yerleşmiş aktif video yok.',
+            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: here.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) => _placementRow(here[i], byName, hist),
+    );
+  }
+
+  Widget _placementRow(Map<String, dynamic> v,
+      Map<String, GrammarMeta> byName, Map<String, Map<String, dynamic>> hist) {
+    final ytId = v['youtube_id'] as String? ?? '';
+    final start = (v['start_time'] as num?)?.toInt() ?? 0;
+    final slotG = v['slot_grammar'] as String?;
+    final slotW = v['slot_word'] as String?;
+    final isGrammar = slotG != null;
+    final label = isGrammar
+        ? 'Gramer ${byName[slotG]?.zh ?? slotG}'
+        : 'Kelime ${slotW ?? '—'}';
+    final url = ytId.isNotEmpty
+        ? 'https://www.youtube.com/watch?v=$ytId&t=${start}s'
+        : (v['video_url'] as String? ?? '');
+    final h = hist[ytId];
+    final meta = [
+      if (h?['channel'] != null && (h!['channel'] as String).isNotEmpty)
+        h['channel'] as String,
+      if (h?['title'] != null && (h!['title'] as String).isNotEmpty)
+        h['title'] as String,
+      if (h?['upload_year'] != null) '${h!['upload_year']}',
+    ].join(', ');
+    return InkWell(
+      onTap: () => _open(url),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+              color: (isGrammar ? AppColors.primary : AppColors.correctAnswer)
+                  .withValues(alpha: 0.35)),
+        ),
+        child: Row(children: [
+          Icon(isGrammar ? Icons.rule : Icons.translate,
+              size: 16,
+              color: isGrammar ? AppColors.primary : AppColors.correctAnswer),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('L$_pL Ünite $_pU, Bölüm $_pP: $label',
+                    style: const TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(url,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Color(0xFF4FA3FF),
+                        fontSize: 11,
+                        decoration: TextDecoration.underline)),
+                if (meta.isNotEmpty)
+                  Text(meta,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 11)),
+              ],
+            ),
+          ),
+          const Icon(Icons.open_in_new,
+              size: 15, color: AppColors.onSurfaceMuted),
+        ]),
+      ),
+    );
+  }
+}
+
+// ── Re-import warning (URL was segmented before) ──────────────────────────────
+
+String _fmtDate(String? iso) {
+  if (iso == null) return '';
+  final d = DateTime.tryParse(iso)?.toLocal();
+  if (d == null) return '';
+  String two(int n) => n.toString().padLeft(2, '0');
+  return '${two(d.day)}.${two(d.month)}.${d.year} ${two(d.hour)}:${two(d.minute)}';
+}
+
+class _ReimportWarning extends StatelessWidget {
+  final Map<String, dynamic> data;
+  const _ReimportWarning({required this.data});
+
+  static const _amber = Color(0xFFFFA000);
+
+  @override
+  Widget build(BuildContext context) {
+    final title = data['title'] as String?;
+    final channel = data['channel'] as String?;
+    final year = (data['upload_year'] as num?)?.toInt();
+    final clips = (data['clip_count'] as num?)?.toInt() ?? 0;
+    final date = _fmtDate(data['segmented_at'] as String?);
+    final meta = [
+      if (channel != null && channel.isNotEmpty) channel,
+      if (title != null && title.isNotEmpty) title,
+      if (year != null) '$year',
+    ].join(' · ');
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: _amber.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: _amber.withValues(alpha: 0.6)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.warning_amber_rounded, size: 18, color: _amber),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Bu video daha önce parçalandı',
+                style: TextStyle(
+                    color: _amber, fontSize: 12, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 2),
+            Text(
+              [if (date.isNotEmpty) date, '$clips klip', if (meta.isNotEmpty) meta]
+                  .join(' · '),
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 11),
+            ),
+            const Text('Tekrar parçalarsan yeni klipler "Onay Bekleyen"e eklenir.',
+                style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10)),
+          ]),
+        ),
+      ]),
     );
   }
 }
