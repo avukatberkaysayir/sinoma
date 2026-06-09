@@ -578,17 +578,43 @@ class _UnitBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final city = cityForUnit(step.hsk, step.index);
+    final bannerAsset = kCityBannerAssets.contains(city.slug)
+        ? 'assets/banners/${city.slug}.png'
+        : null;
+    const shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
+              style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
+                  shadows: bannerAsset != null ? shadow : null)),
+          const SizedBox(height: 3),
+          Text('${city.zh}  ${city.pinyin}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  shadows: bannerAsset != null ? shadow : null)),
+        ],
+      ),
+    );
     return Container(
       color: _duoBg,
       alignment: Alignment.center,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        child: DecoratedBox(
           decoration: BoxDecoration(
-            color: color,
             borderRadius: BorderRadius.circular(16),
             boxShadow: [
               BoxShadow(
@@ -596,26 +622,35 @@ class _UnitBanner extends StatelessWidget {
                   offset: const Offset(0, 3)),
             ],
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                  'L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
-                  style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.5)),
-              const SizedBox(height: 3),
-              Text('${city.zh}  ${city.pinyin}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800)),
-            ],
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: bannerAsset == null
+                ? Container(
+                    width: double.infinity, color: color, child: content)
+                : Stack(
+                    children: [
+                      Positioned.fill(
+                        child: Image.asset(bannerAsset, fit: BoxFit.cover),
+                      ),
+                      // Left-weighted dark gradient so the city name stays legible
+                      // over the illustration.
+                      Positioned.fill(
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                              colors: [
+                                Colors.black.withValues(alpha: 0.62),
+                                Colors.black.withValues(alpha: 0.12),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: double.infinity, child: content),
+                    ],
+                  ),
           ),
         ),
       ),
@@ -843,7 +878,6 @@ class _PhaseNode extends ConsumerWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: Column(
         children: [
-          if (isCurrent) const _StartBubble(),
           Row(
             mainAxisSize: MainAxisSize.min,
             children: browseLeft
@@ -1023,28 +1057,6 @@ class _SlotWordPanel extends ConsumerWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _StartBubble extends StatelessWidget {
-  const _StartBubble();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Color(0x22000000), blurRadius: 6, offset: Offset(0, 2)),
-        ],
-      ),
-      child: const Text('BAŞLAT',
-          style: TextStyle(
-              color: _duoGreen, fontSize: 14, fontWeight: FontWeight.w800)),
     );
   }
 }

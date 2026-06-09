@@ -19,6 +19,12 @@ const Set<String> kCityIconAssets = {
   'beijing',
 };
 
+// Cities that ship a wide banner illustration at assets/banners/<slug>.png, shown
+// behind the unit banner's city name. Others keep the plain coloured banner.
+const Set<String> kCityBannerAssets = {
+  'beijing',
+};
+
 const List<City> kChineseCities = [
   // ── Most well-known (0-95) → HSK 1-4 ────────────────────────────────────────
   City('北京', 'Beijing'), City('上海', 'Shanghai'), City('广州', 'Guangzhou'),
