@@ -5123,7 +5123,11 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
     with SingleTickerProviderStateMixin {
   final _service = AdminService();
   late final TabController _tabs;
-  late Future<List<Map<String, dynamic>>> _historyFut;
+  late Future<
+      ({
+        List<Map<String, dynamic>> rows,
+        Map<String, ({int active, int backup})> counts
+      })> _libFut;
   // New keys force the placement views to reload on refresh.
   Key _activeKey = UniqueKey();
   Key _backupKey = UniqueKey();
@@ -5132,12 +5136,26 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
-    _historyFut = _service.loadImportHistory();
+    _libFut = _loadLibrary();
+  }
+
+  // Library = only source videos with ≥1 active or backup clip (pending-only
+  // imports stay recorded but aren't listed here).
+  Future<
+      ({
+        List<Map<String, dynamic>> rows,
+        Map<String, ({int active, int backup})> counts
+      })> _loadLibrary() async {
+    final rows = await _service.loadImportHistory();
+    final counts = await _service.loadActiveBackupCounts();
+    final filtered =
+        rows.where((r) => counts.containsKey(r['youtube_id'])).toList();
+    return (rows: filtered, counts: counts);
   }
 
   void _reload() {
     setState(() {
-      _historyFut = _service.loadImportHistory();
+      _libFut = _loadLibrary();
       _activeKey = UniqueKey();
       _backupKey = UniqueKey();
     });
@@ -5206,18 +5224,23 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
     );
   }
 
-  // ── Tab 1: list of segmented videos ─────────────────────────────────────────
+  // ── Tab 1: library of segmented videos (only those with active/backup) ──────
   Widget _buildHistoryList() {
-    return FutureBuilder<List<Map<String, dynamic>>>(
-      future: _historyFut,
+    return FutureBuilder<
+        ({
+          List<Map<String, dynamic>> rows,
+          Map<String, ({int active, int backup})> counts
+        })>(
+      future: _libFut,
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
-        final rows = snap.data ?? const [];
+        final rows = snap.data?.rows ?? const [];
+        final counts = snap.data?.counts ?? const {};
         if (rows.isEmpty) {
           return const Center(
-            child: Text('Henüz video parçalanmadı.',
+            child: Text('Henüz aktif/yedek videoya dönüşen parçalama yok.',
                 style:
                     TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
           );
@@ -5226,19 +5249,24 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
           padding: const EdgeInsets.all(16),
           itemCount: rows.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
-          itemBuilder: (_, i) => _historyCard(rows[i]),
+          itemBuilder: (_, i) => _historyCard(
+              rows[i], counts[rows[i]['youtube_id']]),
         );
       },
     );
   }
 
-  Widget _historyCard(Map<String, dynamic> r) {
+  Widget _historyCard(
+      Map<String, dynamic> r, ({int active, int backup})? count) {
     final ytId = r['youtube_id'] as String? ?? '';
     final url = r['url'] as String? ?? '';
     final title = r['title'] as String?;
     final channel = r['channel'] as String?;
     final year = (r['upload_year'] as num?)?.toInt();
-    final clips = (r['clip_count'] as num?)?.toInt() ?? 0;
+    final clipsLabel = [
+      if ((count?.active ?? 0) > 0) '${count!.active} aktif',
+      if ((count?.backup ?? 0) > 0) '${count!.backup} yedek',
+    ].join(' · ');
     final date = _fmtDate(r['segmented_at'] as String?);
     final hsk = (r['hsk_filter'] as List?)?.cast<num>().map((e) => e.toInt());
     final grammar = (r['grammar_filter'] as List?)?.cast<String>();
@@ -5299,7 +5327,9 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
                 ),
                 const SizedBox(height: 4),
                 Row(children: [
-                  Text('$date · $clips klip',
+                  Text(
+                      [if (date.isNotEmpty) date, if (clipsLabel.isNotEmpty) '$clipsLabel klip']
+                          .join(' · '),
                       style: const TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 11)),
                   if (filters.isNotEmpty) ...[
@@ -5399,7 +5429,7 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
                       child: Text('Level → Ünite → Bölüm seç',
                           style: TextStyle(
                               color: AppColors.onSurfaceMuted, fontSize: 13)))
-                  : _placementList(placements, hist),
+                  : _buildSlotTemplate(placements, hist),
             ),
           ],
         );
@@ -5486,47 +5516,122 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
     );
   }
 
-  Widget _placementList(List<Map<String, dynamic>> placements,
+  // Slot template — same layout as Yönet › Aktif: a "Gramer" section (rules of
+  // this unit, phase 1) then a "Kelimeler" section, each slot showing its placed
+  // clip links in order, or a green "BOŞ" badge when nothing landed there yet.
+  Widget _buildSlotTemplate(List<Map<String, dynamic>> placements,
       Map<String, Map<String, dynamic>> hist) {
-    final byName = ref.watch(grammarByNameProvider);
-    final here = placements
-        .where((v) =>
-            (v['level'] as num?)?.toInt() == _pL &&
-            (v['unit'] as num?)?.toInt() == _pU &&
-            (v['phase'] as num?)?.toInt() == _pP)
-        .toList()
-      // grammar slots first, then words
-      ..sort((a, b) {
-        final ag = a['slot_grammar'] != null ? 0 : 1;
-        final bg = b['slot_grammar'] != null ? 0 : 1;
-        return ag.compareTo(bg);
-      });
-    if (here.isEmpty) {
-      return Center(
-        child: Text(
-            'Bu bölümde ${widget.backup ? 'yedek' : 'aktif'} video yok.',
-            style: const TextStyle(
-                color: AppColors.onSurfaceMuted, fontSize: 13)),
-      );
+    final grammars = (ref.watch(grammarByLevelProvider)[_pL] ?? const [])
+        .where((g) => g.unit == _pU)
+        .toList();
+    final wordsAsync = ref.watch(
+        slotWordsProvider((level: _pL!, unit: _pU!, phase: _pP!)));
+    final here = placements.where((v) =>
+        (v['level'] as num?)?.toInt() == _pL &&
+        (v['unit'] as num?)?.toInt() == _pU &&
+        (v['phase'] as num?)?.toInt() == _pP);
+    final byGrammar = <String, List<Map<String, dynamic>>>{};
+    final byWord = <String, List<Map<String, dynamic>>>{};
+    for (final v in here) {
+      final g = v['slot_grammar'] as String?;
+      final w = v['slot_word'] as String?;
+      if (g != null) (byGrammar[g] ??= []).add(v);
+      if (w != null) (byWord[w] ??= []).add(v);
     }
-    return ListView.separated(
-      padding: const EdgeInsets.all(16),
-      itemCount: here.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 8),
-      itemBuilder: (_, i) => _placementRow(here[i], byName, hist),
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
+      children: [
+        if (_pP == 1 && grammars.isNotEmpty) ...[
+          _sectionLabel('Gramer'),
+          for (final g in grammars)
+            _slotEntry('${g.zh}  (${g.tr})', byGrammar[g.name] ?? const [],
+                hist),
+        ],
+        _sectionLabel('Kelimeler'),
+        wordsAsync.when(
+          loading: () => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(
+                  child: CircularProgressIndicator(color: AppColors.primary))),
+          error: (e, _) => const Padding(
+              padding: EdgeInsets.all(16),
+              child: Text('Kelimeler yüklenemedi',
+                  style: TextStyle(color: AppColors.onSurfaceMuted))),
+          data: (words) => words.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(8),
+                  child: Text('Bu bölüme atanmış kelime yok.',
+                      style: TextStyle(color: AppColors.onSurfaceMuted)))
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final w in words)
+                      _slotEntry('${w.word}  (${w.tr})',
+                          byWord[w.word] ?? const [], hist),
+                  ],
+                ),
+        ),
+      ],
     );
   }
 
-  Widget _placementRow(Map<String, dynamic> v,
-      Map<String, GrammarMeta> byName, Map<String, Map<String, dynamic>> hist) {
+  Widget _sectionLabel(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+        child: Row(children: [
+          Text(text,
+              style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(width: 8),
+          const Expanded(child: Divider(color: AppColors.primary, height: 1)),
+        ]),
+      );
+
+  Widget _emptyBadge() => Container(
+        margin: const EdgeInsets.only(left: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: AppColors.correctAnswer.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.correctAnswer),
+        ),
+        child: const Text('BOŞ',
+            style: TextStyle(
+                color: AppColors.correctAnswer,
+                fontSize: 12,
+                fontWeight: FontWeight.w800)),
+      );
+
+  Widget _slotEntry(String label, List<Map<String, dynamic>> videos,
+      Map<String, Map<String, dynamic>> hist) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
+          child: Text(label,
+              style: const TextStyle(
+                  color: AppColors.onSurface,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+        ),
+        if (videos.isEmpty)
+          _emptyBadge()
+        else
+          for (final v in videos) ...[
+            _linkRow(v, hist),
+            const SizedBox(height: 6),
+          ],
+        const SizedBox(height: 12),
+      ],
+    );
+  }
+
+  Widget _linkRow(
+      Map<String, dynamic> v, Map<String, Map<String, dynamic>> hist) {
     final ytId = v['youtube_id'] as String? ?? '';
     final start = (v['start_time'] as num?)?.toInt() ?? 0;
-    final slotG = v['slot_grammar'] as String?;
-    final slotW = v['slot_word'] as String?;
-    final isGrammar = slotG != null;
-    final label = isGrammar
-        ? 'Gramer ${byName[slotG]?.zh ?? slotG}'
-        : 'Kelime ${slotW ?? '—'}';
     final url = ytId.isNotEmpty
         ? 'https://www.youtube.com/watch?v=$ytId&t=${start}s'
         : (v['video_url'] as String? ?? '');
@@ -5542,29 +5647,30 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
       onTap: () => _open(url),
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
           color: AppColors.surfaceVariant,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-              color: (isGrammar ? AppColors.primary : AppColors.correctAnswer)
-                  .withValues(alpha: 0.35)),
+              color: AppColors.onSurfaceMuted.withValues(alpha: 0.18)),
         ),
         child: Row(children: [
-          Icon(isGrammar ? Icons.rule : Icons.translate,
-              size: 16,
-              color: isGrammar ? AppColors.primary : AppColors.correctAnswer),
+          if (ytId.isNotEmpty)
+            ClipRRect(
+              borderRadius: BorderRadius.circular(5),
+              child: Image.network(
+                'https://img.youtube.com/vi/$ytId/default.jpg',
+                width: 52,
+                height: 30,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const SizedBox(width: 52),
+              ),
+            ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('L$_pL Ünite $_pU, Bölüm $_pP: $label',
-                    style: const TextStyle(
-                        color: AppColors.onSurface,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 2),
                 Text(url,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

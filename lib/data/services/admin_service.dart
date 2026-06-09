@@ -125,6 +125,27 @@ class AdminService {
     return data == null ? null : Map<String, dynamic>.from(data);
   }
 
+  // How many active / backup clips each source video currently has — the library
+  // list shows only videos with at least one (pending-only imports are hidden).
+  Future<Map<String, ({int active, int backup})>>
+      loadActiveBackupCounts() async {
+    final data = await _db
+        .from('videos')
+        .select('youtube_id, status')
+        .inFilter('status', ['active', 'backup']);
+    final rows = List<Map<String, dynamic>>.from(data);
+    final m = <String, ({int active, int backup})>{};
+    for (final r in rows) {
+      final id = r['youtube_id'] as String?;
+      if (id == null || id.isEmpty) continue;
+      final cur = m[id] ?? (active: 0, backup: 0);
+      m[id] = r['status'] == 'active'
+          ? (active: cur.active + 1, backup: cur.backup)
+          : (active: cur.active, backup: cur.backup + 1);
+    }
+    return m;
+  }
+
   // Full segmentation history, newest first.
   Future<List<Map<String, dynamic>>> loadImportHistory() async {
     final data = await _db
