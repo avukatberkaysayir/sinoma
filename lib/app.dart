@@ -69,6 +69,11 @@ class _AppShell extends StatelessWidget {
   }
 }
 
+// All learning-path sections share this one page (same key, no transition) so the
+// PathScreen element — and with it the left nav — persists across section changes.
+Page<void> _pathShellPage(BuildContext context, GoRouterState state) =>
+    const NoTransitionPage(key: ValueKey('path-shell'), child: PathScreen());
+
 // ── Router ────────────────────────────────────────────────────────────────────
 
 class _AuthRefreshStream extends ChangeNotifier {
@@ -112,17 +117,19 @@ final _router = GoRouter(
           VideoPlayerScreen(videoId: state.pathParameters['id']!),
     ),
     // Learning-path sections — each is its own URL, all render PathScreen
-    // (which picks the active section from the location).
-    GoRoute(path: '/home',             builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/learn',            builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/profile',          builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/settings',         builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/settings/profile', builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/video',            builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/dictionary',       builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/leaderboard',      builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/quests',           builder: (_, __) => const PathScreen()),
-    GoRoute(path: '/shop',             builder: (_, __) => const PathScreen()),
+    // (which picks the active section from the location). They share ONE page
+    // key + no transition, so go_router keeps the same PathScreen element across
+    // them: only the center/right rebuild, the left nav never reloads/flickers.
+    GoRoute(path: '/home',             pageBuilder: _pathShellPage),
+    GoRoute(path: '/learn',            pageBuilder: _pathShellPage),
+    GoRoute(path: '/profile',          pageBuilder: _pathShellPage),
+    GoRoute(path: '/settings',         pageBuilder: _pathShellPage),
+    GoRoute(path: '/settings/profile', pageBuilder: _pathShellPage),
+    GoRoute(path: '/video',            pageBuilder: _pathShellPage),
+    GoRoute(path: '/dictionary',       pageBuilder: _pathShellPage),
+    GoRoute(path: '/leaderboard',      pageBuilder: _pathShellPage),
+    GoRoute(path: '/quests',           pageBuilder: _pathShellPage),
+    GoRoute(path: '/shop',             pageBuilder: _pathShellPage),
     GoRoute(path: '/play',          builder: (_, __) => const VoscreenPlayerScreen()),
     GoRoute(path: '/games/duel',    builder: (_, __) => const MandarinDuelScreen()),
     GoRoute(path: '/games/hanzi',   builder: (_, __) => const HanziBuildScreen()),

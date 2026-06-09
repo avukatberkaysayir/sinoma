@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/constants/cities.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
@@ -441,19 +442,26 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
             // stacking/overlap.
             _UnitBanner(step: bannerStep, tr: tr, color: _unitColor(bannerStep)),
             Expanded(
-              child: ListView.builder(
-                controller: _scroll,
-                padding: const EdgeInsets.only(bottom: 60),
-                itemExtent: _kUnitHeight,
-                itemCount: topic.steps.length,
-                itemBuilder: (_, i) => _UnitNodes(
-                  step: topic.steps[i],
-                  topic: topic,
-                  progress: progress,
-                  currentKey: current?.key,
-                  tr: tr,
-                ),
-              ),
+              child: LayoutBuilder(builder: (context, constraints) {
+                // Trailing space so the LAST unit can scroll up into the banner
+                // trigger zone — otherwise the final unit (e.g. Ünite 24) could
+                // never become the top unit and never show in the banner.
+                final tail = (constraints.maxHeight - _kUnitHeight + _kBannerLead)
+                    .clamp(60.0, double.infinity);
+                return ListView.builder(
+                  controller: _scroll,
+                  padding: EdgeInsets.only(bottom: tail),
+                  itemExtent: _kUnitHeight,
+                  itemCount: topic.steps.length,
+                  itemBuilder: (_, i) => _UnitNodes(
+                    step: topic.steps[i],
+                    topic: topic,
+                    progress: progress,
+                    currentKey: current?.key,
+                    tr: tr,
+                  ),
+                );
+              }),
             ),
           ],
         );
@@ -521,7 +529,7 @@ class _UnitBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final title = step.title != '—' ? step.title : (tr ? 'Yakında' : 'Soon');
+    final city = cityForUnit(step.hsk, step.index);
     return Container(
       color: _duoBg,
       alignment: Alignment.center,
@@ -539,52 +547,25 @@ class _UnitBanner extends StatelessWidget {
                   offset: const Offset(0, 3)),
             ],
           ),
-          child: Row(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                        'L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
-                        style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.5)),
-                    const SizedBox(height: 3),
-                    Text(title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w800)),
-                  ],
-                ),
-              ),
-              Material(
-                color: Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(12),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () {},
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.menu_book_rounded,
-                          color: Colors.white, size: 16),
-                      SizedBox(width: 5),
-                      Text('REHBER',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800)),
-                    ]),
-                  ),
-                ),
-              ),
+              Text(
+                  'L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
+                  style: const TextStyle(
+                      color: Colors.white70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5)),
+              const SizedBox(height: 3),
+              Text('${city.zh}  ${city.pinyin}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800)),
             ],
           ),
         ),
@@ -615,8 +596,8 @@ class _UnitNodes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label =
-        step.title != '—' ? step.title : (tr ? 'Yakında' : 'Soon');
+    final city = cityForUnit(step.hsk, step.index);
+    final label = '${city.zh}  ${city.pinyin}';
     // Interleave the 4 phase steps with a reward node in the middle (index 2).
     final nodes = <Widget>[];
     var slot = 0;
