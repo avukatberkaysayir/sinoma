@@ -12,16 +12,78 @@ class City {
   String get slug => pinyin.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
 
-// Cities with a curated 4-landmark icon set: one icon per phase circle (in order)
-// and the same four shown in the unit banner. Names map to the asset files
-// assets/cities/<slug>-<name>.png. Cities not listed fall back to a generic themed
-// icon on the coloured circle + a plain coloured banner.
-const Map<String, List<String>> kCityIconSets = {
-  'beijing': ['great-wall', 'temple', 'pagoda', 'opera'],
+// A landmark of a city: a flat icon (phase circle + banner), a real photo and a
+// bilingual blurb (the info panel opened from the banner).
+class Landmark {
+  final String icon; // assets/cities/<slug>-<icon>.png
+  final String photo; // assets/landmarks/<slug>-<photo>.jpg
+  final String nameTr;
+  final String nameEn;
+  final String descTr;
+  final String descEn;
+  const Landmark({
+    required this.icon,
+    required this.photo,
+    required this.nameTr,
+    required this.nameEn,
+    required this.descTr,
+    required this.descEn,
+  });
+}
+
+// Cities with a curated 4-landmark set: one per phase circle (in order), the same
+// four in the unit banner, and introduced (photo + text) in the banner info panel.
+// Cities not listed fall back to a generic themed icon + plain coloured banner.
+const Map<String, List<Landmark>> kCityLandmarks = {
+  'beijing': [
+    Landmark(
+      icon: 'great-wall',
+      photo: 'great-wall',
+      nameTr: 'Çin Seddi',
+      nameEn: 'Great Wall',
+      descTr:
+          'Dünyanın en uzun savunma yapısı. Pekin yakınındaki Badaling kesimi en ünlü ve en çok ziyaret edilen bölümüdür.',
+      descEn:
+          "The world's longest fortification. The Badaling section near Beijing is its most famous, most-visited stretch.",
+    ),
+    Landmark(
+      icon: 'temple',
+      photo: 'temple',
+      nameTr: 'Cennet Tapınağı',
+      nameEn: 'Temple of Heaven',
+      descTr:
+          'Ming ve Qing imparatorlarının bol hasat için dua ettiği kutsal tapınak kompleksi; ikonik yuvarlak çatısıyla tanınır.',
+      descEn:
+          'A sacred complex where Ming and Qing emperors prayed for good harvests, famed for its iconic round roof.',
+    ),
+    Landmark(
+      icon: 'pagoda',
+      photo: 'pagoda',
+      nameTr: 'Tianning Pagodası',
+      nameEn: 'Tianning Pagoda',
+      descTr:
+          'Liao döneminden kalma ~57 m yüksekliğinde tuğla pagoda; Pekin\'in ayakta kalan en eski yapılarından biridir.',
+      descEn:
+          "A ~57 m brick pagoda from the Liao dynasty, one of Beijing's oldest surviving structures.",
+    ),
+    Landmark(
+      icon: 'opera',
+      photo: 'opera',
+      nameTr: 'Pekin Operası',
+      nameEn: 'Beijing Opera',
+      descTr:
+          'Şarkı, dans, akrobasi ve renkli yüz makyajını birleştiren geleneksel Çin sahne sanatı.',
+      descEn:
+          'A traditional Chinese stage art blending song, dance, acrobatics and vivid painted-face makeup.',
+    ),
+  ],
 };
 
 String cityIconAsset(String slug, String name) =>
     'assets/cities/$slug-$name.png';
+
+String cityPhotoAsset(String slug, String photo) =>
+    'assets/landmarks/$slug-$photo.jpg';
 
 const List<City> kChineseCities = [
   // ── Most well-known (0-95) → HSK 1-4 ────────────────────────────────────────

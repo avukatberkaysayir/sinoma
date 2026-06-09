@@ -17,6 +17,15 @@ Flat colour landmark icons used for unit nodes + banners.
   flood-filled to transparency. NOT production-clean — replace with a licensed /
   CC0 equivalent (or revert to the earlier blue opera-mask clipart) before launch.
 
+## Landmark photos (banner info panel) — Wikimedia Commons
+Real photos in assets/landmarks/ (resized/cropped):
+- beijing-great-wall.jpg — "Badaling China Great-Wall-of-China-01" — CC BY-SA 3.0
+- beijing-temple.jpg — "20200110 Temple of Heaven-1" — CC0 (no attribution required)
+- beijing-pagoda.jpg — "Tianning Temple Pagoda" — CC BY-SA 3.0
+- beijing-opera.jpg — "Wang Mintong Peking Opera" — Public domain
+- CC BY-SA requires crediting the author + license link; keep the Commons file
+  page URLs when surfacing credits.
+
 ## Notes
 - The earlier iStock skyline crop is NO LONGER USED (banners are now composed from
   the icons above).

@@ -403,9 +403,10 @@ const Map<String, IconData> _cityIconOverrides = {
 ({String? asset, IconData icon}) _cityNodeIcon(
     int hsk, int unitIndex, int phaseIndex) {
   final c = cityForUnit(hsk, unitIndex);
-  final set = kCityIconSets[c.slug];
-  final asset =
-      set != null ? cityIconAsset(c.slug, set[phaseIndex % set.length]) : null;
+  final set = kCityLandmarks[c.slug];
+  final asset = set != null
+      ? cityIconAsset(c.slug, set[phaseIndex % set.length].icon)
+      : null;
   final generic = _cityIconOverrides[c.slug] ??
       _genericCityIcons[(hsk * 31 + unitIndex) % _genericCityIcons.length];
   return (asset: asset, icon: generic);
@@ -420,6 +421,7 @@ class _CenterPath extends ConsumerStatefulWidget {
 class _CenterPathState extends ConsumerState<_CenterPath> {
   final _scroll = ScrollController();
   int _topUnit = 0;
+  bool _infoOpen = false; // banner landmark info panel
 
   @override
   void initState() {
@@ -440,7 +442,12 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     final u = ((_scroll.offset + _kBannerLead) / _kUnitHeight)
         .floor()
         .clamp(0, kUnitsPerLevel - 1);
-    if (u != _topUnit) setState(() => _topUnit = u);
+    if (u != _topUnit) {
+      setState(() {
+        _topUnit = u;
+        _infoOpen = false; // close the info panel when the unit changes
+      });
+    }
   }
 
   @override
@@ -476,6 +483,8 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
 
         final topUnit = _topUnit.clamp(0, topic.steps.length - 1);
         final bannerStep = topic.steps[topUnit];
+        final bannerCity = cityForUnit(bannerStep.hsk, bannerStep.index);
+        final bannerLandmarks = kCityLandmarks[bannerCity.slug];
 
         return Column(
           children: [
@@ -485,12 +494,28 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
               onSelect: (h) {
                 ref.read(selectedTopicHskProvider.notifier).state = h;
                 if (_scroll.hasClients) _scroll.jumpTo(0);
-                setState(() => _topUnit = 0);
+                setState(() {
+                  _topUnit = 0;
+                  _infoOpen = false;
+                });
               },
             ),
             // Single banner that swaps to the unit currently at the top — no
             // stacking/overlap.
-            _UnitBanner(step: bannerStep, tr: tr, color: _unitColor(bannerStep)),
+            _UnitBanner(
+              step: bannerStep,
+              tr: tr,
+              color: _unitColor(bannerStep),
+              infoOpen: _infoOpen,
+              onTitleTap: () => setState(() => _infoOpen = !_infoOpen),
+            ),
+            if (_infoOpen && bannerLandmarks != null)
+              _LandmarkInfoPanel(
+                slug: bannerCity.slug,
+                landmarks: bannerLandmarks,
+                tr: tr,
+                onClose: () => setState(() => _infoOpen = false),
+              ),
             Expanded(
               child: LayoutBuilder(builder: (context, constraints) {
                 // Trailing space so the LAST unit can scroll up into the banner
@@ -574,15 +599,40 @@ class _UnitBanner extends StatelessWidget {
   final PathStep step;
   final bool tr;
   final Color color;
+  final bool infoOpen;
+  final VoidCallback? onTitleTap;
   const _UnitBanner(
-      {required this.step, required this.tr, required this.color});
+      {required this.step,
+      required this.tr,
+      required this.color,
+      this.infoOpen = false,
+      this.onTitleTap});
 
   @override
   Widget build(BuildContext context) {
     final city = cityForUnit(step.hsk, step.index);
-    final iconSet = kCityIconSets[city.slug];
-    final hasBanner = iconSet != null;
+    final landmarks = kCityLandmarks[city.slug];
+    final hasBanner = landmarks != null;
     const shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
+    // The city name is a button (when the city has landmarks) that opens the info
+    // panel; a chevron hints at it.
+    final title = Row(mainAxisSize: MainAxisSize.min, children: [
+      Flexible(
+        child: Text('${city.zh}  ${city.pinyin}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                shadows: hasBanner ? shadow : null)),
+      ),
+      if (hasBanner) ...[
+        const SizedBox(width: 5),
+        Icon(infoOpen ? Icons.expand_less : Icons.expand_more,
+            color: Colors.white, size: 20, shadows: shadow),
+      ],
+    ]);
     final content = Align(
       alignment: Alignment.centerLeft,
       child: Padding(
@@ -599,14 +649,12 @@ class _UnitBanner extends StatelessWidget {
                     letterSpacing: 0.5,
                     shadows: hasBanner ? shadow : null)),
             const SizedBox(height: 3),
-            Text('${city.zh}  ${city.pinyin}',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    shadows: hasBanner ? shadow : null)),
+            hasBanner
+                ? GestureDetector(
+                    onTap: onTitleTap,
+                    behavior: HitTestBehavior.opaque,
+                    child: title)
+                : title,
           ],
         ),
       ),
@@ -668,11 +716,11 @@ class _UnitBanner extends StatelessWidget {
                               mainAxisSize: MainAxisSize.min,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                for (final n in iconSet)
+                                for (final lm in landmarks)
                                   Padding(
                                     padding: const EdgeInsets.only(left: 10),
                                     child: Image.asset(
-                                        cityIconAsset(city.slug, n),
+                                        cityIconAsset(city.slug, lm.icon),
                                         height: 58),
                                   ),
                               ],
@@ -686,6 +734,118 @@ class _UnitBanner extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+// In-page panel that drops below the banner: introduces the unit-city's four
+// landmarks with a real photo, a number and a short bilingual blurb.
+class _LandmarkInfoPanel extends StatelessWidget {
+  final String slug;
+  final List<Landmark> landmarks;
+  final bool tr;
+  final VoidCallback onClose;
+  const _LandmarkInfoPanel({
+    required this.slug,
+    required this.landmarks,
+    required this.tr,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
+        constraints: BoxConstraints(
+          maxWidth: 600,
+          maxHeight: MediaQuery.sizeOf(context).height * 0.42,
+        ),
+        decoration: BoxDecoration(
+          color: _duoPanel,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 10, 8, 6),
+              child: Row(children: [
+                const Icon(Icons.place_outlined, size: 16, color: _duoGreen),
+                const SizedBox(width: 6),
+                Text(tr ? 'Bu ünitenin simgeleri' : 'Landmarks of this unit',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800)),
+                const Spacer(),
+                GestureDetector(
+                  onTap: onClose,
+                  behavior: HitTestBehavior.opaque,
+                  child: const Padding(
+                    padding: EdgeInsets.all(4),
+                    child: Icon(Icons.close, size: 18, color: Colors.white54),
+                  ),
+                ),
+              ]),
+            ),
+            const Divider(height: 1, color: Colors.white12),
+            Flexible(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(12),
+                shrinkWrap: true,
+                itemCount: landmarks.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 10),
+                itemBuilder: (_, i) => _row(i, landmarks[i]),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _row(int i, Landmark lm) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+              color: _duoGreen, shape: BoxShape.circle),
+          child: Text('${i + 1}',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800)),
+        ),
+        const SizedBox(width: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(cityPhotoAsset(slug, lm.photo),
+              width: 104, height: 68, fit: BoxFit.cover),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(tr ? lm.nameTr : lm.nameEn,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 3),
+              Text(tr ? lm.descTr : lm.descEn,
+                  style: const TextStyle(
+                      color: Colors.white60, fontSize: 11.5, height: 1.25)),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
