@@ -5132,25 +5132,46 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
   Key _activeKey = UniqueKey();
   Key _backupKey = UniqueKey();
 
+  int _lastTab = 0;
+
   @override
   void initState() {
     super.initState();
     _tabs = TabController(length: 3, vsync: this);
+    // Re-pull the relevant tab's data when the user lands on it, so newly
+    // activated/backed-up clips show without a manual refresh.
+    _tabs.addListener(() {
+      if (_tabs.indexIsChanging || _tabs.index == _lastTab) return;
+      _lastTab = _tabs.index;
+      setState(() {
+        if (_tabs.index == 0) _activeKey = UniqueKey();
+        if (_tabs.index == 1) _backupKey = UniqueKey();
+        if (_tabs.index == 2) _libFut = _loadLibrary();
+      });
+    });
     _libFut = _loadLibrary();
   }
 
-  // Library = only source videos with ≥1 active or backup clip (pending-only
-  // imports stay recorded but aren't listed here).
+  // Library = every source video with ≥1 active or backup clip. Driven by the
+  // live clip counts (not just the history table) so a video shows even if its
+  // import_history metadata row is missing; history is merged in when present.
   Future<
       ({
         List<Map<String, dynamic>> rows,
         Map<String, ({int active, int backup})> counts
       })> _loadLibrary() async {
-    final rows = await _service.loadImportHistory();
+    final history = await _service.loadImportHistory();
     final counts = await _service.loadActiveBackupCounts();
-    final filtered =
-        rows.where((r) => counts.containsKey(r['youtube_id'])).toList();
-    return (rows: filtered, counts: counts);
+    final histMap = {
+      for (final r in history) (r['youtube_id'] as String? ?? ''): r
+    };
+    final rows = [
+      for (final id in counts.keys)
+        histMap[id] ??
+            {'youtube_id': id, 'url': 'https://www.youtube.com/watch?v=$id'},
+    ]..sort((a, b) => ((b['segmented_at'] as String?) ?? '')
+        .compareTo((a['segmented_at'] as String?) ?? ''));
+    return (rows: rows, counts: counts);
   }
 
   void _reload() {
