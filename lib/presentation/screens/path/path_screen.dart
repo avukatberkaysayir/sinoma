@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -344,7 +346,7 @@ class _NavItem extends StatelessWidget {
 
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
-const double _kUnitHeight = 520; // fixed height per unit section (5 nodes)
+const double _kUnitHeight = 760; // fixed height per unit section (5 nodes)
 const double _kBannerH = 108; // closed banner card height (overlay over the path)
 // Switch the banner exactly when the boundary line between two units reaches the
 // top of the list (right under the banner). 0 = align the switch with the line.
@@ -678,9 +680,15 @@ class _BannerCard extends StatelessWidget {
                 children: [
                   for (final lm in landmarks)
                     Padding(
-                      padding: const EdgeInsets.only(left: 10),
-                      child: Image.asset(cityIconAsset(city.slug, lm.icon),
-                          height: 58),
+                      padding: const EdgeInsets.only(left: 12),
+                      // Fixed equal box + contain so every icon has the same
+                      // footprint and spacing, regardless of its own aspect.
+                      child: SizedBox(
+                        width: 52,
+                        height: 52,
+                        child: Image.asset(cityIconAsset(city.slug, lm.icon),
+                            fit: BoxFit.contain),
+                      ),
                     ),
                 ],
               ),
@@ -784,14 +792,22 @@ class _BannerCard extends StatelessWidget {
         color: Colors.black.withValues(alpha: 0.34),
         child: IntrinsicHeight(
           child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // Photo fills the full height of the tile (no half-cut look).
+            // The whole structure always shows (contain), with a blurred copy of
+            // the same photo filling the rest so there are no empty bars.
             SizedBox(
-              width: 150,
+              width: 156,
               child: Stack(
                 fit: StackFit.expand,
                 children: [
+                  ImageFiltered(
+                    imageFilter: ui.ImageFilter.blur(
+                        sigmaX: 16, sigmaY: 16, tileMode: TileMode.decal),
+                    child: Image.asset(cityPhotoAsset(slug, lm.photo),
+                        fit: BoxFit.cover),
+                  ),
+                  const ColoredBox(color: Color(0x40000000)),
                   Image.asset(cityPhotoAsset(slug, lm.photo),
-                      fit: BoxFit.cover),
+                      fit: BoxFit.contain),
                   Positioned(
                     left: 6,
                     top: 6,
@@ -872,9 +888,12 @@ class _UnitNodes extends StatelessWidget {
     var slot = 0;
     for (var i = 0; i < step.phases.length; i++) {
       if (i == 2) {
-        nodes.add(Transform.translate(
-          offset: Offset(_slots[slot++], 0),
-          child: _RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'),
+        nodes.add(Padding(
+          padding: const EdgeInsets.only(bottom: 30),
+          child: Transform.translate(
+            offset: Offset(_slots[slot++], 0),
+            child: _RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'),
+          ),
         ));
       }
       nodes.add(Transform.translate(
@@ -997,20 +1016,20 @@ class _PhaseNode extends ConsumerWidget {
     if (ni.asset != null) {
       // Real landmark icon — shown alone, no circle/backdrop behind it.
       final img =
-          Image.asset(ni.asset!, width: 72, height: 72, fit: BoxFit.contain);
+          Image.asset(ni.asset!, width: 104, height: 104, fit: BoxFit.contain);
       circle = GestureDetector(
         onTap: open,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          width: 76,
-          height: 72,
+          width: 110,
+          height: 106,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
               available ? img : Opacity(opacity: 0.4, child: img),
               if (badge != null)
-                Positioned(right: 4, bottom: 4, child: badge),
+                Positioned(right: 8, bottom: 8, child: badge),
             ],
           ),
         ),
@@ -1022,20 +1041,20 @@ class _PhaseNode extends ConsumerWidget {
       circle = GestureDetector(
         onTap: open,
         child: Container(
-          width: 74,
-          height: 70,
+          width: 104,
+          height: 98,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             color: topColor,
-            borderRadius: BorderRadius.circular(38),
-            boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
+            borderRadius: BorderRadius.circular(52),
+            boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 7))],
           ),
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
               Icon(ni.icon,
-                  size: 34,
+                  size: 48,
                   color: available ? Colors.white : Colors.white30),
               if (badge != null)
                 Positioned(right: -3, bottom: -3, child: badge),
@@ -1044,42 +1063,107 @@ class _PhaseNode extends ConsumerWidget {
         ),
       );
     }
-    // Every slot carries vocabulary; words are fetched when opened.
+    // Every slot carries vocabulary; the popup opens to the side away from the
+    // path centre: right-side gözat opens right, left-side opens left.
     final browse = _BrowseButton(
       tr: tr,
-      onTap: () => showDialog<void>(
-        context: context,
-        barrierColor: Colors.black54,
-        builder: (_) => _SlotWordPanel(
-          level: phase.hsk,
-          unit: phase.stepIndex + 1,
-          phase: phase.phaseIndex + 1,
-          tr: tr,
-        ),
-      ),
+      toRight: !browseLeft,
+      level: phase.hsk,
+      unit: phase.stepIndex + 1,
+      phase: phase.phaseIndex + 1,
     );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: browseLeft
-                ? [browse, const SizedBox(width: 8), circle]
-                : [circle, const SizedBox(width: 8), browse],
-          ),
-        ],
+      padding: const EdgeInsets.only(bottom: 30),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: browseLeft
+            ? [browse, const SizedBox(width: 12), circle]
+            : [circle, const SizedBox(width: 12), browse],
       ),
     );
   }
 }
 
-// Round speech-bubble "gözat" button (icon only) next to a circle.
-class _BrowseButton extends StatelessWidget {
+// Round "gözat" button next to a circle. Tapping opens the words popup anchored
+// to the side away from the path centre (right-side button → right, left → left).
+class _BrowseButton extends StatefulWidget {
   final bool tr;
-  final VoidCallback onTap;
-  const _BrowseButton({required this.tr, required this.onTap});
+  final bool toRight;
+  final int level;
+  final int unit;
+  final int phase;
+  const _BrowseButton({
+    required this.tr,
+    required this.toRight,
+    required this.level,
+    required this.unit,
+    required this.phase,
+  });
+
+  @override
+  State<_BrowseButton> createState() => _BrowseButtonState();
+}
+
+class _BrowseButtonState extends State<_BrowseButton> {
+  OverlayEntry? _entry;
+
+  void _close() {
+    _entry?.remove();
+    _entry = null;
+  }
+
+  void _toggle() {
+    if (_entry != null) {
+      _close();
+      return;
+    }
+    final box = context.findRenderObject() as RenderBox?;
+    final overlayBox =
+        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    if (box == null || overlayBox == null) return;
+    final pos = box.localToGlobal(Offset.zero, ancestor: overlayBox);
+    final sz = box.size;
+    final ov = overlayBox.size;
+    const pw = 300.0, ph = 340.0;
+    final maxLeft = (ov.width - pw - 8).clamp(8.0, double.infinity);
+    final top =
+        (pos.dy - 6).clamp(8.0, (ov.height - ph - 8).clamp(8.0, double.infinity));
+    double? left, right;
+    if (widget.toRight) {
+      left = (pos.dx + sz.width + 8).clamp(8.0, maxLeft);
+    } else {
+      right = (ov.width - pos.dx + 8).clamp(8.0, maxLeft);
+    }
+    _entry = OverlayEntry(
+      builder: (_) => Stack(children: [
+        Positioned.fill(
+          child: GestureDetector(
+              behavior: HitTestBehavior.opaque, onTap: _close),
+        ),
+        Positioned(
+          top: top,
+          left: left,
+          right: right,
+          child: _SlotWordPanel(
+            level: widget.level,
+            unit: widget.unit,
+            phase: widget.phase,
+            tr: widget.tr,
+            onClose: _close,
+          ),
+        ),
+      ]),
+    );
+    Overlay.of(context).insert(_entry!);
+  }
+
+  @override
+  void dispose() {
+    _entry?.remove();
+    _entry = null;
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1090,18 +1174,18 @@ class _BrowseButton extends StatelessWidget {
       shadowColor: Colors.black54,
       child: InkWell(
         customBorder: const CircleBorder(),
-        onTap: onTap,
+        onTap: _toggle,
         child: Container(
-          width: 40,
-          height: 40,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             border: Border.all(
                 color: Colors.white.withValues(alpha: 0.12), width: 1.5),
           ),
           alignment: Alignment.center,
-          child: const Icon(Icons.chat_bubble_outline_rounded,
-              color: Colors.white70, size: 19),
+          padding: const EdgeInsets.all(7),
+          child: Image.asset('assets/icons/gozat.png'),
         ),
       ),
     );
@@ -1115,11 +1199,13 @@ class _SlotWordPanel extends ConsumerWidget {
   final int unit;
   final int phase;
   final bool tr;
+  final VoidCallback onClose;
   const _SlotWordPanel(
       {required this.level,
       required this.unit,
       required this.phase,
-      required this.tr});
+      required this.tr,
+      required this.onClose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1136,9 +1222,11 @@ class _SlotWordPanel extends ConsumerWidget {
       for (var i = 0; i < unitG.length; i++)
         if (order[i % 4] == phase) unitG[i]
     ];
-    return Dialog(
-      backgroundColor: _duoPanel,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+    return Material(
+      color: _duoPanel,
+      elevation: 10,
+      borderRadius: BorderRadius.circular(18),
+      clipBehavior: Clip.antiAlias,
       child: SizedBox(
         width: 300,
         height: 340,
@@ -1160,7 +1248,7 @@ class _SlotWordPanel extends ConsumerWidget {
                   IconButton(
                     icon: const Icon(Icons.close_rounded,
                         color: Colors.white60, size: 20),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: onClose,
                     tooltip: tr ? 'Kapat' : 'Close',
                   ),
                 ],

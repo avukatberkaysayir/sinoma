@@ -19,7 +19,7 @@ Flat colour landmark icons used for unit nodes + banners.
 
 ## Landmark photos (banner info panel) — Wikimedia Commons
 Real photos in assets/landmarks/ (resized/cropped):
-- beijing-great-wall.jpg — "Badaling China Great-Wall-of-China-01" — CC BY-SA 3.0
+- beijing-great-wall.jpg — "Great Wall of China July 2006" (Mutianyu) — CC0
 - beijing-temple.jpg — "20200110 Temple of Heaven-1" — CC0 (no attribution required)
 - beijing-pagoda.jpg — "Tianning Temple Pagoda" — CC BY-SA 3.0
 - beijing-opera.jpg — "Wang Mintong Peking Opera" — Public domain
