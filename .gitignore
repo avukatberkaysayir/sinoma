@@ -86,3 +86,7 @@ pipeline.log
 
 # Local deploy config
 .deploy.env
+
+# YouTube auth cookies for yt-dlp (NEVER commit — login session)
+python/yt_cookies.txt
+yt_cookies.txt
