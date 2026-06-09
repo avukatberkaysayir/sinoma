@@ -842,37 +842,22 @@ class _PhaseNode extends ConsumerWidget {
 
     final Widget circle;
     if (ni.asset != null) {
-      // Real landmark icon, no hard circle — but a soft light halo behind it so
-      // dark icon details (e.g. the opera mask's eyes) keep the same contrast as
-      // on the banner's lighter background, not lost against the dark page.
+      // Real landmark icon — shown alone, no circle/backdrop behind it.
       final img =
-          Image.asset(ni.asset!, width: 62, height: 62, fit: BoxFit.contain);
+          Image.asset(ni.asset!, width: 72, height: 72, fit: BoxFit.contain);
       circle = GestureDetector(
         onTap: open,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
           width: 76,
-          height: 74,
+          height: 72,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    radius: 0.62,
-                    colors: [
-                      const Color(0xFFFFE9D2).withValues(alpha: available ? 0.92 : 0.4),
-                      const Color(0x00FFE9D2),
-                    ],
-                  ),
-                ),
-                child: const SizedBox(width: 74, height: 74),
-              ),
               available ? img : Opacity(opacity: 0.4, child: img),
               if (badge != null)
-                Positioned(right: 6, bottom: 6, child: badge),
+                Positioned(right: 4, bottom: 4, child: badge),
             ],
           ),
         ),
