@@ -363,6 +363,52 @@ Color _unitColor(PathStep step) {
   return palette[step.index % palette.length];
 }
 
+// Small corner badge on a node that marks its state (done = check, locked = lock).
+Widget _nodeBadge(IconData ic, Color bg) => Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: bg,
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 1.5),
+      ),
+      child: Icon(ic, size: 11, color: Colors.white),
+    );
+
+// Generic themed landmark icons for cities without a bespoke asset.
+const List<IconData> _genericCityIcons = [
+  Icons.temple_buddhist,
+  Icons.account_balance,
+  Icons.location_city,
+  Icons.castle,
+  Icons.festival,
+];
+
+// A few scenic cities read better as mountains / water / coast than a building.
+const Map<String, IconData> _cityIconOverrides = {
+  'guilin': Icons.terrain, 'lhasa': Icons.terrain, 'lijiang': Icons.terrain,
+  'dali': Icons.terrain, 'huangshan': Icons.terrain, 'kunming': Icons.terrain,
+  'xining': Icons.terrain, 'panzhihua': Icons.terrain, 'leshan': Icons.terrain,
+  'yaan': Icons.terrain, 'baoshan': Icons.terrain, 'liupanshui': Icons.terrain,
+  'suzhou': Icons.water, 'hangzhou': Icons.water, 'wuxi': Icons.water,
+  'shaoxing': Icons.water, 'zhenjiang': Icons.water, 'jiaxing': Icons.water,
+  'huzhou': Icons.water, 'yangzhou': Icons.water, 'wenzhou': Icons.water,
+  'ningbo': Icons.sailing, 'xiamen': Icons.sailing, 'qingdao': Icons.sailing,
+  'dalian': Icons.sailing, 'zhuhai': Icons.sailing,
+  'sanya': Icons.beach_access, 'haikou': Icons.beach_access,
+  'beihai': Icons.beach_access,
+};
+
+// The icon for a unit's nodes: a real landmark asset when one is bundled, else a
+// generic themed icon (override > deterministic spread).
+({String? asset, IconData icon}) _cityNodeIcon(int hsk, int unitIndex) {
+  final c = cityForUnit(hsk, unitIndex);
+  final asset =
+      kCityIconAssets.contains(c.slug) ? 'assets/cities/${c.slug}.png' : null;
+  final generic = _cityIconOverrides[c.slug] ??
+      _genericCityIcons[(hsk * 31 + unitIndex) % _genericCityIcons.length];
+  return (asset: asset, icon: generic);
+}
+
 class _CenterPath extends ConsumerStatefulWidget {
   const _CenterPath();
   @override
@@ -686,20 +732,43 @@ class _PhaseNode extends ConsumerWidget {
 
     final Color top;
     final Color shadow;
-    final Widget icon;
     if (done) {
       top = _duoGreen;
       shadow = _duoGreenDark;
-      icon = const Icon(Icons.check_rounded, color: Colors.white, size: 34);
     } else if (unlocked) {
       top = _duoGreen;
       shadow = _duoGreenDark;
-      icon = const Icon(Icons.star_rounded, color: Colors.white, size: 38);
     } else {
       top = _duoLocked;
       shadow = const Color(0xFF2A363D);
-      icon = const Icon(Icons.lock_rounded, color: Colors.white38, size: 26);
     }
+
+    // The node now shows its city's landmark icon (real asset or generic theme).
+    // State stays legible: faded when locked + a small corner badge (lock/check).
+    final ni = _cityNodeIcon(phase.hsk, phase.stepIndex);
+    final available = done || unlocked;
+    final Widget glyph = ni.asset != null
+        ? Opacity(
+            opacity: available ? 1 : 0.4,
+            child: Image.asset(ni.asset!,
+                width: 48, height: 48, fit: BoxFit.contain),
+          )
+        : Icon(ni.icon,
+            size: 34, color: available ? Colors.white : Colors.white30);
+    Widget? badge;
+    if (done) {
+      badge = _nodeBadge(Icons.check_rounded, _duoGreenDark);
+    } else if (!unlocked) {
+      badge = _nodeBadge(Icons.lock_rounded, const Color(0xFF2A363D));
+    }
+    final icon = Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        glyph,
+        if (badge != null) Positioned(right: -3, bottom: -3, child: badge),
+      ],
+    );
 
     Future<void> open() async {
       if (!unlocked) return;
@@ -736,6 +805,7 @@ class _PhaseNode extends ConsumerWidget {
       child: Container(
         width: 74,
         height: 70,
+        alignment: Alignment.center,
         decoration: BoxDecoration(
           color: top,
           borderRadius: BorderRadius.circular(38),

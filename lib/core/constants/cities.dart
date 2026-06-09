@@ -7,7 +7,17 @@ class City {
   final String zh;
   final String pinyin;
   const City(this.zh, this.pinyin);
+
+  // Asset slug: pinyin lowercased, only a-z0-9 (e.g. "Xi'an" → "xian").
+  String get slug => pinyin.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
+
+// Cities that ship a real landmark icon at assets/cities/<slug>.png. Others fall
+// back to a generic themed icon (see _cityNodeIcon in path_screen). Add a slug
+// here once its PNG is dropped into assets/cities/.
+const Set<String> kCityIconAssets = {
+  'beijing',
+};
 
 const List<City> kChineseCities = [
   // ── Most well-known (0-95) → HSK 1-4 ────────────────────────────────────────
