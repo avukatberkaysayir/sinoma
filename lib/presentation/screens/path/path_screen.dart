@@ -54,6 +54,9 @@ _Section _sectionFromLoc(String loc) {
   return _Section.learn;
 }
 
+// Whether the L1-L6 level list is expanded under "Öğren" in the left nav.
+final _learnNavExpandedProvider = StateProvider<bool>((ref) => true);
+
 class PathScreen extends ConsumerWidget {
   const PathScreen({super.key});
 
@@ -114,6 +117,15 @@ class PathScreen extends ConsumerWidget {
               section: section,
               tr: tr,
               onSelect: (s) => context.go(_sectionPaths[s]!),
+              selectedHsk: ref.watch(selectedTopicHskProvider),
+              learnExpanded: ref.watch(_learnNavExpandedProvider),
+              onToggleLearn: () => ref
+                  .read(_learnNavExpandedProvider.notifier)
+                  .update((v) => !v),
+              onSelectLevel: (h) {
+                ref.read(selectedTopicHskProvider.notifier).state = h;
+                if (loc != '/learn') context.go('/learn');
+              },
             ),
             Expanded(child: center),
             if (right != null && w >= 1100) right,
@@ -171,11 +183,19 @@ class _LeftNav extends StatelessWidget {
   final _Section section;
   final bool tr;
   final void Function(_Section) onSelect;
+  final int selectedHsk;
+  final bool learnExpanded;
+  final VoidCallback onToggleLearn;
+  final void Function(int) onSelectLevel;
   const _LeftNav({
     required this.compact,
     required this.section,
     required this.tr,
     required this.onSelect,
+    required this.selectedHsk,
+    required this.learnExpanded,
+    required this.onToggleLearn,
+    required this.onSelectLevel,
   });
 
   @override
@@ -229,7 +249,31 @@ class _LeftNav extends StatelessWidget {
               label: tr ? 'ÖĞREN' : 'LEARN',
               active: section == _Section.learn,
               compact: compact,
-              onTap: () => onSelect(_Section.learn)),
+              onTap: () {
+                onSelect(_Section.learn);
+                if (!learnExpanded) onToggleLearn();
+              },
+              trailing: compact
+                  ? null
+                  : GestureDetector(
+                      onTap: onToggleLearn,
+                      behavior: HitTestBehavior.opaque,
+                      child: Icon(
+                          learnExpanded
+                              ? Icons.expand_less
+                              : Icons.expand_more,
+                          size: 18,
+                          color: Colors.white54),
+                    )),
+          // L1-L6 level picker, expandable under "Öğren".
+          if (learnExpanded)
+            for (var h = 1; h <= 6; h++)
+              _LevelNavItem(
+                level: h,
+                selected: section == _Section.learn && selectedHsk == h,
+                compact: compact,
+                onTap: () => onSelectLevel(h),
+              ),
           _NavItem(
               icon: Icons.menu_book_rounded,
               color: const Color(0xFF1CB0F6),
@@ -288,6 +332,7 @@ class _NavItem extends StatelessWidget {
   final bool active;
   final bool compact;
   final VoidCallback onTap;
+  final Widget? trailing;
   const _NavItem({
     required this.icon,
     required this.color,
@@ -295,6 +340,7 @@ class _NavItem extends StatelessWidget {
     required this.active,
     required this.compact,
     required this.onTap,
+    this.trailing,
   });
 
   @override
@@ -326,15 +372,58 @@ class _NavItem extends StatelessWidget {
                 Icon(icon, color: color, size: 26),
                 if (!compact) ...[
                   const SizedBox(width: 14),
-                  Text(label,
-                      style: TextStyle(
-                          color: labelColor,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 0.5)),
+                  Expanded(
+                    child: Text(label,
+                        style: TextStyle(
+                            color: labelColor,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5)),
+                  ),
+                  if (trailing != null) trailing!,
                 ],
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// One L1-L6 entry under "Öğren" in the left nav.
+class _LevelNavItem extends StatelessWidget {
+  final int level;
+  final bool selected;
+  final bool compact;
+  final VoidCallback onTap;
+  const _LevelNavItem({
+    required this.level,
+    required this.selected,
+    required this.compact,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: 6, left: compact ? 0 : 18, right: compact ? 0 : 4),
+      child: Material(
+        color: selected ? _duoGreen : _duoPanel,
+        borderRadius: BorderRadius.circular(10),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(10),
+          child: Container(
+            height: 34,
+            alignment: compact ? Alignment.center : Alignment.centerLeft,
+            padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 12),
+            child: Text('L$level',
+                style: TextStyle(
+                    color: selected ? Colors.white : Colors.white70,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800)),
           ),
         ),
       ),
@@ -458,6 +547,16 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     final selectedHsk = ref.watch(selectedTopicHskProvider);
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
+    // Level is now chosen from the left nav: when it changes, jump back to the
+    // top of the new level.
+    ref.listen(selectedTopicHskProvider, (_, __) {
+      if (_scroll.hasClients) _scroll.jumpTo(0);
+      setState(() {
+        _topUnit = 0;
+        _infoOpen = false;
+      });
+    });
+
     return curriculum.when(
       loading: () => const Center(child: CircularProgressIndicator(color: _duoGreen)),
       error: (e, _) =>
@@ -466,10 +565,6 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
-        final withContent = {
-          for (final t in topics)
-            if (t.steps.any((s) => s.hasContent)) t.hsk
-        };
 
         // The single "current" phase across the topic.
         final flat = <PathPhase>[for (final s in topic.steps) ...s.phases];
@@ -489,18 +584,6 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
 
         return Column(
           children: [
-            _HskSelector(
-              selected: selectedHsk,
-              withContent: withContent,
-              onSelect: (h) {
-                ref.read(selectedTopicHskProvider.notifier).state = h;
-                if (_scroll.hasClients) _scroll.jumpTo(0);
-                setState(() {
-                  _topUnit = 0;
-                  _infoOpen = false;
-                });
-              },
-            ),
             // The banner overlays the TOP of the path: the path is padded down by
             // the banner's height, and opening the info panel grows the banner
             // card downward OVER the circles (it doesn't push them).
@@ -552,55 +635,6 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
           ],
         );
       },
-    );
-  }
-}
-
-class _HskSelector extends StatelessWidget {
-  final int selected;
-  final Set<int> withContent;
-  final void Function(int) onSelect;
-  const _HskSelector({
-    required this.selected,
-    required this.withContent,
-    required this.onSelect,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: [
-            for (var h = 1; h <= 6; h++)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: Opacity(
-                  opacity: withContent.contains(h) || selected == h ? 1 : 0.5,
-                  child: GestureDetector(
-                    onTap: () => onSelect(h),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selected == h ? _duoGreen : _duoPanel,
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Text('L$h',
-                          style: TextStyle(
-                              color:
-                                  selected == h ? Colors.white : Colors.white60,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13)),
-                    ),
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -876,11 +910,9 @@ class _UnitNodes extends StatelessWidget {
     required this.tr,
   });
 
-  // Zigzag x-offsets for the 5 nodes per unit: phase1(center) → phase2(right) →
-  // REWARD(center) → phase3(left) → phase4(center). First & last circle aligned.
-  static const _r = 74.0;
-  // Zigzag x-offsets for the 4 phase circles: center → right → center → left.
-  static const _phaseSlots = [0.0, _r, 0.0, -_r];
+  // Zigzag x-offsets for the 4 phase circles: 1st & 3rd centred (aligned), 2nd
+  // pushed further right, 4th further left.
+  static const _phaseSlots = [0.0, 112.0, 0.0, -112.0];
 
   @override
   Widget build(BuildContext context) {
@@ -902,11 +934,14 @@ class _UnitNodes extends StatelessWidget {
       ));
     }
     nodes.add(_RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'));
-    // The unit's content fills the fixed item height; a divider sits at the very
-    // bottom = the boundary line between this unit and the next. The banner swaps
-    // to the next unit exactly when this line reaches the top (see _onScroll).
+    // The boundary line sits at the TOP of each unit (between it and the previous
+    // one). That way, when a unit is the one shown in the banner, its line is
+    // tucked right under the banner instead of dangling at the bottom of the page
+    // — every unit looks the same. (The banner still switches on this boundary.)
     return Column(
       children: [
+        if (step.index > 0)
+          Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
         Expanded(
           child: Center(
             child: ConstrainedBox(
@@ -935,7 +970,6 @@ class _UnitNodes extends StatelessWidget {
             ),
           ),
         ),
-        Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
       ],
     );
   }
@@ -1067,13 +1101,34 @@ class _PhaseNode extends ConsumerWidget {
       phase: phase.phaseIndex + 1,
     );
 
+    // Keep the CIRCLE centred on the node offset (a matching spacer balances the
+    // gözat) so circles at the same offset line up vertically. Same gap every
+    // time; the gözat of the first two circles sits a little lower.
+    const gap = 10.0;
+    const browseW = 21.0;
+    final lowered = Transform.translate(
+      offset: Offset(0, browseLeft ? 0 : 16),
+      child: browse,
+    );
     return Padding(
       padding: const EdgeInsets.only(bottom: 30),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: browseLeft
-            ? [browse, const SizedBox(width: 6), circle]
-            : [circle, const SizedBox(width: 6), browse],
+            ? [
+                lowered,
+                const SizedBox(width: gap),
+                circle,
+                const SizedBox(width: gap),
+                const SizedBox(width: browseW),
+              ]
+            : [
+                const SizedBox(width: browseW),
+                const SizedBox(width: gap),
+                circle,
+                const SizedBox(width: gap),
+                lowered,
+              ],
       ),
     );
   }
@@ -1166,8 +1221,8 @@ class _BrowseButtonState extends State<_BrowseButton> {
       onTap: _toggle,
       behavior: HitTestBehavior.opaque,
       child: SizedBox(
-        width: 28,
-        height: 28,
+        width: 21,
+        height: 21,
         child: Image.asset('assets/icons/gozat.png'),
       ),
     );
