@@ -51,11 +51,57 @@ except ImportError:
         return text
 
 # 'medium' is markedly more accurate than 'small' for Mandarin (fewer wrong
-# transcriptions); override with WHISPER_MODEL=small for speed on weak CPUs.
+# transcriptions). For the best accuracy on hard audio (music bed, accents, fast
+# speech) set WHISPER_MODEL=large-v3 — slower on CPU but far fewer wrong lines.
 WHISPER_MODEL_SIZE = os.environ.get("WHISPER_MODEL", "medium")
 MIN_SEGMENT_SECONDS = 1.0
 MAX_SEGMENT_SECONDS = 6.0
 MAX_TARGET_WORDS = 3
+
+# Shared faster-whisper params — one source of truth for the full-video pass
+# (iter_whisper_cues) and the single-clip re-transcribe (transcribe_clip), so
+# both behave identically.
+#   • vad threshold 0.6 + min_speech 250ms → music/silence is dropped BEFORE ASR,
+#     which is what stops "a sentence over a part that had no dialogue".
+#   • initial_prompt biases Simplified Mandarin full sentences (better accuracy).
+WHISPER_TRANSCRIBE_KWARGS: dict[str, Any] = dict(
+    language="zh",
+    beam_size=5,
+    condition_on_previous_text=False,
+    no_speech_threshold=0.6,
+    log_prob_threshold=-1.0,
+    compression_ratio_threshold=2.4,
+    vad_filter=True,
+    vad_parameters={
+        "threshold": 0.6,
+        "min_speech_duration_ms": 250,
+        "min_silence_duration_ms": 700,
+    },
+    initial_prompt="以下是普通话的对话。",
+)
+
+# Phrases Whisper invents over music / silence / channel outros — they are NOT
+# spoken in the clip. A cue made up almost entirely of these is a hallucination
+# and must be dropped (this is the main cause of "no dialogue but a segment was
+# created"). Kept to multi-char, outro-style strings so real dialogue survives.
+_HALLUCINATION_PHRASES = (
+    "谢谢观看", "谢谢大家观看", "感谢观看", "感谢收看", "谢谢收看", "謝謝觀看",
+    "请订阅", "记得订阅", "订阅频道", "点赞订阅", "请不吝点赞", "订阅转发打赏",
+    "打赏支持", "转发打赏", "关注我们", "关注我的频道", "请关注", "扫描二维码",
+    "点点栏目", "明镜与点点", "明镜", "中文字幕", "字幕组", "字幕由", "字幕志愿者",
+    "下集再见", "我们下期再见", "下期再见", "本视频", "优优独播剧场", "天天看片",
+)
+_HALLU_RE = re.compile("|".join(re.escape(p) for p in _HALLUCINATION_PHRASES))
+
+
+def is_whisper_hallucination(text: str) -> bool:
+    """True when a cue is dominated by known outro/boilerplate phrases that
+    Whisper emits over non-speech audio (so it should not become a segment)."""
+    if not text:
+        return True
+    stripped = _HALLU_RE.sub("", text)
+    # >=60% of the cue was boilerplate → it wasn't real dialogue.
+    return len(stripped) <= len(text) * 0.4
 
 
 # ---------------------------------------------------------------------------
@@ -450,20 +496,7 @@ def iter_whisper_cues(audio_path: Path, on_meta=None):
     model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
 
     _log("ASR", f"transcribing {audio_path.name} (streaming, anti-hallucination)…")
-    # Anti-hallucination settings: strict VAD removes music/silence before ASR;
-    # condition_on_previous_text=False stops runaway invented text; the *_threshold
-    # values make Whisper itself treat low-confidence / non-speech as silence.
-    segments, info = model.transcribe(
-        str(audio_path),
-        language="zh",
-        beam_size=5,
-        condition_on_previous_text=False,
-        no_speech_threshold=0.6,
-        log_prob_threshold=-1.0,
-        compression_ratio_threshold=2.4,
-        vad_filter=True,
-        vad_parameters={"threshold": 0.5, "min_silence_duration_ms": 700},
-    )
+    segments, info = model.transcribe(str(audio_path), **WHISPER_TRANSCRIBE_KWARGS)
 
     if on_meta:
         try:
@@ -491,6 +524,10 @@ def iter_whisper_cues(audio_path: Path, on_meta=None):
         # Repetition guard: "啊啊啊啊", "好好好好" etc. (tiny unique-char set).
         uniq = len(set(text))
         if len(text) >= 4 and uniq <= 2:
+            dropped += 1
+            continue
+        # Outro/boilerplate hallucinated over music or silence (no real dialogue).
+        if is_whisper_hallucination(text):
             dropped += 1
             continue
         # Cap implausibly long cues (Whisper bridging a gap) by a char-rate est.

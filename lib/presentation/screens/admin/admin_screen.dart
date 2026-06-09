@@ -2502,31 +2502,64 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         rowId: widget.data['id'] as String,
       );
       _whisperTimer?.cancel();
-      _whisperTimer = Timer.periodic(const Duration(seconds: 4), (t) async {
+      // Worker is LOCAL (dev_server.py); if it isn't running the job sits
+      // 'pending' forever. Detect that (never reached 'processing' within ~24s)
+      // and stop with a clear message instead of spinning indefinitely.
+      var polls = 0;
+      var fails = 0;
+      var sawProcessing = false;
+      void stop() {
+        _whisperTimer?.cancel();
+        if (mounted) setState(() => _whisperRunning = false);
+      }
+      _whisperTimer = Timer.periodic(const Duration(seconds: 3), (t) async {
+        polls++;
         try {
+          fails = 0;
           final job = await widget.service.getJob(jobId);
           final status = job['status'] as String?;
+          if (status == 'processing') sawProcessing = true;
           if (status == 'done') {
-            t.cancel();
+            stop();
             final v = await widget.service.getVideo(widget.data['id'] as String);
             if (!mounted) return;
-            setState(() {
-              _whisperText = v?['whisper_text'] as String?;
-              _whisperRunning = false;
-            });
+            setState(() => _whisperText = v?['whisper_text'] as String?);
             if ((_whisperText ?? '').isEmpty) {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Whisper bu klip için metin üretemedi.')));
+                  content: Text('Whisper bu klipte konuşma bulamadı '
+                      '(müzik/sessizlik olabilir).')));
             }
           } else if (status == 'error') {
-            t.cancel();
+            stop();
             if (!mounted) return;
-            setState(() => _whisperRunning = false);
             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                 content: Text(
                     'Whisper hatası: ${job['error_text'] ?? 'bilinmiyor'}')));
+          } else if (!sawProcessing && polls >= 8) {
+            // ~24s and no worker ever claimed the job.
+            stop();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                duration: Duration(seconds: 6),
+                content: Text('Yerel Whisper işçisi çalışmıyor görünüyor. '
+                    'python/pipeline/dev_server.py\'yi başlatın, sonra tekrar '
+                    'deneyin.')));
+          } else if (polls >= 200) {
+            // ~10 min hard cap (long clip / stuck worker).
+            stop();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Whisper zaman aşımına uğradı.')));
           }
-        } catch (_) {/* keep polling */}
+        } catch (e) {
+          // Transient read failure — give up only after several in a row.
+          if (++fails >= 6) {
+            stop();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('İş durumu okunamıyor: $e')));
+          }
+        }
       });
     } catch (e) {
       if (!mounted) return;

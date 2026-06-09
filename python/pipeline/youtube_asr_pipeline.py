@@ -487,18 +487,15 @@ def transcribe_clip(
     if on_progress:
         on_progress(1)
 
-    from youtube_miner import WHISPER_MODEL_SIZE, _to_simplified
+    from youtube_miner import (
+        WHISPER_MODEL_SIZE,
+        WHISPER_TRANSCRIBE_KWARGS,
+        _to_simplified,
+        is_whisper_hallucination,
+    )
     print(f"  [ASR] Whisper '{WHISPER_MODEL_SIZE}' — {len(clip) / sr:.1f}s dinleniyor…")
     model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
-    segments, _info = model.transcribe(
-        clip, language="zh", beam_size=5,
-        condition_on_previous_text=False,
-        no_speech_threshold=0.6,
-        log_prob_threshold=-1.0,
-        compression_ratio_threshold=2.4,
-        vad_filter=True,
-        vad_parameters={"threshold": 0.5, "min_silence_duration_ms": 700},
-    )
+    segments, _info = model.transcribe(clip, **WHISPER_TRANSCRIBE_KWARGS)
     parts = []
     for s in segments:
         if getattr(s, "no_speech_prob", 0.0) > 0.6:
@@ -507,7 +504,9 @@ def transcribe_clip(
             continue
         if any("一" <= ch <= "鿿" for ch in s.text):
             parts.append(s.text)
-    text = _to_simplified("".join(parts).strip())
+    text = _to_simplified(re.sub(r"\s+", "", "".join(parts).strip()))
+    if is_whisper_hallucination(text):
+        text = ""  # boilerplate over music/silence → report "no speech"
 
     requests.patch(
         f"{SUPABASE_URL}/rest/v1/videos",
