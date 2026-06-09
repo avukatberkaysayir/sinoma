@@ -11,10 +11,10 @@ Flat colour landmark icons used for unit nodes + banners.
   Material Icons (no attribution), NOT icons8.
 - Required credit (free tier): "Icons by Icons8" linking to https://icons8.com
 
-## Flaticon — https://www.flaticon.com
-- Beijing opera mask: "Chinese Mask" by Icongeek26
-  (https://www.flaticon.com/free-icon/chinese-mask_4054974), recoloured.
-- Required credit (free tier): attribution link per Flaticon's license.
+## Beijing opera mask
+- Colourful blue Beijing opera mask clipart (user-provided,
+  chinese-opera-mask-blue-clipart-xl.png). Confirm its license/source before
+  production; replace with a CC0 equivalent if needed.
 
 ## Notes
 - The earlier iStock skyline crop is NO LONGER USED (banners are now composed from
