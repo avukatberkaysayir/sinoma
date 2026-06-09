@@ -72,12 +72,29 @@ class VideoRepository {
   }
 
   // All distinct vocabulary words of one HSK level (word + meaning) — for the
-  // per-level word picker in the YouTube import content filter.
+  // per-level word picker in the YouTube import content filter. Paginated, since
+  // PostgREST caps a single response at 1000 rows and some levels have more
+  // (HSK6 ~2400) — the cap used to silently truncate the list.
   Future<List<Map<String, dynamic>>> loadWordsForLevel(int level) async {
-    final data = await _db
-        .rpc('words_for_level', params: {'p_level': level})
-        .timeout(const Duration(seconds: 12));
-    return List<Map<String, dynamic>>.from(data as List);
+    const page = 1000;
+    final seen = <String>{};
+    final out = <Map<String, dynamic>>[];
+    for (var from = 0;; from += page) {
+      final data = await _db
+          .from('path_word_slots')
+          .select('word, tr')
+          .eq('level', level)
+          .order('word')
+          .range(from, from + page - 1)
+          .timeout(const Duration(seconds: 12));
+      final rows = List<Map<String, dynamic>>.from(data as List);
+      for (final r in rows) {
+        final w = r['word'] as String? ?? '';
+        if (w.isNotEmpty && seen.add(w)) out.add(r);
+      }
+      if (rows.length < page) break;
+    }
+    return out;
   }
 
   // Grammar rules / words that already have an ACTIVE clip (slot occupant), so the

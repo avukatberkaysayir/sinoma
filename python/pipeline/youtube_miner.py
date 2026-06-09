@@ -78,16 +78,21 @@ _YTDLP_BASE_ARGS = [
     "--force-ipv4",
     "--socket-timeout", "30",
     "--retries", "3",
+    # Current yt-dlp requires a JS runtime for YouTube extraction; enable Node
+    # (Deno is the only default). Without it many videos fail as "not available".
+    "--js-runtimes", "node",
 ]
 
-# Ordered from most permissive to most restricted.
-# tv_embedded skips PO Token requirement for most videos.
-# mweb is mobile web, often unblocked. android/web are fallbacks.
+# Ordered by what actually works on current yt-dlp (2026+): the `android` client
+# returns a downloadable progressive stream without PO-token/DRM issues; the
+# others are fallbacks. (`tv_embedded` was REMOVED from yt-dlp and is skipped, so
+# it no longer belongs here.)
 _CLIENTS: list[list[str]] = [
-    ["--extractor-args", "youtube:player_client=tv_embedded"],
-    ["--extractor-args", "youtube:player_client=mweb"],
-    ["--extractor-args", "youtube:player_client=web"],
     ["--extractor-args", "youtube:player_client=android"],
+    ["--extractor-args", "youtube:player_client=ios"],
+    ["--extractor-args", "youtube:player_client=mweb"],
+    ["--extractor-args", "youtube:player_client=web_safari"],
+    ["--extractor-args", "youtube:player_client=web"],
     [],  # yt-dlp default
 ]
 
@@ -179,9 +184,10 @@ def _run_ytdlp(args: list[str], timeout: int = 180) -> subprocess.CompletedProce
 
 
 def fetch_video_meta(url: str) -> dict[str, Any]:
-    """Channel + title + upload year for the import history. Tries YouTube oEmbed
-    first (fast, no download, no auth), then falls back to yt-dlp metadata. Returns
-    {} on total failure (best-effort)."""
+    """Channel + title + upload year for the import history, via YouTube oEmbed
+    only (fast, no download). Deliberately NOT falling back to yt-dlp: that took up
+    to ~5 min per video and blocked the single job queue, making ASR/Whisper jobs
+    behind it look stuck. Returns {} on failure (best-effort)."""
     import json as _json
     from urllib.request import urlopen, Request
     from urllib.parse import urlencode
@@ -189,7 +195,7 @@ def fetch_video_meta(url: str) -> dict[str, Any]:
         q = urlencode({"url": url, "format": "json"})
         req = Request("https://www.youtube.com/oembed?" + q,
                       headers={"User-Agent": "Mozilla/5.0"})
-        with urlopen(req, timeout=20) as resp:
+        with urlopen(req, timeout=12) as resp:
             j = _json.loads(resp.read().decode("utf-8"))
         title = j.get("title")
         if title:
@@ -201,31 +207,6 @@ def fetch_video_meta(url: str) -> dict[str, Any]:
             }
     except Exception:
         pass
-
-    for client_args, cookie_args in _STRATEGIES[:8]:
-        try:
-            result = _run_ytdlp(
-                _YTDLP_BASE_ARGS + cookie_args + client_args + [
-                    "--skip-download",
-                    "--print", "%(channel|uploader)s\n%(upload_date)s\n%(title)s",
-                    url,
-                ],
-                timeout=40,
-            )
-        except subprocess.TimeoutExpired:
-            continue
-        lines = result.stdout.strip().splitlines()
-        if result.returncode == 0 and len(lines) >= 3 and lines[2].strip():
-            channel = lines[0].strip()
-            upload = lines[1].strip()
-            year = None
-            if len(upload) >= 4 and upload[:4].isdigit():
-                year = int(upload[:4])
-            return {
-                "channel": channel if channel not in ("NA", "") else None,
-                "upload_year": year,
-                "title": lines[2].strip(),
-            }
     return {}
 
 

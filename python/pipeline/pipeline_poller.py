@@ -25,15 +25,23 @@ def _headers(service_key: str) -> dict[str, str]:
 
 
 def _claim_pending(base_url: str, service_key: str) -> dict[str, Any] | None:
-    resp = requests.get(
-        f"{base_url}/rest/v1/pipeline_jobs",
-        params={"status": "eq.pending", "order": "created_at.asc", "limit": "1", "select": "*"},
-        headers={"apikey": service_key, "Authorization": f"Bearer {service_key}"},
-        timeout=10,
-    )
-    if resp.status_code >= 300 or not resp.json():
+    # Content jobs (ASR / Whisper / movie) before metadata jobs, so a backlog of
+    # video_meta jobs never makes a real segmentation job wait. Two passes: first
+    # any non-meta pending job, then (if none) a meta job.
+    hdr = {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
+    job = None
+    for type_filter in ("&job_type=neq.video_meta", ""):
+        resp = requests.get(
+            f"{base_url}/rest/v1/pipeline_jobs"
+            f"?status=eq.pending{type_filter}&order=created_at.asc&limit=1&select=*",
+            headers=hdr,
+            timeout=10,
+        )
+        if resp.status_code < 300 and resp.json():
+            job = resp.json()[0]
+            break
+    if job is None:
         return None
-    job = resp.json()[0]
 
     # Atomic claim — sadece hâlâ pending ise güncelle
     patch = requests.patch(
@@ -87,8 +95,26 @@ def _finish_job(
     )
 
 
+def _requeue_stale(base_url: str, service_key: str) -> None:
+    """On startup, re-queue any job left in 'processing' by a previous worker that
+    died mid-job (otherwise it stays 'processing' forever and the admin polls a
+    zombie). Safe: a fresh worker hasn't claimed anything yet."""
+    try:
+        resp = requests.patch(
+            f"{base_url}/rest/v1/pipeline_jobs?status=eq.processing",
+            json={"status": "pending"},
+            headers=_headers(service_key),
+            timeout=10,
+        )
+        if resp.status_code < 300:
+            print("  [poller] takılı 'processing' işler yeniden kuyruğa alındı")
+    except Exception as exc:
+        print(f"  [poller] requeue hatası: {exc}")
+
+
 def _poll_loop(base_url: str, service_key: str) -> None:
     print("  [poller] pipeline_jobs izleniyor…")
+    _requeue_stale(base_url, service_key)
     from youtube_asr_pipeline import run as asr_run
     from youtube_asr_pipeline import transcribe_clip
     from movie_supabase_pipeline import run as movie_run
