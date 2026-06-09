@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -730,14 +728,19 @@ class _BannerCard extends StatelessWidget {
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 14),
               color: Colors.white.withValues(alpha: 0.22)),
-          // Fills the remaining card height → all four tiles show without
-          // scrolling and the card covers the circles below.
+          // The 4 tiles split the remaining height equally → they fill the whole
+          // banner (no empty space) and need no scrolling.
           Expanded(
-            child: ListView.separated(
+            child: Padding(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-              itemCount: landmarks.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) => _landmarkRow(city.slug, i, landmarks[i]),
+              child: Column(
+                children: [
+                  for (var i = 0; i < landmarks.length; i++) ...[
+                    Expanded(child: _landmarkRow(city.slug, i, landmarks[i])),
+                    if (i < landmarks.length - 1) const SizedBox(height: 10),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
@@ -766,7 +769,7 @@ class _BannerCard extends StatelessWidget {
       child: cardChild,
     );
 
-    return Container(
+    final body = Container(
       color: _duoBg,
       alignment: open && hasBanner ? null : Alignment.topCenter,
       child: Center(
@@ -776,65 +779,63 @@ class _BannerCard extends StatelessWidget {
         ),
       ),
     );
+    // While open, a tap anywhere on the banner closes it (the title button still
+    // works as the deeper recognizer); closed, the title opens it.
+    if (open && hasBanner) {
+      return GestureDetector(
+        onTap: onTitleTap,
+        behavior: HitTestBehavior.opaque,
+        child: body,
+      );
+    }
+    return body;
   }
 
   // One landmark: a clean tile — a large photo (full tile height) with its number
   // badge, and the name + a longer blurb filling the space beside it.
   Widget _landmarkRow(String slug, int i, Landmark lm) {
-    // Standard photo box (same for every tile). The photo is shown whole
-    // (contain) over a blurred copy of itself, so every structure is centred and
-    // fully visible at the same size.
-    final photo = SizedBox(
-      width: 150,
-      height: 108,
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          ImageFiltered(
-            imageFilter: ui.ImageFilter.blur(
-                sigmaX: 16, sigmaY: 16, tileMode: TileMode.decal),
-            child: Image.asset(cityPhotoAsset(slug, lm.photo),
-                fit: BoxFit.cover),
-          ),
-          const ColoredBox(color: Color(0x40000000)),
-          Image.asset(cityPhotoAsset(slug, lm.photo), fit: BoxFit.contain),
-          Positioned(
-            left: 6,
-            top: 6,
-            child: Container(
-              width: 24,
-              height: 24,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: _duoGreen,
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 1.5),
-              ),
-              child: Text('${i + 1}',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
-            ),
-          ),
-        ],
-      ),
-    );
+    // The photo fills the full tile height uniformly (cover, no blur/dim), and
+    // the tile is an Expanded share so every photo is the same size.
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         color: Colors.black.withValues(alpha: 0.34),
         borderRadius: BorderRadius.circular(12),
       ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
-        Padding(
-          padding: const EdgeInsets.all(8),
-          child:
-              ClipRRect(borderRadius: BorderRadius.circular(8), child: photo),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        SizedBox(
+          width: 150,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              // Solid neutral backdrop (no blur), photo shown whole + uniform.
+              const ColoredBox(color: Color(0xFF26323F)),
+              Image.asset(cityPhotoAsset(slug, lm.photo), fit: BoxFit.contain),
+              Positioned(
+                left: 6,
+                top: 6,
+                child: Container(
+                  width: 24,
+                  height: 24,
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: _duoGreen,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Text('${i + 1}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800)),
+                ),
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -845,9 +846,12 @@ class _BannerCard extends StatelessWidget {
                         fontSize: 15,
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 5),
-                Text(tr ? lm.descTr : lm.descEn,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 12, height: 1.32)),
+                Flexible(
+                  child: Text(tr ? lm.descTr : lm.descEn,
+                      overflow: TextOverflow.fade,
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 12, height: 1.3)),
+                ),
               ],
             ),
           ),
@@ -875,27 +879,18 @@ class _UnitNodes extends StatelessWidget {
   // Zigzag x-offsets for the 5 nodes per unit: phase1(center) → phase2(right) →
   // REWARD(center) → phase3(left) → phase4(center). First & last circle aligned.
   static const _r = 74.0;
-  static const _slots = [0.0, _r, 0.0, -_r, 0.0];
+  // Zigzag x-offsets for the 4 phase circles: center → right → center → left.
+  static const _phaseSlots = [0.0, _r, 0.0, -_r];
 
   @override
   Widget build(BuildContext context) {
     final city = cityForUnit(step.hsk, step.index);
     final label = '${city.zh}  ${city.pinyin}';
-    // Interleave the 4 phase steps with a reward node in the middle (index 2).
+    // The 4 phase circles in order, then the reward chest at the bottom.
     final nodes = <Widget>[];
-    var slot = 0;
     for (var i = 0; i < step.phases.length; i++) {
-      if (i == 2) {
-        nodes.add(Padding(
-          padding: const EdgeInsets.only(bottom: 30),
-          child: Transform.translate(
-            offset: Offset(_slots[slot++], 0),
-            child: _RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'),
-          ),
-        ));
-      }
       nodes.add(Transform.translate(
-        offset: Offset(_slots[slot++], 0),
+        offset: Offset(_phaseSlots[i % _phaseSlots.length], 0),
         child: _PhaseNode(
           phase: step.phases[i],
           topic: topic,
@@ -906,6 +901,7 @@ class _UnitNodes extends StatelessWidget {
         ),
       ));
     }
+    nodes.add(_RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'));
     // The unit's content fills the fixed item height; a divider sits at the very
     // bottom = the boundary line between this unit and the next. The banner swaps
     // to the next unit exactly when this line reaches the top (see _onScroll).
