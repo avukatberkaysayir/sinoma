@@ -345,6 +345,7 @@ class _NavItem extends StatelessWidget {
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
 const double _kUnitHeight = 520; // fixed height per unit section (5 nodes)
+const double _kBannerH = 108; // closed banner card height (overlay over the path)
 // Switch the banner exactly when the boundary line between two units reaches the
 // top of the list (right under the banner). 0 = align the switch with the line.
 const double _kBannerLead = 0;
@@ -500,43 +501,50 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                 });
               },
             ),
-            // Single banner that swaps to the unit currently at the top — no
-            // stacking/overlap.
-            _UnitBanner(
-              step: bannerStep,
-              tr: tr,
-              color: _unitColor(bannerStep),
-              infoOpen: _infoOpen,
-              onTitleTap: () => setState(() => _infoOpen = !_infoOpen),
-            ),
-            if (_infoOpen && bannerLandmarks != null)
-              _LandmarkInfoPanel(
-                slug: bannerCity.slug,
-                landmarks: bannerLandmarks,
-                tr: tr,
-                onClose: () => setState(() => _infoOpen = false),
-              ),
+            // The banner overlays the TOP of the path: the path is padded down by
+            // the banner's height, and opening the info panel grows the banner
+            // card downward OVER the circles (it doesn't push them).
             Expanded(
-              child: LayoutBuilder(builder: (context, constraints) {
-                // Trailing space so the LAST unit can scroll up into the banner
-                // trigger zone — otherwise the final unit (e.g. Ünite 24) could
-                // never become the top unit and never show in the banner.
-                final tail = (constraints.maxHeight - _kUnitHeight + _kBannerLead)
-                    .clamp(60.0, double.infinity);
-                return ListView.builder(
-                  controller: _scroll,
-                  padding: EdgeInsets.only(bottom: tail),
-                  itemExtent: _kUnitHeight,
-                  itemCount: topic.steps.length,
-                  itemBuilder: (_, i) => _UnitNodes(
-                    step: topic.steps[i],
-                    topic: topic,
-                    progress: progress,
-                    currentKey: current?.key,
-                    tr: tr,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: _kBannerH),
+                    child: LayoutBuilder(builder: (context, constraints) {
+                      // Trailing space so the LAST unit can scroll up into the
+                      // banner trigger zone (else Ünite 24 never reaches the top).
+                      final tail =
+                          (constraints.maxHeight - _kUnitHeight + _kBannerLead)
+                              .clamp(60.0, double.infinity);
+                      return ListView.builder(
+                        controller: _scroll,
+                        padding: EdgeInsets.only(bottom: tail),
+                        itemExtent: _kUnitHeight,
+                        itemCount: topic.steps.length,
+                        itemBuilder: (_, i) => _UnitNodes(
+                          step: topic.steps[i],
+                          topic: topic,
+                          progress: progress,
+                          currentKey: current?.key,
+                          tr: tr,
+                        ),
+                      );
+                    }),
                   ),
-                );
-              }),
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: _BannerCard(
+                      step: bannerStep,
+                      tr: tr,
+                      color: _unitColor(bannerStep),
+                      open: _infoOpen && bannerLandmarks != null,
+                      onTitleTap: () => setState(() => _infoOpen = !_infoOpen),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         );
@@ -594,74 +602,146 @@ class _HskSelector extends StatelessWidget {
   }
 }
 
-// Single colored unit banner (the one currently at the top of the scroll).
-class _UnitBanner extends StatelessWidget {
+// The banner card that overlays the top of the path. When open it grows downward
+// with the SAME gradient/design, showing the unit-city's 4 landmarks (numbered
+// photo + bilingual blurb) over the circles below. The city name is the button.
+class _BannerCard extends StatelessWidget {
   final PathStep step;
   final bool tr;
   final Color color;
-  final bool infoOpen;
+  final bool open;
   final VoidCallback? onTitleTap;
-  const _UnitBanner(
-      {required this.step,
-      required this.tr,
-      required this.color,
-      this.infoOpen = false,
-      this.onTitleTap});
+  const _BannerCard({
+    required this.step,
+    required this.tr,
+    required this.color,
+    required this.open,
+    this.onTitleTap,
+  });
+
+  static const _shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
 
   @override
   Widget build(BuildContext context) {
     final city = cityForUnit(step.hsk, step.index);
     final landmarks = kCityLandmarks[city.slug];
     final hasBanner = landmarks != null;
-    const shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
-    // The city name is a button (when the city has landmarks) that opens the info
-    // panel; a chevron hints at it.
-    final title = Row(mainAxisSize: MainAxisSize.min, children: [
-      Flexible(
-        child: Text('${city.zh}  ${city.pinyin}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.w800,
-                shadows: hasBanner ? shadow : null)),
-      ),
-      if (hasBanner) ...[
-        const SizedBox(width: 5),
-        Icon(infoOpen ? Icons.expand_less : Icons.expand_more,
-            color: Colors.white, size: 20, shadows: shadow),
-      ],
-    ]);
-    final content = Align(
-      alignment: Alignment.centerLeft,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 18),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
-                style: TextStyle(
-                    color: Colors.white70,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5,
-                    shadows: hasBanner ? shadow : null)),
-            const SizedBox(height: 3),
-            hasBanner
-                ? GestureDetector(
-                    onTap: onTitleTap,
-                    behavior: HitTestBehavior.opaque,
-                    child: title)
-                : title,
-          ],
+
+    final titleText = Text('${city.zh}  ${city.pinyin}',
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+            color: Colors.white,
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            shadows: hasBanner ? _shadow : null));
+    // The whole city name is a button (a translucent pill) when the city has
+    // landmarks; tapping it toggles the info panel.
+    final title = hasBanner
+        ? Material(
+            color: Colors.white.withValues(alpha: open ? 0.28 : 0.16),
+            borderRadius: BorderRadius.circular(10),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(10),
+              onTap: onTitleTap,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(10, 4, 8, 4),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Flexible(child: titleText),
+                  const SizedBox(width: 4),
+                  Icon(open ? Icons.expand_less : Icons.expand_more,
+                      color: Colors.white, size: 18, shadows: _shadow),
+                ]),
+              ),
+            ),
+          )
+        : titleText;
+
+    final bannerArea = SizedBox(
+      height: 92,
+      width: double.infinity,
+      child: Stack(fit: StackFit.expand, children: [
+        if (hasBanner)
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+                colors: [Color(0xCC000000), Color(0x00000000)],
+                stops: [0.0, 0.55],
+              ),
+            ),
+          ),
+        if (hasBanner)
+          Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 12, bottom: 8),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  for (final lm in landmarks)
+                    Padding(
+                      padding: const EdgeInsets.only(left: 10),
+                      child: Image.asset(cityIconAsset(city.slug, lm.icon),
+                          height: 58),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('L${step.hsk} · ${tr ? 'ÜNİTE' : 'UNIT'} ${step.index + 1}',
+                    style: TextStyle(
+                        color: Colors.white70,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        shadows: hasBanner ? _shadow : null)),
+                const SizedBox(height: 4),
+                title,
+              ],
+            ),
+          ),
         ),
-      ),
+      ]),
     );
+
+    final cardChild = Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        bannerArea,
+        if (open && hasBanner) ...[
+          Container(
+              height: 1,
+              margin: const EdgeInsets.symmetric(horizontal: 14),
+              color: Colors.white.withValues(alpha: 0.22)),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                maxHeight: MediaQuery.sizeOf(context).height * 0.42),
+            child: ListView.separated(
+              padding: const EdgeInsets.all(12),
+              shrinkWrap: true,
+              itemCount: landmarks.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _landmarkRow(city.slug, i, landmarks[i]),
+            ),
+          ),
+        ],
+      ],
+    );
+
     return Container(
       color: _duoBg,
-      alignment: Alignment.center,
+      alignment: Alignment.topCenter,
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
@@ -676,16 +756,11 @@ class _UnitBanner extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 92,
-              child: !hasBanner
-                  ? Container(color: color, child: content)
-                  : Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Dusk sky gradient.
-                        const DecoratedBox(
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: hasBanner
+                      ? const DecoratedBox(
                           decoration: BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.topCenter,
@@ -693,129 +768,34 @@ class _UnitBanner extends StatelessWidget {
                               colors: [Color(0xFF283A60), Color(0xFFF0A878)],
                             ),
                           ),
-                        ),
-                        // Left-weighted dark gradient so the name stays legible
-                        // (under the icons so they stay bright on the right).
-                        const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight,
-                              colors: [Color(0xCC000000), Color(0x00000000)],
-                              stops: [0.0, 0.55],
-                            ),
-                          ),
-                        ),
-                        // The unit's four landmarks, bottom-right, in phase order.
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: Padding(
-                            padding:
-                                const EdgeInsets.only(right: 12, bottom: 8),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                for (final lm in landmarks)
-                                  Padding(
-                                    padding: const EdgeInsets.only(left: 10),
-                                    child: Image.asset(
-                                        cityIconAsset(city.slug, lm.icon),
-                                        height: 58),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        content,
-                      ],
-                    ),
+                        )
+                      : ColoredBox(color: color),
+                ),
+                cardChild,
+              ],
             ),
           ),
         ),
       ),
     );
   }
-}
 
-// In-page panel that drops below the banner: introduces the unit-city's four
-// landmarks with a real photo, a number and a short bilingual blurb.
-class _LandmarkInfoPanel extends StatelessWidget {
-  final String slug;
-  final List<Landmark> landmarks;
-  final bool tr;
-  final VoidCallback onClose;
-  const _LandmarkInfoPanel({
-    required this.slug,
-    required this.landmarks,
-    required this.tr,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 0, 16, 6),
-        constraints: BoxConstraints(
-          maxWidth: 600,
-          maxHeight: MediaQuery.sizeOf(context).height * 0.42,
-        ),
-        decoration: BoxDecoration(
-          color: _duoPanel,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 8, 6),
-              child: Row(children: [
-                const Icon(Icons.place_outlined, size: 16, color: _duoGreen),
-                const SizedBox(width: 6),
-                Text(tr ? 'Bu ünitenin simgeleri' : 'Landmarks of this unit',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800)),
-                const Spacer(),
-                GestureDetector(
-                  onTap: onClose,
-                  behavior: HitTestBehavior.opaque,
-                  child: const Padding(
-                    padding: EdgeInsets.all(4),
-                    child: Icon(Icons.close, size: 18, color: Colors.white54),
-                  ),
-                ),
-              ]),
-            ),
-            const Divider(height: 1, color: Colors.white12),
-            Flexible(
-              child: ListView.separated(
-                padding: const EdgeInsets.all(12),
-                shrinkWrap: true,
-                itemCount: landmarks.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (_, i) => _row(i, landmarks[i]),
-              ),
-            ),
-          ],
-        ),
+  // One landmark: a translucent dark tile (so text stays readable over the
+  // gradient) with its number, real photo and bilingual blurb.
+  Widget _landmarkRow(String slug, int i, Landmark lm) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(10),
       ),
-    );
-  }
-
-  Widget _row(int i, Landmark lm) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Container(
           width: 22,
           height: 22,
           alignment: Alignment.center,
-          decoration: const BoxDecoration(
-              color: _duoGreen, shape: BoxShape.circle),
+          decoration:
+              const BoxDecoration(color: _duoGreen, shape: BoxShape.circle),
           child: Text('${i + 1}',
               style: const TextStyle(
                   color: Colors.white,
@@ -841,11 +821,11 @@ class _LandmarkInfoPanel extends StatelessWidget {
               const SizedBox(height: 3),
               Text(tr ? lm.descTr : lm.descEn,
                   style: const TextStyle(
-                      color: Colors.white60, fontSize: 11.5, height: 1.25)),
+                      color: Colors.white70, fontSize: 11.5, height: 1.25)),
             ],
           ),
         ),
-      ],
+      ]),
     );
   }
 }
