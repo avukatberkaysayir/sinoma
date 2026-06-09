@@ -2244,6 +2244,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   late final TextEditingController _correctCtrlEn;
   late final TextEditingController _wrongCtrlEn;
   String _selectedQuizLang = 'tr';
+  bool _enApproved = false; // English options approved as the pivot source
   bool _saving = false;
   bool _generating = false;
   bool _segmenting = false;
@@ -2310,6 +2311,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         text: quizEn['correctAnswer'] as String? ?? '');
     _wrongCtrlEn = TextEditingController(
         text: quizEn['wrongAnswer'] as String? ?? '');
+    // Previously-saved English counts as already approved.
+    _enApproved = (quizEn['correctAnswer'] as String? ?? '').trim().isNotEmpty;
   }
 
   void _openInlinePlayer() {
@@ -2403,12 +2406,20 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           const SnackBar(content: Text('Bu klipte transkripsiyon yok.')));
       return;
     }
+    final pivot = _selectedQuizLang != 'en';
+    if (pivot && (_correctCtrlEn.text.trim().isEmpty || !_enApproved)) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Önce EN sekmesinde İngilizce şıkkı üretip "İngilizce’yi Onayla"ya bas.')));
+      return;
+    }
     setState(() => _generating = true);
     try {
       final q = await widget.service.generateQuiz(
         transcription: transcription,
         pinyin: _pinyinCtrl.text.trim(),
         lang: _selectedQuizLang,
+        sourceEn: pivot ? _correctCtrlEn.text.trim() : '',
       );
       if (!mounted) return;
       setState(() {
@@ -2418,6 +2429,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         } else {
           _correctCtrlEn.text = q['correctAnswer'] ?? '';
           _wrongCtrlEn.text = q['wrongAnswer'] ?? '';
+          _enApproved = false; // fresh English needs re-approval
         }
         _generating = false;
       });
@@ -3355,10 +3367,16 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     ],
                   ),
                   const SizedBox(height: 8),
+                  // English-first pivot: generate + approve English, then other
+                  // languages translate from the approved English (Chinese→EN→X
+                  // reads far better than Chinese→X direct).
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: _generating ? null : _generateQuiz,
+                      onPressed: (_generating ||
+                              (_selectedQuizLang != 'en' && !_enApproved))
+                          ? null
+                          : _generateQuiz,
                       icon: _generating
                           ? const SizedBox(
                               width: 16,
@@ -3367,7 +3385,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                           : const Icon(Icons.auto_awesome, size: 18),
                       label: Text(_generating
                           ? 'Üretiliyor…'
-                          : 'Gemini ile şık üret (${_selectedQuizLang.toUpperCase()})'),
+                          : _selectedQuizLang == 'en'
+                              ? 'Gemini ile İngilizce üret'
+                              : 'Gemini ile ${_selectedQuizLang.toUpperCase()} üret (onaylı İngilizce’den)'),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.primary,
                         side: const BorderSide(color: AppColors.primary),
@@ -3375,6 +3395,14 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       ),
                     ),
                   ),
+                  if (_selectedQuizLang != 'en' && !_enApproved)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 4),
+                      child: Text(
+                          'Önce EN sekmesinde İngilizce’yi üretip onayla.',
+                          style: TextStyle(
+                              color: AppColors.onSurfaceMuted, fontSize: 11)),
+                    ),
                   const SizedBox(height: 10),
                   if (_selectedQuizLang == 'tr') ...[
                     _editField(_correctCtrl, 'Doğru cevap (TR)'),
@@ -3382,6 +3410,29 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   ] else ...[
                     _editField(_correctCtrlEn, 'Correct answer (EN)'),
                     _editField(_wrongCtrlEn, 'Wrong answer — distractor (EN)'),
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        onPressed: _correctCtrlEn.text.trim().isEmpty
+                            ? null
+                            : () => setState(() => _enApproved = true),
+                        icon: Icon(
+                            _enApproved
+                                ? Icons.check_circle
+                                : Icons.check_rounded,
+                            size: 16),
+                        label: Text(_enApproved
+                            ? 'İngilizce onaylandı ✓'
+                            : 'İngilizce’yi Onayla'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _enApproved
+                              ? AppColors.correctAnswer
+                              : AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                        ),
+                      ),
+                    ),
                   ],
                   const SizedBox(height: 12),
                   Row(

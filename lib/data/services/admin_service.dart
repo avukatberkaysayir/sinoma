@@ -314,6 +314,7 @@ class AdminService {
     String pinyin = '',
     String lang = 'tr',
     List<String> targetWords = const [],
+    String sourceEn = '',
   }) async {
     final res = await _db.functions.invoke(
       'generate-quiz',
@@ -322,6 +323,8 @@ class AdminService {
         'pinyin': pinyin,
         'lang': lang,
         if (targetWords.isNotEmpty) 'targetWords': targetWords,
+        // Pivot: non-English options translate from the approved English.
+        if (sourceEn.trim().isNotEmpty) 'sourceEn': sourceEn.trim(),
       },
     );
     if (res.status >= 300) {

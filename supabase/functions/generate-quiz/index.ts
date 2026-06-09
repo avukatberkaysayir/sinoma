@@ -73,6 +73,7 @@ function buildPrompt(
   transcription: string,
   pinyin: string,
   langName: string,
+  sourceEn?: string,
 ): string {
   const profile = LANG_PROFILES[langName];
   const authority = profile?.authority ?? `the most authoritative ${langName} grammar standard`;
@@ -81,6 +82,31 @@ function buildPrompt(
     `Produce output a fluent native ${langName} speaker would say naturally, not a literal translation.`,
   ];
   const numberedRules = rules.map((r, i) => `  ${i + 1}. ${r}`).join("\n");
+
+  // Pivot mode: translate the APPROVED English (not directly from Chinese). The
+  // English carries the vetted meaning; Chinese/pinyin are only grammar reference.
+  // Chinese→English→target reads far more naturally than Chinese→target direct.
+  if (sourceEn && sourceEn.trim() && langName !== "English") {
+    return (
+      `You are a certified ${langName} linguist and professional translator.\n` +
+      `Your grammar authority: ${authority}.\n\n` +
+      `MANDATORY GRAMMAR RULES for this task:\n${numberedRules}\n\n` +
+      `TRANSLATE THIS APPROVED ENGLISH into ${langName}. The English is the vetted, ` +
+      `authoritative meaning — translate IT. Use the Chinese only to disambiguate nuance.\n` +
+      `  English (authoritative source): "${sourceEn.trim()}"\n` +
+      `  Chinese (reference only):       "${transcription}"\n` +
+      (pinyin ? `  Pinyin (reference only):        "${pinyin}"\n` : "") +
+      `\nFollow these steps internally before producing output:\n` +
+      `  Step 1 — Draft a natural ${langName} rendering of the ENGLISH meaning (not word-for-word).\n` +
+      `  Step 2 — Grammar audit: fix every violation of the numbered rules.\n` +
+      `  Step 3 — Naturalness check: exactly what a fluent native speaker would say.\n` +
+      `  Step 4 — wrongAnswer: take your correctAnswer and change exactly ONE key semantic element ` +
+      `(near-synonym that shifts meaning, add/remove a negation, or swap subject/object). It must be ` +
+      `equally grammatically perfect — only the meaning is wrong; similar length/structure.\n\n` +
+      `OUTPUT — return ONLY valid JSON, no markdown:\n` +
+      `{"correctAnswer": "<final ${langName} translation>", "wrongAnswer": "<grammatical but semantically wrong distractor>"}`
+    );
+  }
 
   return (
     `You are a certified ${langName} linguist and professional translator.\n` +
@@ -145,6 +171,57 @@ function json(obj: unknown, status = 200): Response {
   });
 }
 
+async function sha256(s: string): Promise<string> {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return Array.from(new Uint8Array(buf))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+// Persisted cache so the same (sentence, language, English-source) is generated
+// once and reused forever — keeps Gemini usage sustainable under the free quota.
+const SB_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SB_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const sbHeaders = {
+  apikey: SB_KEY,
+  Authorization: `Bearer ${SB_KEY}`,
+  "Content-Type": "application/json",
+};
+
+async function cacheGet(
+  k: string,
+): Promise<{ correct: string; wrong: string } | null> {
+  if (!SB_URL || !SB_KEY) return null;
+  try {
+    const r = await fetch(
+      `${SB_URL}/rest/v1/ai_quiz_cache?cache_key=eq.${k}&select=correct_answer,wrong_answer`,
+      { headers: sbHeaders },
+    );
+    if (!r.ok) return null;
+    const rows = await r.json();
+    if (Array.isArray(rows) && rows.length) {
+      return { correct: rows[0].correct_answer ?? "", wrong: rows[0].wrong_answer ?? "" };
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+async function cacheSet(k: string, correct: string, wrong: string): Promise<void> {
+  if (!SB_URL || !SB_KEY || !correct) return;
+  try {
+    await fetch(`${SB_URL}/rest/v1/ai_quiz_cache`, {
+      method: "POST",
+      headers: { ...sbHeaders, Prefer: "resolution=merge-duplicates" },
+      body: JSON.stringify({
+        cache_key: k,
+        correct_answer: correct,
+        wrong_answer: wrong,
+        model: MODEL,
+      }),
+    });
+  } catch { /* ignore */ }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -154,10 +231,8 @@ serve(async (req) => {
     const transcription = (body.transcription ?? "").toString().trim();
     const pinyin = (body.pinyin ?? "").toString().trim();
     const lang = (body.lang ?? "tr").toString();
+    const sourceEn = (body.sourceEn ?? "").toString().trim();
     if (!transcription) return json({ error: "transcription required" }, 400);
-
-    const key = Deno.env.get("GEMINI_API_KEY");
-    if (!key) return json({ error: "GEMINI_API_KEY not set" }, 500);
 
     const langName =
       lang === "en" ? "English"
@@ -166,7 +241,17 @@ serve(async (req) => {
       : lang === "vi" ? "Vietnamese"
       : "Turkish";
 
-    const prompt = buildPrompt(transcription, pinyin, langName);
+    // Cache first — same sentence+language+English-source never re-hits Gemini.
+    const cacheKey = await sha256(`${MODEL}|${langName}|${sourceEn}|${transcription}`);
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      return json({ correctAnswer: cached.correct, wrongAnswer: cached.wrong, cached: true });
+    }
+
+    const key = Deno.env.get("GEMINI_API_KEY");
+    if (!key) return json({ error: "GEMINI_API_KEY not set" }, 500);
+
+    const prompt = buildPrompt(transcription, pinyin, langName, sourceEn);
 
     const reqBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
@@ -196,10 +281,10 @@ serve(async (req) => {
       }
     }
 
-    return json({
-      correctAnswer: String(parsed.correctAnswer ?? ""),
-      wrongAnswer: String(parsed.wrongAnswer ?? ""),
-    });
+    const correctAnswer = String(parsed.correctAnswer ?? "");
+    const wrongAnswer = String(parsed.wrongAnswer ?? "");
+    if (correctAnswer) await cacheSet(cacheKey, correctAnswer, wrongAnswer);
+    return json({ correctAnswer, wrongAnswer });
   } catch (e) {
     return json({ error: String(e) }, 500);
   }
