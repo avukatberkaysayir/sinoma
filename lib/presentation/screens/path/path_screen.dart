@@ -345,7 +345,9 @@ class _NavItem extends StatelessWidget {
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
 const double _kUnitHeight = 520; // fixed height per unit section (5 nodes)
-const double _kBannerLead = 120; // switch banner this early (boundary offset)
+// Switch the banner exactly when the boundary line between two units reaches the
+// top of the list (right under the banner). 0 = align the switch with the line.
+const double _kBannerLead = 0;
 
 Color _unitColor(PathStep step) {
   if (step.title == '—') return _duoLocked; // truly empty placeholder
@@ -537,6 +539,7 @@ class _UnitBanner extends StatelessWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 600),
         child: Container(
+          width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           decoration: BoxDecoration(
             color: color,
@@ -620,31 +623,41 @@ class _UnitNodes extends StatelessWidget {
         ),
       ));
     }
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
-        // Full width so the zigzag-translated nodes stay inside the bounds and
-        // remain tappable (a shrink-wrapped column clipped their hit area).
-        child: SizedBox(
-          width: double.infinity,
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              // Per-unit caption (the boundary the banner switches on): grammar
-              // translation + Chinese, by locale.
-              Text(label,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                      color: Colors.white38,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              ...nodes,
-              const SizedBox(height: 6),
-            ],
+    // The unit's content fills the fixed item height; a divider sits at the very
+    // bottom = the boundary line between this unit and the next. The banner swaps
+    // to the next unit exactly when this line reaches the top (see _onScroll).
+    return Column(
+      children: [
+        Expanded(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 600),
+              // Full width so the zigzag-translated nodes stay inside the bounds
+              // and remain tappable (a shrink-wrapped column clipped hit area).
+              child: SizedBox(
+                width: double.infinity,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(height: 12),
+                    // Per-unit caption (the city name for this unit).
+                    Text(label,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                            color: Colors.white38,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    ...nodes,
+                    const SizedBox(height: 6),
+                  ],
+                ),
+              ),
+            ),
           ),
         ),
-      ),
+        Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
+      ],
     );
   }
 }
