@@ -105,42 +105,56 @@ _YTDLP_BASE_ARGS = [
     "--extractor-args", f"youtubepot-bgutilhttp:base_url={_POT_BASE_URL}",
 ]
 
-# PO-token clients (web/mweb/tv) come FIRST now — they pass the bot gate when a PO
-# token is available. android/ios are kept as fallback (different attestation, no
-# PO token). fetch_pot=always forces a token request for the web-family clients.
+# Winning combo (verified 2026-06): tv/android/mweb/ios/web_safari + a GVS PO
+# token, NO cookies. A single call lists ALL these clients' formats merged so
+# yt-dlp downloads whichever non-SABR stream any client exposes. Two hard rules:
+#   • fetch_pot=always — these clients need a GVS PO token from the local provider.
+#   • NO cookies here — passing --cookies makes yt-dlp SKIP android/ios/tv (they
+#     "do not support cookies"), leaving only web clients which YouTube forces to
+#     SABR (download URLs withheld → "Requested format is not available").
+_COMBINED_CLIENTS = "tv,android,mweb,ios,web_safari"
+
 _CLIENTS: list[list[str]] = [
-    ["--extractor-args", "youtube:player_client=web;fetch_pot=always"],
-    ["--extractor-args", "youtube:player_client=mweb;fetch_pot=always"],
+    # One shot, all clients merged — handles almost every video.
+    ["--extractor-args", f"youtube:player_client={_COMBINED_CLIENTS};fetch_pot=always"],
+    # Per-client fallbacks (a single client sometimes succeeds where the merge
+    # picks a bad default).
     ["--extractor-args", "youtube:player_client=tv;fetch_pot=always"],
-    ["--extractor-args", "youtube:player_client=android"],
-    ["--extractor-args", "youtube:player_client=ios"],
-    [],  # yt-dlp default
+    ["--extractor-args", "youtube:player_client=android;fetch_pot=always"],
+    ["--extractor-args", "youtube:player_client=mweb;fetch_pot=always"],
+    ["--extractor-args", "youtube:player_client=ios;fetch_pot=always"],
+]
+
+# Cookies are a LAST resort only — for age-gated / sign-in-required videos. They
+# force web clients (SABR), so they rarely yield a download, but they're the only
+# path for authenticated content. Tried after every no-cookie strategy fails.
+_COOKIE_CLIENTS: list[list[str]] = [
+    ["--extractor-args", "youtube:player_client=web_safari;fetch_pot=always"],
+    ["--extractor-args", "youtube:player_client=mweb;fetch_pot=always"],
 ]
 
 
 def current_strategies() -> list[tuple[list[str], list[str]]]:
-    """(client_args, cookie_args) pairs, strongest first, computed per call so a
+    """(client_args, cookie_args) pairs, strongest first, recomputed per call so a
     freshly-dropped cookies.txt is picked up without a restart.
 
-    Phase 1 — cookies.txt × all clients (only if the file exists): beats a flagged IP.
-    Phase 2 — no cookies × all clients (PO-token web clients first).
-    Phase 3 — browser cookies × top clients (best-effort; unreliable on Windows
-              where Chrome/Edge app-bound encryption blocks extraction).
+    Phase 1 — no cookies × PO-token clients (combined first): the verified winner.
+    Phase 2 — cookies.txt × web clients, ONLY if the file exists: auth-gated videos.
     """
+    strats: list[tuple[list[str], list[str]]] = [(c, []) for c in _CLIENTS]
     cf = _cookies_file_args()
-    strats: list[tuple[list[str], list[str]]] = []
     if cf:
-        strats += [(c, cf) for c in _CLIENTS]
-    strats += [(c, []) for c in _CLIENTS]
-    strats += [(c, ["--cookies-from-browser", "chrome"]) for c in _CLIENTS[:3]]
-    strats += [(c, ["--cookies-from-browser", "edge"]) for c in _CLIENTS[:3]]
+        strats += [(c, cf) for c in _COOKIE_CLIENTS]
     return strats
 
 
 def _strategy_label(client_args: list[str], cookie_args: list[str]) -> str:
-    client = client_args[1].split("=")[-1] if client_args else "default"
-    cookie = cookie_args[1] if cookie_args else "no-cookies"
-    return f"client={client} cookies={cookie}"
+    client = "default"
+    if client_args:
+        m = re.search(r"player_client=([^;]+)", client_args[1])
+        client = m.group(1) if m else client_args[1]
+    cookie = "cookies.txt" if cookie_args else "no-cookies"
+    return f"client={client} {cookie}"
 
 
 def _is_truly_permanent(text: str) -> bool:

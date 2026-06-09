@@ -3,7 +3,14 @@ google-cloud-firestore==2.19.0
 requests==2.32.3
 mypy==1.11.2
 ruff==0.6.9
-yt-dlp==2024.11.18
+# YouTube breaks the stable channel roughly monthly (SABR rollout, PO-token, JS
+# challenge changes). Track the NIGHTLY pre-release — older builds return only
+# storyboards ("Requested format is not available"). Install with:
+#   pip install -U --pre "yt-dlp[default]"
+yt-dlp>=2026.6.6
+# Local PO-Token provider transport (needs the node server in D:\UserData\bgutil-pot;
+# see dev_server.py _ensure_pot_server). Required to pass YouTube's bot gate.
+bgutil-ytdlp-pot-provider>=1.3.1
 jieba==0.42.1
 pypinyin==0.51.0
 internetarchive==5.1.0
