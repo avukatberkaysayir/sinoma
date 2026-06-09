@@ -453,6 +453,16 @@ Color _unitColor(PathStep step) {
   return palette[step.index % palette.length];
 }
 
+// An admin-uploaded image (network URL) when present, else the bundled asset.
+Widget _slotImage(String? url, String assetPath, {BoxFit fit = BoxFit.contain}) {
+  if (url != null && url.isNotEmpty) {
+    return Image.network(url,
+        fit: fit,
+        errorBuilder: (_, __, ___) => Image.asset(assetPath, fit: fit));
+  }
+  return Image.asset(assetPath, fit: fit);
+}
+
 // Small corner badge on a node that marks its state (done = check, locked = lock).
 Widget _nodeBadge(IconData ic, Color bg) => Container(
       padding: const EdgeInsets.all(2),
@@ -642,7 +652,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
 // The banner card that overlays the top of the path. When open it grows downward
 // with the SAME gradient/design, showing the unit-city's 4 landmarks (numbered
 // photo + bilingual blurb) over the circles below. The city name is the button.
-class _BannerCard extends StatelessWidget {
+class _BannerCard extends ConsumerWidget {
   final PathStep step;
   final bool tr;
   final Color color;
@@ -659,10 +669,15 @@ class _BannerCard extends StatelessWidget {
   static const _shadow = [Shadow(color: Color(0xCC000000), blurRadius: 6)];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final city = cityForUnit(step.hsk, step.index);
     final landmarks = kCityLandmarks[city.slug];
     final hasBanner = landmarks != null;
+    // Admin-uploaded overrides for this unit (banner image / icons / photos).
+    final assets = ref
+            .watch(pathAssetsProvider((level: step.hsk, unit: step.index + 1)))
+            .valueOrNull ??
+        const UnitAssets();
 
     final titleText = Text('${city.zh}  ${city.pinyin}',
         maxLines: 1,
@@ -689,10 +704,15 @@ class _BannerCard extends StatelessWidget {
           )
         : titleText;
 
+    final customBanner = assets.banner?.url;
     final bannerArea = SizedBox(
       height: 92,
       width: double.infinity,
       child: Stack(fit: StackFit.expand, children: [
+        // An admin-uploaded banner image fills the whole banner; otherwise the
+        // four landmark icons sit bottom-right on the gradient.
+        if (hasBanner && customBanner != null)
+          Image.network(customBanner, fit: BoxFit.cover),
         if (hasBanner)
           const DecoratedBox(
             decoration: BoxDecoration(
@@ -704,7 +724,7 @@ class _BannerCard extends StatelessWidget {
               ),
             ),
           ),
-        if (hasBanner)
+        if (hasBanner && customBanner == null)
           Align(
             alignment: Alignment.bottomRight,
             child: Padding(
@@ -713,15 +733,14 @@ class _BannerCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  for (final lm in landmarks)
+                  for (var i = 0; i < landmarks.length; i++)
                     Padding(
                       padding: const EdgeInsets.only(left: 12),
-                      // Fixed equal box + contain so every icon has the same
-                      // footprint and spacing, regardless of its own aspect.
                       child: SizedBox(
-                        width: 52,
+                        width: 52 * assets.icon(i).scale.clamp(0.4, 2.0),
                         height: 52,
-                        child: Image.asset(cityIconAsset(city.slug, lm.icon),
+                        child: _slotImage(
+                            assets.icon(i).url, cityIconAsset(city.slug, landmarks[i].icon),
                             fit: BoxFit.contain),
                       ),
                     ),
@@ -770,7 +789,9 @@ class _BannerCard extends StatelessWidget {
               child: Column(
                 children: [
                   for (var i = 0; i < landmarks.length; i++) ...[
-                    Expanded(child: _landmarkRow(city.slug, i, landmarks[i])),
+                    Expanded(
+                        child:
+                            _landmarkRow(city.slug, i, landmarks[i], assets)),
                     if (i < landmarks.length - 1) const SizedBox(height: 10),
                   ],
                 ],
@@ -827,9 +848,12 @@ class _BannerCard extends StatelessWidget {
 
   // One landmark: a clean tile — a large photo (full tile height) with its number
   // badge, and the name + a longer blurb filling the space beside it.
-  Widget _landmarkRow(String slug, int i, Landmark lm) {
-    // The photo fills the full tile height uniformly (cover, no blur/dim), and
-    // the tile is an Expanded share so every photo is the same size.
+  Widget _landmarkRow(String slug, int i, Landmark lm, UnitAssets assets) {
+    final photo = assets.photo(i);
+    final descTr = photo.descTr?.isNotEmpty == true ? photo.descTr! : lm.descTr;
+    final descEn = photo.descEn?.isNotEmpty == true ? photo.descEn! : lm.descEn;
+    // The photo fills the full tile height uniformly (contain over a solid bg),
+    // and the tile is an Expanded share so every photo is the same size.
     return Container(
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
@@ -844,7 +868,8 @@ class _BannerCard extends StatelessWidget {
             children: [
               // Solid neutral backdrop (no blur), photo shown whole + uniform.
               const ColoredBox(color: Color(0xFF26323F)),
-              Image.asset(cityPhotoAsset(slug, lm.photo), fit: BoxFit.contain),
+              _slotImage(photo.url, cityPhotoAsset(slug, lm.photo),
+                  fit: BoxFit.contain),
               Positioned(
                 left: 6,
                 top: 6,
@@ -881,7 +906,7 @@ class _BannerCard extends StatelessWidget {
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 5),
                 Flexible(
-                  child: Text(tr ? lm.descTr : lm.descEn,
+                  child: Text(tr ? descTr : descEn,
                       overflow: TextOverflow.fade,
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 12, height: 1.3)),
@@ -1002,6 +1027,15 @@ class _PhaseNode extends ConsumerWidget {
     // icon. State stays legible: a small corner badge (lock when locked, check
     // when done).
     final ni = _cityNodeIcon(phase.hsk, phase.stepIndex, phase.phaseIndex);
+    // Admin-uploaded icon override for this circle (slot = phase index).
+    final iconOverride = ref
+            .watch(pathAssetsProvider(
+                (level: phase.hsk, unit: phase.stepIndex + 1)))
+            .valueOrNull
+            ?.icon(phase.phaseIndex) ??
+        const PathAsset();
+    final iconUrl = iconOverride.url;
+    final hasIcon = ni.asset != null || iconUrl != null;
     final available = done || unlocked;
     Widget? badge;
     if (done) {
@@ -1041,16 +1075,27 @@ class _PhaseNode extends ConsumerWidget {
     }
 
     final Widget circle;
-    if (ni.asset != null) {
-      // Real landmark icon — shown alone, no circle/backdrop behind it.
-      final img =
-          Image.asset(ni.asset!, width: 104, height: 104, fit: BoxFit.contain);
+    if (hasIcon) {
+      // Real/uploaded landmark icon — shown alone, no circle behind it. The admin
+      // scale lets the size be tuned per slot.
+      final sz = (104.0 * iconOverride.scale).clamp(48.0, 200.0);
+      final img = SizedBox(
+        width: sz,
+        height: sz,
+        child: iconUrl != null
+            ? Image.network(iconUrl,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => ni.asset != null
+                    ? Image.asset(ni.asset!, fit: BoxFit.contain)
+                    : const SizedBox())
+            : Image.asset(ni.asset!, fit: BoxFit.contain),
+      );
       circle = GestureDetector(
         onTap: open,
         behavior: HitTestBehavior.opaque,
         child: SizedBox(
-          width: 110,
-          height: 106,
+          width: sz + 6,
+          height: sz + 2,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,

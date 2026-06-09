@@ -97,6 +97,17 @@ class VideoRepository {
     return out;
   }
 
+  // Admin-managed home design overrides for a unit (banner / photos / icons +
+  // descriptions + scales). Public read; falls back to bundled assets when empty.
+  Future<List<Map<String, dynamic>>> loadPathAssets(int level, int unit) async {
+    final data = await _db
+        .from('path_assets')
+        .select()
+        .eq('level', level)
+        .eq('unit', unit);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   // Grammar rules / words that already have an ACTIVE clip (slot occupant), so the
   // import filter can flag them red ("already covered, don't pick again").
   Future<({Set<String> grammars, Set<String> words})>

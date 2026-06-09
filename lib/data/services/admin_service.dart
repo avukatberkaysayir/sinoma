@@ -91,6 +91,117 @@ class AdminService {
     return res['id'] as String;
   }
 
+  // ── Home (path) design assets — banner / landmark photos / phase icons ──────
+  static const _paBucket = 'path-assets';
+
+  Future<List<Map<String, dynamic>>> loadPathAssets(int level, int unit) async {
+    final data = await _db
+        .from('path_assets')
+        .select()
+        .eq('level', level)
+        .eq('unit', unit);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  // Storage object path embedded in a public URL (…/path-assets/<path>?v=…).
+  String? _paPathFromUrl(String? url) {
+    if (url == null) return null;
+    final m = RegExp(r'/path-assets/([^?]+)').firstMatch(url);
+    return m?.group(1);
+  }
+
+  Future<String> uploadPathAsset(
+    int level,
+    int unit,
+    String kind,
+    int slot,
+    Uint8List bytes,
+    String ext,
+  ) async {
+    // Remove the previous file (it may have a different extension) to avoid
+    // orphans, then upload the new one and upsert the row.
+    final existing = await _db
+        .from('path_assets')
+        .select('url')
+        .eq('level', level)
+        .eq('unit', unit)
+        .eq('kind', kind)
+        .eq('slot', slot)
+        .maybeSingle();
+    final oldPath = _paPathFromUrl(existing?['url'] as String?);
+    if (oldPath != null) {
+      try {
+        await _db.storage.from(_paBucket).remove([oldPath]);
+      } catch (_) {}
+    }
+    final path = 'L$level/U$unit/${kind}_$slot.$ext';
+    await _db.storage.from(_paBucket).uploadBinary(path, bytes,
+        fileOptions: const FileOptions(upsert: true));
+    final url = '${_db.storage.from(_paBucket).getPublicUrl(path)}'
+        '?v=${DateTime.now().millisecondsSinceEpoch}';
+    await _db.from('path_assets').upsert({
+      'level': level,
+      'unit': unit,
+      'kind': kind,
+      'slot': slot,
+      'url': url,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'level,unit,kind,slot');
+    return url;
+  }
+
+  Future<void> deletePathAsset(
+      int level, int unit, String kind, int slot) async {
+    final row = await _db
+        .from('path_assets')
+        .select('url')
+        .eq('level', level)
+        .eq('unit', unit)
+        .eq('kind', kind)
+        .eq('slot', slot)
+        .maybeSingle();
+    final path = _paPathFromUrl(row?['url'] as String?);
+    if (path != null) {
+      try {
+        await _db.storage.from(_paBucket).remove([path]);
+      } catch (_) {}
+    }
+    // Keep a photo row if it still has a description; otherwise drop the row.
+    await _db
+        .from('path_assets')
+        .update({'url': null}).match({
+      'level': level,
+      'unit': unit,
+      'kind': kind,
+      'slot': slot,
+    });
+  }
+
+  Future<void> savePathAssetScale(
+      int level, int unit, String kind, int slot, double scale) async {
+    await _db.from('path_assets').upsert({
+      'level': level,
+      'unit': unit,
+      'kind': kind,
+      'slot': slot,
+      'scale': scale,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'level,unit,kind,slot');
+  }
+
+  Future<void> savePathPhotoDesc(
+      int level, int unit, int slot, String descTr, String descEn) async {
+    await _db.from('path_assets').upsert({
+      'level': level,
+      'unit': unit,
+      'kind': 'photo',
+      'slot': slot,
+      'desc_tr': descTr,
+      'desc_en': descEn,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    }, onConflict: 'level,unit,kind,slot');
+  }
+
   // ── Import history ─────────────────────────────────────────────────────────
 
   // Record (or refresh) that this YouTube video was segmented. Upsert by

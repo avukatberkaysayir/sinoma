@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/cities.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../data/services/admin_service.dart';
 import '../../providers/video_provider.dart';
@@ -14,7 +16,7 @@ import '../../providers/path_provider.dart';
 
 // ── Navigation sections ───────────────────────────────────────────────────────
 
-enum _Section { video, dictionary, users, social, game }
+enum _Section { video, home, dictionary, users, social, game }
 enum _VideoSub { youtube, movie }
 enum _VideoAction { add, manage, history }
 
@@ -95,6 +97,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildBody() {
     return switch (_section) {
       _Section.video      => _buildVideoBody(),
+      _Section.home       => const _HomeDesignPanel(),
       _Section.dictionary => _DictionaryPanel(service: _service),
       _Section.users      => const _UsersPanel(),
       _Section.social     => const _SocialPanel(),
@@ -219,6 +222,14 @@ class _NavRail extends StatelessWidget {
               ),
             ],
           ],
+          _TopItem(
+            icon: Icons.home_outlined,
+            label: 'Anasayfa',
+            selected: section == _Section.home,
+            open: false,
+            hasChildren: false,
+            onTap: () => onSection(_Section.home),
+          ),
           _TopItem(
             icon: Icons.menu_book_outlined,
             label: 'Sözlük',
@@ -6982,4 +6993,513 @@ class AddVideoScreen extends StatelessWidget {
   }
 
   static void _noop() {}
+}
+
+// ── Anasayfa (home design) ────────────────────────────────────────────────────
+
+class _HomeDesignPanel extends StatefulWidget {
+  const _HomeDesignPanel();
+  @override
+  State<_HomeDesignPanel> createState() => _HomeDesignPanelState();
+}
+
+class _HomeDesignPanelState extends State<_HomeDesignPanel>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs;
+  static const _labels = [
+    'Öğren',
+    'Profil',
+    'Sözlük',
+    'Alıştırma',
+    'Puan Tabloları',
+    'Görevler',
+    'Mağaza',
+    'Ayarlar',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: _labels.length, vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: Row(children: [
+            Icon(Icons.home_outlined, size: 18, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Anasayfa Tasarımı',
+                style: TextStyle(
+                    color: AppColors.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700)),
+          ]),
+        ),
+        TabBar(
+          controller: _tabs,
+          isScrollable: true,
+          labelColor: AppColors.primary,
+          unselectedLabelColor: AppColors.onSurfaceMuted,
+          indicatorColor: AppColors.primary,
+          tabs: [for (final l in _labels) Tab(text: l)],
+        ),
+        Expanded(
+          child: TabBarView(
+            controller: _tabs,
+            children: [
+              const _LearnDesignTab(),
+              for (var i = 1; i < _labels.length; i++)
+                Center(
+                  child: Text('${_labels[i]} tasarımı — yakında',
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 13)),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// Öğren design: pick a Level → Ünite, then manage the banner image, the 4
+// landmark photos (+ descriptions) and the 4 phase icons (upload/delete/size).
+class _LearnDesignTab extends ConsumerStatefulWidget {
+  const _LearnDesignTab();
+  @override
+  ConsumerState<_LearnDesignTab> createState() => _LearnDesignTabState();
+}
+
+class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
+  final _service = AdminService();
+  int _level = 1;
+  int _unit = 1;
+  bool _busy = false;
+
+  ({int level, int unit}) get _key => (level: _level, unit: _unit);
+
+  void _snack(String m) {
+    if (mounted) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(m)));
+    }
+  }
+
+  Future<void> _pick(String kind, int slot) async {
+    final x = await ImagePicker()
+        .pickImage(source: ImageSource.gallery, maxWidth: 1600);
+    if (x == null) return;
+    setState(() => _busy = true);
+    try {
+      final bytes = await x.readAsBytes();
+      var ext = x.name.contains('.') ? x.name.split('.').last.toLowerCase() : '';
+      if (ext.isEmpty || ext.length > 4) ext = 'png';
+      await _service.uploadPathAsset(_level, _unit, kind, slot, bytes, ext);
+      ref.invalidate(pathAssetsProvider(_key));
+      _snack('Yüklendi — anasayfada görünür');
+    } catch (e) {
+      _snack('Yükleme hatası: $e');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _delete(String kind, int slot) async {
+    setState(() => _busy = true);
+    try {
+      await _service.deletePathAsset(_level, _unit, kind, slot);
+      ref.invalidate(pathAssetsProvider(_key));
+    } catch (e) {
+      _snack('Silme hatası: $e');
+    }
+    if (mounted) setState(() => _busy = false);
+  }
+
+  Future<void> _setScale(String kind, int slot, double v) async {
+    await _service.savePathAssetScale(_level, _unit, kind, slot, v);
+    ref.invalidate(pathAssetsProvider(_key));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final city = cityForUnit(_level, _unit - 1);
+    final landmarks = kCityLandmarks[city.slug];
+    final assets =
+        ref.watch(pathAssetsProvider(_key)).valueOrNull ?? const UnitAssets();
+    return Stack(children: [
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _levelRow(),
+          _unitGrid(),
+          const Divider(height: 1, color: AppColors.surfaceVariant),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 60),
+              children: [
+                Text('${city.zh}  ${city.pinyin}   ·   L$_level Ünite $_unit',
+                    style: const TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+                const SizedBox(height: 12),
+                _sectionLabel('Banner'),
+                _assetTile(
+                  kind: 'banner',
+                  slot: 0,
+                  url: assets.banner?.url,
+                  fallbackAsset: null,
+                  scale: assets.banner?.scale ?? 1.0,
+                  bigPreview: true,
+                ),
+                const SizedBox(height: 16),
+                _sectionLabel('Fotoğraflar (banner açılınca)'),
+                for (var i = 0; i < 4; i++) ...[
+                  _photoBlock(i, landmarks, assets),
+                  const SizedBox(height: 12),
+                ],
+                const SizedBox(height: 4),
+                _sectionLabel('Bölüm ikonları'),
+                for (var i = 0; i < 4; i++) ...[
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6, bottom: 4),
+                    child: Text('${i + 1}. Bölüm',
+                        style: const TextStyle(
+                            color: AppColors.onSurfaceMuted,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                  ),
+                  _assetTile(
+                    kind: 'icon',
+                    slot: i,
+                    url: assets.icon(i).url,
+                    fallbackAsset: landmarks != null
+                        ? cityIconAsset(city.slug, landmarks[i].icon)
+                        : null,
+                    scale: assets.icon(i).scale,
+                  ),
+                  const Divider(color: AppColors.surfaceVariant, height: 18),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+      if (_busy)
+        const Positioned.fill(
+          child: ColoredBox(
+            color: Color(0x66000000),
+            child: Center(
+                child: CircularProgressIndicator(color: AppColors.primary)),
+          ),
+        ),
+    ]);
+  }
+
+  Widget _sectionLabel(String t) => Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(children: [
+          Text(t,
+              style: const TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(width: 8),
+          const Expanded(child: Divider(color: AppColors.primary, height: 1)),
+        ]),
+      );
+
+  Widget _preview(String? url, String? fallbackAsset, {double h = 80}) {
+    Widget child;
+    if (url != null && url.isNotEmpty) {
+      child = Image.network(url, fit: BoxFit.contain);
+    } else if (fallbackAsset != null) {
+      child = Image.asset(fallbackAsset, fit: BoxFit.contain);
+    } else {
+      child = const Center(
+          child: Text('yok',
+              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12)));
+    }
+    return Container(
+      width: h * 1.6,
+      height: h,
+      decoration: BoxDecoration(
+        color: const Color(0xFF26323F),
+        borderRadius: BorderRadius.circular(8),
+        border:
+            Border.all(color: AppColors.onSurfaceMuted.withValues(alpha: 0.2)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: child,
+    );
+  }
+
+  // Banner / icon tile: preview + upload/delete + size slider.
+  Widget _assetTile({
+    required String kind,
+    required int slot,
+    required String? url,
+    required String? fallbackAsset,
+    required double scale,
+    bool bigPreview = false,
+  }) {
+    final hasUploaded = url != null && url.isNotEmpty;
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      _preview(url, fallbackAsset, h: bigPreview ? 90 : 70),
+      const SizedBox(width: 12),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(children: [
+              FilledButton.icon(
+                onPressed: () => _pick(kind, slot),
+                icon: const Icon(Icons.upload, size: 16),
+                style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                label: Text(hasUploaded ? 'Değiştir' : 'Yükle'),
+              ),
+              if (hasUploaded) ...[
+                const SizedBox(width: 8),
+                OutlinedButton.icon(
+                  onPressed: () => _delete(kind, slot),
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: const Text('Sil'),
+                  style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.wrongAnswer),
+                ),
+              ],
+            ]),
+            const SizedBox(height: 4),
+            Row(children: [
+              const Text('Boyut',
+                  style: TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11)),
+              Expanded(
+                child: Slider(
+                  value: scale.clamp(0.4, 2.0),
+                  min: 0.4,
+                  max: 2.0,
+                  divisions: 16,
+                  label: '${(scale * 100).round()}%',
+                  activeColor: AppColors.primary,
+                  onChanged: (v) =>
+                      setState(() {/* live label via rebuild on release */}),
+                  onChangeEnd: (v) => _setScale(kind, slot, v),
+                ),
+              ),
+              Text('${(scale * 100).round()}%',
+                  style: const TextStyle(
+                      color: AppColors.onSurfaceMuted, fontSize: 11)),
+            ]),
+          ],
+        ),
+      ),
+    ]);
+  }
+
+  Widget _photoBlock(int i, List<Landmark>? landmarks, UnitAssets assets) {
+    final p = assets.photo(i);
+    final fallback = landmarks != null
+        ? cityPhotoAsset(
+            cityForUnit(_level, _unit - 1).slug, landmarks[i].photo)
+        : null;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: Text('${i + 1}. Fotoğraf',
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700)),
+        ),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _preview(p.url, fallback, h: 80),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(children: [
+              Row(children: [
+                FilledButton.icon(
+                  onPressed: () => _pick('photo', i),
+                  icon: const Icon(Icons.upload, size: 16),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8)),
+                  label: Text(p.url != null ? 'Değiştir' : 'Yükle'),
+                ),
+                if (p.url != null) ...[
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _delete('photo', i),
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Sil'),
+                    style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.wrongAnswer),
+                  ),
+                ],
+              ]),
+            ]),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        _DescEditor(
+          key: ValueKey('desc-$_level-$_unit-$i'),
+          initialTr: p.descTr?.isNotEmpty == true
+              ? p.descTr!
+              : (landmarks != null ? landmarks[i].descTr : ''),
+          initialEn: p.descEn?.isNotEmpty == true
+              ? p.descEn!
+              : (landmarks != null ? landmarks[i].descEn : ''),
+          onSave: (tr, en) async {
+            await _service.savePathPhotoDesc(_level, _unit, i, tr, en);
+            ref.invalidate(pathAssetsProvider(_key));
+            _snack('Açıklama kaydedildi');
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _levelRow() => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+        child: Row(children: [
+          for (var l = 1; l <= 6; l++)
+            Expanded(
+              child: _cell('L$l', _level == l, AppColors.forHskLevel(l), () {
+                setState(() {
+                  _level = l;
+                  _unit = 1;
+                });
+              }),
+            ),
+        ]),
+      );
+
+  Widget _unitGrid() => Padding(
+        padding: const EdgeInsets.fromLTRB(12, 2, 12, 6),
+        child: Column(children: [
+          for (final start in [1, 13])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(children: [
+                for (var u = start; u < start + 12; u++)
+                  Expanded(
+                    child: _cell('$u', _unit == u, AppColors.primary,
+                        () => setState(() => _unit = u)),
+                  ),
+              ]),
+            ),
+        ]),
+      );
+
+  Widget _cell(String t, bool sel, Color accent, VoidCallback onTap) => Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 3),
+        child: Material(
+          color: sel ? accent : AppColors.surface,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              height: 34,
+              alignment: Alignment.center,
+              child: FittedBox(
+                child: Text(t,
+                    style: TextStyle(
+                        color: sel ? Colors.white : AppColors.onSurfaceMuted,
+                        fontSize: 13,
+                        fontWeight: sel ? FontWeight.w800 : FontWeight.w600)),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
+// TR/EN description editor for one landmark photo (resets per unit via its key).
+class _DescEditor extends StatefulWidget {
+  final String initialTr;
+  final String initialEn;
+  final Future<void> Function(String tr, String en) onSave;
+  const _DescEditor({
+    super.key,
+    required this.initialTr,
+    required this.initialEn,
+    required this.onSave,
+  });
+  @override
+  State<_DescEditor> createState() => _DescEditorState();
+}
+
+class _DescEditorState extends State<_DescEditor> {
+  late final TextEditingController _tr =
+      TextEditingController(text: widget.initialTr);
+  late final TextEditingController _en =
+      TextEditingController(text: widget.initialEn);
+
+  @override
+  void dispose() {
+    _tr.dispose();
+    _en.dispose();
+    super.dispose();
+  }
+
+  InputDecoration _dec(String hint) => InputDecoration(
+        isDense: true,
+        hintText: hint,
+        hintStyle:
+            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+        filled: true,
+        fillColor: AppColors.surface,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      TextField(
+        controller: _tr,
+        maxLines: 2,
+        style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+        decoration: _dec('TR açıklama'),
+      ),
+      const SizedBox(height: 6),
+      TextField(
+        controller: _en,
+        maxLines: 2,
+        style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+        decoration: _dec('EN açıklama'),
+      ),
+      const SizedBox(height: 6),
+      Align(
+        alignment: Alignment.centerRight,
+        child: FilledButton.icon(
+          onPressed: () => widget.onSave(_tr.text.trim(), _en.text.trim()),
+          icon: const Icon(Icons.save, size: 15),
+          style: FilledButton.styleFrom(
+              backgroundColor: AppColors.correctAnswer,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+          label: const Text('Açıklamayı kaydet'),
+        ),
+      ),
+    ]);
+  }
 }

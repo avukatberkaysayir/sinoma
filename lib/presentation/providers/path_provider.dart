@@ -318,6 +318,52 @@ final wordsForLevelProvider =
   return rows.map(WordSlot.fromMap).toList();
 });
 
+// ── Admin-managed home design overrides (banner/photos/icons per unit) ────────
+class PathAsset {
+  final String? url;
+  final double scale;
+  final String? descTr;
+  final String? descEn;
+  const PathAsset({this.url, this.scale = 1.0, this.descTr, this.descEn});
+}
+
+class UnitAssets {
+  final PathAsset? banner;
+  final Map<int, PathAsset> icons; // slot 0..3
+  final Map<int, PathAsset> photos; // slot 0..3
+  const UnitAssets(
+      {this.banner, this.icons = const {}, this.photos = const {}});
+  PathAsset icon(int slot) => icons[slot] ?? const PathAsset();
+  PathAsset photo(int slot) => photos[slot] ?? const PathAsset();
+}
+
+final pathAssetsProvider =
+    FutureProvider.family<UnitAssets, ({int level, int unit})>((ref, k) async {
+  final rows =
+      await ref.watch(videoRepositoryProvider).loadPathAssets(k.level, k.unit);
+  PathAsset? banner;
+  final icons = <int, PathAsset>{};
+  final photos = <int, PathAsset>{};
+  for (final r in rows) {
+    final a = PathAsset(
+      url: r['url'] as String?,
+      scale: (r['scale'] as num?)?.toDouble() ?? 1.0,
+      descTr: r['desc_tr'] as String?,
+      descEn: r['desc_en'] as String?,
+    );
+    final kind = r['kind'] as String?;
+    final slot = (r['slot'] as num?)?.toInt() ?? 0;
+    if (kind == 'banner') {
+      banner = a;
+    } else if (kind == 'icon') {
+      icons[slot] = a;
+    } else if (kind == 'photo') {
+      photos[slot] = a;
+    }
+  }
+  return UnitAssets(banner: banner, icons: icons, photos: photos);
+});
+
 // Grammar/word slots that already hold an active clip — flagged red in the filter.
 final usedActiveSlotsProvider =
     FutureProvider<({Set<String> grammars, Set<String> words})>((ref) async {
