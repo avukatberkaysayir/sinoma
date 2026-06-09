@@ -537,6 +537,9 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                     top: 0,
                     left: 0,
                     right: 0,
+                    // When open, stretch to the bottom so the panel COVERS the
+                    // circles below (no need to scroll to read it).
+                    bottom: (_infoOpen && bannerLandmarks != null) ? 0 : null,
                     child: _BannerCard(
                       step: bannerStep,
                       tr: tr,
@@ -719,7 +722,7 @@ class _BannerCard extends StatelessWidget {
     );
 
     final cardChild = Column(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: open && hasBanner ? MainAxisSize.max : MainAxisSize.min,
       children: [
         bannerArea,
         if (open && hasBanner) ...[
@@ -727,12 +730,11 @@ class _BannerCard extends StatelessWidget {
               height: 1,
               margin: const EdgeInsets.symmetric(horizontal: 14),
               color: Colors.white.withValues(alpha: 0.22)),
-          ConstrainedBox(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.66),
+          // Fills the remaining card height → all four tiles show without
+          // scrolling and the card covers the circles below.
+          Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
-              shrinkWrap: true,
               itemCount: landmarks.length,
               separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (_, i) => _landmarkRow(city.slug, i, landmarks[i]),
@@ -742,42 +744,35 @@ class _BannerCard extends StatelessWidget {
       ],
     );
 
+    final card = Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: hasBanner ? null : color,
+        gradient: hasBanner
+            ? const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF283A60), Color(0xFFF0A878)],
+              )
+            : null,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.25),
+              offset: const Offset(0, 3)),
+        ],
+      ),
+      child: cardChild,
+    );
+
     return Container(
       color: _duoBg,
-      alignment: Alignment.topCenter,
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 600),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.25),
-                  offset: const Offset(0, 3)),
-            ],
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: hasBanner
-                      ? const DecoratedBox(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [Color(0xFF283A60), Color(0xFFF0A878)],
-                            ),
-                          ),
-                        )
-                      : ColoredBox(color: color),
-                ),
-                cardChild,
-              ],
-            ),
-          ),
+      alignment: open && hasBanner ? null : Alignment.topCenter,
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 632),
+          child: (open && hasBanner) ? SizedBox.expand(child: card) : card,
         ),
       ),
     );
@@ -786,75 +781,78 @@ class _BannerCard extends StatelessWidget {
   // One landmark: a clean tile — a large photo (full tile height) with its number
   // badge, and the name + a longer blurb filling the space beside it.
   Widget _landmarkRow(String slug, int i, Landmark lm) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(12),
-      child: ColoredBox(
-        color: Colors.black.withValues(alpha: 0.34),
-        child: IntrinsicHeight(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            // The whole structure always shows (contain), with a blurred copy of
-            // the same photo filling the rest so there are no empty bars.
-            SizedBox(
-              width: 156,
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  ImageFiltered(
-                    imageFilter: ui.ImageFilter.blur(
-                        sigmaX: 16, sigmaY: 16, tileMode: TileMode.decal),
-                    child: Image.asset(cityPhotoAsset(slug, lm.photo),
-                        fit: BoxFit.cover),
-                  ),
-                  const ColoredBox(color: Color(0x40000000)),
-                  Image.asset(cityPhotoAsset(slug, lm.photo),
-                      fit: BoxFit.contain),
-                  Positioned(
-                    left: 6,
-                    top: 6,
-                    child: Container(
-                      width: 24,
-                      height: 24,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: _duoGreen,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 1.5),
-                      ),
-                      child: Text('${i + 1}',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ],
+    // Standard photo box (same for every tile). The photo is shown whole
+    // (contain) over a blurred copy of itself, so every structure is centred and
+    // fully visible at the same size.
+    final photo = SizedBox(
+      width: 150,
+      height: 108,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ImageFiltered(
+            imageFilter: ui.ImageFilter.blur(
+                sigmaX: 16, sigmaY: 16, tileMode: TileMode.decal),
+            child: Image.asset(cityPhotoAsset(slug, lm.photo),
+                fit: BoxFit.cover),
+          ),
+          const ColoredBox(color: Color(0x40000000)),
+          Image.asset(cityPhotoAsset(slug, lm.photo), fit: BoxFit.contain),
+          Positioned(
+            left: 6,
+            top: 6,
+            child: Container(
+              width: 24,
+              height: 24,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: _duoGreen,
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 1.5),
               ),
+              child: Text('${i + 1}',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800)),
             ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tr ? lm.nameTr : lm.nameEn,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800)),
-                    const SizedBox(height: 5),
-                    Text(tr ? lm.descTr : lm.descEn,
-                        style: const TextStyle(
-                            color: Colors.white70,
-                            fontSize: 12,
-                            height: 1.32)),
-                  ],
-                ),
-              ),
-            ),
-          ]),
-        ),
+          ),
+        ],
       ),
+    );
+    return Container(
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: Colors.black.withValues(alpha: 0.34),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child:
+              ClipRRect(borderRadius: BorderRadius.circular(8), child: photo),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(4, 10, 12, 10),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr ? lm.nameTr : lm.nameEn,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 5),
+                Text(tr ? lm.descTr : lm.descEn,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12, height: 1.32)),
+              ],
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -1078,8 +1076,8 @@ class _PhaseNode extends ConsumerWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: browseLeft
-            ? [browse, const SizedBox(width: 12), circle]
-            : [circle, const SizedBox(width: 12), browse],
+            ? [browse, const SizedBox(width: 6), circle]
+            : [circle, const SizedBox(width: 6), browse],
       ),
     );
   }
@@ -1167,26 +1165,14 @@ class _BrowseButtonState extends State<_BrowseButton> {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: _duoPanel,
-      shape: const CircleBorder(),
-      elevation: 2,
-      shadowColor: Colors.black54,
-      child: InkWell(
-        customBorder: const CircleBorder(),
-        onTap: _toggle,
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.12), width: 1.5),
-          ),
-          alignment: Alignment.center,
-          padding: const EdgeInsets.all(7),
-          child: Image.asset('assets/icons/gozat.png'),
-        ),
+    // Just the "?" icon (it already has its own coloured circle) — no extra ring.
+    return GestureDetector(
+      onTap: _toggle,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 28,
+        height: 28,
+        child: Image.asset('assets/icons/gozat.png'),
       ),
     );
   }
