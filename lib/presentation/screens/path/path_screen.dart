@@ -645,13 +645,8 @@ class _BannerCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
               onTap: onTitleTap,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(10, 4, 8, 4),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Flexible(child: titleText),
-                  const SizedBox(width: 4),
-                  Icon(open ? Icons.expand_less : Icons.expand_more,
-                      color: Colors.white, size: 18, shadows: _shadow),
-                ]),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                child: titleText,
               ),
             ),
           )
@@ -726,12 +721,12 @@ class _BannerCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.22)),
           ConstrainedBox(
             constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(context).height * 0.42),
+                maxHeight: MediaQuery.sizeOf(context).height * 0.66),
             child: ListView.separated(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
               shrinkWrap: true,
               itemCount: landmarks.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              separatorBuilder: (_, __) => const SizedBox(height: 10),
               itemBuilder: (_, i) => _landmarkRow(city.slug, i, landmarks[i]),
             ),
           ),
@@ -780,52 +775,70 @@ class _BannerCard extends StatelessWidget {
     );
   }
 
-  // One landmark: a translucent dark tile (so text stays readable over the
-  // gradient) with its number, real photo and bilingual blurb.
+  // One landmark: a clean tile — a large photo (full tile height) with its number
+  // badge, and the name + a longer blurb filling the space beside it.
   Widget _landmarkRow(String slug, int i, Landmark lm) {
-    return Container(
-      padding: const EdgeInsets.all(8),
-      decoration: BoxDecoration(
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: ColoredBox(
         color: Colors.black.withValues(alpha: 0.34),
-        borderRadius: BorderRadius.circular(10),
+        child: IntrinsicHeight(
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            // Photo fills the full height of the tile (no half-cut look).
+            SizedBox(
+              width: 150,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  Image.asset(cityPhotoAsset(slug, lm.photo),
+                      fit: BoxFit.cover),
+                  Positioned(
+                    left: 6,
+                    top: 6,
+                    child: Container(
+                      width: 24,
+                      height: 24,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: _duoGreen,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      child: Text('${i + 1}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(tr ? lm.nameTr : lm.nameEn,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800)),
+                    const SizedBox(height: 5),
+                    Text(tr ? lm.descTr : lm.descEn,
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            height: 1.32)),
+                  ],
+                ),
+              ),
+            ),
+          ]),
+        ),
       ),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Container(
-          width: 22,
-          height: 22,
-          alignment: Alignment.center,
-          decoration:
-              const BoxDecoration(color: _duoGreen, shape: BoxShape.circle),
-          child: Text('${i + 1}',
-              style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800)),
-        ),
-        const SizedBox(width: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: Image.asset(cityPhotoAsset(slug, lm.photo),
-              width: 104, height: 68, fit: BoxFit.cover),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(tr ? lm.nameTr : lm.nameEn,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-              const SizedBox(height: 3),
-              Text(tr ? lm.descTr : lm.descEn,
-                  style: const TextStyle(
-                      color: Colors.white70, fontSize: 11.5, height: 1.25)),
-            ],
-          ),
-        ),
-      ]),
     );
   }
 }

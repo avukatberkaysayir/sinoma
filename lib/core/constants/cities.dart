@@ -42,9 +42,9 @@ const Map<String, List<Landmark>> kCityLandmarks = {
       nameTr: 'Çin Seddi',
       nameEn: 'Great Wall',
       descTr:
-          'Dünyanın en uzun savunma yapısı. Pekin yakınındaki Badaling kesimi en ünlü ve en çok ziyaret edilen bölümüdür.',
+          'Kuzey sınırlarını korumak için yüzyıllar boyunca inşa edilen, 20.000 km\'yi aşan dünyanın en uzun savunma yapısı. Pekin\'e en yakın Badaling kesimi; taş basamakları, surları ve sırtlar boyunca uzanan gözetleme kuleleriyle en çok ziyaret edilen bölümdür.',
       descEn:
-          "The world's longest fortification. The Badaling section near Beijing is its most famous, most-visited stretch.",
+          "The world's longest fortification — over 20,000 km built across centuries to guard China's northern frontier. The Badaling section near Beijing, with its stone steps and ridge-top watchtowers, is the most visited stretch.",
     ),
     Landmark(
       icon: 'temple',
@@ -52,9 +52,9 @@ const Map<String, List<Landmark>> kCityLandmarks = {
       nameTr: 'Cennet Tapınağı',
       nameEn: 'Temple of Heaven',
       descTr:
-          'Ming ve Qing imparatorlarının bol hasat için dua ettiği kutsal tapınak kompleksi; ikonik yuvarlak çatısıyla tanınır.',
+          'Ming ve Qing imparatorlarının her yıl bol hasat için gökyüzüne dua ettiği kutsal tapınak kompleksi. Tek bir çivi kullanılmadan inşa edilen üç katmanlı yuvarlak mavi çatısı, Çin mimarisinin en tanınan simgelerinden biridir.',
       descEn:
-          'A sacred complex where Ming and Qing emperors prayed for good harvests, famed for its iconic round roof.',
+          'A sacred complex where Ming and Qing emperors prayed to heaven each year for a good harvest. Its three-tiered round blue roof — built without a single nail — is one of the most recognised icons of Chinese architecture.',
     ),
     Landmark(
       icon: 'pagoda',
@@ -62,9 +62,9 @@ const Map<String, List<Landmark>> kCityLandmarks = {
       nameTr: 'Tianning Pagodası',
       nameEn: 'Tianning Pagoda',
       descTr:
-          'Liao döneminden kalma ~57 m yüksekliğinde tuğla pagoda; Pekin\'in ayakta kalan en eski yapılarından biridir.',
+          'Liao Hanedanı\'ndan kalma, yaklaşık 57 metre yüksekliğinde 13 katlı tuğla pagoda. Oymalı kabartmaları ve sekizgen gövdesiyle Pekin\'in ayakta kalan en eski yapılarından biridir ve şehrin bin yıllık geçmişine tanıklık eder.',
       descEn:
-          "A ~57 m brick pagoda from the Liao dynasty, one of Beijing's oldest surviving structures.",
+          "A ~57 m, 13-tier brick pagoda from the Liao dynasty. With its carved reliefs and octagonal body, it is one of Beijing's oldest surviving structures — a witness to the city's thousand-year history.",
     ),
     Landmark(
       icon: 'opera',
@@ -72,9 +72,9 @@ const Map<String, List<Landmark>> kCityLandmarks = {
       nameTr: 'Pekin Operası',
       nameEn: 'Beijing Opera',
       descTr:
-          'Şarkı, dans, akrobasi ve renkli yüz makyajını birleştiren geleneksel Çin sahne sanatı.',
+          'Şarkı, konuşma, dövüş sanatları ve akrobasinin birleştiği 200 yıllık geleneksel Çin sahne sanatı. Oyuncuların renkli yüz makyajı (lianpu) her karakterin kişiliğini anlatır: kırmızı sadakati, beyaz kurnazlığı simgeler.',
       descEn:
-          'A traditional Chinese stage art blending song, dance, acrobatics and vivid painted-face makeup.',
+          "A 200-year-old traditional Chinese theatre fusing song, speech, martial arts and acrobatics. The performers' painted faces (lianpu) reveal each character: red for loyalty, white for cunning.",
     ),
   ],
 };
