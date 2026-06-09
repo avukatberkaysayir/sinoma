@@ -249,22 +249,17 @@ class _LeftNav extends StatelessWidget {
               label: tr ? 'ÖĞREN' : 'LEARN',
               active: section == _Section.learn,
               compact: compact,
+              // Tapping Öğren both goes to the path and toggles the L1-L6 list.
               onTap: () {
                 onSelect(_Section.learn);
-                if (!learnExpanded) onToggleLearn();
+                onToggleLearn();
               },
               trailing: compact
                   ? null
-                  : GestureDetector(
-                      onTap: onToggleLearn,
-                      behavior: HitTestBehavior.opaque,
-                      child: Icon(
-                          learnExpanded
-                              ? Icons.expand_less
-                              : Icons.expand_more,
-                          size: 18,
-                          color: Colors.white54),
-                    )),
+                  : Icon(
+                      learnExpanded ? Icons.expand_less : Icons.expand_more,
+                      size: 18,
+                      color: Colors.white54)),
           // L1-L6 level picker, expandable under "Öğren".
           if (learnExpanded)
             for (var h = 1; h <= 6; h++)
@@ -1147,12 +1142,12 @@ class _PhaseNode extends ConsumerWidget {
     );
 
     // Keep the CIRCLE centred on the node offset (a matching spacer balances the
-    // gözat) so circles at the same offset line up vertically. Same gap every
-    // time; the gözat of the first two circles sits a little lower.
+    // gözat) so circles at the same offset line up vertically. Same gap + the
+    // same lowered gözat position on every circle.
     const gap = 10.0;
     const browseW = 21.0;
     final lowered = Transform.translate(
-      offset: Offset(0, browseLeft ? 0 : 16),
+      offset: const Offset(0, 16),
       child: browse,
     );
     return Padding(
