@@ -420,12 +420,13 @@ class AdminService {
   // Generate quiz options (correct + close-wrong translation) via Gemini.
   // Used once, in the admin panel; the result is saved on the video and served
   // from the DB afterwards, so Gemini is never needed at playback time.
-  Future<Map<String, String>> generateQuiz({
+  Future<Map<String, dynamic>> generateQuiz({
     required String transcription,
     String pinyin = '',
     String lang = 'tr',
     List<String> targetWords = const [],
     String sourceEn = '',
+    List<String> targetLangs = const [],
   }) async {
     final res = await _db.functions.invoke(
       'generate-quiz',
@@ -436,6 +437,8 @@ class AdminService {
         if (targetWords.isNotEmpty) 'targetWords': targetWords,
         // Pivot: non-English options translate from the approved English.
         if (sourceEn.trim().isNotEmpty) 'sourceEn': sourceEn.trim(),
+        // Batch: generate English + these languages in one call (fewer Gemini hits).
+        if (targetLangs.isNotEmpty) 'targetLangs': targetLangs,
       },
     );
     if (res.status >= 300) {
@@ -448,6 +451,8 @@ class AdminService {
       'question': d['question'] as String? ?? '',
       'correctAnswer': d['correctAnswer'] as String? ?? '',
       'wrongAnswer': d['wrongAnswer'] as String? ?? '',
+      // Batch extras: {'tr': {'correctAnswer':..,'wrongAnswer':..}, ...}
+      'extra': d['extra'],
     };
   }
 

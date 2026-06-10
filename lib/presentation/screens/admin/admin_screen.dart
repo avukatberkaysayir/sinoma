@@ -2431,16 +2431,25 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         pinyin: _pinyinCtrl.text.trim(),
         lang: _selectedQuizLang,
         sourceEn: pivot ? _correctCtrlEn.text.trim() : '',
+        // Generating English also produces the Turkish draft in the SAME Gemini
+        // call (one request instead of two) — saves daily free quota.
+        targetLangs: _selectedQuizLang == 'en' ? const ['tr'] : const [],
       );
       if (!mounted) return;
       setState(() {
         if (_selectedQuizLang == 'tr') {
-          _correctCtrl.text = q['correctAnswer'] ?? '';
-          _wrongCtrl.text = q['wrongAnswer'] ?? '';
+          _correctCtrl.text = (q['correctAnswer'] as String?) ?? '';
+          _wrongCtrl.text = (q['wrongAnswer'] as String?) ?? '';
         } else {
-          _correctCtrlEn.text = q['correctAnswer'] ?? '';
-          _wrongCtrlEn.text = q['wrongAnswer'] ?? '';
+          _correctCtrlEn.text = (q['correctAnswer'] as String?) ?? '';
+          _wrongCtrlEn.text = (q['wrongAnswer'] as String?) ?? '';
           _enApproved = false; // fresh English needs re-approval
+          // Batch pre-fill: the Turkish draft came back in the same call.
+          final tr = (q['extra'] as Map?)?['tr'] as Map?;
+          if (tr != null) {
+            _correctCtrl.text = (tr['correctAnswer'] as String?) ?? '';
+            _wrongCtrl.text = (tr['wrongAnswer'] as String?) ?? '';
+          }
         }
         _generating = false;
       });

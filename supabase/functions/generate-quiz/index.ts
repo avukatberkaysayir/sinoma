@@ -145,6 +145,49 @@ function buildPrompt(
   );
 }
 
+function langCodeToName(code: string): string {
+  return code === "en" ? "English"
+    : code === "ja" ? "Japanese"
+    : code === "ko" ? "Korean"
+    : code === "vi" ? "Vietnamese"
+    : "Turkish";
+}
+
+// Batch prompt: produce English + every requested target language in ONE Gemini
+// call (each target translated from the English meaning), so generating all the
+// admin's languages costs a single request instead of one per language — far
+// fewer hits against the free-tier daily quota.
+function buildBatchPrompt(
+  transcription: string,
+  pinyin: string,
+  targets: { code: string; name: string }[],
+): string {
+  const blockFor = (name: string): string => {
+    const p = LANG_PROFILES[name];
+    const rules = (p?.rules ?? [`Follow all ${name} grammar rules and be idiomatic.`])
+      .map((r, i) => `  ${i + 1}. ${r}`).join("\n");
+    return `${name.toUpperCase()} — authority ${p?.authority ?? name}:\n${rules}\n`;
+  };
+  let blocks = blockFor("English") + "\n";
+  for (const t of targets) blocks += blockFor(t.name) + "\n";
+  const targetKeys = targets
+    .map((t) => `"${t.code}": {"correctAnswer": "<${t.name}>", "wrongAnswer": "<${t.name} distractor>"}`)
+    .join(", ");
+  return (
+    `You are a certified multilingual linguist and professional translator.\n\n` +
+    `SOURCE Chinese: "${transcription}"\n` +
+    (pinyin ? `Pinyin: "${pinyin}"\n` : "") +
+    `\nTASK:\n` +
+    `1. Translate the Chinese into natural English — what a native speaker would actually say, NOT word-for-word.\n` +
+    `2. Translate THAT English meaning into each target language below (use the Chinese only to disambiguate nuance).\n` +
+    `3. For EVERY language produce a wrongAnswer: the same grammatically-perfect sentence with exactly ONE key semantic element changed (flip a negation, swap subject/object, or a meaning-shifting near-synonym); similar length/structure.\n` +
+    `4. Obey each language's numbered grammar rules.\n\n` +
+    `GRAMMAR RULES:\n${blocks}\n` +
+    `OUTPUT — return ONLY valid JSON, no markdown:\n` +
+    `{"en": {"correctAnswer": "<English>", "wrongAnswer": "<English distractor>"}, ${targetKeys}}`
+  );
+}
+
 const RETRYABLE = new Set([429, 500, 502, 503, 504]);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -288,6 +331,49 @@ serve(async (req) => {
 
     const keys = geminiKeys();
     if (!keys.length) return json({ error: "GEMINI_API_KEY not set" }, 500);
+
+    // Batch mode: generate English + all requested target languages in ONE call.
+    // Triggered when generating English (lang='en') with targetLangs — the EN tab
+    // pre-fills the other tabs, so approving EN needs no extra Gemini request.
+    const targetLangs: string[] = Array.isArray(body.targetLangs)
+      ? [...new Set(body.targetLangs.map((x: unknown) => String(x)))]
+          .filter((c) => c && c !== "en")
+      : [];
+    if (lang === "en" && targetLangs.length) {
+      const targets = targetLangs.map((code) => ({ code, name: langCodeToName(code) }));
+      const batchBody = JSON.stringify({
+        contents: [{ parts: [{ text: buildBatchPrompt(transcription, pinyin, targets) }] }],
+        generationConfig: { response_mime_type: "application/json", temperature: 0.4 },
+      });
+      let btext: string;
+      try {
+        btext = await callGeminiRotating(batchBody, keys);
+      } catch (e) {
+        return json({ error: String(e) }, 502);
+      }
+      let bp: Record<string, { correctAnswer?: string; wrongAnswer?: string }> = {};
+      try {
+        bp = JSON.parse(btext);
+      } catch {
+        const m = btext.match(/\{[\s\S]*\}/);
+        if (m) { try { bp = JSON.parse(m[0]); } catch { /* ignore */ } }
+      }
+      const enCorrect = String(bp.en?.correctAnswer ?? "");
+      const enWrong = String(bp.en?.wrongAnswer ?? "");
+      if (enCorrect) await cacheSet(cacheKey, enCorrect, enWrong); // cacheKey is the EN key
+      const extra: Record<string, { correctAnswer: string; wrongAnswer: string }> = {};
+      for (const t of targets) {
+        const c = String(bp[t.code]?.correctAnswer ?? "");
+        const w = String(bp[t.code]?.wrongAnswer ?? "");
+        extra[t.code] = { correctAnswer: c, wrongAnswer: w };
+        if (c && enCorrect) {
+          // Same key a later single-language call (sourceEn = approved EN) would use.
+          await cacheSet(
+            await sha256(`${MODEL}|${t.name}|${enCorrect}|${transcription}`), c, w);
+        }
+      }
+      return json({ correctAnswer: enCorrect, wrongAnswer: enWrong, extra, batched: true });
+    }
 
     const prompt = buildPrompt(transcription, pinyin, langName, sourceEn);
 
