@@ -9,6 +9,23 @@ const corsHeaders = {
 // flash-lite default for the higher free-tier daily quota; GEMINI_MODEL overrides.
 const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
 
+// Multiple keys (GEMINI_API_KEYS comma-list and/or GEMINI_API_KEY, _2.._5) so a
+// daily-quota wall on one key rotates to the next instead of failing. The import
+// pipeline calls this per batch, so it's the heaviest Gemini consumer.
+function geminiKeys(): string[] {
+  const list: string[] = [];
+  for (const k of (Deno.env.get("GEMINI_API_KEYS") ?? "").split(",")) {
+    const t = k.trim();
+    if (t) list.push(t);
+  }
+  for (const name of ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3",
+                      "GEMINI_API_KEY_4", "GEMINI_API_KEY_5"]) {
+    const t = (Deno.env.get(name) ?? "").trim();
+    if (t) list.push(t);
+  }
+  return [...new Set(list)];
+}
+
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
     status,
@@ -32,9 +49,9 @@ serve(async (req) => {
       : [];
     if (texts.length === 0) return json({ keep: [] });
 
-    const key = Deno.env.get("GEMINI_API_KEY");
-    // Fail-open: if the key is missing, keep everything (A–D already filtered).
-    if (!key) return json({ keep: texts.map(() => 1), note: "no key, fail-open" });
+    const keys = geminiKeys();
+    // Fail-open: if no key is set, keep everything (A–D already filtered).
+    if (!keys.length) return json({ keep: texts.map(() => 1), note: "no key, fail-open" });
 
     const numbered = texts
       .map((t, i) => `${i}: ${t.replace(/\s+/g, " ").trim()}`)
@@ -55,26 +72,29 @@ serve(async (req) => {
       'return 1. Return ONLY a JSON object {"keep":[...]} with one 0/1 per ' +
       `index, in order.\n\n${numbered}`;
 
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0,
-            responseMimeType: "application/json",
-          },
-        }),
-      },
-    );
-    if (!r.ok) {
-      const t = await r.text();
-      // Fail-open on upstream error so a Gemini outage never drops content.
-      return json({ keep: texts.map(() => 1), error: `Gemini ${r.status}: ${t.slice(0, 200)}` });
+    const reqInit = {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0, responseMimeType: "application/json" },
+      }),
+    };
+    // Try each key; rotate past a quota-exhausted one. Non-quota errors stop early.
+    // deno-lint-ignore no-explicit-any
+    let data: any = null;
+    let lastErr = "";
+    for (const key of keys) {
+      const r = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+        reqInit,
+      );
+      if (r.ok) { data = await r.json(); break; }
+      lastErr = `Gemini ${r.status}: ${(await r.text()).slice(0, 200)}`;
+      if (!/429|quota|RESOURCE_EXHAUSTED|50[0234]|overload|unavailable/i.test(lastErr)) break;
     }
-    const data = await r.json();
+    // Fail-open on upstream error so a Gemini outage never drops content.
+    if (!data) return json({ keep: texts.map(() => 1), error: lastErr });
     const raw: string =
       (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
 
