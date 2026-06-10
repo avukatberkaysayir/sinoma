@@ -416,6 +416,12 @@ def run(
             print("  Altyazı yok → ses indiriliyor (Whisper ASR)…")
             audio_path = download_audio(url, tmp)
             size_kb = audio_path.stat().st_size // 1024
+            # Keep the audio so the whisper_text fill below reuses it (no re-download).
+            try:
+                import shutil as _sh
+                _sh.copy(str(audio_path), str(_audio_cache_path(youtube_id)))
+            except Exception:
+                pass
             print(f"  Ses: {audio_path.name} ({size_kb} KB) — akışlı transkripsiyon…")
             for seg in stream_segments(iter_whisper_cues(audio_path, on_meta=_set_meta)):
                 _emit(seg)
@@ -443,6 +449,121 @@ def _audio_cache_path(youtube_id: str) -> Path:
     return d / f"{youtube_id}.mp4"
 
 
+# One loaded Whisper model reused across every clip of a fill/backfill run.
+_WHISPER_MODEL = None
+
+
+def _get_whisper_model():
+    global _WHISPER_MODEL
+    if _WHISPER_MODEL is None:
+        from faster_whisper import WhisperModel
+        from youtube_miner import WHISPER_MODEL_SIZE
+        print(f"  [ASR] Whisper '{WHISPER_MODEL_SIZE}' yükleniyor…")
+        _WHISPER_MODEL = WhisperModel(
+            WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
+    return _WHISPER_MODEL
+
+
+def _whisper_window(model, audio, sr: int, start: float, end: float) -> str:
+    """Whisper-transcribe ONLY [start,end] of an already-decoded audio array;
+    return cleaned Simplified text ('' for music / silence / boilerplate)."""
+    from youtube_miner import (
+        WHISPER_TRANSCRIBE_KWARGS, _to_simplified, is_whisper_hallucination,
+    )
+    a = max(0, int(start * sr))
+    b = min(len(audio), int(end * sr))
+    clip = audio[a:b] if b > a else audio
+    segments, _ = model.transcribe(clip, **WHISPER_TRANSCRIBE_KWARGS)
+    parts = []
+    for s in segments:
+        if getattr(s, "no_speech_prob", 0.0) > 0.6:
+            continue
+        if getattr(s, "avg_logprob", 0.0) < -1.0:
+            continue
+        if any("一" <= ch <= "鿿" for ch in s.text):
+            parts.append(s.text)
+    text = _to_simplified(re.sub(r"\s+", "", "".join(parts).strip()))
+    return "" if is_whisper_hallucination(text) else text
+
+
+def _ensure_cached_audio(youtube_id: str, url: str) -> Path:
+    import shutil
+    import tempfile
+    from youtube_miner import download_audio
+    cache = _audio_cache_path(youtube_id)
+    if not cache.exists():
+        with tempfile.TemporaryDirectory() as td:
+            ap = download_audio(url, Path(td))
+            shutil.copy(str(ap), str(cache))
+    return cache
+
+
+def fill_whisper_text(
+    youtube_id: str,
+    url: str,
+    force: bool = False,
+    on_progress: Callable[[int], None] | None = None,
+) -> int:
+    """For every PENDING clip of this video, run Whisper on its [start,end] window
+    and store videos.whisper_text — so the admin sees BOTH the ASR/auto-caption
+    transcription and an independent Whisper one side by side, without clicking.
+    One audio download + one model load per video, reused across all its clips."""
+    from faster_whisper.audio import decode_audio
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
+                "select": "id,start_time,end_time,whisper_text",
+                "order": "start_time.asc"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    rows = resp.json() if resp.status_code < 300 else []
+    if not force:
+        rows = [r for r in rows if not (r.get("whisper_text") or "").strip()]
+    if not rows:
+        return 0
+    cache = _ensure_cached_audio(youtube_id, url)
+    audio = decode_audio(str(cache))
+    sr = 16000
+    model = _get_whisper_model()
+    print(f"  [WHISPER-FILL] {youtube_id}: {len(rows)} klip için whisper_text…")
+    filled = 0
+    for r in rows:
+        text = _whisper_window(model, audio, sr,
+                               float(r["start_time"]), float(r["end_time"]))
+        requests.patch(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{r['id']}"},
+            json={"whisper_text": text},
+            headers=_supabase_headers(), timeout=15,
+        )
+        filled += 1
+        if on_progress:
+            on_progress(filled)
+    print(f"  [WHISPER-FILL] ✓ {filled} whisper_text yazıldı ({youtube_id})")
+    return filled
+
+
+def backfill_pending_whisper(force: bool = False) -> dict[str, Any]:
+    """Fill whisper_text for ALL current pending YouTube clips (every distinct
+    video). Applies the auto-Whisper to clips imported before it existed."""
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"status": "eq.pending", "source_type": "eq.youtube",
+                "select": "youtube_id"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    ids = sorted({r["youtube_id"] for r in resp.json()}) if resp.status_code < 300 else []
+    print(f"  [WHISPER-FILL] {len(ids)} bekleyen video taranıyor…")
+    total = 0
+    for yid in ids:
+        try:
+            total += fill_whisper_text(
+                yid, f"https://www.youtube.com/watch?v={yid}", force=force)
+        except Exception as exc:
+            print(f"  [WHISPER-FILL] {yid} atlandı: {exc}")
+    return {"videos": len(ids), "filled": total}
+
+
 def transcribe_clip(
     url: str,
     start: float,
@@ -456,57 +577,21 @@ def transcribe_clip(
     if not SUPABASE_SERVICE_KEY:
         raise RuntimeError("SUPABASE_SERVICE_ROLE_KEY ayarlı değil.")
 
-    import shutil
-    import tempfile
-    from faster_whisper import WhisperModel
     from faster_whisper.audio import decode_audio
-    from youtube_miner import (
-        download_audio,
-        extract_youtube_id,
-        normalize_youtube_url,
-    )
+    from youtube_miner import extract_youtube_id, normalize_youtube_url
 
     url = normalize_youtube_url(url)
     youtube_id = extract_youtube_id(url)
     print(f"\n▶ Whisper clip {start:.1f}-{end:.1f}s: {youtube_id} (row {row_id[:8]})")
 
-    cache = _audio_cache_path(youtube_id)
-    if not cache.exists():
-        with tempfile.TemporaryDirectory() as tmpdir:
-            audio_path = download_audio(url, Path(tmpdir))
-            shutil.copy(str(audio_path), str(cache))
-        print(f"  Ses indirildi → cache")
-    else:
-        print(f"  Ses cache'ten")
-
+    cache = _ensure_cached_audio(youtube_id, url)
     audio = decode_audio(str(cache))  # 16kHz mono float32, no ffmpeg (PyAV)
     sr = 16000
-    a = max(0, int(start * sr))
-    b = min(len(audio), int(end * sr))
-    clip = audio[a:b] if b > a else audio
     if on_progress:
         on_progress(1)
 
-    from youtube_miner import (
-        WHISPER_MODEL_SIZE,
-        WHISPER_TRANSCRIBE_KWARGS,
-        _to_simplified,
-        is_whisper_hallucination,
-    )
-    print(f"  [ASR] Whisper '{WHISPER_MODEL_SIZE}' — {len(clip) / sr:.1f}s dinleniyor…")
-    model = WhisperModel(WHISPER_MODEL_SIZE, device="cpu", compute_type="int8")
-    segments, _info = model.transcribe(clip, **WHISPER_TRANSCRIBE_KWARGS)
-    parts = []
-    for s in segments:
-        if getattr(s, "no_speech_prob", 0.0) > 0.6:
-            continue
-        if getattr(s, "avg_logprob", 0.0) < -1.0:
-            continue
-        if any("一" <= ch <= "鿿" for ch in s.text):
-            parts.append(s.text)
-    text = _to_simplified(re.sub(r"\s+", "", "".join(parts).strip()))
-    if is_whisper_hallucination(text):
-        text = ""  # boilerplate over music/silence → report "no speech"
+    model = _get_whisper_model()
+    text = _whisper_window(model, audio, sr, start, end)
 
     requests.patch(
         f"{SUPABASE_URL}/rest/v1/videos",
