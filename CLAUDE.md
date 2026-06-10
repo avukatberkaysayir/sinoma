@@ -1,30 +1,12 @@
-# Sinoma — Claude Project Guide
+# Sinoma — Mandarin learning platform (Flutter Web · Riverpod · Supabase · Python pipeline). Web-only.
 
-## Role
-Lead Software Architect for Sinoma — a Mandarin learning platform (Flutter Web + Supabase backend + Python pipeline). Web-only, no mobile. Active voice in all names. No comments unless WHY is non-obvious. Minimal tokens in responses.
+Yanıtlar kısa. Active-voice isimler. Yorum yok (WHY apaçık değilse). Detay → `docs/reference.md`, geçmiş → MEMORY.md.
 
-## Stack (quick ref)
-Flutter Web · Riverpod · Supabase (not Firebase — see memory) · go_router · Gemini 1.5 Flash · Python 3.11+
-Detail → read `docs/reference.md`
-
-## Critical Rules (non-obvious)
-1. **aiCredits** — NEVER write from Flutter client. Only Cloud/Edge Functions.
-2. **Seek restriction** — Do NOT block seekbar (YouTube ToS). Reset position to `startTime` on out-of-segment seek.
-3. **Hybrid player** — `sourceType` field: `'youtube'` → YoutubePlayerIframe, `'self_hosted'` → VideoPlayer.
-4. **Gemini cache** — Check `aiContextCache[SHA256(wordId+transcription)]` before calling API.
-5. **Ads** — Banner BELOW player, never overlapping. Premium disables all ads at launch.
-6. **Deploy** — GitHub Actions KAPALI. Her zaman `deploy.ps1` / vercel CLI ile elle deploy et.
-7. **Dev server** — `flutter run -d web-server --web-port 9300`. NEVER `flutter build web` for dev.
-8. **Localhost yasak** — HTTPS siteden localhost çağırma.
-9. **L10n** — Her yeni UI string → AppL10n'a TR + EN ekle.
-10. **freezed yok** — Dart 3.11, manuel fromJson/toJson kullan.
-
-## Naming (active voice)
-`fetchData` → `loadUserStats` · `processVideo` → `analyzeVideoSegment` · `isDataLoaded` → `hasLoadedData`
-
-## Dev Commands
-```
-flutter run -d web-server --web-port 9300 --web-hostname localhost
-dart fix --apply && flutter analyze
-firebase deploy --only firestore,storage,functions --project=sinoma
-```
+## Bozma-yasak kurallar
+- **Deploy elle:** `git push origin master:main` (pre-push → deploy.ps1 → Vercel). GH Actions kapalı. Edge fn: `npx supabase functions deploy <fn> --project-ref pqyceostpukueydwuiut`.
+- **aiCredits / service_role:** asla Flutter client'tan yazma — sadece edge/cloud fn.
+- **Localhost yasak:** HTTPS siteden localhost çağırma → job queue (`pipeline_jobs`) + yerel worker (`dev_server.py`).
+- **freezed yok** (Dart 3.11): elle fromJson/toJson.
+- **L10n:** her yeni UI string → AppL10n TR + EN.
+- **Seek:** seekbar'ı engelleme (YouTube ToS); segment dışına çıkınca pozisyonu `startTime`'a al.
+- **Dev:** `flutter run -d web-server --web-port 9300`. Dev için `flutter build web` YOK.
