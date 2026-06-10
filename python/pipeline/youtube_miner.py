@@ -108,6 +108,20 @@ _HALLUCINATION_PHRASES = (
 _HALLU_RE = re.compile("|".join(re.escape(p) for p in _HALLUCINATION_PHRASES))
 
 
+def is_repetition_hallucination(text: str) -> bool:
+    """True when the hanzi of a cue are one short unit repeated ≥3× ("火火火火",
+    "火大火大火大", "啊啊啊啊") — what Whisper emits over music/noise. Precise: a
+    genuine word like 爸爸妈妈 / 哥哥姐姐 is NOT a single repeated unit, so kept."""
+    t = re.sub(r"[^一-鿿]", "", text)
+    n = len(t)
+    if n < 3:
+        return False
+    for u in (1, 2, 3):
+        if n % u == 0 and n // u >= 3 and t == t[:u] * (n // u):
+            return True
+    return False
+
+
 def is_whisper_hallucination(text: str) -> bool:
     """True when a cue is dominated by known outro/boilerplate phrases that
     Whisper emits over non-speech audio (so it should not become a segment)."""

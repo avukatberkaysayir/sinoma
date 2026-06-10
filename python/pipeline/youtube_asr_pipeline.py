@@ -485,6 +485,7 @@ def _whisper_window(model, audio, sr: int, start: float, end: float) -> str:
     return cleaned Simplified text ('' for music / silence / boilerplate)."""
     from youtube_miner import (
         WHISPER_CLIP_KWARGS, _to_simplified, is_whisper_hallucination,
+        is_repetition_hallucination,
     )
     # Pad the window slightly — caption/segment boundaries often clip the first or
     # last syllable.
@@ -502,6 +503,10 @@ def _whisper_window(model, audio, sr: int, start: float, end: float) -> str:
         if any("一" <= ch <= "鿿" for ch in s.text):
             parts.append(s.text)
     text = _to_simplified(re.sub(r"\s+", "", "".join(parts).strip()))
+    # Repetition hallucination over non-speech is NOT real dialogue → empty so the
+    # clip is dropped as no-speech.
+    if is_repetition_hallucination(text):
+        return ""
     return "" if is_whisper_hallucination(text) else text
 
 
