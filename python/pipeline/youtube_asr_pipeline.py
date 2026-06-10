@@ -449,13 +449,17 @@ def run(
     # (2) drop any clip Whisper found silent (no real dialogue — a caption artifact
     # or music). This is what keeps "no-dialogue" clips out of the review queue.
     dropped_ns = 0
+    dropped_dup = 0
     try:
         fill_whisper_text(youtube_id, url)
         dropped_ns = _drop_no_speech_pending(youtube_id)
+        # Every import: drop clips that already exist as an ACTIVE video.
+        dropped_dup = _drop_active_duplicates(youtube_id)
     except Exception as exc:
         print(f"  [WHISPER-FILL] atlandı: {exc}")
-    return {"segmentsWritten": inserted - dropped_ns, "method": method,
-            "gatedOut": gated, "droppedNoSpeech": dropped_ns}
+    return {"segmentsWritten": inserted - dropped_ns - dropped_dup, "method": method,
+            "gatedOut": gated, "droppedNoSpeech": dropped_ns,
+            "droppedDuplicates": dropped_dup}
 
 
 def _audio_cache_path(youtube_id: str) -> Path:
@@ -586,6 +590,39 @@ def _drop_no_speech_pending(youtube_id: str) -> int:
             params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
     if ids:
         print(f"  [NO-SPEECH] {len(ids)} diyalogsuz klip silindi ({youtube_id})")
+    return len(ids)
+
+
+def _drop_active_duplicates(youtube_id: str) -> int:
+    """Delete this video's PENDING clips that are identical to an ALREADY-ACTIVE
+    clip (same youtube_id + transcription). Re-importing a video whose clips were
+    activated must NOT pile up duplicate candidates in the review queue — keeping
+    them as backup has no value, so they are removed outright."""
+    ra = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.active",
+                "select": "transcription"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    active_tx = {(r.get("transcription") or "").strip()
+                 for r in (ra.json() if ra.status_code < 300 else [])}
+    active_tx.discard("")
+    if not active_tx:
+        return 0
+    rp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
+                "select": "id,transcription"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    ids = [r["id"] for r in (rp.json() if rp.status_code < 300 else [])
+           if (r.get("transcription") or "").strip() in active_tx]
+    for cid in ids:
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
+    if ids:
+        print(f"  [DEDUP] {len(ids)} aktif-kopyası pending klip silindi ({youtube_id})")
     return len(ids)
 
 

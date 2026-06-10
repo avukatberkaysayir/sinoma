@@ -2426,14 +2426,14 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
     setState(() => _generating = true);
     try {
+      // Each language is generated on its own: English alone first, then every
+      // other language from the approved English (sourceEn). No batch — pressing
+      // "generate English" must NOT also overwrite the Turkish options.
       final q = await widget.service.generateQuiz(
         transcription: transcription,
         pinyin: _pinyinCtrl.text.trim(),
         lang: _selectedQuizLang,
         sourceEn: pivot ? _correctCtrlEn.text.trim() : '',
-        // Generating English also produces the Turkish draft in the SAME Gemini
-        // call (one request instead of two) — saves daily free quota.
-        targetLangs: _selectedQuizLang == 'en' ? const ['tr'] : const [],
       );
       if (!mounted) return;
       setState(() {
@@ -2444,12 +2444,6 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           _correctCtrlEn.text = (q['correctAnswer'] as String?) ?? '';
           _wrongCtrlEn.text = (q['wrongAnswer'] as String?) ?? '';
           _enApproved = false; // fresh English needs re-approval
-          // Batch pre-fill: the Turkish draft came back in the same call.
-          final tr = (q['extra'] as Map?)?['tr'] as Map?;
-          if (tr != null) {
-            _correctCtrl.text = (tr['correctAnswer'] as String?) ?? '';
-            _wrongCtrl.text = (tr['wrongAnswer'] as String?) ?? '';
-          }
         }
         _generating = false;
       });
@@ -2585,12 +2579,17 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final hskList = _hskLevels.toList()..sort();
     final catList = _quizCategories.toList();
     final lifeList = _lifeCategories.toList();
-    // The dropdowns are auto-filled from the active/backup slot; only an actual
-    // admin change is a manual placement override. A plain save leaves placement
-    // to the DB trigger (and keeps a backup clip a backup).
-    final outLevel = _placementManual ? _level : null;
-    final outUnit = _placementManual ? _unit : null;
-    final outPhase = _placementManual ? _phase : null;
+    // Only a real admin placement change overrides. Otherwise PRESERVE the clip's
+    // existing placement — a plain quiz/text edit must NOT null level (which would
+    // re-fire the path-assignment trigger and move/unplace an already-placed clip,
+    // so a second save appeared to "not work"). A still-unplaced clip stays null so
+    // the DB derives it; a backup clip stays a backup.
+    final curLevel = (widget.data['level'] as num?)?.toInt();
+    final curUnit = (widget.data['unit'] as num?)?.toInt();
+    final curPhase = (widget.data['phase'] as num?)?.toInt();
+    final outLevel = _placementManual ? _level : curLevel;
+    final outUnit = _placementManual ? _unit : curUnit;
+    final outPhase = _placementManual ? _phase : curPhase;
     setState(() => _saving = true);
     try {
       await widget.service.patchVideoFields(id, {
