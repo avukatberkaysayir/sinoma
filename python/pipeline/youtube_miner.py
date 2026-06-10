@@ -104,6 +104,20 @@ def is_whisper_hallucination(text: str) -> bool:
     return len(stripped) <= len(text) * 0.4
 
 
+# Some Chinese-learning channels bake pinyin INTO the caption text
+# ("大家好dàjiāhǎo我是志飞wǒshìZhìfēi"), which pollutes the stored sentence and
+# makes the ASR transcription look wrong. Strip romanization (ASCII + pinyin tone
+# vowels, Latin-1 + Latin-Extended A/B) whenever the cue actually contains hanzi;
+# the pinyin column is generated separately. No-op on clean Whisper output.
+_ROMAN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+")
+
+
+def strip_romanization(text: str) -> str:
+    if not re.search(r"[一-鿿]", text):
+        return text  # genuinely-Latin caption — leave it
+    return _ROMAN_RE.sub("", text)
+
+
 # ---------------------------------------------------------------------------
 # Structured logging
 # ---------------------------------------------------------------------------
@@ -671,7 +685,7 @@ def stream_segments(
 
     def make() -> dict[str, Any]:
         return {"start": round(cur_start, 3), "end": round(last_end, 3),
-                "text": cur_text.strip()}
+                "text": strip_romanization(cur_text.strip())}
 
     for entry in entries:
         if cur_start is not None:
