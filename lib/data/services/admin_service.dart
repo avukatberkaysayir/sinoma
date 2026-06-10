@@ -371,6 +371,15 @@ class AdminService {
     return res['id'] as String;
   }
 
+  // Per (level,unit,phase) slot-fill stats for the Aktif/Yedek cascade colouring
+  // (red = no video, yellow = partial, green = every slot filled).
+  Future<List<Map<String, dynamic>>> loadPathFillStats() async {
+    final res = await _db.rpc('path_fill_stats');
+    return (res as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
+  }
+
   // Re-read one video row (to pick up whisper_text after the job completes).
   Future<Map<String, dynamic>?> getVideo(String id) async {
     final data = await _db.from('videos').select().eq('id', id).maybeSingle();

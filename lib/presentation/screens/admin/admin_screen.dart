@@ -1485,9 +1485,53 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
   final Set<String> _selected = {};
   bool _bulkLoading = false;
   // Active-tab path filters (cascading): level (L) → unit → phase.
-  int? _fL;
-  int? _fUnit;
+  // Default to L1/Ünite1 so the whole cascade is always visible (never collapsed).
+  int? _fL = 1;
+  int? _fUnit = 1;
   int? _fPhase;
+
+  // Slot-fill stats keyed 'level-unit-phase' → [total, filled, vids, bfilled, bvids].
+  Map<String, List<int>> _fillStats = {};
+  static const _navRed = Color(0xFFEF4444);
+  static const _navYellow = Color(0xFFF59E0B);
+  static const _navGreen = Color(0xFF22C55E);
+
+  // Aggregate slot stats over a scope and colour it: red = no video, green = every
+  // slot filled, yellow = some videos but not all slots. Active uses (filled,vids);
+  // Yedek uses (backup-filled, backup-vids).
+  Color _scopeColor(int level, {int? unit, int? phase}) {
+    int total = 0, filled = 0, vids = 0;
+    _fillStats.forEach((k, v) {
+      final p = k.split('-');
+      if (int.parse(p[0]) != level) return;
+      if (unit != null && int.parse(p[1]) != unit) return;
+      if (phase != null && int.parse(p[2]) != phase) return;
+      total += v[0];
+      filled += widget.backupMode ? v[3] : v[1];
+      vids += widget.backupMode ? v[4] : v[2];
+    });
+    if (vids == 0) return _navRed;
+    if (total > 0 && filled >= total) return _navGreen;
+    return _navYellow;
+  }
+
+  Future<void> _loadFillStats() async {
+    if (!_levelNav) return;
+    try {
+      final stats = await widget.service.loadPathFillStats();
+      final m = <String, List<int>>{};
+      for (final r in stats) {
+        m['${r['level']}-${r['unit']}-${r['phase']}'] = [
+          (r['total'] as num).toInt(),
+          (r['filled'] as num).toInt(),
+          (r['vids'] as num).toInt(),
+          (r['bfilled'] as num).toInt(),
+          (r['bvids'] as num).toInt(),
+        ];
+      }
+      if (mounted) setState(() => _fillStats = m);
+    } catch (_) {/* colouring is best-effort */}
+  }
 
   // The level (L) a video sits on: in backup mode the would-be backup_level;
   // otherwise the explicit override, else HSK of its primary grammar rule.
@@ -1553,16 +1597,18 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
     }
     // Cascading path filters (active tab). Partial selection is honoured:
     // L alone → all of that level; L+unit → that unit; +phase → that circle.
+    // Cascade path filters apply ONLY on the level-nav tabs (Aktif / Yedek); the
+    // default L1/Ünite1 selection must not filter the pending/deleted lists.
     final unitKey = widget.backupMode ? 'backup_unit' : 'unit';
     final phaseKey = widget.backupMode ? 'backup_phase' : 'phase';
-    if (_fL != null) {
+    if (_levelNav && _fL != null) {
       result = result.where((v) => _videoLevel(v) == _fL).toList();
     }
-    if (_fUnit != null) {
+    if (_levelNav && _fUnit != null) {
       result =
           result.where((v) => (v[unitKey] as num?)?.toInt() == _fUnit).toList();
     }
-    if (_fPhase != null) {
+    if (_levelNav && _fPhase != null) {
       result =
           result.where((v) => (v[phaseKey] as num?)?.toInt() == _fPhase).toList();
     }
@@ -1605,6 +1651,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
         }
       }
       if (mounted) setState(() { _videos = list; _loading = false; });
+      _loadFillStats(); // colour the cascade (red/yellow/green) — best-effort
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
@@ -1885,62 +1932,64 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
               for (var l = 1; l <= 6; l++)
                 Expanded(
                   child: _levelTab('L$l', _fL == l, () => setState(() {
-                        _fL = _fL == l ? null : l;
-                        _fUnit = null;
+                        // Always keep a level selected so units/bölüms stay visible.
+                        _fL = l;
+                        _fUnit ??= 1;
                         _fPhase = null;
-                      })),
+                      }), statusColor: _scopeColor(l)),
                 ),
             ],
           ),
-          if (_fL != null) ...[
-            const SizedBox(height: 10),
-            const Text('Ünite',
-                style: TextStyle(
-                    color: AppColors.onSurfaceMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 5),
-            // Two rows of 12, each filling the width.
-            for (final rowStart in const [1, 13])
-              Padding(
-                padding: const EdgeInsets.only(bottom: 6),
-                child: Row(
-                  children: [
-                    for (var u = rowStart; u < rowStart + 12; u++)
-                      Expanded(
-                        child: _navCell('$u', _fUnit == u, () => setState(() {
-                              _fUnit = _fUnit == u ? null : u;
-                              _fPhase = null;
-                            })),
-                      ),
-                  ],
-                ),
+          // Ünite + Bölüm are ALWAYS shown (never collapsed); clicking just filters
+          // the list below. Each cell is coloured by its fill state.
+          const SizedBox(height: 10),
+          const Text('Ünite',
+              style: TextStyle(
+                  color: AppColors.onSurfaceMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 5),
+          // Two rows of 12, each filling the width.
+          for (final rowStart in const [1, 13])
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  for (var u = rowStart; u < rowStart + 12; u++)
+                    Expanded(
+                      child: _navCell('$u', _fUnit == u, () => setState(() {
+                            _fUnit = u;
+                            _fPhase = null;
+                          }), statusColor: _scopeColor(_fL ?? 1, unit: u)),
+                    ),
+                ],
               ),
-          ],
-          if (_fUnit != null) ...[
-            const SizedBox(height: 6),
-            const Text('Bölüm',
-                style: TextStyle(
-                    color: AppColors.onSurfaceMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700)),
-            const SizedBox(height: 5),
-            Row(
-              children: [
-                for (var p = 1; p <= 4; p++)
-                  Expanded(
-                    child: _navCell('Bölüm $p', _fPhase == p,
-                        () => setState(() => _fPhase = _fPhase == p ? null : p)),
-                  ),
-              ],
             ),
-          ],
+          const SizedBox(height: 6),
+          const Text('Bölüm',
+              style: TextStyle(
+                  color: AppColors.onSurfaceMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 5),
+          Row(
+            children: [
+              for (var p = 1; p <= 4; p++)
+                Expanded(
+                  child: _navCell('Bölüm $p', _fPhase == p,
+                      () => setState(() => _fPhase = _fPhase == p ? null : p),
+                      statusColor:
+                          _scopeColor(_fL ?? 1, unit: _fUnit ?? 1, phase: p)),
+                ),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _levelTab(String text, bool sel, VoidCallback onTap) {
+  Widget _levelTab(String text, bool sel, VoidCallback onTap, {Color? statusColor}) {
+    final sc = statusColor;
     return InkWell(
       onTap: onTap,
       child: Container(
@@ -1948,13 +1997,18 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-                color: sel ? AppColors.primary : Colors.transparent, width: 2),
+                color: sel
+                    ? AppColors.primary
+                    : (sc ?? Colors.transparent),
+                width: 2),
           ),
         ),
         alignment: Alignment.center,
         child: Text(text,
             style: TextStyle(
-                color: sel ? AppColors.primary : AppColors.onSurfaceMuted,
+                color: sel
+                    ? AppColors.primary
+                    : (sc ?? AppColors.onSurfaceMuted),
                 fontSize: 13,
                 fontWeight: FontWeight.w700)),
       ),
@@ -1962,11 +2016,15 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
   }
 
   // Full-width nav cell (used in Expanded) — centered, taller, bigger text.
-  Widget _navCell(String text, bool sel, VoidCallback onTap) {
+  // statusColor (red/yellow/green) tints the cell when it isn't the selected one.
+  Widget _navCell(String text, bool sel, VoidCallback onTap, {Color? statusColor}) {
+    final sc = statusColor;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 3),
       child: Material(
-        color: sel ? AppColors.primary : AppColors.surface,
+        color: sel
+            ? AppColors.primary
+            : (sc != null ? sc.withValues(alpha: 0.16) : AppColors.surface),
         borderRadius: BorderRadius.circular(9),
         child: InkWell(
           borderRadius: BorderRadius.circular(9),
@@ -1974,11 +2032,19 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
           child: Container(
             height: 40,
             alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(9),
+              border: (!sel && sc != null)
+                  ? Border.all(color: sc.withValues(alpha: 0.7), width: 1.3)
+                  : null,
+            ),
             child: FittedBox(
               fit: BoxFit.scaleDown,
               child: Text(text,
                   style: TextStyle(
-                      color: sel ? Colors.white : AppColors.onSurface,
+                      color: sel
+                          ? Colors.white
+                          : (sc ?? AppColors.onSurface),
                       fontSize: 15,
                       fontWeight:
                           sel ? FontWeight.w800 : FontWeight.w600)),
