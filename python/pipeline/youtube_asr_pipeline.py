@@ -472,20 +472,20 @@ def _whisper_window(model, audio, sr: int, start: float, end: float) -> str:
     """Whisper-transcribe ONLY [start,end] of an already-decoded audio array;
     return cleaned Simplified text ('' for music / silence / boilerplate)."""
     from youtube_miner import (
-        WHISPER_TRANSCRIBE_KWARGS, _to_simplified, is_whisper_hallucination,
+        WHISPER_CLIP_KWARGS, _to_simplified, is_whisper_hallucination,
     )
     # Pad the window slightly — caption/segment boundaries often clip the first or
-    # last syllable, which makes VAD drop the whole short cue (empty whisper_text).
+    # last syllable.
     pad = int(0.4 * sr)
     a = max(0, int(start * sr) - pad)
     b = min(len(audio), int(end * sr) + pad)
     clip = audio[a:b] if b > a else audio
-    segments, _ = model.transcribe(clip, **WHISPER_TRANSCRIBE_KWARGS)
+    # VAD-off, lenient kwargs: this window is a KNOWN speech region (from a caption),
+    # so only reject near-certain silence — keep music-bedded real dialogue.
+    segments, _ = model.transcribe(clip, **WHISPER_CLIP_KWARGS)
     parts = []
     for s in segments:
-        if getattr(s, "no_speech_prob", 0.0) > 0.6:
-            continue
-        if getattr(s, "avg_logprob", 0.0) < -1.0:
+        if getattr(s, "no_speech_prob", 0.0) > 0.85:
             continue
         if any("一" <= ch <= "鿿" for ch in s.text):
             parts.append(s.text)

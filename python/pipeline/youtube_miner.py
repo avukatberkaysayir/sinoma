@@ -80,6 +80,20 @@ WHISPER_TRANSCRIBE_KWARGS: dict[str, Any] = dict(
     initial_prompt="以下是普通话的对话。",
 )
 
+# Clip re-transcribe (transcribe_clip / whisper_text fill): the segment boundary
+# ALREADY marks a known speech region (it came from a caption/ASR cue), so VAD is
+# turned OFF here — VAD was nuking short windows whole, leaving whisper_text empty
+# even for clear dialogue (esp. on music-bedded shows). no_speech_threshold is also
+# looser so music-lowered confidence doesn't drop a real line.
+WHISPER_CLIP_KWARGS: dict[str, Any] = dict(
+    language="zh",
+    beam_size=5,
+    condition_on_previous_text=False,
+    no_speech_threshold=0.85,
+    vad_filter=False,
+    initial_prompt="以下是普通话的对话。",
+)
+
 # Phrases Whisper invents over music / silence / channel outros — they are NOT
 # spoken in the clip. A cue made up almost entirely of these is a hallucination
 # and must be dropped (this is the main cause of "no dialogue but a segment was
