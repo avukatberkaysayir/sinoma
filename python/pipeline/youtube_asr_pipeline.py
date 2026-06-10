@@ -443,7 +443,19 @@ def run(
             "Hiçbir segment yazılamadı — sözlük eşleşmesi yok, HSK filtresi dışı, "
             "veya tutarlılık kapısı hepsini halüsinasyon saydı. Filtreyi değiştirin."
         )
-    return {"segmentsWritten": inserted, "method": method, "gatedOut": gated}
+
+    # Before the clips sit in "pending": (1) auto-fill whisper_text for each so the
+    # admin sees ASR + an independent Whisper transcription side by side, and
+    # (2) drop any clip Whisper found silent (no real dialogue — a caption artifact
+    # or music). This is what keeps "no-dialogue" clips out of the review queue.
+    dropped_ns = 0
+    try:
+        fill_whisper_text(youtube_id, url)
+        dropped_ns = _drop_no_speech_pending(youtube_id)
+    except Exception as exc:
+        print(f"  [WHISPER-FILL] atlandı: {exc}")
+    return {"segmentsWritten": inserted - dropped_ns, "method": method,
+            "gatedOut": gated, "droppedNoSpeech": dropped_ns}
 
 
 def _audio_cache_path(youtube_id: str) -> Path:
@@ -548,6 +560,28 @@ def fill_whisper_text(
             on_progress(filled)
     print(f"  [WHISPER-FILL] ✓ {filled} whisper_text yazıldı ({youtube_id})")
     return filled
+
+
+def _drop_no_speech_pending(youtube_id: str) -> int:
+    """Delete this video's PENDING clips where the (VAD-off) Whisper found NO
+    speech at all — empty whisper_text means the audio in that window is music /
+    silence with no real dialogue, so the caption was an artifact. These must not
+    reach the review queue."""
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
+                "select": "id,whisper_text"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    rows = resp.json() if resp.status_code < 300 else []
+    ids = [r["id"] for r in rows if not (r.get("whisper_text") or "").strip()]
+    for cid in ids:
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
+    if ids:
+        print(f"  [NO-SPEECH] {len(ids)} diyalogsuz klip silindi ({youtube_id})")
+    return len(ids)
 
 
 def backfill_pending_whisper(force: bool = False) -> dict[str, Any]:
