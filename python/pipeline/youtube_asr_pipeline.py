@@ -368,6 +368,10 @@ def run(
         seg_seen += 1
         last_pos = max(last_pos, float(seg["end"]))
         word_ids, hsk_level = analyze_segment(seg["text"])
+        # Guard: target_words must be Chinese only — never let a stray pinyin/latin
+        # token through (it pollutes the word chips + the admin title built from them).
+        word_ids = [w for w in word_ids
+                    if w and not re.search(r"[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]", w)]
         if hsk_level == 0:
             return
         matched += 1
@@ -470,8 +474,11 @@ def _whisper_window(model, audio, sr: int, start: float, end: float) -> str:
     from youtube_miner import (
         WHISPER_TRANSCRIBE_KWARGS, _to_simplified, is_whisper_hallucination,
     )
-    a = max(0, int(start * sr))
-    b = min(len(audio), int(end * sr))
+    # Pad the window slightly — caption/segment boundaries often clip the first or
+    # last syllable, which makes VAD drop the whole short cue (empty whisper_text).
+    pad = int(0.4 * sr)
+    a = max(0, int(start * sr) - pad)
+    b = min(len(audio), int(end * sr) + pad)
     clip = audio[a:b] if b > a else audio
     segments, _ = model.transcribe(clip, **WHISPER_TRANSCRIBE_KWARGS)
     parts = []
