@@ -115,7 +115,9 @@ _ROMAN_RE = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿĀ-ɏ]+")
 def strip_romanization(text: str) -> str:
     if not re.search(r"[一-鿿]", text):
         return text  # genuinely-Latin caption — leave it
-    return _ROMAN_RE.sub("", text)
+    text = _ROMAN_RE.sub("", text)
+    # Removing inline pinyin can leave doubled punctuation ("吗??") — collapse it.
+    return re.sub(r"([。！？!?…，、；;：:])\1+", r"\1", text)
 
 
 # ---------------------------------------------------------------------------
