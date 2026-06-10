@@ -11,6 +11,24 @@ const corsHeaders = {
 // GEMINI_MODEL secret (e.g. "gemini-2.5-flash") once billing is enabled.
 const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
 
+// Multiple API keys so a free-tier daily-quota wall on one key (429 PerDay) does
+// NOT stop generation — we rotate to the next key. Supply either a comma-separated
+// GEMINI_API_KEYS secret and/or GEMINI_API_KEY, GEMINI_API_KEY_2..._5. The free
+// daily quota is effectively multiplied by the number of distinct keys.
+function geminiKeys(): string[] {
+  const list: string[] = [];
+  for (const k of (Deno.env.get("GEMINI_API_KEYS") ?? "").split(",")) {
+    const t = k.trim();
+    if (t) list.push(t);
+  }
+  for (const name of ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3",
+                      "GEMINI_API_KEY_4", "GEMINI_API_KEY_5"]) {
+    const t = (Deno.env.get(name) ?? "").trim();
+    if (t) list.push(t);
+  }
+  return [...new Set(list)];
+}
+
 // Per-language expert profile: authoritative source + ordered grammar rules.
 // Rules are numbered so the model can cite them in its self-audit step.
 const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
@@ -164,6 +182,26 @@ async function callGeminiWithRetry(
   throw new Error(lastErr || "Gemini request failed");
 }
 
+// Try each API key in turn. callGeminiWithRetry already retries transient/overload
+// cases per key; here we rotate keys when one is quota-exhausted (daily 429) so a
+// single capped key never blocks generation. Non-quota errors (e.g. 400) stop early.
+async function callGeminiRotating(reqBody: string, keys: string[]): Promise<string> {
+  let lastErr = "";
+  for (const key of keys) {
+    try {
+      return await callGeminiWithRetry(
+        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
+        reqBody,
+      );
+    } catch (e) {
+      lastErr = String(e);
+      const quotaLike = /429|quota|RESOURCE_EXHAUSTED|50[0234]|overload|unavailable/i.test(lastErr);
+      if (!quotaLike) break; // a new key won't fix a bad request
+    }
+  }
+  throw new Error(lastErr || "Gemini request failed");
+}
+
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
     status,
@@ -248,8 +286,8 @@ serve(async (req) => {
       return json({ correctAnswer: cached.correct, wrongAnswer: cached.wrong, cached: true });
     }
 
-    const key = Deno.env.get("GEMINI_API_KEY");
-    if (!key) return json({ error: "GEMINI_API_KEY not set" }, 500);
+    const keys = geminiKeys();
+    if (!keys.length) return json({ error: "GEMINI_API_KEY not set" }, 500);
 
     const prompt = buildPrompt(transcription, pinyin, langName, sourceEn);
 
@@ -263,10 +301,7 @@ serve(async (req) => {
 
     let text: string;
     try {
-      text = await callGeminiWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-        reqBody,
-      );
+      text = await callGeminiRotating(reqBody, keys);
     } catch (e) {
       return json({ error: String(e) }, 502);
     }
