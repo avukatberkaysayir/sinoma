@@ -594,29 +594,36 @@ def _drop_no_speech_pending(youtube_id: str) -> int:
 
 
 def _drop_active_duplicates(youtube_id: str) -> int:
-    """Delete this video's PENDING clips that are identical to an ALREADY-ACTIVE
-    clip (same youtube_id + transcription). Re-importing a video whose clips were
-    activated must NOT pile up duplicate candidates in the review queue — keeping
-    them as backup has no value, so they are removed outright."""
+    """Delete this video's PENDING clips that cover the same spoken moment as an
+    ALREADY-ACTIVE clip. Re-importing re-segments the audio, so the copy may have
+    slightly shifted boundaries / a trimmed prefix (842.6-848.6 '同学们你们…' active
+    vs 843.0-851.2 '你们…' pending). Matching on TIME OVERLAP (>50% of the shorter
+    clip) catches these near-duplicates that an exact transcription match misses —
+    keeping them as backup has no value, so they are removed outright."""
     ra = requests.get(
         f"{SUPABASE_URL}/rest/v1/videos",
         params={"youtube_id": f"eq.{youtube_id}", "status": "eq.active",
-                "select": "transcription"},
+                "select": "start_time,end_time"},
         headers=_supabase_headers(), timeout=30,
     )
-    active_tx = {(r.get("transcription") or "").strip()
-                 for r in (ra.json() if ra.status_code < 300 else [])}
-    active_tx.discard("")
-    if not active_tx:
+    actives = [(float(r["start_time"]), float(r["end_time"]))
+               for r in (ra.json() if ra.status_code < 300 else [])]
+    if not actives:
         return 0
     rp = requests.get(
         f"{SUPABASE_URL}/rest/v1/videos",
         params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
-                "select": "id,transcription"},
+                "select": "id,start_time,end_time"},
         headers=_supabase_headers(), timeout=30,
     )
-    ids = [r["id"] for r in (rp.json() if rp.status_code < 300 else [])
-           if (r.get("transcription") or "").strip() in active_tx]
+    ids = []
+    for r in (rp.json() if rp.status_code < 300 else []):
+        ps, pe = float(r["start_time"]), float(r["end_time"])
+        for a_s, a_e in actives:
+            overlap = min(a_e, pe) - max(a_s, ps)
+            if overlap > 0.5 * min(a_e - a_s, pe - ps):
+                ids.append(r["id"])
+                break
     for cid in ids:
         requests.delete(
             f"{SUPABASE_URL}/rest/v1/videos",
