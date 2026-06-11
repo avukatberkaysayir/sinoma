@@ -99,11 +99,15 @@ class _PhaseRunnerScreenState extends ConsumerState<PhaseRunnerScreen> {
                     ),
                   ),
                   Expanded(
-                    child: Center(
+                    // Top-anchored (NOT centred): when the options appear the
+                    // player must stay exactly where it is — only the area
+                    // below grows.
+                    child: Align(
+                      alignment: Alignment.topCenter,
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1040),
+                        constraints: const BoxConstraints(maxWidth: 880),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          padding: const EdgeInsets.fromLTRB(24, 4, 24, 0),
                           child: InlinePlayerSection(
                             segments: widget.phase.videos,
                             phaseMode: true,
