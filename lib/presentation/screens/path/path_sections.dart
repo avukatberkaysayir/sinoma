@@ -90,6 +90,8 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
     final tr = widget.tr;
     final hsk = ref.watch(selectedHskFilterProvider);
     final life = ref.watch(selectedLifeCategoryProvider);
+    final playlists = ref.watch(myPlaylistsProvider).valueOrNull ?? const [];
+    final selPlaylist = ref.watch(selectedPlaylistProvider);
     final userLevel =
         ref.watch(currentUserProvider).valueOrNull?.hskLevel ?? 1;
 
@@ -175,6 +177,28 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
                   ),
               ],
             ),
+            // The user's own playlists — pick one to scope the feed to it.
+            if (playlists.isNotEmpty)
+              _FilterGroup(
+                id: 'playlists',
+                label: tr ? 'LİSTELERİM' : 'MY LISTS',
+                open: _openGroup == 'playlists',
+                activeCount: selPlaylist != null ? 1 : 0,
+                onToggle: _toggleGroup,
+                children: [
+                  for (final p in playlists)
+                    _FilterItem(
+                      label: p['name'] as String? ?? '',
+                      selected: selPlaylist == p['id'],
+                      onTap: () {
+                        ref.read(selectedPlaylistProvider.notifier).state =
+                            selPlaylist == p['id']
+                                ? null
+                                : p['id'] as String;
+                      },
+                    ),
+                ],
+              ),
           ],
         ),
       ),

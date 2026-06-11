@@ -26,6 +26,16 @@ final selectedSearchProvider        = StateProvider<String?>((ref) => null);
 // keeps playing — and showing — under pushed routes unless it is unmounted.
 final practiceSuspendedProvider     = StateProvider<bool>((ref) => false);
 
+// ── User playlists (practice tab) ─────────────────────────────────────────────
+final myPlaylistsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(videoRepositoryProvider).loadPlaylists();
+});
+
+// Feed scope: show only the videos of this playlist (null = all).
+final selectedPlaylistProvider = StateProvider<String?>((ref) => null);
+
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   // Depend only on the HSK level (an int), NOT on the whole user stream — otherwise
   // every stats write (scoring an answer) re-emits the user, re-runs this provider,
@@ -59,6 +69,12 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
     segments = segments
         .where((s) => s.lifeTags.any(lifeCategories.contains))
         .toList();
+  }
+  // Playlist scope: only the clips the user saved into the selected list.
+  final playlistId = ref.watch(selectedPlaylistProvider);
+  if (playlistId != null) {
+    final ids = await repo.loadPlaylistVideoIds(playlistId);
+    segments = segments.where((s) => ids.contains(s.videoId)).toList();
   }
   return segments;
 });

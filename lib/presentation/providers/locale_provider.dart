@@ -67,6 +67,17 @@ class AppL10n {
   String get subtitlesOff          => _isTr ? 'Altyazısız'         : 'Subtitles Off';
   String get subtitleTitle         => _isTr ? 'Altyazı'           : 'Subtitle';
 
+  // ── Practice: playlists ─────────────────────────────────────────────────────
+  String get addToPlaylist      => _isTr ? 'Listeye Ekle'    : 'Add to Playlist';
+  String get myPlaylists        => _isTr ? 'LİSTELERİM'      : 'MY LISTS';
+  String get newPlaylistHint    => _isTr ? 'Yeni liste adı…' : 'New playlist name…';
+  String get createAndAdd       => _isTr ? 'Oluştur ve Ekle' : 'Create & Add';
+  String get noPlaylistsYet     => _isTr ? 'Henüz listen yok — aşağıdan oluştur.'
+                                         : 'No playlists yet — create one below.';
+  String get signInForPlaylists => _isTr ? 'Liste oluşturmak için giriş yap.'
+                                         : 'Sign in to use playlists.';
+  String get closeLabel         => _isTr ? 'Kapat'           : 'Close';
+
   // ── HSK levels ──────────────────────────────────────────────────────────────
   String hskLabel(int level) => 'HSK $level';
   String hskSublabel(int level) => switch (level) {

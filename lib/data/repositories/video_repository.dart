@@ -142,6 +142,103 @@ class VideoRepository {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  // ── Per-user practice ticks (VoScreen-style mastery, 0..5 per video) ────────
+
+  Future<int> loadVideoTicks(String videoId) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return 0;
+    try {
+      final row = await _db
+          .from('video_ticks')
+          .select('ticks')
+          .eq('uid', uid)
+          .eq('video_id', videoId)
+          .maybeSingle();
+      return (row?['ticks'] as num?)?.toInt() ?? 0;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<void> saveVideoTicks(String videoId, int ticks) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    try {
+      await _db.from('video_ticks').upsert({
+        'uid': uid,
+        'video_id': videoId,
+        'ticks': ticks.clamp(0, 5),
+        'updated_at': DateTime.now().toUtc().toIso8601String(),
+      }, onConflict: 'uid,video_id');
+    } catch (_) {/* ticks are cosmetic — never block the answer flow */}
+  }
+
+  // ── User playlists ──────────────────────────────────────────────────────────
+
+  Future<List<Map<String, dynamic>>> loadPlaylists() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final data = await _db
+        .from('playlists')
+        .select('id, name')
+        .eq('uid', uid)
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<String?> createPlaylist(String name) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
+    final row = await _db
+        .from('playlists')
+        .insert({'uid': uid, 'name': name.trim()})
+        .select('id')
+        .single();
+    return row['id'] as String?;
+  }
+
+  // Which of MY playlists already contain this video.
+  Future<Set<String>> playlistsContaining(String videoId) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return const {};
+    final data = await _db
+        .from('playlist_items')
+        .select('playlist_id')
+        .eq('uid', uid)
+        .eq('video_id', videoId);
+    return List<Map<String, dynamic>>.from(data)
+        .map((r) => r['playlist_id'] as String)
+        .toSet();
+  }
+
+  Future<void> addToPlaylist(String playlistId, String videoId) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    await _db.from('playlist_items').upsert({
+      'playlist_id': playlistId,
+      'video_id': videoId,
+      'uid': uid,
+    }, onConflict: 'playlist_id,video_id');
+  }
+
+  Future<void> removeFromPlaylist(String playlistId, String videoId) async {
+    await _db
+        .from('playlist_items')
+        .delete()
+        .eq('playlist_id', playlistId)
+        .eq('video_id', videoId);
+  }
+
+  Future<Set<String>> loadPlaylistVideoIds(String playlistId) async {
+    final data = await _db
+        .from('playlist_items')
+        .select('video_id')
+        .eq('playlist_id', playlistId);
+    return List<Map<String, dynamic>>.from(data)
+        .map((r) => r['video_id'] as String)
+        .toSet();
+  }
+
   Future<VideoSegmentModel?> loadSegment(String videoId) async {
     try {
       final data = await _db

@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../providers/video_provider.dart';
 import '../../widgets/video/direct_youtube_player.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -57,6 +58,9 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   bool _countdownActive = false;
   bool _timedOut = false; // choice window expired without a selection
   int _correctCount = 0; // phase mode: correct answers so far
+  // VoScreen-style mastery ticks for the CURRENT clip (practice tab only):
+  // +1 per correct answer, -1 per wrong/timeout, 0..5, persisted per user.
+  int _ticks = 0;
 
   @override
   void initState() {
@@ -67,6 +71,24 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
       WidgetsBinding.instance.addPostFrameCallback(
           (_) => widget.onIndexChanged?.call(0));
     }
+    _loadTicks();
+  }
+
+  Future<void> _loadTicks() async {
+    if (widget.phaseMode || widget.segments.isEmpty) return;
+    final id = _seg.videoId;
+    final t = await ref.read(videoRepositoryProvider).loadVideoTicks(id);
+    if (mounted && _seg.videoId == id && t != _ticks) {
+      setState(() => _ticks = t);
+    }
+  }
+
+  void _updateTicks(bool correct) {
+    if (widget.phaseMode) return;
+    final next = (correct ? _ticks + 1 : _ticks - 1).clamp(0, 5);
+    if (next == _ticks) return;
+    setState(() => _ticks = next);
+    ref.read(videoRepositoryProvider).saveVideoTicks(_seg.videoId, next);
   }
 
   @override
@@ -89,6 +111,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
           _resetState();
         }
       });
+      _loadTicks();
     }
   }
 
@@ -168,6 +191,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         _addScore(delta, answered: false);
         _playerCtrl.showScorePopup(delta);
         widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
+        _updateTicks(false);
         setState(() {
           _countdownActive = false;
           _timedOut = true;
@@ -199,6 +223,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
       _index = (_index + 1) % widget.segments.length;
       _resetState();
     });
+    _loadTicks();
   }
 
   void _goPrev() {
@@ -207,6 +232,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
       _index = (_index - 1 + widget.segments.length) % widget.segments.length;
       _resetState();
     });
+    _loadTicks();
   }
 
   void _replay() {
@@ -239,6 +265,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _addScore(delta);
     _playerCtrl.showScorePopup(delta);
     widget.onAnswered?.call(correct);
+    _updateTicks(correct);
     // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _pickedAnswer = text);
   }
@@ -256,6 +283,18 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   // Transparent CC toggle over the options — show/hide the subtitle anytime.
   void _toggleSubtitle() {
     setState(() => _subtitleChoice = !(_subtitleChoice ?? false));
+  }
+
+  void _openPlaylistDialog(AppL10n l10n) {
+    if (ref.read(currentUserProvider).valueOrNull == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(l10n.signInForPlaylists)));
+      return;
+    }
+    showDialog(
+      context: context,
+      builder: (_) => _PlaylistDialog(videoId: _seg.videoId),
+    );
   }
 
   @override
@@ -321,6 +360,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             onPrev: _goPrev,
             onReplay: _replay,
             onSpeedChanged: _setSpeed,
+            // Practice tab only — the Öğren phases show neither.
+            ticks: widget.phaseMode ? null : _ticks,
+            onAddToPlaylist:
+                widget.phaseMode ? null : () => _openPlaylistDialog(l10n),
+            playlistTooltip: l10n.addToPlaylist,
           ),
 
           // ── Post-clip area ────────────────────────────────────────────────
@@ -405,6 +449,10 @@ class _ControlsBar extends StatelessWidget {
   final VoidCallback onPrev;
   final VoidCallback onReplay;
   final void Function(double) onSpeedChanged;
+  // Practice extras (null in phase mode): mastery ticks + playlist button.
+  final int? ticks;
+  final VoidCallback? onAddToPlaylist;
+  final String playlistTooltip;
 
   const _ControlsBar({
     required this.speed,
@@ -413,6 +461,9 @@ class _ControlsBar extends StatelessWidget {
     required this.onPrev,
     required this.onReplay,
     required this.onSpeedChanged,
+    this.ticks,
+    this.onAddToPlaylist,
+    this.playlistTooltip = '',
   });
 
   static const _speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
@@ -443,8 +494,19 @@ class _ControlsBar extends StatelessWidget {
             tooltip: soundOn ? 'Sesi kapat' : 'Sesi aç',
             color: soundOn ? null : AppColors.primary,
           ),
+          if (onAddToPlaylist != null)
+            _CtrlBtn(
+              icon: Icons.playlist_add_rounded,
+              onTap: onAddToPlaylist!,
+              size: 26,
+              tooltip: playlistTooltip,
+            ),
 
-          const Spacer(),
+          // VoScreen-style mastery ticks, centred between sound and speed.
+          if (ticks != null)
+            Expanded(child: Center(child: _TickRow(count: ticks!)))
+          else
+            const Spacer(),
 
           for (final s in _speeds)
             _SpeedChip(
@@ -454,6 +516,207 @@ class _ControlsBar extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+// Five mastery ticks: one turns PERMANENTLY green per correct answer on this
+// video; a wrong answer/timeout takes one back (0..5, stored per user).
+class _TickRow extends StatelessWidget {
+  final int count;
+  const _TickRow({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < 5; i++)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 2),
+            child: Icon(
+              Icons.check_circle_rounded,
+              size: 18,
+              color: i < count
+                  ? AppColors.correctAnswer
+                  : AppColors.onSurfaceMuted.withValues(alpha: 0.35),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Playlist dialog (practice tab) ────────────────────────────────────────────
+// VoScreen-style "Add to Playlist": tick the lists this clip belongs to, or
+// create a new named list (the clip is added to it right away).
+
+class _PlaylistDialog extends ConsumerStatefulWidget {
+  final String videoId;
+  const _PlaylistDialog({required this.videoId});
+
+  @override
+  ConsumerState<_PlaylistDialog> createState() => _PlaylistDialogState();
+}
+
+class _PlaylistDialogState extends ConsumerState<_PlaylistDialog> {
+  final _nameCtrl = TextEditingController();
+  Set<String> _inLists = {};
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref
+        .read(videoRepositoryProvider)
+        .playlistsContaining(widget.videoId)
+        .then((s) {
+      if (mounted) setState(() => _inLists = s);
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _toggle(String playlistId) async {
+    final repo = ref.read(videoRepositoryProvider);
+    final adding = !_inLists.contains(playlistId);
+    setState(() => adding
+        ? _inLists.add(playlistId)
+        : _inLists.remove(playlistId));
+    if (adding) {
+      await repo.addToPlaylist(playlistId, widget.videoId);
+    } else {
+      await repo.removeFromPlaylist(playlistId, widget.videoId);
+    }
+    ref.invalidate(videoFeedProvider); // a playlist scope may be active
+  }
+
+  Future<void> _createAndAdd() async {
+    final name = _nameCtrl.text.trim();
+    if (name.isEmpty || _busy) return;
+    setState(() => _busy = true);
+    try {
+      final repo = ref.read(videoRepositoryProvider);
+      final pid = await repo.createPlaylist(name);
+      if (pid != null) {
+        await repo.addToPlaylist(pid, widget.videoId);
+        ref.invalidate(myPlaylistsProvider);
+        if (mounted) {
+          setState(() {
+            _inLists.add(pid);
+            _nameCtrl.clear();
+          });
+        }
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    final playlists =
+        ref.watch(myPlaylistsProvider).valueOrNull ?? const [];
+
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceVariant,
+      title: Text(l10n.addToPlaylist,
+          style: const TextStyle(color: AppColors.onSurface, fontSize: 18)),
+      content: SizedBox(
+        width: 360,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (playlists.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(l10n.noPlaylistsYet,
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 13)),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 240),
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final p in playlists)
+                      InkWell(
+                        onTap: () => _toggle(p['id'] as String),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 9),
+                          child: Row(
+                            children: [
+                              Icon(
+                                _inLists.contains(p['id'])
+                                    ? Icons.check_circle_rounded
+                                    : Icons.radio_button_unchecked,
+                                size: 20,
+                                color: _inLists.contains(p['id'])
+                                    ? AppColors.correctAnswer
+                                    : AppColors.onSurfaceMuted,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  p['name'] as String? ?? '',
+                                  style: const TextStyle(
+                                      color: AppColors.onSurface,
+                                      fontSize: 14),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            const Divider(color: AppColors.surface, height: 20),
+            TextField(
+              controller: _nameCtrl,
+              maxLength: 60,
+              style: const TextStyle(
+                  color: AppColors.onSurface, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: l10n.newPlaylistHint,
+                hintStyle:
+                    const TextStyle(color: AppColors.onSurfaceMuted),
+                counterText: '',
+                filled: true,
+                fillColor: AppColors.surface,
+                isDense: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+              ),
+              onSubmitted: (_) => _createAndAdd(),
+            ),
+            const SizedBox(height: 8),
+            FilledButton.icon(
+              onPressed: _busy ? null : _createAndAdd,
+              icon: const Icon(Icons.playlist_add_rounded, size: 18),
+              label: Text(l10n.createAndAdd),
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.closeLabel),
+        ),
+      ],
     );
   }
 }
