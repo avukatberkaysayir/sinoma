@@ -53,14 +53,35 @@ class VideoCenter extends ConsumerWidget {
   }
 }
 
-class VideoFiltersRight extends ConsumerWidget {
+class VideoFiltersRight extends ConsumerStatefulWidget {
   final bool tr;
   const VideoFiltersRight({super.key, required this.tr});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<VideoFiltersRight> createState() => _VideoFiltersRightState();
+}
+
+class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
+  String? _openGroup; // accordion: one group open at a time
+
+  void _toggleGroup(String id) =>
+      setState(() => _openGroup = _openGroup == id ? null : id);
+
+  Future<void> _startHskTest() async {
+    await context.push('/hsk-test');
+    // The saved level drives both the practice feed and the Öğren unlocks.
+    ref.invalidate(currentUserProvider);
+    ref.invalidate(videoFeedProvider);
+    ref.invalidate(pathProgressProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = widget.tr;
     final hsk = ref.watch(selectedHskFilterProvider);
     final life = ref.watch(selectedLifeCategoryProvider);
+    final userLevel =
+        ref.watch(currentUserProvider).valueOrNull?.hskLevel ?? 1;
 
     void toggleHsk(int h) {
       final n = Set<int>.from(hsk);
@@ -84,26 +105,196 @@ class VideoFiltersRight extends ConsumerWidget {
       ),
       child: SingleChildScrollView(
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            SizedBox(
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: _startHskTest,
+                icon: const Icon(Icons.quiz_rounded, size: 20),
+                label: Text(tr ? 'HSK TESTİNE BAŞLA' : 'START HSK TEST',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w800)),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _green,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr
+                  ? 'Mevcut seviyen: HSK $userLevel — HSK $userLevel ve altı videoları görürsün.'
+                  : 'Your level: HSK $userLevel — you see videos up to HSK $userLevel.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            ),
+            const SizedBox(height: 20),
             Text(tr ? 'Filtreler' : 'Filters',
                 style: const TextStyle(
                     color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-            const SizedBox(height: 16),
-            const _Label('HSK'),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (var h = 1; h <= 6; h++)
-                _Chip(label: 'HSK $h', selected: hsk.contains(h), onTap: () => toggleHsk(h)),
-            ]),
-            const SizedBox(height: 18),
-            _Label(tr ? 'KONU' : 'TOPIC'),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              for (final c in LifeCategory.values)
-                _Chip(
+            const SizedBox(height: 10),
+            _FilterGroup(
+              id: 'hsk',
+              label: 'HSK',
+              open: _openGroup == 'hsk',
+              activeCount: hsk.length,
+              onToggle: _toggleGroup,
+              children: [
+                for (var h = 1; h <= 6; h++)
+                  _FilterItem(
+                    label: 'HSK $h',
+                    selected: hsk.contains(h),
+                    onTap: () => toggleHsk(h),
+                  ),
+              ],
+            ),
+            _FilterGroup(
+              id: 'life',
+              label: tr ? 'KONU' : 'TOPIC',
+              open: _openGroup == 'life',
+              activeCount: life.length,
+              onToggle: _toggleGroup,
+              children: [
+                for (final c in LifeCategory.values)
+                  _FilterItem(
                     label: LifeCategory.labelFor(c.name, isTr: tr),
                     selected: life.contains(c.name),
-                    onTap: () => toggleLife(c.name)),
-            ]),
+                    onTap: () => toggleLife(c.name),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// One collapsible filter group (accordion row + its option list).
+class _FilterGroup extends StatelessWidget {
+  final String id;
+  final String label;
+  final bool open;
+  final int activeCount;
+  final void Function(String) onToggle;
+  final List<Widget> children;
+  const _FilterGroup({
+    required this.id,
+    required this.label,
+    required this.open,
+    required this.activeCount,
+    required this.onToggle,
+    required this.children,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: activeCount > 0 ? _green : const Color(0xFF2C3B45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          InkWell(
+            onTap: () => onToggle(id),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(label,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5)),
+                  ),
+                  if (activeCount > 0)
+                    Container(
+                      margin: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: _green,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text('$activeCount',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  AnimatedRotation(
+                    turns: open ? 0.5 : 0,
+                    duration: const Duration(milliseconds: 150),
+                    child: const Icon(Icons.keyboard_arrow_down_rounded,
+                        color: Colors.white54, size: 20),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeInOut,
+            child: open
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const Divider(color: Color(0xFF2C3B45), height: 1),
+                      ...children,
+                      const SizedBox(height: 6),
+                    ],
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// One selectable row inside a filter group (check-style, multi-select).
+class _FilterItem extends StatelessWidget {
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  const _FilterItem(
+      {required this.label, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+        color: selected ? _green.withValues(alpha: 0.12) : Colors.transparent,
+        child: Row(
+          children: [
+            SizedBox(
+              width: 20,
+              child: selected
+                  ? const Icon(Icons.check_rounded, size: 15, color: _green)
+                  : null,
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(label,
+                  style: TextStyle(
+                      color: selected ? _green : Colors.white70,
+                      fontSize: 13,
+                      fontWeight:
+                          selected ? FontWeight.w700 : FontWeight.normal)),
+            ),
           ],
         ),
       ),
@@ -820,47 +1011,6 @@ class RightInfoCard extends StatelessWidget {
   }
 }
 
-class _Label extends StatelessWidget {
-  final String text;
-  const _Label(this.text);
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Text(text.toUpperCase(),
-            style: const TextStyle(
-                color: Colors.white54,
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5)),
-      );
-}
-
-class _Chip extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _Chip({required this.label, required this.selected, required this.onTap});
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-        decoration: BoxDecoration(
-          color: selected ? _green : _bg,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: selected ? _green : const Color(0xFF3A4A54)),
-        ),
-        child: Text(label,
-            style: TextStyle(
-                color: selected ? Colors.white : Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.w600)),
-      ),
-    );
-  }
-}
-
 // ── Profile view (read-only) ──────────────────────────────────────────────────
 
 const List<String> _trMonths = [
@@ -989,7 +1139,8 @@ class ProfileView extends ConsumerWidget {
                           ref.read(pathProgressProvider).valueOrNull ?? const {};
                       final phase = topics == null
                           ? null
-                          : currentPhaseFor(topics, progress);
+                          : currentPhaseFor(topics, progress,
+                              ref.read(currentHskLevelProvider));
                       if (phase != null) {
                         ref
                             .read(selectedTopicHskProvider.notifier)

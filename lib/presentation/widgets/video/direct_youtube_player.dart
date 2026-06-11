@@ -9,6 +9,9 @@ import 'package:flutter/material.dart';
 
 class DirectYouTubeController extends ChangeNotifier {
   _DirectYouTubePlayerState? _state;
+  // The chosen rate outlives a single iframe: each clip rebuilds the player, so
+  // the new state re-applies it once playback starts.
+  double _rate = 1.0;
 
   void _attach(_DirectYouTubePlayerState s) => _state = s;
   void _detach() => _state = null;
@@ -20,7 +23,10 @@ class DirectYouTubeController extends ChangeNotifier {
   void pauseVideo() => _state?._cmd('pauseVideo', []);
   void playVideo() => _state?._cmd('playVideo', []);
   void seekTo(double seconds) => _state?._cmd('seekTo', [seconds, true]);
-  void setPlaybackRate(double rate) => _state?._cmd('setPlaybackRate', [rate]);
+  void setPlaybackRate(double rate) {
+    _rate = rate;
+    _state?._applyRate();
+  }
 
   void _notify() => notifyListeners();
 }
@@ -431,6 +437,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (event == 'onReady') {
       _startListening();
       _cmd('playVideo', []);
+      _applyRate();
     } else if (event == 'infoDelivery') {
       _eventsFlowing = true;
       _listenTimer?.cancel();
@@ -446,6 +453,13 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
           _applySound(!muted && (volume == null || volume > 0));
         }
 
+        // YouTube resets the rate on (re)load; push the chosen one back as soon
+        // as a mismatch shows up in the info stream.
+        final rate = (info['playbackRate'] as num?)?.toDouble();
+        if (rate != null && (rate - widget.controller._rate).abs() > 0.01) {
+          _applyRate();
+        }
+
         // Process time even before a playerState==1 arrives — on some setups
         // currentTime flows while state messages don't, and without this the clip
         // would never reach its end. _handleTime guards t<=0 / pre-start anyway.
@@ -459,8 +473,17 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   }
 
   void _markPlaying() {
+    _applyRate();
     if (_hasPlayed) return;
     _hasPlayed = true;
+  }
+
+  // Send the controller's playback rate to the iframe. Called when the user
+  // picks a speed AND whenever playback (re)starts — a command sent before the
+  // player is ready is silently dropped, so a one-shot send never sticks.
+  void _applyRate() {
+    final r = widget.controller._rate;
+    if (r > 0) _cmd('setPlaybackRate', [r]);
   }
 
   void _handleTime(double t) {
@@ -513,6 +536,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _hasPlayed = false;
       _cmd('seekTo', [widget.startTime, true]);
       _cmd('playVideo', []);
+      _applyRate();
       _armEndFallback();
     }
     if (widget.countdown != old.countdown ||

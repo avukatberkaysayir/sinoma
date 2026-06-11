@@ -6,10 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
-import '../../../core/utils/responsive_layout.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
-import '../../widgets/common/word_detail_sheet.dart';
 import '../../widgets/video/direct_youtube_player.dart';
 
 // ── Public entry point ────────────────────────────────────────────────────────
@@ -50,7 +48,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   int _replayCount = 0;
   bool _soundOn = false;
   final DirectYouTubeController _playerCtrl = DirectYouTubeController();
-  String? _activeWordId;
 
   // Choice countdown — starts when the segment ends, keeps running through
   // replays, stops on a choice; on timeout it's a miss → advance (penalty).
@@ -108,7 +105,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _pickedAnswer = null;
     _optSwap = Random().nextBool();
     _timedOut = false;
-    _activeWordId = null;
     _replayCount = 0;
     _stopCountdown();
     _countdown = _choiceSeconds;
@@ -270,9 +266,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     final quizCorrect = seg.quiz.correctFor(lang);
     final quizWrong = seg.quiz.wrongFor(lang);
     final hasQuiz = quizCorrect.isNotEmpty && quizWrong.isNotEmpty;
-    final isWide = ResponsiveLayout.isWide(context);
 
-    final playerPanel = SingleChildScrollView(
+    return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -376,36 +371,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
           const SizedBox(height: 24),
         ],
       ),
-    );
-
-    if (!isWide) return playerPanel;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 3, child: playerPanel),
-        Expanded(
-          flex: 2,
-          child: Container(
-            color: AppColors.surfaceVariant,
-            height: double.infinity,
-            child: _activeWordId != null
-                ? _SideWordDetail(
-                    wordId: _activeWordId!,
-                    transcription: seg.transcription,
-                    hskLevel: seg.hskLevel,
-                    onClose: () => setState(() => _activeWordId = null),
-                  )
-                : const Center(
-                    child: Text(
-                      'Kelimeye dokun → tanım',
-                      style: TextStyle(
-                          color: AppColors.onSurfaceMuted, fontSize: 14),
-                    ),
-                  ),
-          ),
-        ),
-      ],
     );
   }
 }
@@ -863,59 +828,3 @@ class _AnswerButton extends StatelessWidget {
 }
 
 // ── No-quiz fallback ──────────────────────────────────────────────────────────
-
-// ── Side word detail panel (wide screen) ─────────────────────────────────────
-
-class _SideWordDetail extends StatelessWidget {
-  final String wordId;
-  final String transcription;
-  final int hskLevel;
-  final VoidCallback onClose;
-
-  const _SideWordDetail({
-    required this.wordId,
-    required this.transcription,
-    required this.hskLevel,
-    required this.onClose,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Text(
-                  'Kelime Detayı',
-                  style: TextStyle(
-                    color: AppColors.onSurface,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.close, color: AppColors.onSurfaceMuted),
-                onPressed: onClose,
-              ),
-            ],
-          ),
-        ),
-        const Divider(height: 1, color: AppColors.surface),
-        Expanded(
-          child: SingleChildScrollView(
-            child: WordDetailSheet(
-              wordId: wordId,
-              transcription: transcription,
-              hskLevel: hskLevel,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}

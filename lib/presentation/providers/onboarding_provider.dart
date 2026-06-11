@@ -319,12 +319,12 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
     state = state.copyWith(displayName: name);
   }
 
+  // The placement test no longer runs at signup — the account starts at HSK 1
+  // and the user takes the test later via "HSK Testine Başla" on the practice
+  // page (/hsk-test), which saves the level the same way.
   void confirmDisplayName() {
     if (state.displayName.trim().isEmpty) return;
-    state = state.copyWith(
-      step: OnboardingStep.test,
-      answers: List.filled(OnboardingState.totalQuestions, null),
-    );
+    completeOnboarding();
   }
 
   void selectAnswer(int answerIndex) {

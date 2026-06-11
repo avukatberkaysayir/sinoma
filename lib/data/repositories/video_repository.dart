@@ -10,16 +10,18 @@ class VideoRepository {
 
   SupabaseClient get _db => Supabase.instance.client;
 
+  // Practice feed: every clip at or below the user's tested HSK level —
+  // including backups (yedek), unlike the home/path which is active-only.
   Future<List<VideoSegmentModel>> loadSegmentsForLevel(int hskLevel) async {
     try {
       final data = await _db
           .from('videos')
           .select()
-          .lte('hsk_level', hskLevel + 1)
-          .eq('is_active', true)
+          .lte('hsk_level', hskLevel)
+          .inFilter('status', ['active', 'backup'])
           .order('hsk_level')
           .order('created_at', ascending: false)
-          .limit(20);
+          .limit(1000);
 
       final segments = data.map(VideoSegmentModel.fromMap).toList();
       await _cache.cacheVideoFeed(hskLevel, segments);

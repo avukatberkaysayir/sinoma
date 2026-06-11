@@ -8,9 +8,8 @@ import 'video_provider.dart';
 const int kPhaseSize = 8; // target videos per phase
 const int kPhasesPerStep = 4;
 const double kPassRatio = 0.6; // ≥60% correct to clear a phase
-// TEMP: unlock every circle on ALL levels so the gözat words can be inspected
-// freely. Revert to false once review is done.
-const bool kUnlockAll = true;
+// TEMP override: unlock every circle on ALL levels (inspection only).
+const bool kUnlockAll = false;
 
 // ── Curriculum model ──────────────────────────────────────────────────────────
 
@@ -223,11 +222,13 @@ extension PathProgressMap on Map<String, dynamic> {
 // scanning HSK 1→6 in order. Null when there's nothing to do (no content / all
 // done).
 PathPhase? currentPhaseFor(
-    List<PathTopic> topics, Map<String, dynamic> progress) {
+    List<PathTopic> topics, Map<String, dynamic> progress,
+    [int userHskLevel = 0]) {
   for (final t in topics) {
     for (final s in t.steps) {
       for (final p in s.phases) {
-        if (!progress.phase(p.key).done && isPhaseUnlocked(t, p, progress)) {
+        if (!progress.phase(p.key).done &&
+            isPhaseUnlocked(t, p, progress, userHskLevel)) {
           return p;
         }
       }
@@ -239,10 +240,15 @@ PathPhase? currentPhaseFor(
 // A phase is unlocked if it's the first PLAYABLE phase in the topic or the
 // previous playable phase is done. Empty (content-less) phases are not part of
 // the chain — they render locked and never block content that comes after them.
+// The HSK placement test opens whole levels: every phase whose topic is at or
+// below the user's tested level is playable immediately (no points granted —
+// only completing a phase yourself writes progress/score).
 bool isPhaseUnlocked(
-    PathTopic topic, PathPhase phase, Map<String, dynamic> progress) {
+    PathTopic topic, PathPhase phase, Map<String, dynamic> progress,
+    [int userHskLevel = 0]) {
   if (kUnlockAll) return true; // TEMP inspection override (all levels)
   if (!phase.hasVideos) return false;
+  if (topic.hsk <= userHskLevel) return true;
   final flat = <PathPhase>[
     for (final s in topic.steps)
       for (final p in s.phases)

@@ -76,8 +76,10 @@ class PathScreen extends ConsumerWidget {
           final topics = ref.read(curriculumProvider).valueOrNull;
           final progress =
               ref.read(pathProgressProvider).valueOrNull ?? const {};
-          final phase =
-              topics == null ? null : currentPhaseFor(topics, progress);
+          final phase = topics == null
+              ? null
+              : currentPhaseFor(
+                  topics, progress, ref.read(currentHskLevelProvider));
           if (phase != null) {
             ref.read(selectedTopicHskProvider.notifier).state = phase.hsk;
           }
@@ -562,6 +564,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     final curriculum = ref.watch(curriculumProvider);
     final progressAsync = ref.watch(pathProgressProvider);
     final selectedHsk = ref.watch(selectedTopicHskProvider);
+    final userHsk = ref.watch(currentHskLevelProvider);
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
     // Level is now chosen from the left nav: when it changes, jump back to the
@@ -588,7 +591,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         PathPhase? current;
         for (final p in flat) {
           if (!progress.phase(p.key).done &&
-              isPhaseUnlocked(topic, p, progress)) {
+              isPhaseUnlocked(topic, p, progress, userHsk)) {
             current = p;
             break;
           }
@@ -1026,7 +1029,8 @@ class _PhaseNode extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pp = progress.phase(phase.key);
-    final unlocked = isPhaseUnlocked(topic, phase, progress);
+    final unlocked = isPhaseUnlocked(
+        topic, phase, progress, ref.watch(currentHskLevelProvider));
     final done = pp.done;
 
     // Cities with a real landmark icon drop the circle and show the icon alone
