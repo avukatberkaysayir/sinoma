@@ -516,7 +516,14 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (t <= 0) return;
 
     if (t >= widget.endTime) {
-      _forceEnd();
+      // Hard ceiling: even if the segment already "ended" once (e.g. an inline
+      // panel paused/resumed playback), the clip must NEVER run past its end.
+      if (!_ended) {
+        _forceEnd();
+      } else if (_playing) {
+        _playing = false;
+        _cmd('pauseVideo', []);
+      }
       return;
     }
 

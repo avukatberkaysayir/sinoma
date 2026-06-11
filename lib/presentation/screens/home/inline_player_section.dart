@@ -308,12 +308,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
       return;
     }
     if (_panel == null) {
-      if (_playerCtrl.isPlaying) {
-        _playerCtrl.pauseVideo();
-        _resumeAfterPanel = true;
-      } else {
-        _resumeAfterPanel = false;
-      }
+      _resumeAfterPanel = _playerCtrl.isPlaying;
+      // The panel overlays the PLAYER AREA itself (no layout shift, no
+      // scrolling); the iframe lives above the canvas so it must hide —
+      // setHidden also pauses playback.
+      _playerCtrl.setHidden(true);
     }
     setState(() {
       _panel = kind;
@@ -324,7 +323,10 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   void _closePanel() {
     if (_panel == null) return;
     setState(() => _panel = null);
-    if (_resumeAfterPanel) _playerCtrl.playVideo();
+    _playerCtrl.setHidden(false);
+    // Resume ONLY what the panel paused — and never a clip whose segment
+    // already finished (it must not run past its end).
+    if (_resumeAfterPanel && !_clipEnded) _playerCtrl.playVideo();
     _resumeAfterPanel = false;
   }
 
@@ -392,6 +394,32 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   ),
                 ),
               ),
+              // Inline panels open OVER the player area (the iframe hides
+              // meanwhile) — nothing below moves, no scrolling needed.
+              if (_panel != null)
+                Positioned.fill(
+                  child: Container(
+                    color: AppColors.surface,
+                    padding: const EdgeInsets.all(12),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 460),
+                        child: SingleChildScrollView(
+                          child: switch (_panel!) {
+                            _PanelKind.word => _WordMeaningCard(
+                                word: _panelWord, onClose: _closePanel),
+                            _PanelKind.playlist => _PlaylistCard(
+                                videoId: _seg.videoId,
+                                onClose: _closePanel),
+                            _PanelKind.report => _ReportCard(
+                                videoId: _seg.videoId,
+                                onClose: _closePanel),
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           ),
 
@@ -474,22 +502,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 ),
               ),
             ],
-          ],
-
-          // ── Inline panels (no dialog, video never dims) ────────────────────
-          if (_panel != null) ...[
-            const SizedBox(height: 10),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: switch (_panel!) {
-                _PanelKind.word =>
-                  _WordMeaningCard(word: _panelWord, onClose: _closePanel),
-                _PanelKind.playlist => _PlaylistCard(
-                    videoId: _seg.videoId, onClose: _closePanel),
-                _PanelKind.report => _ReportCard(
-                    videoId: _seg.videoId, onClose: _closePanel),
-              },
-            ),
           ],
 
           const SizedBox(height: 24),
@@ -1010,7 +1022,7 @@ class _SubtitleRevealBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       decoration: BoxDecoration(
         color: AppColors.onSurfaceMuted.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
@@ -1020,17 +1032,17 @@ class _SubtitleRevealBar extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Icon(Icons.closed_caption_off_outlined,
-              size: 22, color: AppColors.onSurfaceMuted),
+              size: 17, color: AppColors.onSurfaceMuted),
           const SizedBox(width: 8),
           Text(
             label,
             textAlign: TextAlign.center,
             style: const TextStyle(
               color: AppColors.onSurfaceMuted,
-              fontSize: 20,
+              fontSize: 15,
               fontWeight: FontWeight.w500,
               fontFamily: _kComic,
-              height: 1.4,
+              height: 1.25,
             ),
           ),
         ],
@@ -1054,9 +1066,12 @@ class _ChineseSubtitleBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Compact: small chips, and multi-sentence clips stay on the SAME line —
+    // a visible "丨" divider separates the sentences instead of a new row, so
+    // the answer options never get pushed down (no scrolling while watching).
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C2E),
         borderRadius: BorderRadius.circular(10),
@@ -1064,24 +1079,31 @@ class _ChineseSubtitleBar extends StatelessWidget {
       child: Wrap(
         alignment: WrapAlignment.center,
         crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: 6,
-        runSpacing: 6,
+        spacing: 4,
+        runSpacing: 4,
         children: [
           for (final w in words)
             if (w == '\n')
-              const SizedBox(width: double.infinity, height: 0)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 4),
+                child: Text('丨',
+                    style: TextStyle(
+                        color: Color(0xFF2EC4B6),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800)),
+              )
             else if (_cjk.hasMatch(w))
               Material(
                 color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   onTap: () => onWordTap(w),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                        horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                       border: Border.all(
                           color: Colors.white.withValues(alpha: 0.18)),
                     ),
@@ -1089,10 +1111,10 @@ class _ChineseSubtitleBar extends StatelessWidget {
                       w,
                       style: const TextStyle(
                         color: Colors.white,
-                        fontSize: 20,
+                        fontSize: 15,
                         fontWeight: FontWeight.w500,
                         fontFamily: _kComic,
-                        height: 1.3,
+                        height: 1.25,
                       ),
                     ),
                   ),
@@ -1103,9 +1125,9 @@ class _ChineseSubtitleBar extends StatelessWidget {
                 w,
                 style: const TextStyle(
                   color: Colors.white70,
-                  fontSize: 20,
+                  fontSize: 15,
                   fontFamily: _kComic,
-                  height: 1.3,
+                  height: 1.25,
                 ),
               ),
         ],
