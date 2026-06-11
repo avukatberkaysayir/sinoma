@@ -1755,30 +1755,6 @@ class ProfileView extends ConsumerWidget {
                         label: tr ? 'Cevaplanan' : 'Answered'),
                   ],
                 ),
-                const SizedBox(height: 24),
-                Text(tr ? 'Puan ve Sıralama' : 'Scores & Ranking',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 12),
-                _ProfileRank(tr: tr, score: user.stats.totalScore),
-                const SizedBox(height: 24),
-                Text(tr ? 'Listelerim' : 'My Lists',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 12),
-                _ProfilePlaylists(tr: tr),
-                const SizedBox(height: 24),
-                Text(tr ? 'Günlük İstatistikler' : 'Daily Stats',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 12),
-                _ProfileDailyStats(tr: tr),
               ],
             ),
           ),
@@ -1788,14 +1764,54 @@ class ProfileView extends ConsumerWidget {
   }
 }
 
-// Right rail of the Profile section — the user's playlists (replaces the old
-// "Etkinlik" placeholder card).
-class ProfileListsRight extends ConsumerWidget {
+// Right rail of the Profile section — rank, MANAGEABLE playlists (create +
+// delete right here) and daily stats, top-aligned (moved out of the centre).
+class ProfileListsRight extends ConsumerStatefulWidget {
   final bool tr;
   const ProfileListsRight({super.key, required this.tr});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileListsRight> createState() => _ProfileListsRightState();
+}
+
+class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
+  final _newListCtrl = TextEditingController();
+  bool _creating = false;
+
+  @override
+  void dispose() {
+    _newListCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _createList() async {
+    final name = _newListCtrl.text.trim();
+    if (name.isEmpty || _creating) return;
+    setState(() => _creating = true);
+    try {
+      await ref.read(videoRepositoryProvider).createPlaylist(name);
+      _newListCtrl.clear();
+      ref.invalidate(myPlaylistsProvider);
+    } finally {
+      if (mounted) setState(() => _creating = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = widget.tr;
+    final score = ref.watch(stableCurrentUserProvider)?.stats.totalScore ??
+        ref.watch(currentUserProvider).valueOrNull?.stats.totalScore ??
+        0;
+    Widget header(String t) => Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(t,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800)),
+        );
+
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
@@ -1806,13 +1822,47 @@ class ProfileListsRight extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(tr ? 'Listelerim' : 'My Lists',
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800)),
-            const SizedBox(height: 12),
+            header(tr ? 'Puan ve Sıralama' : 'Scores & Ranking'),
+            _ProfileRank(tr: tr, score: score),
+            const SizedBox(height: 20),
+            header(tr ? 'Listelerim' : 'My Lists'),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _newListCtrl,
+                  maxLength: 60,
+                  style: const TextStyle(
+                      color: Colors.white, fontSize: 13),
+                  decoration: InputDecoration(
+                    hintText: tr ? 'Yeni liste adı…' : 'New list name…',
+                    hintStyle: const TextStyle(
+                        color: Colors.white38, fontSize: 12),
+                    counterText: '',
+                    filled: true,
+                    fillColor: _panel,
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none),
+                  ),
+                  onSubmitted: (_) => _createList(),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton(
+                onPressed: _creating ? null : _createList,
+                style: FilledButton.styleFrom(
+                    backgroundColor: _green,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12)),
+                child: const Icon(Icons.add_rounded, size: 18),
+              ),
+            ]),
+            const SizedBox(height: 10),
             _ProfilePlaylists(tr: tr),
+            const SizedBox(height: 20),
+            header(tr ? 'Günlük İstatistikler' : 'Daily Stats'),
+            _ProfileDailyStats(tr: tr),
           ],
         ),
       ),

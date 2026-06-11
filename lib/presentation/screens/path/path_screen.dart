@@ -159,6 +159,8 @@ class PathScreen extends ConsumerWidget {
         return _RightSidebar(tr: tr);
       case _Section.video:
         return VideoFiltersRight(tr: tr);
+      case _Section.dictionary:
+        return const DictionaryRightRail();
       case _Section.leaderboard:
         return RightInfoCard(
             tr: tr,
@@ -181,8 +183,6 @@ class PathScreen extends ConsumerWidget {
       case _Section.editProfile:
         return SettingsRight(
             tr: tr, onProfile: () => context.go('/settings/profile'));
-      default:
-        return null;
     }
   }
 }
@@ -727,13 +727,19 @@ class _BannerCard extends ConsumerWidget {
         if (hasBanner && customBanner != null)
           Image.network(customBanner, fit: BoxFit.cover),
         if (hasBanner)
+          // Soft left-edge scrim for the title — gentle alpha + long fade so
+          // it never reads as a hard black block in the corner.
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.centerLeft,
                 end: Alignment.centerRight,
-                colors: [Color(0xCC000000), Color(0x00000000)],
-                stops: [0.0, 0.55],
+                colors: [
+                  Color(0x73000000),
+                  Color(0x33000000),
+                  Color(0x00000000),
+                ],
+                stops: [0.0, 0.35, 0.7],
               ),
             ),
           ),
@@ -1622,7 +1628,6 @@ class _SlotWordPanel extends ConsumerWidget {
 // opening animation and grants the gold; afterwards the mascot sits on the
 // opened chest. The mascot idles (blink every 5s, gentle sway / bob).
 const _rewardGold = Color(0xFFFFC800);
-const _rewardGoldDark = Color(0xFFE0A800);
 
 class _RewardNode extends ConsumerStatefulWidget {
   final String rewardKey;
@@ -1674,61 +1679,26 @@ class _RewardNodeState extends ConsumerState<_RewardNode>
     );
   }
 
-  Widget _chest({required bool claimed}) {
-    final box = Container(
-      width: 54,
-      height: 48,
-      decoration: BoxDecoration(
-        color: claimed ? _duoLocked : _rewardGold,
-        borderRadius: BorderRadius.circular(14),
-        boxShadow: [
-          BoxShadow(
-              color: claimed ? const Color(0xFF2A363D) : _rewardGoldDark,
-              offset: const Offset(0, 4)),
-        ],
-      ),
-      child: Icon(
-        claimed ? Icons.redeem_rounded : Icons.card_giftcard_rounded,
-        color: claimed ? Colors.white38 : Colors.white,
-        size: 26,
-      ),
-    );
-    if (!_opening) return box;
-    // Opening: the chest shakes, then bursts.
-    return AnimatedBuilder(
-      animation: _open,
-      builder: (_, child) {
-        final v = _open.value;
-        final shake = sin(v * pi * 10) * 0.12 * (1 - v);
-        return Transform.rotate(
-          angle: shake,
-          child: Transform.scale(scale: 1 + 0.15 * v, child: child),
-        );
-      },
-      child: box,
-    );
-  }
-
-  Future<void> _claim() async {
-    if (_opening) return;
-    setState(() => _opening = true);
-    await _open.forward(from: 0); // chest-opening animation first
+  Future<void> _claimGold() async {
     final ok =
         await ref.read(userRepositoryProvider).claimReward(widget.rewardKey);
-    if (!mounted) return;
-    setState(() => _opening = false);
-    if (ok) {
-      final tr = ref.read(localeProvider).languageCode == 'tr';
-      ref.invalidate(pathProgressProvider);
-      ref.invalidate(currentUserProvider);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        duration: const Duration(seconds: 2),
-        content: Text(tr
-            ? '🪙 Üniteyi tamamladın — +20 altın!'
-            : '🪙 Unit complete — +20 gold!'),
-      ));
-    }
+    if (!mounted || !ok) return;
+    final tr = ref.read(localeProvider).languageCode == 'tr';
+    ref.invalidate(pathProgressProvider);
+    ref.invalidate(currentUserProvider);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 2),
+      content: Text(tr
+          ? '🪙 Üniteyi tamamladın — +20 altın!'
+          : '🪙 Unit complete — +20 gold!'),
+    ));
   }
+
+  // Visual state is session-local: the node ALWAYS greets with the mascot
+  // holding the closed chest (even when the reward was claimed before); the
+  // opening animation plays on tap, the gold is granted only the first time,
+  // and the mascot sits on the chest for the rest of the session.
+  bool _seated = false;
 
   @override
   Widget build(BuildContext context) {
@@ -1736,54 +1706,64 @@ class _RewardNodeState extends ConsumerState<_RewardNode>
     final rewards = progress['__rewards'];
     final claimed = rewards is Map && rewards[widget.rewardKey] == true;
 
-    final Widget content;
-    if (claimed) {
-      // The mascot sits ON the opened chest.
-      content = SizedBox(
-        width: 110,
-        height: 96,
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          clipBehavior: Clip.none,
-          children: [
-            _chest(claimed: true),
+    // Mascot over the same translucent pedestal disc the other 4 circles use
+    // (no chest box) — sized to match the unit circles.
+    final content = SizedBox(
+      width: 130,
+      height: 116,
+      child: Stack(
+        alignment: Alignment.bottomCenter,
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            bottom: 0,
+            child: Container(
+              width: 86,
+              height: 20,
+              decoration: const BoxDecoration(
+                color: Color(0x1AFFFFFF),
+                borderRadius:
+                    BorderRadius.all(Radius.elliptical(43, 10)),
+              ),
+            ),
+          ),
+          Positioned(
+              bottom: 6, child: _mascot(104, seated: _seated)),
+          if (_opening)
             Positioned(
-                bottom: 28, child: _mascot(58, seated: true)),
-          ],
-        ),
-      );
-    } else {
-      // The mascot stands beside/holding the closed chest.
-      content = SizedBox(
-        width: 116,
-        height: 92,
-        child: Stack(
-          alignment: Alignment.bottomCenter,
-          clipBehavior: Clip.none,
-          children: [
-            Positioned(left: 2, bottom: 0, child: _mascot(66, seated: false)),
-            Positioned(right: 6, bottom: 0, child: _chest(claimed: false)),
-            if (_opening)
-              AnimatedBuilder(
+              bottom: 30,
+              child: AnimatedBuilder(
                 animation: _open,
                 builder: (_, __) => Opacity(
-                  opacity: (_open.value).clamp(0.0, 1.0),
+                  opacity: (1 - _open.value).clamp(0.0, 1.0),
                   child: Transform.scale(
-                    scale: 0.6 + _open.value,
+                    scale: 0.6 + 1.2 * _open.value,
                     child: const Icon(Icons.auto_awesome_rounded,
-                        color: _rewardGold, size: 40),
+                        color: _rewardGold, size: 48),
                   ),
                 ),
               ),
-          ],
-        ),
-      );
+            ),
+        ],
+      ),
+    );
+
+    Future<void> tap() async {
+      if (_opening || _seated) return;
+      setState(() => _opening = true);
+      await _open.forward(from: 0);
+      if (!mounted) return;
+      setState(() {
+        _opening = false;
+        _seated = true;
+      });
+      if (!claimed) await _claimGold();
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
-        onTap: claimed || _opening ? null : _claim,
+        onTap: _opening || _seated ? null : tap,
         behavior: HitTestBehavior.opaque,
         child: content,
       ),

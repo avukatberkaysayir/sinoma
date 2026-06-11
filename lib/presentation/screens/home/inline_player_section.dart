@@ -287,16 +287,23 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     setState(() => _subtitleChoice = !(_subtitleChoice ?? false));
   }
 
-  void _openPlaylistDialog(AppL10n l10n) {
+  Future<void> _openPlaylistDialog(AppL10n l10n) async {
     if (ref.read(currentUserProvider).valueOrNull == null) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.signInForPlaylists)));
       return;
     }
-    showDialog(
-      context: context,
-      builder: (_) => _PlaylistDialog(videoId: _seg.videoId),
-    );
+    // The YouTube iframe sits ABOVE the Flutter canvas — hide it while the
+    // dialog is open or the dialog renders invisibly behind the video.
+    _playerCtrl.setHidden(true);
+    try {
+      await showDialog(
+        context: context,
+        builder: (_) => _PlaylistDialog(videoId: _seg.videoId),
+      );
+    } finally {
+      _playerCtrl.setHidden(false);
+    }
   }
 
   @override

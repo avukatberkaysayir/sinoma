@@ -56,6 +56,28 @@ class _AdminScreenState extends State<AdminScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // The admin panel keeps the default (system) typeface — the site-wide
+    // ZCOOL XiaoWei theme is for the learner-facing pages only.
+    return Theme(
+      data: ThemeData(
+        useMaterial3: true,
+        colorScheme: const ColorScheme.dark(
+          primary: AppColors.primary,
+          surface: AppColors.surface,
+          onSurface: AppColors.onSurface,
+        ),
+        scaffoldBackgroundColor: AppColors.surface,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.surfaceVariant,
+          foregroundColor: AppColors.onSurface,
+          elevation: 0,
+        ),
+      ),
+      child: _buildScaffold(context),
+    );
+  }
+
+  Widget _buildScaffold(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
       appBar: AppBar(
@@ -220,7 +242,84 @@ class _NavRail extends StatelessWidget {
             open: homeOpen,
             onTap: onToggleHome,
           ),
-          if (homeOpen)
+          if (homeOpen) ...[
+            // Video + Sözlük are Anasayfa's FIRST sub-tabs.
+            _MidItem(
+              icon: Icons.smart_display_outlined,
+              label: 'Video',
+              selected: _videoActive,
+              open: videoOpen,
+              onTap: onToggleVideo,
+            ),
+            if (videoOpen) ...[
+              _MidItem(
+                icon: Icons.play_circle_outline,
+                label: 'YouTube',
+                selected: _ytActive,
+                open: youtubeOpen,
+                onTap: onToggleYoutube,
+              ),
+              if (youtubeOpen) ...[
+                _LeafItem(
+                  label: 'Ekle',
+                  selected: _ytAddActive,
+                  onTap: () =>
+                      onSelectAction(_VideoSub.youtube, _VideoAction.add),
+                ),
+                _LeafItem(
+                  label: 'Yönet',
+                  selected: _ytManageActive,
+                  onTap: () =>
+                      onSelectAction(_VideoSub.youtube, _VideoAction.manage),
+                ),
+                _LeafItem(
+                  label: 'Geçmiş',
+                  selected: _ytHistoryActive,
+                  onTap: () =>
+                      onSelectAction(_VideoSub.youtube, _VideoAction.history),
+                ),
+              ],
+              _MidItem(
+                icon: Icons.movie_outlined,
+                label: 'Movie',
+                selected: _mvActive,
+                open: movieOpen,
+                onTap: onToggleMovie,
+              ),
+              if (movieOpen) ...[
+                _LeafItem(
+                  label: 'Ekle',
+                  selected: _mvAddActive,
+                  onTap: () =>
+                      onSelectAction(_VideoSub.movie, _VideoAction.add),
+                ),
+                _LeafItem(
+                  label: 'Yönet',
+                  selected: _mvManageActive,
+                  onTap: () =>
+                      onSelectAction(_VideoSub.movie, _VideoAction.manage),
+                ),
+              ],
+            ],
+            _MidItem(
+              icon: Icons.menu_book_outlined,
+              label: 'Sözlük',
+              selected: section == _Section.dictionary,
+              open: dictOpen,
+              onTap: onToggleDict,
+            ),
+            if (dictOpen) ...[
+              _LeafItem(
+                label: 'İçerik',
+                selected: section == _Section.dictionary && dictSub == 0,
+                onTap: () => onSelectDictSub(0),
+              ),
+              _LeafItem(
+                label: 'Tasarım',
+                selected: section == _Section.dictionary && dictSub == 1,
+                onTap: () => onSelectDictSub(1),
+              ),
+            ],
             for (var i = 0; i < _HomeDesignPanel.labels.length; i++)
               _MidItem(
                 icon: _HomeDesignPanel.icons[i],
@@ -230,83 +329,6 @@ class _NavRail extends StatelessWidget {
                 hasChildren: false,
                 onTap: () => onSelectHomeSub(i),
               ),
-          _TopItem(
-            icon: Icons.smart_display_outlined,
-            label: 'Video',
-            selected: _videoActive,
-            open: videoOpen,
-            onTap: onToggleVideo,
-          ),
-          if (videoOpen) ...[
-            _MidItem(
-              icon: Icons.play_circle_outline,
-              label: 'YouTube',
-              selected: _ytActive,
-              open: youtubeOpen,
-              onTap: onToggleYoutube,
-            ),
-            if (youtubeOpen) ...[
-              _LeafItem(
-                label: 'Ekle',
-                selected: _ytAddActive,
-                onTap: () => onSelectAction(_VideoSub.youtube, _VideoAction.add),
-              ),
-              _LeafItem(
-                label: 'Yönet',
-                selected: _ytManageActive,
-                onTap: () => onSelectAction(_VideoSub.youtube, _VideoAction.manage),
-              ),
-              _LeafItem(
-                label: 'Geçmiş',
-                selected: _ytHistoryActive,
-                onTap: () =>
-                    onSelectAction(_VideoSub.youtube, _VideoAction.history),
-              ),
-            ],
-            _MidItem(
-              icon: Icons.movie_outlined,
-              label: 'Movie',
-              selected: _mvActive,
-              open: movieOpen,
-              onTap: onToggleMovie,
-            ),
-            if (movieOpen) ...[
-              _LeafItem(
-                label: 'Ekle',
-                selected: _mvAddActive,
-                onTap: () => onSelectAction(_VideoSub.movie, _VideoAction.add),
-              ),
-              _LeafItem(
-                label: 'Yönet',
-                selected: _mvManageActive,
-                onTap: () => onSelectAction(_VideoSub.movie, _VideoAction.manage),
-              ),
-            ],
-          ],
-          _TopItem(
-            icon: Icons.menu_book_outlined,
-            label: 'Sözlük',
-            selected: section == _Section.dictionary,
-            open: dictOpen,
-            onTap: onToggleDict,
-          ),
-          if (dictOpen) ...[
-            _MidItem(
-              icon: Icons.list_alt_outlined,
-              label: 'İçerik',
-              selected: section == _Section.dictionary && dictSub == 0,
-              open: false,
-              hasChildren: false,
-              onTap: () => onSelectDictSub(0),
-            ),
-            _MidItem(
-              icon: Icons.design_services_outlined,
-              label: 'Tasarım',
-              selected: section == _Section.dictionary && dictSub == 1,
-              open: false,
-              hasChildren: false,
-              onTap: () => onSelectDictSub(1),
-            ),
           ],
           _TopItem(
             icon: Icons.manage_accounts_outlined,

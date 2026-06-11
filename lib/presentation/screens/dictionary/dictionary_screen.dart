@@ -183,7 +183,10 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     return Stack(
       children: [
         Scaffold(
-          body: Column(
+          body: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: Column(
             children: [
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
@@ -224,6 +227,8 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
               ),
               Expanded(child: _buildBody(searchState, lang)),
             ],
+              ),
+            ),
           ),
         ),
       ],
@@ -256,7 +261,6 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           setState(() {});
           ref.read(_dictionarySearchProvider.notifier).search(q, lang: lang);
         },
-        onOpenWord: _openWordDetail,
       );
     }
 
@@ -328,22 +332,16 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
 class _DiscoverPanel extends ConsumerWidget {
   final String lang;
   final void Function(String query) onSearch;
-  final void Function(String wordId) onOpenWord;
   const _DiscoverPanel({
     required this.lang,
     required this.onSearch,
-    required this.onOpenWord,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.fromCode(lang);
-    final word = ref.watch(_wordOfDayProvider).valueOrNull;
     final trending = ref.watch(_trendingProvider).valueOrNull ?? const [];
     final newest = ref.watch(_newestWordsProvider).valueOrNull ?? const [];
-    final week =
-        DateTime.now().toUtc().difference(DateTime.utc(2026)).inDays ~/ 7;
-    final idiom = _kIdioms[week % _kIdioms.length];
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -354,80 +352,6 @@ class _DiscoverPanel extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Word of the day + idiom of the week, side by side when wide.
-                LayoutBuilder(builder: (context, c) {
-                  final wide = c.maxWidth > 560;
-                  final wod = _DiscoverCard(
-                    title: l10n.wordOfDay,
-                    accent: AppColors.primary,
-                    onTap: word == null ? null : () => onOpenWord(word.wordId),
-                    child: word == null
-                        ? const _CardLoading()
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(word.simplified,
-                                  style: const TextStyle(
-                                      color: AppColors.onSurface,
-                                      fontSize: 34,
-                                      fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 2),
-                              Text(word.pinyin,
-                                  style: const TextStyle(
-                                      color: AppColors.primary,
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600)),
-                              const SizedBox(height: 6),
-                              Text(
-                                lang == 'tr'
-                                    ? word.definitions.tr
-                                    : word.definitions.en,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                    color: AppColors.onSurfaceMuted,
-                                    fontSize: 14),
-                              ),
-                            ],
-                          ),
-                  );
-                  final iow = _DiscoverCard(
-                    title: l10n.idiomOfWeek,
-                    accent: const Color(0xFFE0A800),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(idiom.$1,
-                            style: const TextStyle(
-                                color: AppColors.onSurface,
-                                fontSize: 28,
-                                fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 2),
-                        Text(idiom.$2,
-                            style: const TextStyle(
-                                color: Color(0xFFE0A800),
-                                fontSize: 15,
-                                fontWeight: FontWeight.w600)),
-                        const SizedBox(height: 6),
-                        Text(lang == 'tr' ? idiom.$3 : idiom.$4,
-                            style: const TextStyle(
-                                color: AppColors.onSurfaceMuted,
-                                fontSize: 14)),
-                      ],
-                    ),
-                  );
-                  return wide
-                      ? Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(child: wod),
-                            const SizedBox(width: 12),
-                            Expanded(child: iow),
-                          ],
-                        )
-                      : Column(children: [wod, const SizedBox(height: 12), iow]);
-                }),
-                const SizedBox(height: 12),
                 if (trending.isNotEmpty) ...[
                   _DiscoverCard(
                     title: l10n.trendingNow,
@@ -462,55 +386,159 @@ class _DiscoverPanel extends ConsumerWidget {
                   ),
                   const SizedBox(height: 12),
                 ],
-                // Test card → the existing HSK placement test.
-                Material(
-                  color: AppColors.primary.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => context.push('/hsk-test'),
-                    child: Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color:
-                                AppColors.primary.withValues(alpha: 0.5)),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.quiz_rounded,
-                              color: AppColors.primary, size: 30),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(l10n.testYourChinese,
-                                    style: const TextStyle(
-                                        color: AppColors.onSurface,
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w800)),
-                                const SizedBox(height: 2),
-                                Text(l10n.testYourChineseSub,
-                                    style: const TextStyle(
-                                        color: AppColors.onSurfaceMuted,
-                                        fontSize: 12)),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded,
-                              color: AppColors.primary),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Dictionary right rail (word of the day / idiom / test) ────────────────────
+// Lives beside the centre column on /dictionary, top-down like the other
+// sections' right rails.
+
+class DictionaryRightRail extends ConsumerWidget {
+  const DictionaryRightRail({super.key});
+
+  void _openWord(BuildContext context, String wordId) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => WordDetailSheet(
+        wordId: wordId,
+        transcription: '',
+        hskLevel: 0,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(currentLanguageProvider);
+    final l10n = AppL10n.fromCode(lang);
+    final word = ref.watch(_wordOfDayProvider).valueOrNull;
+    final week =
+        DateTime.now().toUtc().difference(DateTime.utc(2026)).inDays ~/ 7;
+    final idiom = _kIdioms[week % _kIdioms.length];
+
+    return Container(
+      width: 340,
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _DiscoverCard(
+              title: l10n.wordOfDay,
+              accent: AppColors.primary,
+              onTap:
+                  word == null ? null : () => _openWord(context, word.wordId),
+              child: word == null
+                  ? const _CardLoading()
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(word.simplified,
+                            style: const TextStyle(
+                                color: AppColors.onSurface,
+                                fontSize: 34,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text(word.pinyin,
+                            style: const TextStyle(
+                                color: AppColors.primary,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        Text(
+                          lang == 'tr'
+                              ? word.definitions.tr
+                              : word.definitions.en,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              color: AppColors.onSurfaceMuted, fontSize: 14),
+                        ),
+                      ],
+                    ),
+            ),
+            const SizedBox(height: 12),
+            _DiscoverCard(
+              title: l10n.idiomOfWeek,
+              accent: const Color(0xFFE0A800),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(idiom.$1,
+                      style: const TextStyle(
+                          color: AppColors.onSurface,
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 2),
+                  Text(idiom.$2,
+                      style: const TextStyle(
+                          color: Color(0xFFE0A800),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 6),
+                  Text(lang == 'tr' ? idiom.$3 : idiom.$4,
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 14)),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Material(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => context.push('/hsk-test'),
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                        color: AppColors.primary.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.quiz_rounded,
+                          color: AppColors.primary, size: 30),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(l10n.testYourChinese,
+                                style: const TextStyle(
+                                    color: AppColors.onSurface,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 2),
+                            Text(l10n.testYourChineseSub,
+                                style: const TextStyle(
+                                    color: AppColors.onSurfaceMuted,
+                                    fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                      const Icon(Icons.chevron_right_rounded,
+                          color: AppColors.primary),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

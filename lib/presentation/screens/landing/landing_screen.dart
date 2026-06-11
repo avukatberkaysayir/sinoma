@@ -7,6 +7,12 @@ import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/auth_dialog.dart';
 
+// Duolingo-warm landing palette — matches /home (same green, same navy bg)
+// so the public page and the app read as ONE product.
+const _lpGreen = Color(0xFF58CC02);
+const _lpBg = Color(0xFF131F2A);
+const _lpBg2 = Color(0xFF18242F);
+
 // Public marketing landing page (root URL). Voscreen-style: top bar with a
 // login on the right, a hero with the "watch → choose the sentence" pitch and a
 // mock player, feature cards, a 3-step how-it-works, and a footer. Signing in
@@ -30,7 +36,7 @@ class LandingScreen extends ConsumerWidget {
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [AppColors.surface, AppColors.surfaceVariant],
+            colors: [_lpBg, _lpBg2],
           ),
         ),
         child: SingleChildScrollView(
@@ -110,7 +116,7 @@ class _TopBar extends StatelessWidget {
             FilledButton(
               onPressed: () => context.go('/home'),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: _lpGreen,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -139,7 +145,7 @@ class _TopBar extends StatelessWidget {
               onPressed: () =>
                   showAuthDialog(context, startWithRegister: true),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: _lpGreen,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -163,22 +169,14 @@ class _Logo extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: const Icon(Icons.play_circle_fill,
-              color: AppColors.primary, size: 22),
-        ),
+        Image.asset('assets/mascot/mascot.png',
+            width: 36, height: 36, fit: BoxFit.contain),
         const SizedBox(width: 10),
         const Text('Sinoma',
             style: TextStyle(
-                color: AppColors.onSurface,
-                fontSize: 20,
-                fontWeight: FontWeight.bold)),
+                color: _lpGreen,
+                fontSize: 22,
+                fontWeight: FontWeight.w800)),
       ],
     );
   }
@@ -198,12 +196,12 @@ class _LangToggle extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
-            color: on ? AppColors.primary.withValues(alpha: 0.18) : null,
+            color: on ? _lpGreen.withValues(alpha: 0.18) : null,
             borderRadius: BorderRadius.circular(8),
           ),
           child: Text(label,
               style: TextStyle(
-                  color: on ? AppColors.primary : AppColors.onSurfaceMuted,
+                  color: on ? _lpGreen : AppColors.onSurfaceMuted,
                   fontSize: 13,
                   fontWeight: on ? FontWeight.w700 : FontWeight.w500)),
         ),
@@ -232,12 +230,12 @@ class _Hero extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
+            color: _lpGreen.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(t('🎬 Video ile Mandarin', '🎬 Mandarin through video'),
               style: const TextStyle(
-                  color: AppColors.primary,
+                  color: _lpGreen,
                   fontSize: 13,
                   fontWeight: FontWeight.w600)),
         ),
@@ -279,7 +277,7 @@ class _Hero extends StatelessWidget {
                   ? t('Uygulamaya Devam Et', 'Continue to app')
                   : t('Ücretsiz Başla', 'Start free')),
               style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: _lpGreen,
                 padding:
                     const EdgeInsets.symmetric(horizontal: 26, vertical: 16),
                 textStyle:
@@ -355,11 +353,11 @@ class _MockPlayer extends StatelessWidget {
                       width: 58,
                       height: 58,
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: _lpGreen,
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.5),
+                            color: _lpGreen.withValues(alpha: 0.5),
                             blurRadius: 20,
                           ),
                         ],
@@ -375,7 +373,7 @@ class _MockPlayer extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.primary,
+                        color: _lpGreen,
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Text('HSK 3',
@@ -515,7 +513,7 @@ class _Features extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(it.$1, color: AppColors.primary, size: 28),
+                  Icon(it.$1, color: _lpGreen, size: 28),
                   const SizedBox(height: 12),
                   Text(it.$2,
                       style: const TextStyle(
@@ -576,7 +574,7 @@ class _HowItWorks extends StatelessWidget {
                       height: 44,
                       alignment: Alignment.center,
                       decoration: const BoxDecoration(
-                        color: AppColors.primary,
+                        color: _lpGreen,
                         shape: BoxShape.circle,
                       ),
                       child: Text(s.$1,

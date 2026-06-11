@@ -22,6 +22,10 @@ class DirectYouTubeController extends ChangeNotifier {
 
   void pauseVideo() => _state?._cmd('pauseVideo', []);
   void playVideo() => _state?._cmd('playVideo', []);
+  // The iframe is an HTML element ABOVE the Flutter canvas — any Flutter
+  // dialog opened over the player would be hidden behind it. Hide the whole
+  // player (iframe + overlays) while a dialog is up.
+  void setHidden(bool hidden) => _state?._setHidden(hidden);
   void seekTo(double seconds) => _state?._cmd('seekTo', [seconds, true]);
   void setPlaybackRate(double rate) {
     _rate = rate;
@@ -313,6 +317,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   }
 
   void _refreshOverlays() {
+    if (_hidden) return; // keep everything invisible while a dialog is up
     final cd = _countdownEl?.style;
     if (cd != null) {
       cd.display = widget.showCountdown ? 'flex' : 'none';
@@ -394,6 +399,21 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void _updatePosition() {
     if (!mounted) return;
     _applyGeometry();
+  }
+
+  bool _hidden = false;
+
+  void _setHidden(bool h) {
+    _hidden = h;
+    _iframe?.style.visibility = h ? 'hidden' : '';
+    if (h) {
+      _countdownEl?.style.display = 'none';
+      _replayEl?.style.display = 'none';
+      _nextEl?.style.display = 'none';
+      _cmd('pauseVideo', []);
+    } else {
+      _refreshOverlays();
+    }
   }
 
   // ── Sound ────────────────────────────────────────────────────────────────

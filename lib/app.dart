@@ -189,10 +189,11 @@ class SinomaApp extends ConsumerWidget {
     );
   }
 
-  // One shared, playful typeface (Baloo 2 — soft brush-like rounds that echo
-  // Chinese calligraphy without copying Duolingo) across landing AND app, so
-  // the two halves of the site no longer look like different products.
-  TextTheme _appTextTheme(TextTheme base) => GoogleFonts.baloo2TextTheme(base);
+  // One shared typeface across landing AND app: ZCOOL XiaoWei — an expressive,
+  // playful face with genuine Chinese-calligraphy character. The admin panel
+  // opts out locally (it overrides its own Theme).
+  TextTheme _appTextTheme(TextTheme base) =>
+      GoogleFonts.zcoolXiaoWeiTextTheme(base);
 
   ThemeData _buildDarkTheme() {
     final base = ThemeData(
