@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../data/models/dictionary_model.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/dictionary_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -468,27 +469,28 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   ],
                 ),
               ),
+              // The card floats OVER the options (they stay visible around
+              // it) — only its own footprint is covered, nothing is removed.
               if (_panel != null)
-                Positioned.fill(
-                  child: Container(
-                    color: AppColors.surface,
-                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-                    child: Align(
-                      alignment: Alignment.topCenter,
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 460),
-                        child: SingleChildScrollView(
-                          child: switch (_panel!) {
-                            _PanelKind.word => _WordMeaningCard(
-                                word: _panelWord, onClose: _closePanel),
-                            _PanelKind.playlist => _PlaylistCard(
-                                videoId: _seg.videoId,
-                                onClose: _closePanel),
-                            _PanelKind.report => _ReportCard(
-                                videoId: _seg.videoId,
-                                onClose: _closePanel),
-                          },
-                        ),
+                Positioned(
+                  top: 8,
+                  left: 12,
+                  right: 12,
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 460),
+                      child: Material(
+                        elevation: 12,
+                        borderRadius: BorderRadius.circular(12),
+                        color: Colors.transparent,
+                        child: switch (_panel!) {
+                          _PanelKind.word => _WordMeaningCard(
+                              word: _panelWord, onClose: _closePanel),
+                          _PanelKind.playlist => _PlaylistCard(
+                              videoId: _seg.videoId, onClose: _closePanel),
+                          _PanelKind.report => _ReportCard(
+                              videoId: _seg.videoId, onClose: _closePanel),
+                        },
                       ),
                     ),
                   ),
@@ -1128,17 +1130,35 @@ class _ChineseSubtitleBar extends StatelessWidget {
   }
 }
 
-// Inline mini dictionary card for a tapped subtitle word.
-class _WordMeaningCard extends ConsumerWidget {
+// Inline mini dictionary card for a tapped subtitle word. Stateful with the
+// lookup cached in initState and a FIXED height — otherwise every parent
+// rebuild (the countdown ticks each second) re-created the future and the
+// card flickered between its loading and loaded sizes.
+class _WordMeaningCard extends ConsumerStatefulWidget {
   final String word;
   final VoidCallback onClose;
   const _WordMeaningCard({required this.word, required this.onClose});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_WordMeaningCard> createState() => _WordMeaningCardState();
+}
+
+class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
+  late final Future<DictionaryModel?> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ref.read(dictionaryRepositoryProvider).loadWord(widget.word);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final lang = ref.watch(localeProvider).languageCode;
+    final word = widget.word;
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 8, 14),
+      height: 168,
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 10),
       decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(12),
@@ -1153,13 +1173,14 @@ class _WordMeaningCard extends ConsumerWidget {
             child: IconButton(
               icon: const Icon(Icons.close,
                   color: AppColors.onSurfaceMuted, size: 18),
-              onPressed: onClose,
+              onPressed: widget.onClose,
             ),
           ),
           Padding(
         padding: const EdgeInsets.only(right: 36, top: 4),
+        child: SingleChildScrollView(
         child: FutureBuilder(
-          future: ref.read(dictionaryRepositoryProvider).loadWord(word),
+          future: _future,
           builder: (context, snap) {
             if (snap.connectionState != ConnectionState.done) {
               return const SizedBox(
@@ -1224,6 +1245,7 @@ class _WordMeaningCard extends ConsumerWidget {
               ],
             );
           },
+        ),
         ),
           ),
         ],

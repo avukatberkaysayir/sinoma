@@ -528,6 +528,229 @@ class _DictionaryPanel extends StatefulWidget {
   State<_DictionaryPanel> createState() => _DictionaryPanelState();
 }
 
+// One suggested word → a 3-step "Diğer" entry editor:
+// 1) enter pinyin + EN meaning and confirm; 2) auto-fill the other languages;
+// 3) final confirm saves the word as HSK "Diğer" (level 7) — visible in the
+// sözlük and green-chipped everywhere, but never a path criterion.
+class _SuggestionEditor extends StatefulWidget {
+  final Map<String, dynamic> suggestion;
+  final AdminService service;
+  final VoidCallback onDone;
+  final VoidCallback onDelete;
+  const _SuggestionEditor({
+    super.key,
+    required this.suggestion,
+    required this.service,
+    required this.onDone,
+    required this.onDelete,
+  });
+
+  @override
+  State<_SuggestionEditor> createState() => _SuggestionEditorState();
+}
+
+class _SuggestionEditorState extends State<_SuggestionEditor> {
+  final _pinyinCtrl = TextEditingController();
+  final _enCtrl = TextEditingController();
+  final _trCtrl = TextEditingController();
+  bool _enConfirmed = false;
+  bool _translating = false;
+  bool _saving = false;
+
+  String get _word => widget.suggestion['content'] as String? ?? '';
+
+  @override
+  void dispose() {
+    _pinyinCtrl.dispose();
+    _enCtrl.dispose();
+    _trCtrl.dispose();
+    super.dispose();
+  }
+
+  void _snack(String m) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
+    }
+  }
+
+  Future<void> _fillOtherLangs() async {
+    setState(() => _translating = true);
+    try {
+      final tr = await widget.service.translateText(_word);
+      if (mounted && tr.isNotEmpty) _trCtrl.text = tr;
+    } catch (e) {
+      _snack('Çeviri hatası: $e');
+    } finally {
+      if (mounted) setState(() => _translating = false);
+    }
+  }
+
+  Future<void> _save() async {
+    if (_saving) return;
+    setState(() => _saving = true);
+    try {
+      await widget.service.saveOtherWord(
+        word: _word,
+        pinyin: _pinyinCtrl.text,
+        en: _enCtrl.text,
+        tr: _trCtrl.text,
+      );
+      await widget.service
+          .deleteWordSuggestion(widget.suggestion['id'] as String);
+      _snack('✓ $_word "Diğer" olarak kaydedildi');
+      widget.onDone();
+    } catch (e) {
+      _snack('Hata: $e');
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  InputDecoration _dec(String hint) => InputDecoration(
+        hintText: hint,
+        hintStyle:
+            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+        filled: true,
+        fillColor: AppColors.surface,
+        isDense: true,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: BorderSide.none),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final meta =
+        widget.suggestion['metadata'] as Map<String, dynamic>? ?? {};
+    final by = meta['suggested_by_email'] as String? ?? '';
+    final ts = widget.suggestion['timestamp'] as String? ?? '';
+    final shortDate = ts.length >= 10 ? ts.substring(0, 10) : ts;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(_word,
+                  style: const TextStyle(
+                      color: AppColors.onSurface,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('${by.isNotEmpty ? by : 'Anonim'} • $shortDate',
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 11)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.delete_outline,
+                    size: 18, color: AppColors.wrongAnswer),
+                tooltip: 'Öneriyi sil',
+                onPressed: widget.onDelete,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _pinyinCtrl,
+                enabled: !_enConfirmed,
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 13),
+                decoration: _dec('Pinyin (örn. nǐ hǎo)'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              flex: 2,
+              child: TextField(
+                controller: _enCtrl,
+                enabled: !_enConfirmed,
+                style: const TextStyle(
+                    color: AppColors.onSurface, fontSize: 13),
+                decoration: _dec('İngilizce anlam'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            OutlinedButton(
+              onPressed: _enConfirmed
+                  ? null
+                  : () {
+                      if (_pinyinCtrl.text.trim().isEmpty ||
+                          _enCtrl.text.trim().isEmpty) {
+                        _snack('Pinyin ve İngilizce anlamı doldurun.');
+                        return;
+                      }
+                      setState(() => _enConfirmed = true);
+                    },
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.primary,
+                side: const BorderSide(color: AppColors.primary),
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 10),
+                textStyle: const TextStyle(fontSize: 11),
+              ),
+              child: Text(_enConfirmed ? '✓ Onaylandı' : 'EN + Pinyin Onayla'),
+            ),
+          ]),
+          if (_enConfirmed) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _trCtrl,
+                  style: const TextStyle(
+                      color: AppColors.onSurface, fontSize: 13),
+                  decoration: _dec('Türkçe anlam (diğer diller)'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              OutlinedButton.icon(
+                onPressed: _translating ? null : _fillOtherLangs,
+                icon: _translating
+                    ? const SizedBox(
+                        width: 12,
+                        height: 12,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.translate, size: 14),
+                label: const Text('Diğer Dilleri Doldur'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 10),
+                  textStyle: const TextStyle(fontSize: 11),
+                ),
+              ),
+              const SizedBox(width: 8),
+              FilledButton.icon(
+                onPressed: _saving ? null : _save,
+                icon: const Icon(Icons.check_rounded, size: 15),
+                label: const Text('Kaydet (Diğer)'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 12, vertical: 10),
+                  textStyle: const TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w800),
+                ),
+              ),
+            ]),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
 class _DictionaryPanelState extends State<_DictionaryPanel>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
@@ -719,50 +942,18 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
           child: ListView.separated(
             padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
             itemCount: _suggestions.length,
-            separatorBuilder: (_, __) => const Divider(
-                height: 1, color: AppColors.surfaceVariant, indent: 56),
-            itemBuilder: (_, i) {
-              final s = _suggestions[i];
-              // posts row: content=word, metadata.suggested_by_email, timestamp
-              final word = s['content'] as String? ?? '';
-              final meta = s['metadata'] as Map<String, dynamic>? ?? {};
-              final by = meta['suggested_by_email'] as String? ?? '';
-              final ts = s['timestamp'] as String? ?? '';
-              final shortDate = ts.length >= 10 ? ts.substring(0, 10) : ts;
-              return ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                leading: Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  alignment: Alignment.center,
-                  child: Text(word,
-                      style: const TextStyle(
-                          color: AppColors.onSurface,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold)),
-                ),
-                title: Text(word,
-                    style: const TextStyle(
-                        color: AppColors.onSurface, fontSize: 14)),
-                subtitle: Text(
-                    '${by.isNotEmpty ? by : 'Anonim'} • $shortDate',
-                    style: const TextStyle(
-                        color: AppColors.onSurfaceMuted, fontSize: 11)),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline,
-                      size: 18, color: AppColors.wrongAnswer),
-                  onPressed: () => _deleteSuggestion(s['id'] as String),
-                  tooltip: 'Sil',
-                  style: IconButton.styleFrom(
-                      minimumSize: const Size(32, 32), padding: EdgeInsets.zero),
-                ),
-              );
-            },
+            separatorBuilder: (_, __) => const SizedBox(height: 8),
+            itemBuilder: (_, i) => _SuggestionEditor(
+              key: ValueKey(_suggestions[i]['id']),
+              suggestion: _suggestions[i],
+              service: widget.service,
+              onDone: () {
+                _loadSuggestions();
+                _load();
+              },
+              onDelete: () =>
+                  _deleteSuggestion(_suggestions[i]['id'] as String),
+            ),
           ),
         ),
       ],
@@ -808,11 +999,11 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                   child: Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: List.generate(9, (i) {
+                    children: List.generate(7, (i) {
                       final level = i + 1;
                       final sel = _selectedLevels.contains(level);
                       return FilterChip(
-                        label: Text('HSK $level',
+                        label: Text(level == 7 ? 'Diğer' : 'HSK $level',
                             style: TextStyle(
                                 fontSize: 11,
                                 color: sel
@@ -2995,6 +3186,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       // Approve in the same step so an edited clip actually reaches the home
       // feed (which only shows is_active=true); saving alone leaves it pending.
       if (approve) await widget.service.approveVideos([id]);
+      // Red-chip words (not in the dictionary) drop into Sözlük > Önerilen
+      // automatically so they can be defined as "Diğer" entries.
+      widget.service.suggestMissingWords(_targetWords);
       if (mounted) {
         // Invalidate the homepage feed so the next visit fetches fresh quiz data.
         ref.invalidate(videoFeedProvider);
@@ -3206,6 +3400,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     setState(() => _saving = true);
     try {
       await widget.service.moveVideosToBackup([widget.data['id'] as String]);
+      widget.service.suggestMissingWords(_targetWords);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✓ Yedeğe alındı')));

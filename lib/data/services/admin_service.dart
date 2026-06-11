@@ -1099,6 +1099,73 @@ class AdminService {
     await _db.from('posts').delete().eq('id', id);
   }
 
+  // Auto-suggest dictionary entries for clip words NOT in the dictionary (the
+  // red chips) — fired when a pending clip is saved/approved or backed up.
+  static final _cjkRe = RegExp(r'[一-鿿]');
+
+  Future<void> suggestMissingWords(List<String> words) async {
+    try {
+      final uid = _db.auth.currentUser?.id;
+      if (uid == null) return;
+      final clean = words
+          .map((w) => w.trim())
+          .where((w) => w != '\n' && _cjkRe.hasMatch(w))
+          .toSet()
+          .toList();
+      if (clean.isEmpty) return;
+      final known = await wordsInDictionary(clean);
+      final missing = clean.where((w) => !known.contains(w)).toList();
+      if (missing.isEmpty) return;
+      // Skip words that already sit in the suggestion queue.
+      final existing = await _db
+          .from('posts')
+          .select('content')
+          .filter('metadata->>is_word_suggestion', 'eq', 'true')
+          .inFilter('content', missing);
+      final dup = List<Map<String, dynamic>>.from(existing)
+          .map((r) => r['content'] as String)
+          .toSet();
+      for (final w in missing.where((w) => !dup.contains(w))) {
+        await _db.from('posts').insert({
+          'author_id': uid,
+          'content': w,
+          'post_type': 'text',
+          'likes': [],
+          'metadata': {
+            'is_word_suggestion': true,
+            'word': w,
+            'suggested_by_email': _db.auth.currentUser?.email ?? '',
+            'source': 'clip_save',
+          },
+        });
+      }
+    } catch (_) {/* suggestions are best-effort, never block a save */}
+  }
+
+  // Save a non-HSK word into the dictionary as level 7 ("Diğer"): it appears
+  // in the sözlük, turns the admin chips green and powers the player word
+  // popup — but is NEVER a path criterion (the placement trigger reads only
+  // path_word_slots / grammar_levels, which stay untouched).
+  Future<void> saveOtherWord({
+    required String word,
+    required String pinyin,
+    required String en,
+    required String tr,
+  }) async {
+    await _db.from('dictionary').upsert({
+      'id': word,
+      'simplified': word,
+      'traditional': word,
+      'pinyin': pinyin.trim(),
+      'pinyin_ascii': _stripAccents(pinyin.trim()),
+      'hsk_level': 7,
+      'definitions': {'en': en.trim(), 'tr': tr.trim(), 'vi': '', 'pos': ''},
+      'ai_context_cache': <String, dynamic>{},
+      'radicals': <String>[],
+      'stroke_count': 0,
+    }, onConflict: 'id');
+  }
+
   static String _stripAccents(String pinyin) {
     const accentMap = {
       'ā': 'a', 'á': 'a', 'ǎ': 'a', 'à': 'a',
