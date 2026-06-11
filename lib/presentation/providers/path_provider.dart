@@ -411,6 +411,10 @@ final pathProgressProvider = FutureProvider<Map<String, dynamic>>((ref) {
 // Which HSK topic the path screen is showing.
 final selectedTopicHskProvider = StateProvider<int>((ref) => 1);
 
+// Whether the L1-L6 level list is expanded under "Öğren" in the left nav.
+// Collapsed by default; opens when the user taps "Öğren" or presses "BAŞLA".
+final learnNavExpandedProvider = StateProvider<bool>((ref) => false);
+
 // ── Gamification: hearts (lives) + streak ─────────────────────────────────────
 const int kMaxHearts = 5;
 const Duration kHeartRefill = Duration(hours: 4); // +1 heart every 4h

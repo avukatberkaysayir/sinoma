@@ -3667,6 +3667,24 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     if (g != null) return '${_grammarLabel(g)} (Gramer)';
     final w = _slotWord ?? _backupWord;
     if (w != null) return '$w (Kelime)';
+    // Unplaced clip (its slot is held by another clip): still DERIVE the would-be
+    // criterion from the clip's content so the admin sees what it teaches — the
+    // highest-level grammar it matches (the trigger's choice), else a vocab word.
+    String? gg;
+    var gl = 0;
+    for (final c in _quizCategories) {
+      final l = hskOfGrammar(c);
+      if (l != null && l > gl) {
+        gl = l;
+        gg = c;
+      }
+    }
+    if (gg != null) return '${_grammarLabel(gg)} (Gramer) · slot dolu';
+    for (final tw in _targetWords) {
+      final w2 = tw.trim();
+      if (w2.isEmpty || !RegExp(r'[一-鿿]').hasMatch(w2)) continue;
+      return '$w2 (Kelime) · slot dolu';
+    }
     return '—';
   }
 

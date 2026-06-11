@@ -54,8 +54,7 @@ _Section _sectionFromLoc(String loc) {
   return _Section.learn;
 }
 
-// Whether the L1-L6 level list is expanded under "Öğren" in the left nav.
-final _learnNavExpandedProvider = StateProvider<bool>((ref) => true);
+// learnNavExpandedProvider lives in path_provider.dart (so BAŞLA can open it too).
 
 class PathScreen extends ConsumerWidget {
   const PathScreen({super.key});
@@ -71,7 +70,20 @@ class PathScreen extends ConsumerWidget {
     Widget center;
     switch (section) {
       case _Section.home:
-        center = HomeDashboard(tr: tr, onStart: () => context.go('/learn'));
+        center = HomeDashboard(tr: tr, onStart: () {
+          // BAŞLA: open the Öğren nav and jump to the level the learner left off
+          // on, then show that level's path.
+          final topics = ref.read(curriculumProvider).valueOrNull;
+          final progress =
+              ref.read(pathProgressProvider).valueOrNull ?? const {};
+          final phase =
+              topics == null ? null : currentPhaseFor(topics, progress);
+          if (phase != null) {
+            ref.read(selectedTopicHskProvider.notifier).state = phase.hsk;
+          }
+          ref.read(learnNavExpandedProvider.notifier).state = true;
+          context.go('/learn');
+        });
         break;
       case _Section.video:
         center = VideoCenter(tr: tr);
@@ -118,9 +130,9 @@ class PathScreen extends ConsumerWidget {
               tr: tr,
               onSelect: (s) => context.go(_sectionPaths[s]!),
               selectedHsk: ref.watch(selectedTopicHskProvider),
-              learnExpanded: ref.watch(_learnNavExpandedProvider),
+              learnExpanded: ref.watch(learnNavExpandedProvider),
               onToggleLearn: () => ref
-                  .read(_learnNavExpandedProvider.notifier)
+                  .read(learnNavExpandedProvider.notifier)
                   .update((v) => !v),
               onSelectLevel: (h) {
                 ref.read(selectedTopicHskProvider.notifier).state = h;
