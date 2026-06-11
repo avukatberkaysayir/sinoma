@@ -2,8 +2,27 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../core/constants/app_colors.dart';
 import '../../providers/locale_provider.dart';
+
+// Duo palette — matches /home.
+const _bg = Color(0xFF131F2A);
+const _panel = Color(0xFF1C2A35);
+const _accent = Color(0xFF2EC4B6);
+
+// Each language ONLY in its own tongue (no translated subtitle). The first
+// two are live; the rest are upcoming UI languages (tap → falls back to EN).
+const List<(String flag, String name, String code, bool live)> _kLanguages = [
+  ('🇹🇷', 'Türkçe', 'tr', true),
+  ('🇬🇧', 'English', 'en', true),
+  ('🇪🇸', 'Español', 'es', false),
+  ('🇩🇪', 'Deutsch', 'de', false),
+  ('🇫🇷', 'Français', 'fr', false),
+  ('🇷🇺', 'Русский', 'ru', false),
+  ('🇸🇦', 'العربية', 'ar', false),
+  ('🇯🇵', '日本語', 'ja', false),
+  ('🇰🇷', '한국어', 'ko', false),
+  ('🇵🇹', 'Português', 'pt', false),
+];
 
 class LanguageSelectionScreen extends ConsumerStatefulWidget {
   const LanguageSelectionScreen({super.key});
@@ -17,184 +36,133 @@ class _LanguageSelectionScreenState
     extends ConsumerState<LanguageSelectionScreen> {
   String? _selected;
 
+  Future<void> _confirm() async {
+    if (_selected == null) return;
+    // Upcoming languages fall back to English until their UI ships.
+    final code = (_selected == 'tr' || _selected == 'en') ? _selected! : 'en';
+    await ref.read(localeProvider.notifier).setLocale(Locale(code));
+    if (mounted) context.go('/onboarding');
+  }
+
   @override
   Widget build(BuildContext context) {
+    const rowH = 64.0;
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: _bg,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              const Spacer(),
-
-              // ── Logo / app name ─────────────────────────────────────────
-              const Text(
-                '語',
-                style: TextStyle(
-                  fontSize: 72,
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                'Sinoma',
-                style: TextStyle(
-                  fontSize: 32,
-                  color: AppColors.onSurface,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 2,
-                ),
-              ),
-              const SizedBox(height: 48),
-
-              // ── Prompt ───────────────────────────────────────────────────
-              Text(
-                _selected == null
-                    ? 'Dil Seçin / Choose Language'
-                    : (_selected == 'tr' ? 'Dil Seçin' : 'Choose Language'),
-                style: const TextStyle(
-                  color: AppColors.onSurface,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 32),
-
-              // ── Language cards ───────────────────────────────────────────
-              _LanguageCard(
-                flag: '🇹🇷',
-                name: 'Türkçe',
-                subtitle: 'Turkish',
-                code: 'tr',
-                selected: _selected == 'tr',
-                onTap: () => setState(() => _selected = 'tr'),
-              ),
-              const SizedBox(height: 16),
-              _LanguageCard(
-                flag: '🇬🇧',
-                name: 'English',
-                subtitle: 'İngilizce',
-                code: 'en',
-                selected: _selected == 'en',
-                onTap: () => setState(() => _selected = 'en'),
-              ),
-
-              const Spacer(),
-
-              // ── Continue button ──────────────────────────────────────────
-              AnimatedOpacity(
-                opacity: _selected != null ? 1.0 : 0.0,
-                duration: const Duration(milliseconds: 300),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton(
-                    onPressed: _selected == null ? null : _confirm,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 380),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 28),
+                  Image.asset('assets/mascot/mascot.png',
+                      width: 84, height: 84, fit: BoxFit.contain),
+                  const SizedBox(height: 8),
+                  const Text('Sinoma',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 30,
+                          color: _accent,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1.5)),
+                  const SizedBox(height: 24),
+                  const Text('Dil Seçin / Choose Language',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 16),
+                  // 5 rows visible; the rest scroll.
+                  SizedBox(
+                    height: rowH * 5,
+                    child: ListView.builder(
+                      itemCount: _kLanguages.length,
+                      itemBuilder: (_, i) {
+                        final (flag, name, code, _) = _kLanguages[i];
+                        final sel = _selected == code;
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Material(
+                            color: sel
+                                ? _accent.withValues(alpha: 0.14)
+                                : _panel,
+                            borderRadius: BorderRadius.circular(14),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(14),
+                              onTap: () =>
+                                  setState(() => _selected = code),
+                              child: Container(
+                                height: rowH - 8,
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 16),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(
+                                      color: sel
+                                          ? _accent
+                                          : const Color(0xFF2C3B45),
+                                      width: sel ? 2 : 1),
+                                ),
+                                child: Row(children: [
+                                  Text(flag,
+                                      style:
+                                          const TextStyle(fontSize: 24)),
+                                  const SizedBox(width: 14),
+                                  Expanded(
+                                    child: Text(name,
+                                        style: TextStyle(
+                                            color: sel
+                                                ? _accent
+                                                : Colors.white,
+                                            fontSize: 17,
+                                            fontWeight: FontWeight.w700)),
+                                  ),
+                                  Icon(
+                                      sel
+                                          ? Icons.check_circle_rounded
+                                          : Icons.circle_outlined,
+                                      color: sel
+                                          ? _accent
+                                          : Colors.white24,
+                                      size: 22),
+                                ]),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                    child: Text(
-                      _selected == 'tr' ? 'Devam Et' : 'Continue',
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                  ),
+                  const SizedBox(height: 16),
+                  AnimatedOpacity(
+                    opacity: _selected != null ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 300),
+                    child: FilledButton(
+                      onPressed: _selected == null ? null : _confirm,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _accent,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: Text(
+                        _selected == 'tr' ? 'Devam Et' : 'Continue',
+                        style: const TextStyle(
+                            fontSize: 16, fontWeight: FontWeight.w800),
                       ),
                     ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                ],
               ),
-              const SizedBox(height: 24),
-
-              Text(
-                _selected == 'tr'
-                    ? 'İstediğin zaman ayarlardan değiştirebilirsin'
-                    : _selected == 'en'
-                        ? 'You can change this anytime in settings'
-                        : 'Settings • Ayarlar',
-                style: const TextStyle(
-                  color: AppColors.onSurfaceMuted,
-                  fontSize: 12,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ],
+            ),
           ),
         ),
-      ),
-    );
-  }
-
-  Future<void> _confirm() async {
-    if (_selected == null) return;
-    await ref
-        .read(localeProvider.notifier)
-        .setLocale(Locale(_selected!));
-    if (mounted) context.go('/onboarding');
-  }
-}
-
-class _LanguageCard extends StatelessWidget {
-  final String flag;
-  final String name;
-  final String subtitle;
-  final String code;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _LanguageCard({
-    required this.flag,
-    required this.name,
-    required this.subtitle,
-    required this.code,
-    required this.selected,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 200),
-      decoration: BoxDecoration(
-        color: selected
-            ? AppColors.primary.withValues(alpha: 0.12)
-            : AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: selected ? AppColors.primary : Colors.transparent,
-          width: 2,
-        ),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-        leading: Text(flag, style: const TextStyle(fontSize: 32)),
-        title: Text(
-          name,
-          style: TextStyle(
-            color: selected ? AppColors.primary : AppColors.onSurface,
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        subtitle: Text(
-          subtitle,
-          style: const TextStyle(
-            color: AppColors.onSurfaceMuted,
-            fontSize: 13,
-          ),
-        ),
-        trailing: selected
-            ? const Icon(Icons.check_circle_rounded,
-                color: AppColors.primary, size: 24)
-            : const Icon(Icons.circle_outlined,
-                color: AppColors.onSurfaceMuted, size: 24),
       ),
     );
   }

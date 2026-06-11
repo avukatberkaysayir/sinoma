@@ -1,9 +1,14 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/onboarding_provider.dart';
+
+// Duo palette - matches /home.
+const _obBg = Color(0xFF131F2A);
+const _obPanel = Color(0xFF1C2A35);
+const _obAccent = Color(0xFF2EC4B6);
 
 // Tappable inline span for ToS/PP links.
 class _LegalLink extends StatelessWidget {
@@ -18,10 +23,10 @@ class _LegalLink extends StatelessWidget {
       child: Text(
         label,
         style: const TextStyle(
-          color: AppColors.primary,
+          color: _obAccent,
           fontSize: 11,
           decoration: TextDecoration.underline,
-          decorationColor: AppColors.primary,
+          decorationColor: _obAccent,
         ),
       ),
     );
@@ -41,7 +46,7 @@ class OnboardingScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.surface,
+      backgroundColor: _obBg,
       body: AnimatedSwitcher(
         duration: const Duration(milliseconds: 300),
         child: switch (state.step) {
@@ -118,16 +123,16 @@ class _WelcomePage extends StatelessWidget {
               width: 100,
               height: 100,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.15),
+                color: _obAccent.withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.language, size: 52, color: AppColors.primary),
+              child: const Icon(Icons.language, size: 52, color: _obAccent),
             ),
             const SizedBox(height: 28),
             const Text(
               '普通话学院',
               style: TextStyle(
-                color: AppColors.primary,
+                color: _obAccent,
                 fontSize: 32,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 2,
@@ -225,7 +230,7 @@ class _SignInPageState extends State<_SignInPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 48),
-            const Icon(Icons.login_rounded, size: 56, color: AppColors.primary),
+            const Icon(Icons.login_rounded, size: 56, color: _obAccent),
             const SizedBox(height: 24),
             const Text(
               'Hesap Oluştur / Giriş Yap',
@@ -296,7 +301,7 @@ class _SignInPageState extends State<_SignInPage> {
                   hintStyle:
                       const TextStyle(color: AppColors.onSurfaceMuted),
                   filled: true,
-                  fillColor: AppColors.surfaceVariant,
+                  fillColor: _obPanel,
                   prefixIcon: const Icon(Icons.email_outlined,
                       color: AppColors.onSurfaceMuted, size: 20),
                   border: OutlineInputBorder(
@@ -318,7 +323,7 @@ class _SignInPageState extends State<_SignInPage> {
                   hintStyle:
                       const TextStyle(color: AppColors.onSurfaceMuted),
                   filled: true,
-                  fillColor: AppColors.surfaceVariant,
+                  fillColor: _obPanel,
                   prefixIcon: const Icon(Icons.lock_outline,
                       color: AppColors.onSurfaceMuted, size: 20),
                   suffixIcon: IconButton(
@@ -458,11 +463,11 @@ class _EmailVerificationPage extends StatelessWidget {
               width: 88,
               height: 88,
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
+                color: _obAccent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: const Icon(Icons.mark_email_unread_outlined,
-                  size: 44, color: AppColors.primary),
+                  size: 44, color: _obAccent),
             ),
             const SizedBox(height: 28),
             const Text(
@@ -591,7 +596,7 @@ class _ProfilePageState extends State<_ProfilePage> {
                 hintText: 'Display name',
                 hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
                 filled: true,
-                fillColor: AppColors.surfaceVariant,
+                fillColor: _obPanel,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
@@ -675,8 +680,8 @@ class _TestPage extends StatelessWidget {
                 const SizedBox(height: 8),
                 LinearProgressIndicator(
                   value: state.testProgress,
-                  backgroundColor: AppColors.surfaceVariant,
-                  color: AppColors.primary,
+                  backgroundColor: _obPanel,
+                  color: _obAccent,
                   borderRadius: BorderRadius.circular(4),
                   minHeight: 6,
                 ),
@@ -695,7 +700,7 @@ class _TestPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 32, vertical: 24),
                       decoration: BoxDecoration(
-                        color: AppColors.surfaceVariant,
+                        color: _obPanel,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
