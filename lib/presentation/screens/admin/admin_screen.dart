@@ -2752,9 +2752,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
   }
 
-  // Apply the Whisper result to the sentence AND refresh the pinyin to match
-  // (the old pinyin was for the previous sentence). The sentence is no longer
-  // confirmed, so the live card overrides reset until "Kelimeleri Onayla".
+  // Apply the Whisper result as the clip's NEW sentence — end to end: the
+  // sentence box, the card title + pinyin, the word split, and the word-driven
+  // filters (HSK / grammar / criterion / slot) are ALL re-derived from it.
+  // If the new criterion's slot is already occupied, the trigger marks the clip
+  // as a would-be backup and the admin gets the "Yedeğe Al" warning + chip.
   Future<void> _applyWhisper() async {
     final t = _whisperText ?? '';
     if (t.isEmpty) return;
@@ -2773,6 +2775,12 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     finally {
       if (mounted) setState(() => _pinyinBusy = false);
     }
+    // Auto-chain: split the new sentence into words, then run the same
+    // confirm pipeline as "Kelimeleri Onayla" (persists sentence + words,
+    // resets placement, lets the DB trigger re-derive grammar/HSK/slot).
+    await _segmentIntoWords();
+    if (!mounted || _targetWords.isEmpty) return;
+    await _onConfirmWords();
   }
 
   // "Kelimeleri Onayla": lock in the current word list, refresh the pinyin, AND
@@ -2801,10 +2809,13 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       }
     } catch (_) {/* keep existing pinyin on failure */}
 
-    // Persist words + reset placement → trigger prunes grammar & re-derives the
-    // slot from the confirmed words; reflect the result in the chips.
+    // Persist the sentence + words + reset placement → trigger prunes grammar &
+    // re-derives the slot from the confirmed words; reflect the result in the
+    // chips AND in widget.data so the collapsed card header updates instantly.
     try {
       final row = await widget.service.patchVideoFields(widget.data['id'] as String, {
+        'transcription': _transcriptionCtrl.text.trim(),
+        'pinyin': _pinyinCtrl.text.trim(),
         'target_words': words,
         'level': null,
         'unit': null,
@@ -2813,6 +2824,17 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         'slot_word': null,
       });
       if (row != null && mounted) {
+        // Refresh the card's backing map: header title/pinyin/HSK badge and the
+        // "Yedeğe Al" chip all read from it.
+        for (final k in [
+          'transcription', 'pinyin', 'target_words', 'hsk_level', 'hsk_levels',
+          'quiz_category', 'quiz_categories', 'level', 'unit', 'phase',
+          'slot_grammar', 'slot_word', 'backup_level', 'backup_unit',
+          'backup_phase', 'backup_kind', 'backup_grammar', 'backup_word',
+        ]) {
+          widget.data[k] = row[k];
+        }
+        widget.data['pinyin_derived'] = _pinyinCtrl.text.trim();
         setState(() {
           // Grammar tags ('general' = no-grammar fallback, never shown)
           _quizCategories
@@ -2846,6 +2868,21 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         });
         ref.invalidate(curriculumProvider);
         ref.invalidate(allActiveVideosProvider);
+        // New criterion's slot already occupied → the trigger could only give a
+        // would-be BACKUP slot. Warn immediately; the header now shows the
+        // "Yedeğe Al" chip for one-tap action.
+        if (row['level'] == null && row['backup_level'] != null) {
+          final crit =
+              (row['backup_grammar'] ?? row['backup_word'] ?? '?') as String;
+          final kind = row['backup_kind'] == 'grammar' ? 'Gramer' : 'Kelime';
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            duration: const Duration(seconds: 7),
+            content: Text(
+                '⚠ Yeni kriter "$crit" ($kind) slotu dolu — '
+                'L${row['backup_level']} Ünite ${row['backup_unit']} '
+                'Bölüm ${row['backup_phase']}. Bu klibi "Yedeğe Al" ile yedeğe alın.'),
+          ));
+        }
       }
     } catch (_) {/* keep current tags on failure */}
     finally {

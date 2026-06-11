@@ -21,6 +21,11 @@ final selectedHskFilterProvider     = StateProvider<Set<int>>((ref) => {});
 final selectedLifeCategoryProvider  = StateProvider<Set<String>>((ref) => {});
 final selectedSearchProvider        = StateProvider<String?>((ref) => null);
 
+// True while a full-screen route (HSK test) covers the practice page. The
+// practice player's iframe is fixed-position over the document body, so it
+// keeps playing — and showing — under pushed routes unless it is unmounted.
+final practiceSuspendedProvider     = StateProvider<bool>((ref) => false);
+
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   // Depend only on the HSK level (an int), NOT on the whole user stream — otherwise
   // every stats write (scoring an answer) re-emits the user, re-runs this provider,

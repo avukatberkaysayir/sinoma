@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -1085,7 +1087,7 @@ class _PhaseNode extends ConsumerWidget {
       ref.invalidate(pathProgressProvider);
     }
 
-    final Widget circle;
+    final Widget art;
     if (hasIcon) {
       // Real/uploaded landmark icon — shown alone, no circle behind it. The admin
       // scale lets the size be tuned per slot.
@@ -1101,52 +1103,56 @@ class _PhaseNode extends ConsumerWidget {
                     : const SizedBox())
             : Image.asset(ni.asset!, fit: BoxFit.contain),
       );
-      circle = GestureDetector(
-        onTap: open,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: sz + 6,
-          height: sz + 2,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              available ? img : Opacity(opacity: 0.4, child: img),
-              if (badge != null)
-                Positioned(right: 8, bottom: 8, child: badge),
-            ],
-          ),
-        ),
+      art = Stack(
+        clipBehavior: Clip.none,
+        alignment: Alignment.center,
+        children: [
+          available ? img : Opacity(opacity: 0.4, child: img),
+          if (badge != null) Positioned(right: 8, bottom: 8, child: badge),
+        ],
       );
     } else {
       // Generic city icon on the coloured circle (until a real icon is added).
       final topColor = available ? _duoGreen : _duoLocked;
       final shadow = available ? _duoGreenDark : const Color(0xFF2A363D);
-      circle = GestureDetector(
-        onTap: open,
-        child: Container(
-          width: 104,
-          height: 98,
+      art = Container(
+        width: 104,
+        height: 98,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: topColor,
+          borderRadius: BorderRadius.circular(52),
+          boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 7))],
+        ),
+        child: Stack(
+          clipBehavior: Clip.none,
           alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: topColor,
-            borderRadius: BorderRadius.circular(52),
-            boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 7))],
-          ),
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
-            children: [
-              Icon(ni.icon,
-                  size: 48,
-                  color: available ? Colors.white : Colors.white30),
-              if (badge != null)
-                Positioned(right: -3, bottom: -3, child: badge),
-            ],
-          ),
+          children: [
+            Icon(ni.icon,
+                size: 48,
+                color: available ? Colors.white : Colors.white30),
+            if (badge != null)
+              Positioned(right: -3, bottom: -3, child: badge),
+          ],
         ),
       );
     }
+    // Uniform node footprint: the layout box is the SAME for every slot no
+    // matter how large the icon art is (admin scale only changes the drawing,
+    // which may overflow) — so the gözat button sits at the SAME distance from
+    // the node centre everywhere, mirrored right (1-2) / left (3-4).
+    final node = _NodeFx(
+      available: available,
+      isCurrent: isCurrent,
+      tr: tr,
+      onTap: open,
+      child: OverflowBox(
+        maxWidth: 220,
+        maxHeight: 220,
+        child: art,
+      ),
+    );
+
     // Every slot carries vocabulary; the popup opens to the side away from the
     // path centre: right-side gözat opens right, left-side opens left.
     final browse = _BrowseButton(
@@ -1157,7 +1163,7 @@ class _PhaseNode extends ConsumerWidget {
       phase: phase.phaseIndex + 1,
     );
 
-    // Keep the CIRCLE centred on the node offset (a matching spacer balances the
+    // Keep the NODE centred on its offset (a matching spacer balances the
     // gözat) so circles at the same offset line up vertically. Same gap + the
     // same lowered gözat position on every circle.
     const gap = 10.0;
@@ -1174,17 +1180,185 @@ class _PhaseNode extends ConsumerWidget {
             ? [
                 lowered,
                 const SizedBox(width: gap),
-                circle,
+                node,
                 const SizedBox(width: gap),
                 const SizedBox(width: browseW),
               ]
             : [
                 const SizedBox(width: browseW),
                 const SizedBox(width: gap),
-                circle,
+                node,
                 const SizedBox(width: gap),
                 lowered,
               ],
+      ),
+    );
+  }
+}
+
+// ── Node effects (Duolingo-style) ─────────────────────────────────────────────
+// One looping controller drives everything: the bouncing BAŞLAT pill on the
+// current node, a soft pulsing glow + twinkling stars around unlocked nodes,
+// a translucent pedestal disc under every icon, and a hover grow.
+
+class _NodeFx extends StatefulWidget {
+  final bool available;
+  final bool isCurrent;
+  final bool tr;
+  final VoidCallback onTap;
+  final Widget child;
+  const _NodeFx({
+    required this.available,
+    required this.isCurrent,
+    required this.tr,
+    required this.onTap,
+    required this.child,
+  });
+
+  static const double w = 110;
+  static const double h = 100;
+
+  @override
+  State<_NodeFx> createState() => _NodeFxState();
+}
+
+class _NodeFxState extends State<_NodeFx>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 2400))
+    ..repeat();
+  bool _hover = false;
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  // A twinkling star at [dx,dy] from the node centre; [phase] staggers them.
+  Widget _star(double dx, double dy, double phase, double size) {
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final a = 0.5 + 0.5 * sin(_c.value * 2 * pi + phase);
+        return Transform.translate(
+          offset: Offset(dx, dy),
+          child: Opacity(
+            opacity: 0.15 + 0.75 * a,
+            child: Icon(Icons.auto_awesome_rounded,
+                size: size, color: const Color(0xFFFFE9A8)),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      cursor: widget.available
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onEnter: (_) => setState(() => _hover = true),
+      onExit: (_) => setState(() => _hover = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        behavior: HitTestBehavior.opaque,
+        child: SizedBox(
+          width: _NodeFx.w,
+          height: _NodeFx.h,
+          child: Stack(
+            clipBehavior: Clip.none,
+            alignment: Alignment.center,
+            children: [
+              // Translucent pedestal disc under the icon.
+              Positioned(
+                bottom: -4,
+                child: Container(
+                  width: 86,
+                  height: 20,
+                  decoration: BoxDecoration(
+                    color: Colors.white
+                        .withValues(alpha: widget.available ? 0.10 : 0.05),
+                    borderRadius: const BorderRadius.all(
+                        Radius.elliptical(43, 10)),
+                  ),
+                ),
+              ),
+              // Soft pulsing light behind unlocked nodes.
+              if (widget.available)
+                AnimatedBuilder(
+                  animation: _c,
+                  builder: (_, __) {
+                    final a =
+                        0.10 + 0.10 * (0.5 + 0.5 * sin(_c.value * 2 * pi));
+                    return Container(
+                      width: 92,
+                      height: 92,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: _duoGreen.withValues(alpha: a),
+                            blurRadius: 28,
+                            spreadRadius: 8,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+              // Hover: the icon grows slightly — "about to be selected".
+              AnimatedScale(
+                scale: _hover && widget.available ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 150),
+                curve: Curves.easeOut,
+                child: widget.child,
+              ),
+              // Twinkling stars around unlocked nodes.
+              if (widget.available) ...[
+                _star(-46, -32, 0.0, 13),
+                _star(48, -20, 2.1, 11),
+                _star(-40, 24, 4.2, 10),
+                _star(44, 32, 1.3, 12),
+              ],
+              // Bouncing BAŞLAT pill above the current node.
+              if (widget.isCurrent)
+                Positioned(
+                  top: -44,
+                  child: AnimatedBuilder(
+                    animation: _c,
+                    builder: (_, child) => Transform.translate(
+                      offset:
+                          Offset(0, 4 * sin(_c.value * 2 * pi)),
+                      child: child,
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: _duoBg,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: _duoGreen, width: 2),
+                        boxShadow: const [
+                          BoxShadow(color: Colors.black45, blurRadius: 8),
+                        ],
+                      ),
+                      child: Text(
+                        widget.tr ? 'BAŞLAT' : 'START',
+                        style: const TextStyle(
+                          color: _duoGreen,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
       ),
     );
   }

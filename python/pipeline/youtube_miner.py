@@ -92,6 +92,11 @@ WHISPER_CLIP_KWARGS: dict[str, Any] = dict(
     no_speech_threshold=0.85,
     vad_filter=False,
     initial_prompt="以下是普通话的对话。",
+    # Single temperature → fully deterministic beam decode. The default
+    # (0.0…1.0 fallback ladder) RESAMPLES on low-confidence windows, so the
+    # auto-fill at import and a later manual re-run could return DIFFERENT
+    # sentences for the same clip. One temperature = same audio, same text.
+    temperature=0.0,
 )
 
 # Phrases Whisper invents over music / silence / channel outros — they are NOT

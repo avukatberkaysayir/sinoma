@@ -26,6 +26,9 @@ class VideoCenter extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // While the HSK test covers this page, unmount the player entirely — its
+    // iframe lives fixed over the document body and would keep playing on top.
+    if (ref.watch(practiceSuspendedProvider)) return const SizedBox.shrink();
     final feed = ref.watch(filteredVideoFeedProvider);
     return feed.when(
       loading: () => const Center(child: CircularProgressIndicator(color: _green)),
@@ -68,11 +71,18 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
       setState(() => _openGroup = _openGroup == id ? null : id);
 
   Future<void> _startHskTest() async {
-    await context.push('/hsk-test');
-    // The saved level drives both the practice feed and the Öğren unlocks.
-    ref.invalidate(currentUserProvider);
-    ref.invalidate(videoFeedProvider);
-    ref.invalidate(pathProgressProvider);
+    ref.read(practiceSuspendedProvider.notifier).state = true;
+    try {
+      await context.push('/hsk-test');
+    } finally {
+      if (mounted) {
+        ref.read(practiceSuspendedProvider.notifier).state = false;
+        // The saved level drives both the practice feed and the Öğren unlocks.
+        ref.invalidate(currentUserProvider);
+        ref.invalidate(videoFeedProvider);
+        ref.invalidate(pathProgressProvider);
+      }
+    }
   }
 
   @override
