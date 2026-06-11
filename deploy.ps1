@@ -19,6 +19,9 @@ if (-not $Token) {
   exit 1
 }
 
+# "Diger" kelime dosyasini DB'den tazele (best-effort; deploy'u durdurmaz).
+python -X utf8 "$PSScriptRoot\tools\sync_diger_words.py"
+
 Write-Host "Building Flutter web..." -ForegroundColor Cyan
 # --no-wasm-dry-run: dart:html (YouTube player) is intentional; suppress the
 # wasm-incompatibility stderr that otherwise looks like a build failure.

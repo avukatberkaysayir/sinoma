@@ -699,7 +699,7 @@ class _WordTile extends StatelessWidget {
                 ),
               ),
               child: Text(
-                'HSK ${word.hskLevel}',
+                word.hskLevel >= 7 ? 'Diğer' : 'HSK ${word.hskLevel}',
                 style: TextStyle(
                   color: AppColors.forHskLevel(word.hskLevel),
                   fontSize: 11,

@@ -51,6 +51,7 @@ class _AdminScreenState extends State<AdminScreen> {
   void initState() {
     super.initState();
     _service.seedHsk1Dictionary();
+    _service.seedDigerDictionary().catchError((_) => 0);
     _service.applyDefinitionPatches();
   }
 

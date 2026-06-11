@@ -156,7 +156,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   }
 
   void _addScore(int delta, {bool answered = true}) {
-    final user = ref.read(currentUserProvider).valueOrNull;
+    // The user stream flips to "loading" on every re-emit/invalidation; the
+    // stable provider keeps the last user so a timeout penalty (or any score)
+    // is never silently dropped in that window.
+    final user = ref.read(currentUserProvider).valueOrNull ??
+        ref.read(stableCurrentUserProvider);
     if (user == null) return;
     final newStats = user.stats.copyWith(
       totalScore: (user.stats.totalScore + delta).clamp(0, 1 << 30),
@@ -1224,7 +1228,8 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
                         color: AppColors.forHskLevel(w.hskLevel),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Text('HSK ${w.hskLevel}',
+                      child: Text(
+                          w.hskLevel >= 7 ? 'Diğer' : 'HSK ${w.hskLevel}',
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,

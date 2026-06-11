@@ -488,7 +488,7 @@ class _HskChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        'HSK $level',
+        level >= 7 ? 'Diğer' : 'HSK $level',
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,
