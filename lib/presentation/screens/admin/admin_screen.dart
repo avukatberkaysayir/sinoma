@@ -2500,6 +2500,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         pinyin: _pinyinCtrl.text.trim(),
         lang: _selectedQuizLang,
         sourceEn: pivot ? _correctCtrlEn.text.trim() : '',
+        sourceEnWrong: pivot ? _wrongCtrlEn.text.trim() : '',
       );
       if (!mounted) return;
       setState(() {

@@ -435,6 +435,7 @@ class AdminService {
     String lang = 'tr',
     List<String> targetWords = const [],
     String sourceEn = '',
+    String sourceEnWrong = '',
     List<String> targetLangs = const [],
   }) async {
     final res = await _db.functions.invoke(
@@ -444,8 +445,10 @@ class AdminService {
         'pinyin': pinyin,
         'lang': lang,
         if (targetWords.isNotEmpty) 'targetWords': targetWords,
-        // Pivot: non-English options translate from the approved English.
+        // Pivot: non-English options translate BOTH approved English options
+        // (correct + the chosen wrong distractor) instead of inventing a new one.
         if (sourceEn.trim().isNotEmpty) 'sourceEn': sourceEn.trim(),
+        if (sourceEnWrong.trim().isNotEmpty) 'sourceEnWrong': sourceEnWrong.trim(),
         // Batch: generate English + these languages in one call (fewer Gemini hits).
         if (targetLangs.isNotEmpty) 'targetLangs': targetLangs,
       },

@@ -92,6 +92,7 @@ function buildPrompt(
   pinyin: string,
   langName: string,
   sourceEn?: string,
+  sourceEnWrong?: string,
 ): string {
   const profile = LANG_PROFILES[langName];
   const authority = profile?.authority ?? `the most authoritative ${langName} grammar standard`;
@@ -105,24 +106,28 @@ function buildPrompt(
   // English carries the vetted meaning; Chinese/pinyin are only grammar reference.
   // Chinese→English→target reads far more naturally than Chinese→target direct.
   if (sourceEn && sourceEn.trim() && langName !== "English") {
+    const hasWrong = !!(sourceEnWrong && sourceEnWrong.trim());
     return (
       `You are a certified ${langName} linguist and professional translator.\n` +
       `Your grammar authority: ${authority}.\n\n` +
       `MANDATORY GRAMMAR RULES for this task:\n${numberedRules}\n\n` +
-      `TRANSLATE THIS APPROVED ENGLISH into ${langName}. The English is the vetted, ` +
-      `authoritative meaning — translate IT. Use the Chinese only to disambiguate nuance.\n` +
-      `  English (authoritative source): "${sourceEn.trim()}"\n` +
-      `  Chinese (reference only):       "${transcription}"\n` +
-      (pinyin ? `  Pinyin (reference only):        "${pinyin}"\n` : "") +
-      `\nFollow these steps internally before producing output:\n` +
-      `  Step 1 — Draft a natural ${langName} rendering of the ENGLISH meaning (not word-for-word).\n` +
-      `  Step 2 — Grammar audit: fix every violation of the numbered rules.\n` +
-      `  Step 3 — Naturalness check: exactly what a fluent native speaker would say.\n` +
-      `  Step 4 — wrongAnswer: take your correctAnswer and change exactly ONE key semantic element ` +
-      `(near-synonym that shifts meaning, add/remove a negation, or swap subject/object). It must be ` +
-      `equally grammatically perfect — only the meaning is wrong; similar length/structure.\n\n` +
+      `Translate the APPROVED English options into ${langName}. The English is the ` +
+      `vetted, authoritative meaning — translate ITS meaning faithfully and naturally ` +
+      `(NOT word-for-word). Use the Chinese only to disambiguate nuance.\n` +
+      `  correctAnswer — English: "${sourceEn.trim()}"\n` +
+      (hasWrong ? `  wrongAnswer — English:   "${sourceEnWrong!.trim()}"\n` : "") +
+      `  Chinese (reference only): "${transcription}"\n` +
+      (pinyin ? `  Pinyin (reference only):  "${pinyin}"\n` : "") +
+      `\nSteps before output:\n` +
+      `  1 — Translate correctAnswer into natural ${langName} (what a native would say).\n` +
+      (hasWrong
+        ? `  2 — Translate wrongAnswer into ${langName} the SAME way. Preserve ITS meaning ` +
+          `exactly — do NOT invent a different distractor; it is already the chosen wrong option.\n`
+        : `  2 — wrongAnswer: take your correctAnswer and change exactly ONE key semantic ` +
+          `element (flip a negation, swap subject/object, or a meaning-shifting near-synonym).\n`) +
+      `  3 — Grammar-audit both against the numbered rules; each must be grammatically perfect.\n\n` +
       `OUTPUT — return ONLY valid JSON, no markdown:\n` +
-      `{"correctAnswer": "<final ${langName} translation>", "wrongAnswer": "<grammatical but semantically wrong distractor>"}`
+      `{"correctAnswer": "<${langName} of correctAnswer>", "wrongAnswer": "<${langName} of wrongAnswer>"}`
     );
   }
 
@@ -313,6 +318,7 @@ serve(async (req) => {
     const pinyin = (body.pinyin ?? "").toString().trim();
     const lang = (body.lang ?? "tr").toString();
     const sourceEn = (body.sourceEn ?? "").toString().trim();
+    const sourceEnWrong = (body.sourceEnWrong ?? "").toString().trim();
     if (!transcription) return json({ error: "transcription required" }, 400);
 
     const langName =
@@ -322,8 +328,11 @@ serve(async (req) => {
       : lang === "vi" ? "Vietnamese"
       : "Turkish";
 
-    // Cache first — same sentence+language+English-source never re-hits Gemini.
-    const cacheKey = await sha256(`${MODEL}|${langName}|${sourceEn}|${transcription}`);
+    // Cache first — same sentence+language+English source (correct+wrong) never
+    // re-hits Gemini. The wrong-source is part of the key so editing the English
+    // distractor regenerates the translation instead of returning a stale one.
+    const cacheKey = await sha256(
+      `${MODEL}|${langName}|${sourceEn}|${sourceEnWrong}|${transcription}`);
     const cached = await cacheGet(cacheKey);
     if (cached) {
       return json({ correctAnswer: cached.correct, wrongAnswer: cached.wrong, cached: true });
@@ -375,7 +384,7 @@ serve(async (req) => {
       return json({ correctAnswer: enCorrect, wrongAnswer: enWrong, extra, batched: true });
     }
 
-    const prompt = buildPrompt(transcription, pinyin, langName, sourceEn);
+    const prompt = buildPrompt(transcription, pinyin, langName, sourceEn, sourceEnWrong);
 
     const reqBody = JSON.stringify({
       contents: [{ parts: [{ text: prompt }] }],
