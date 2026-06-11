@@ -450,16 +450,19 @@ def run(
     # or music). This is what keeps "no-dialogue" clips out of the review queue.
     dropped_ns = 0
     dropped_dup = 0
+    dropped_unplaced = 0
     try:
         fill_whisper_text(youtube_id, url)
         dropped_ns = _drop_no_speech_pending(youtube_id)
         # Every import: drop clips that already exist as an ACTIVE video.
         dropped_dup = _drop_active_duplicates(youtube_id)
+        # Every import: drop clips that couldn't be placed in ANY slot (redundant).
+        dropped_unplaced = _drop_unplaced_pending(youtube_id)
     except Exception as exc:
         print(f"  [WHISPER-FILL] atlandı: {exc}")
-    return {"segmentsWritten": inserted - dropped_ns - dropped_dup, "method": method,
-            "gatedOut": gated, "droppedNoSpeech": dropped_ns,
-            "droppedDuplicates": dropped_dup}
+    return {"segmentsWritten": inserted - dropped_ns - dropped_dup - dropped_unplaced,
+            "method": method, "gatedOut": gated, "droppedNoSpeech": dropped_ns,
+            "droppedDuplicates": dropped_dup, "droppedUnplaced": dropped_unplaced}
 
 
 def _audio_cache_path(youtube_id: str) -> Path:
@@ -569,6 +572,30 @@ def fill_whisper_text(
             on_progress(filled)
     print(f"  [WHISPER-FILL] ✓ {filled} whisper_text yazıldı ({youtube_id})")
     return filled
+
+
+def _drop_unplaced_pending(youtube_id: str) -> int:
+    """Delete this video's PENDING clips that the path trigger left UNPLACED — no
+    level AND no backup. That happens only when EVERY teaching slot the clip could
+    fill (its grammar(s) and word(s) at its level) is already taken by another
+    active/pending clip, i.e. the clip is fully redundant. There is no slot to
+    review it for, so it should not sit in the pending queue at all."""
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
+                "select": "id,level,backup_level"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    rows = resp.json() if resp.status_code < 300 else []
+    ids = [r["id"] for r in rows
+           if r.get("level") is None and r.get("backup_level") is None]
+    for cid in ids:
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
+    if ids:
+        print(f"  [UNPLACED] {len(ids)} yerleşemeyen (her slotu dolu) klip silindi ({youtube_id})")
+    return len(ids)
 
 
 def _drop_no_speech_pending(youtube_id: str) -> int:
