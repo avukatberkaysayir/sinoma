@@ -481,8 +481,10 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   left: 12,
                   right: 12,
                   child: Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 460),
+                    // One fixed footprint for every panel card, so the word
+                    // popup and "Listeye Ekle" open at the SAME size.
+                    child: SizedBox(
+                      width: 320,
                       child: Material(
                         elevation: 12,
                         borderRadius: BorderRadius.circular(12),

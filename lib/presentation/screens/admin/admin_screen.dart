@@ -639,7 +639,9 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
         children: [
           Row(
             children: [
-              Text(_word,
+              // Selectable so the word can be copied straight into translate
+              // tools / dictionaries.
+              SelectableText(_word,
                   style: const TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 22,
