@@ -135,7 +135,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _timedOut = false;
     _replayCount = 0;
     _panel = null;
-    _resumeAfterPanel = false;
     _stopCountdown();
     _countdown = _choiceSeconds;
   }
@@ -295,24 +294,15 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   }
 
   // ── Inline panels (playlist / word meaning / report) ───────────────────────
-  // They open BELOW the player instead of as dialogs, so the video is never
-  // dimmed or covered. Opening pauses only a PLAYING video; closing resumes
-  // only what the panel itself paused.
+  // They overlay the POST-PLAYER area (subtitle + options), never the video:
+  // the player and its natural flow are completely untouched.
   _PanelKind? _panel;
   String _panelWord = '';
-  bool _resumeAfterPanel = false;
 
   void _openPanel(_PanelKind kind, {String word = ''}) {
     if (_panel == kind && (kind != _PanelKind.word || word == _panelWord)) {
       _closePanel();
       return;
-    }
-    if (_panel == null) {
-      _resumeAfterPanel = _playerCtrl.isPlaying;
-      // The panel overlays the PLAYER AREA itself (no layout shift, no
-      // scrolling); the iframe lives above the canvas so it must hide —
-      // setHidden also pauses playback.
-      _playerCtrl.setHidden(true);
     }
     setState(() {
       _panel = kind;
@@ -323,11 +313,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   void _closePanel() {
     if (_panel == null) return;
     setState(() => _panel = null);
-    _playerCtrl.setHidden(false);
-    // Resume ONLY what the panel paused — and never a clip whose segment
-    // already finished (it must not run past its end).
-    if (_resumeAfterPanel && !_clipEnded) _playerCtrl.playVideo();
-    _resumeAfterPanel = false;
   }
 
   void _showWordMeaning(String word) =>
@@ -394,14 +379,102 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   ),
                 ),
               ),
-              // Inline panels open OVER the player area (the iframe hides
-              // meanwhile) — nothing below moves, no scrolling needed.
+            ],
+          ),
+
+          // ── Controls bar ──────────────────────────────────────────────────
+          _ControlsBar(
+            speed: _speed,
+            soundOn: _soundOn,
+            onToggleSound: _playerCtrl.toggleSound,
+            onPrev: _goPrev,
+            onReplay: _replay,
+            onSpeedChanged: _setSpeed,
+            // Practice tab only — the Öğren phases show neither.
+            ticks: widget.phaseMode ? null : _ticks,
+            onAddToPlaylist:
+                widget.phaseMode ? null : () => _openPlaylistDialog(l10n),
+            playlistTooltip: l10n.addToPlaylist,
+          ),
+
+          // ── Post-clip area ────────────────────────────────────────────────
+          // The inline panels (playlist / word meaning / report) overlay THIS
+          // region — the player above keeps its natural flow, untouched.
+          Stack(
+            children: [
+              ConstrainedBox(
+                constraints:
+                    BoxConstraints(minHeight: _panel != null ? 300 : 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_clipEnded) ...[
+                      const SizedBox(height: 14),
+
+                      // Step 1: choice (Subtitles On | Subtitles Off) — only
+                      // while the choice window is open.
+                      if (_subtitleChoice == null && !_timedOut)
+                        _SubtitleChoiceButtons(
+                          onLabel: l10n.subtitlesOn,
+                          offLabel: l10n.subtitlesOff,
+                          onWithSubtitle: _pickWithSubtitle,
+                          onWithoutSubtitle: _pickWithoutSubtitle,
+                        ),
+
+                      // Step 2: after a choice → the two answer options always
+                      // show; the Chinese subtitle bar only when toggled on.
+                      if (_subtitleChoice != null) ...[
+                        GestureDetector(
+                          onTap: _toggleSubtitle,
+                          child: _subtitleChoice == true
+                              ? _ChineseSubtitleBar(
+                                  words: seg.targetWords.isNotEmpty
+                                      ? seg.targetWords
+                                      : [seg.subtitleText],
+                                  onWordTap: _showWordMeaning,
+                                )
+                              : _SubtitleRevealBar(label: l10n.subtitleTitle),
+                        ),
+                        const SizedBox(height: 14),
+                        if (hasQuiz)
+                          _AnswerRow(
+                            correct: quizCorrect,
+                            wrong: quizWrong,
+                            swap: _optSwap,
+                            selected: _pickedAnswer,
+                            revealed: _pickedAnswer != null || _timedOut,
+                            onPick: _onPick,
+                          ),
+                        // "Sorun Bildir" — bottom-right, under the options.
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: TextButton.icon(
+                              onPressed: () =>
+                                  _openPanel(_PanelKind.report),
+                              icon:
+                                  const Icon(Icons.flag_outlined, size: 15),
+                              label: Text(l10n.reportProblem,
+                                  style: const TextStyle(fontSize: 12)),
+                              style: TextButton.styleFrom(
+                                  foregroundColor:
+                                      AppColors.onSurfaceMuted),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ],
+                ),
+              ),
               if (_panel != null)
                 Positioned.fill(
                   child: Container(
                     color: AppColors.surface,
-                    padding: const EdgeInsets.all(12),
-                    child: Center(
+                    padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
+                    child: Align(
+                      alignment: Alignment.topCenter,
                       child: ConstrainedBox(
                         constraints: const BoxConstraints(maxWidth: 460),
                         child: SingleChildScrollView(
@@ -422,87 +495,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 ),
             ],
           ),
-
-          // ── Controls bar ──────────────────────────────────────────────────
-          _ControlsBar(
-            speed: _speed,
-            soundOn: _soundOn,
-            onToggleSound: _playerCtrl.toggleSound,
-            onPrev: _goPrev,
-            onReplay: _replay,
-            onSpeedChanged: _setSpeed,
-            // Practice tab only — the Öğren phases show neither.
-            ticks: widget.phaseMode ? null : _ticks,
-            onAddToPlaylist:
-                widget.phaseMode ? null : () => _openPlaylistDialog(l10n),
-            playlistTooltip: l10n.addToPlaylist,
-          ),
-
-          // ── Post-clip area ────────────────────────────────────────────────
-          if (_clipEnded) ...[
-            const SizedBox(height: 14),
-
-            // Step 1: choice (Subtitles On | Subtitles Off) — only while the
-            // choice window is open (not after a pick or timeout).
-            if (_subtitleChoice == null && !_timedOut)
-              _SubtitleChoiceButtons(
-                onLabel: l10n.subtitlesOn,
-                offLabel: l10n.subtitlesOff,
-                onWithSubtitle: _pickWithSubtitle,
-                onWithoutSubtitle: _pickWithoutSubtitle,
-              ),
-
-            // Step 2: after a choice → the two answer options always show; the
-            // Chinese subtitle bar shows only when subtitles are toggled on.
-            // A transparent CC toggle floats over the options so the user can
-            // show/hide the subtitle at any time, regardless of the first pick.
-            // Options freeze after one pick; advance via the player's next arrow.
-            if (_subtitleChoice != null) ...[
-              // Subtitle OFF → show the transparent "Subtitle" toggle. Subtitle
-              // ON → the dark subtitle bar. Both occupy the SAME footprint (same
-              // bar metrics) so revealing the real subtitle does NOT push the
-              // answer options down. Locale-aware. Tap either to flip.
-              GestureDetector(
-                onTap: _toggleSubtitle,
-                child: _subtitleChoice == true
-                    ? _ChineseSubtitleBar(
-                        words: seg.targetWords.isNotEmpty
-                            ? seg.targetWords
-                            : [seg.subtitleText],
-                        onWordTap: _showWordMeaning,
-                      )
-                    : _SubtitleRevealBar(label: l10n.subtitleTitle),
-              ),
-              const SizedBox(height: 14),
-              if (hasQuiz)
-                _AnswerRow(
-                  correct: quizCorrect,
-                  wrong: quizWrong,
-                  swap: _optSwap,
-                  selected: _pickedAnswer,
-                  // Freeze (reveal correct, ignore taps) once answered
-                  // OR after the countdown expired without an answer.
-                  revealed: _pickedAnswer != null || _timedOut,
-                  onPick: _onPick,
-                ),
-              // "Sorun Bildir" — bottom-right, under the options (both the
-              // practice feed and the Öğren phases).
-              Padding(
-                padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton.icon(
-                    onPressed: () => _openPanel(_PanelKind.report),
-                    icon: const Icon(Icons.flag_outlined, size: 15),
-                    label: Text(l10n.reportProblem,
-                        style: const TextStyle(fontSize: 12)),
-                    style: TextButton.styleFrom(
-                        foregroundColor: AppColors.onSurfaceMuted),
-                  ),
-                ),
-              ),
-            ],
-          ],
 
           const SizedBox(height: 24),
         ],
