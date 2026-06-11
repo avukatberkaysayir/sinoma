@@ -1,4 +1,5 @@
 ﻿import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -1041,13 +1042,96 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
 
 // ── Quests ────────────────────────────────────────────────────────────────────
 
+// ── Daily quests ──────────────────────────────────────────────────────────────
+// 3 quests per day, picked DETERMINISTICALLY from (uid + date): stable all day,
+// different every day and per user. Progress comes from today's answer_stats
+// row; a finished quest's chest pays +20 gold once (claimReward is idempotent).
+
+class _QuestDef {
+  final String id;
+  final IconData icon;
+  final Color color;
+  final List<int> targets;
+  final String Function(int n, bool tr) label;
+  final int Function(int total, int correct, int points) metric;
+  const _QuestDef(
+      this.id, this.icon, this.color, this.targets, this.label, this.metric);
+}
+
+final List<_QuestDef> _kQuestPool = [
+  _QuestDef('points', Icons.bolt_rounded, const Color(0xFFFFC800),
+      const [20, 40, 60, 80],
+      (n, tr) => tr ? '$n puan kazan' : 'Earn $n points',
+      (t, c, p) => p),
+  _QuestDef('answer', Icons.check_circle_outline_rounded,
+      const Color(0xFF1CB0F6), const [5, 10, 15],
+      (n, tr) => tr ? '$n soru cevapla' : 'Answer $n questions',
+      (t, c, p) => t),
+  _QuestDef('correct', Icons.track_changes_rounded, const Color(0xFF58CC02),
+      const [3, 5, 8],
+      (n, tr) => tr ? '$n doğru cevap ver' : 'Get $n correct answers',
+      (t, c, p) => c),
+  _QuestDef('streak', Icons.local_fire_department_rounded,
+      const Color(0xFFFF9600), const [1],
+      (n, tr) =>
+          tr ? 'Seriyi sürdür (bugün 1 soru)' : 'Keep the streak (1 today)',
+      (t, c, p) => t > 0 ? 1 : 0),
+];
+
 class QuestsCenter extends ConsumerWidget {
   final bool tr;
   const QuestsCenter({super.key, required this.tr});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final meta = ref.watch(pathMetaProvider);
+    final uid = Supabase.instance.client.auth.currentUser?.id ?? '';
+    final now = DateTime.now();
+    final dayKey =
+        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
+    // Deterministic daily pick: same all day, reshuffles at midnight.
+    final rng = Random(Object.hash(uid, dayKey));
+    final pool = List<_QuestDef>.from(_kQuestPool)..shuffle(rng);
+    final picked = pool.take(3).toList();
+    final targets = [
+      for (final q in picked) q.targets[rng.nextInt(q.targets.length)]
+    ];
+
+    // Today's progress.
+    final rows = ref.watch(dailyAnswerStatsProvider).valueOrNull ?? const [];
+    final todayIso =
+        '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+    final today = rows.firstWhere(
+        (r) => '${r['day']}'.startsWith(todayIso),
+        orElse: () => const {});
+    final t = (today['total'] as num?)?.toInt() ?? 0;
+    final c = (today['correct'] as num?)?.toInt() ?? 0;
+    final p = (today['points'] as num?)?.toInt() ?? 0;
+
+    final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
+    final rewards = progress['__rewards'];
+    bool claimed(String qid) =>
+        rewards is Map && rewards['q.$dayKey.$qid'] == true;
+    final doneCount = [
+      for (var i = 0; i < picked.length; i++)
+        if (picked[i].metric(t, c, p) >= targets[i]) 1
+    ].length;
+
+    final hoursLeft =
+        DateTime(now.year, now.month, now.day + 1).difference(now).inHours;
+
+    Future<void> claim(String qid) async {
+      final ok = await ref
+          .read(userRepositoryProvider)
+          .claimReward('q.$dayKey.$qid');
+      if (!ok || !context.mounted) return;
+      ref.invalidate(pathProgressProvider);
+      ref.invalidate(currentUserProvider);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 2),
+          content:
+              Text(tr ? '🪙 Görev ödülü: +20 altın!' : '🪙 Quest reward: +20 gold!')));
+    }
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
       children: [
@@ -1057,47 +1141,79 @@ class QuestsCenter extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // Hero banner (our palette + mascot).
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.fromLTRB(24, 20, 16, 20),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                        colors: [Color(0xFF8A5CF6), Color(0xFFCE82FF)]),
+                        colors: [Color(0xFF1B6E68), Color(0xFF2EC4B6)]),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Row(
                     children: [
-                      Text(tr ? 'Tekrar hoş geldin!' : 'Welcome back!',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 6),
-                      Text(
-                          tr
-                              ? 'Görevleri tamamlayarak ilerle!'
-                              : 'Complete quests to progress!',
-                          style:
-                              const TextStyle(color: Colors.white70, fontSize: 14)),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                                tr
+                                    ? 'Görevlerle birlikte ödül kazan!'
+                                    : 'Earn rewards with quests!',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 21,
+                                    fontWeight: FontWeight.w800)),
+                            const SizedBox(height: 6),
+                            Text(
+                                tr
+                                    ? 'Bugün 3 görevin $doneCount tanesini tamamladın.'
+                                    : 'You completed $doneCount of 3 quests today.',
+                                style: const TextStyle(
+                                    color: Colors.white70, fontSize: 14)),
+                          ],
+                        ),
+                      ),
+                      Image.asset('assets/mascot/mascot.png',
+                          width: 72, height: 72, fit: BoxFit.contain),
                     ],
                   ),
                 ),
                 const SizedBox(height: 20),
-                Text(tr ? 'Günlük Görevler' : 'Daily quests',
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(tr ? 'Günlük Görevler' : 'Daily Quests',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                    const Icon(Icons.schedule_rounded,
+                        color: Color(0xFFFFC800), size: 15),
+                    const SizedBox(width: 4),
+                    Text(tr ? '$hoursLeft SAAT' : '$hoursLeft HOURS',
+                        style: const TextStyle(
+                            color: Color(0xFFFFC800),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800)),
+                  ],
+                ),
                 const SizedBox(height: 12),
-                _QuestRow(
-                    icon: Icons.bolt_rounded,
-                    color: const Color(0xFFFFC800),
-                    label: tr ? 'Bir faz tamamla' : 'Complete one phase'),
-                const SizedBox(height: 10),
-                _QuestRow(
-                    icon: Icons.local_fire_department_rounded,
-                    color: const Color(0xFFFF9600),
-                    label: tr
-                        ? 'Seriyi sürdür (${meta.streak} gün)'
-                        : 'Keep your streak (${meta.streak} days)'),
+                for (var i = 0; i < picked.length; i++) ...[
+                  _QuestRow(
+                    icon: picked[i].icon,
+                    color: picked[i].color,
+                    label: picked[i].label(targets[i], tr),
+                    current: picked[i].metric(t, c, p),
+                    target: targets[i],
+                    claimed: claimed(picked[i].id),
+                    onClaim: picked[i].metric(t, c, p) >= targets[i] &&
+                            !claimed(picked[i].id)
+                        ? () => claim(picked[i].id)
+                        : null,
+                  ),
+                  const SizedBox(height: 10),
+                ],
               ],
             ),
           ),
@@ -1111,9 +1227,23 @@ class _QuestRow extends StatelessWidget {
   final IconData icon;
   final Color color;
   final String label;
-  const _QuestRow({required this.icon, required this.color, required this.label});
+  final int current;
+  final int target;
+  final bool claimed;
+  final VoidCallback? onClaim;
+  const _QuestRow({
+    required this.icon,
+    required this.color,
+    required this.label,
+    required this.current,
+    required this.target,
+    required this.claimed,
+    required this.onClaim,
+  });
+
   @override
   Widget build(BuildContext context) {
+    final done = current >= target;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1122,9 +1252,56 @@ class _QuestRow extends StatelessWidget {
         border: Border.all(color: const Color(0xFF2C3B45)),
       ),
       child: Row(children: [
-        Icon(icon, color: color, size: 28),
+        Icon(icon, color: color, size: 30),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              Stack(
+                children: [
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: LinearProgressIndicator(
+                      value: (current / target).clamp(0.0, 1.0),
+                      minHeight: 14,
+                      backgroundColor: const Color(0xFF37464F),
+                      valueColor: AlwaysStoppedAnimation(color),
+                    ),
+                  ),
+                  Positioned.fill(
+                    child: Center(
+                      child: Text('${current.clamp(0, target)} / $target',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: Text(label, style: const TextStyle(color: Colors.white, fontSize: 15))),
+        claimed
+            ? const Icon(Icons.check_circle_rounded,
+                color: Color(0xFF58CC02), size: 30)
+            : IconButton(
+                onPressed: onClaim,
+                tooltip: done ? '+20' : null,
+                icon: Icon(Icons.redeem_rounded,
+                    size: 30,
+                    color: done
+                        ? const Color(0xFFFFC800)
+                        : Colors.white24),
+              ),
       ]),
     );
   }

@@ -698,39 +698,22 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                         ],
                       ),
                     ),
-                    // The mascot fills the empty side next to nodes 1-3 —
-                    // tapping it opens the city info panel.
+                    // The mascot sits in the SAME column as node 4 (∓112 from
+                    // centre), beside nodes 1-3 — tapping it opens the city
+                    // info panel (no label underneath).
                     Positioned(
-                      left: mirror ? null : 30,
-                      right: mirror ? 30 : null,
-                      top: 200,
-                      child: GestureDetector(
-                        onTap: hasInfo
-                            ? () => setState(() => _infoOpen = true)
-                            : null,
-                        child: Column(
-                          children: [
-                            _mascot(104),
-                            if (hasInfo)
-                              Container(
-                                margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 10, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: _duoPanel,
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                      color: const Color(0xFF2C3B45)),
-                                ),
-                                child: Text(
-                                  cityDisplayName(city, tr: tr),
-                                  style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                          ],
+                      left: 0,
+                      right: 0,
+                      top: 130,
+                      child: Center(
+                        child: Transform.translate(
+                          offset: Offset(mirror ? 112 : -112, 0),
+                          child: GestureDetector(
+                            onTap: hasInfo
+                                ? () => setState(() => _infoOpen = true)
+                                : null,
+                            child: _mascot(156),
+                          ),
                         ),
                       ),
                     ),
@@ -775,11 +758,12 @@ class _UnitInfoPanel extends ConsumerWidget {
       margin: const EdgeInsets.fromLTRB(8, 6, 8, 10),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xF2131F2A),
+        color: const Color(0xFF18242F), // fully opaque
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF2C3B45)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 8, 4),
@@ -802,64 +786,80 @@ class _UnitInfoPanel extends ConsumerWidget {
           ),
           const Divider(color: Colors.white12, height: 1),
           Expanded(
-            child: ListView.separated(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
-              itemCount: landmarks.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (_, i) {
-                final lm = landmarks[i];
-                final photo = assets.photo(i);
-                final descTr =
-                    photo.descTr?.isNotEmpty == true ? photo.descTr! : lm.descTr;
-                final descEn =
-                    photo.descEn?.isNotEmpty == true ? photo.descEn! : lm.descEn;
-                return Container(
-                  clipBehavior: Clip.antiAlias,
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.34),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      SizedBox(
-                        width: 120,
-                        height: 96,
-                        child: Stack(fit: StackFit.expand, children: [
-                          const ColoredBox(color: Color(0xFF26323F)),
-                          _slotImage(
-                              photo.url, cityPhotoAsset(city.slug, lm.photo),
-                              fit: BoxFit.contain),
-                        ]),
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(tr ? lm.nameTr : lm.nameEn,
-                                  style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w800)),
-                              const SizedBox(height: 4),
-                              Text(tr ? descTr : descEn,
-                                  maxLines: 3,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      color: Colors.white70,
-                                      fontSize: 12,
-                                      height: 1.3)),
-                            ],
-                          ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var i = 0; i < landmarks.length; i++) ...[
+                    Builder(builder: (_) {
+                      final lm = landmarks[i];
+                      final photo = assets.photo(i);
+                      final descTr = photo.descTr?.isNotEmpty == true
+                          ? photo.descTr!
+                          : lm.descTr;
+                      final descEn = photo.descEn?.isNotEmpty == true
+                          ? photo.descEn!
+                          : lm.descEn;
+                      return Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF101A22),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                      ),
-                    ],
-                  ),
-                );
-              },
+                        child: Row(
+                          children: [
+                            SizedBox(
+                              width: 110,
+                              height: 96,
+                              child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    const ColoredBox(
+                                        color: Color(0xFF26323F)),
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: _slotImage(photo.url,
+                                          cityPhotoAsset(city.slug, lm.photo),
+                                          fit: BoxFit.contain),
+                                    ),
+                                  ]),
+                            ),
+                            Expanded(
+                              child: Padding(
+                                padding:
+                                    const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                                child: Column(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.center,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(tr ? lm.nameTr : lm.nameEn,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w800)),
+                                    const SizedBox(height: 4),
+                                    Text(tr ? descTr : descEn,
+                                        maxLines: 3,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Colors.white70,
+                                            fontSize: 12,
+                                            height: 1.3)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                    if (i < landmarks.length - 1) const SizedBox(height: 10),
+                  ],
+                ],
+              ),
             ),
           ),
         ],
@@ -949,7 +949,7 @@ class _PhaseNode extends ConsumerWidget {
     if (hasIcon) {
       // Real/uploaded landmark icon — shown alone, no circle behind it. The admin
       // scale lets the size be tuned per slot.
-      final sz = (104.0 * iconOverride.scale).clamp(48.0, 200.0);
+      final sz = (78.0 * iconOverride.scale).clamp(36.0, 150.0);
       // A landmark set without its bundled art yet (icons come later or via
       // admin upload) falls back to the generic coloured circle.
       Widget genericCircle() => Container(
@@ -998,20 +998,20 @@ class _PhaseNode extends ConsumerWidget {
       final topColor = available ? _duoGreen : _duoLocked;
       final shadow = available ? _duoGreenDark : const Color(0xFF2A363D);
       art = Container(
-        width: 104,
-        height: 98,
+        width: 78,
+        height: 74,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: topColor,
-          borderRadius: BorderRadius.circular(52),
-          boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 7))],
+          borderRadius: BorderRadius.circular(39),
+          boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
         ),
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
             Icon(ni.icon,
-                size: 48,
+                size: 36,
                 color: available ? Colors.white : Colors.white30),
             if (badge != null)
               Positioned(right: -3, bottom: -3, child: badge),
@@ -1097,8 +1097,8 @@ class _NodeFx extends StatefulWidget {
     required this.child,
   });
 
-  static const double w = 110;
-  static const double h = 100;
+  static const double w = 86;
+  static const double h = 78;
 
   @override
   State<_NodeFx> createState() => _NodeFxState();
@@ -1157,8 +1157,8 @@ class _NodeFxState extends State<_NodeFx>
               Positioned(
                 bottom: -4,
                 child: Container(
-                  width: 86,
-                  height: 20,
+                  width: 66,
+                  height: 16,
                   decoration: BoxDecoration(
                     color: Colors.white
                         .withValues(alpha: widget.available ? 0.10 : 0.05),
@@ -1175,8 +1175,8 @@ class _NodeFxState extends State<_NodeFx>
                     final a =
                         0.10 + 0.10 * (0.5 + 0.5 * sin(_c.value * 2 * pi));
                     return Container(
-                      width: 92,
-                      height: 92,
+                      width: 68,
+                      height: 68,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
                         boxShadow: [
@@ -1199,10 +1199,10 @@ class _NodeFxState extends State<_NodeFx>
               ),
               // Twinkling stars around unlocked nodes.
               if (widget.available) ...[
-                _star(-46, -32, 0.0, 13),
-                _star(48, -20, 2.1, 11),
-                _star(-40, 24, 4.2, 10),
-                _star(44, 32, 1.3, 12),
+                _star(-36, -24, 0.0, 11),
+                _star(38, -16, 2.1, 9),
+                _star(-32, 18, 4.2, 8),
+                _star(34, 24, 1.3, 10),
               ],
               // Bouncing BAŞLAT pill above the current node.
               if (widget.isCurrent)
@@ -1529,26 +1529,22 @@ class _RewardNodeState extends ConsumerState<_RewardNode>
     final rewards = progress['__rewards'];
     final claimed = rewards is Map && rewards[widget.rewardKey] == true;
 
-    // Treasure chest on the same translucent pedestal as the circles; tap →
-    // shake + sparkle and the unit gold (once).
-    final chest = Container(
-      width: 78,
-      height: 68,
+    // Hand-painted treasure chest art (bg/watermark cleaned); tap → shake +
+    // sparkle and the unit gold (once). Claimed → dimmed with a check badge.
+    final chest = Stack(
+      clipBehavior: Clip.none,
       alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: claimed ? _duoLocked : _rewardGold,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-              color: claimed ? const Color(0xFF2A363D) : const Color(0xFFE0A800),
-              offset: const Offset(0, 5)),
-        ],
-      ),
-      child: Icon(
-        claimed ? Icons.redeem_rounded : Icons.card_giftcard_rounded,
-        color: claimed ? Colors.white38 : Colors.white,
-        size: 34,
-      ),
+      children: [
+        Opacity(
+          opacity: claimed ? 0.45 : 1,
+          child: Image.asset('assets/images/treasure_chest.png',
+              width: 92, height: 78, fit: BoxFit.contain),
+        ),
+        if (claimed)
+          Positioned(
+              right: 0, bottom: 0,
+              child: _nodeBadge(Icons.check_rounded, _duoGreenDark)),
+      ],
     );
 
     final content = SizedBox(

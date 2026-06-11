@@ -210,10 +210,11 @@ class VideoRepository {
 
   // ── Daily answer stats + global rank (profile page) ─────────────────────────
 
-  Future<void> bumpAnswerStat(bool correct) async {
+  Future<void> bumpAnswerStat(bool correct, {int points = 0}) async {
     if (_db.auth.currentUser == null) return;
     try {
-      await _db.rpc('bump_answer_stat', params: {'p_correct': correct});
+      await _db.rpc('bump_answer_stat',
+          params: {'p_correct': correct, 'p_points': points});
     } catch (_) {/* stats are best-effort */}
   }
 
@@ -222,7 +223,7 @@ class VideoRepository {
     if (uid == null) return const [];
     final data = await _db
         .from('answer_stats')
-        .select('day, total, correct')
+        .select('day, total, correct, points')
         .eq('uid', uid)
         .order('day', ascending: false)
         .limit(14);

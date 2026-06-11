@@ -204,6 +204,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
         _updateTicks(false);
         ref.read(videoRepositoryProvider).bumpAnswerStat(false);
+        ref.invalidate(dailyAnswerStatsProvider); // daily quests progress
         setState(() {
           _countdownActive = false;
           _timedOut = true;
@@ -278,7 +279,10 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _playerCtrl.showScorePopup(delta);
     widget.onAnswered?.call(correct);
     _updateTicks(correct);
-    ref.read(videoRepositoryProvider).bumpAnswerStat(correct);
+    ref
+        .read(videoRepositoryProvider)
+        .bumpAnswerStat(correct, points: delta > 0 ? delta : 0);
+    ref.invalidate(dailyAnswerStatsProvider); // daily quests progress
     // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _pickedAnswer = text);
   }
