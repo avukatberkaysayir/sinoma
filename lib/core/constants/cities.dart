@@ -12,6 +12,20 @@ class City {
   String get slug => pinyin.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
 
+// Turkish exonyms for well-known cities; the rest read naturally in pinyin.
+const Map<String, String> kCityTrNames = {
+  'beijing': 'Pekin', 'shanghai': 'Şanghay', 'nanjing': 'Nankin',
+  'guangzhou': 'Kanton', 'chongqing': 'Çunking', 'chengdu': 'Çengdu',
+  'xian': 'Şian', 'tianjin': 'Tiençin', 'hangzhou': 'Hangcou',
+  'wuhan': 'Vuhan', 'shenzhen': 'Şençen', 'suzhou': 'Sucou',
+  'qingdao': 'Çingdao', 'urumqi': 'Urumçi', 'kashgar': 'Kaşgar',
+  'hongkong': 'Hong Kong', 'macau': 'Makao',
+};
+
+// Locale-aware display name — banners/captions show ONLY this (no hanzi).
+String cityDisplayName(City c, {required bool tr}) =>
+    tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
+
 // A landmark of a city: a flat icon (phase circle + banner), a real photo and a
 // bilingual blurb (the info panel opened from the banner).
 class Landmark {
@@ -35,6 +49,51 @@ class Landmark {
 // four in the unit banner, and introduced (photo + text) in the banner info panel.
 // Cities not listed fall back to a generic themed icon + plain coloured banner.
 const Map<String, List<Landmark>> kCityLandmarks = {
+  // Chengdu — characteristic culture, not just places: panda, hotpot,
+  // face-changing opera, Jinli street. Bundled icon/photo assets can be
+  // overridden (or first supplied) per slot from Admin > Anasayfa > Öğren.
+  'chengdu': [
+    Landmark(
+      icon: 'panda',
+      photo: 'panda',
+      nameTr: 'Dev Panda Üssü',
+      nameEn: 'Giant Panda Base',
+      descTr:
+          'Chengdu Dev Panda Araştırma Üssü, dünyanın en büyük panda koruma ve üreme merkezi. Şehrin sembolü olan pandaları bambu ormanlarında yuvarlanırken görmek için her yıl milyonlarca ziyaretçi gelir.',
+      descEn:
+          "The Chengdu Research Base of Giant Panda Breeding is the world's largest panda conservation centre. Millions visit yearly to watch the city's beloved symbol tumble through bamboo groves.",
+    ),
+    Landmark(
+      icon: 'hotpot',
+      photo: 'hotpot',
+      nameTr: 'Sichuan Hotpot',
+      nameEn: 'Sichuan Hotpot',
+      descTr:
+          'Ağzı uyuşturan Sichuan biberi ve kıpkırmızı acı yağıyla kaynayan hotpot, Chengdu sofra kültürünün kalbidir. Masanın ortasındaki kazana herkes kendi lokmasını batırır — yemek burada paylaşılan bir oyundur.',
+      descEn:
+          'Bubbling with numbing Sichuan peppercorns and fiery red oil, hotpot is the heart of Chengdu dining. Everyone dips their own bite into the shared cauldron — eating here is a communal game.',
+    ),
+    Landmark(
+      icon: 'bianlian',
+      photo: 'bianlian',
+      nameTr: 'Bian Lian (Yüz Değiştirme)',
+      nameEn: 'Bian Lian (Face-Changing)',
+      descTr:
+          'Sichuan operasının büyülü sanatı Bian Lian\'da ustalar, bir el hareketiyle göz açıp kapayıncaya kadar renkli maskelerini değiştirir. Sırrı kuşaktan kuşağa yalnızca usta-çırak ilişkisiyle aktarılır.',
+      descEn:
+          'In Bian Lian, the magical art of Sichuan opera, masters swap vivid masks in the blink of an eye with a flick of the hand. The secret passes only from master to apprentice.',
+    ),
+    Landmark(
+      icon: 'jinli',
+      photo: 'jinli',
+      nameTr: 'Jinli Antik Sokağı',
+      nameEn: 'Jinli Ancient Street',
+      descTr:
+          'Kırmızı fenerlerle aydınlanan Jinli, Üç Krallık dönemine uzanan bir çarşı sokağıdır. Çay evleri, gölge oyunu ve şekerden ejderha çizen ustalarıyla Chengdu\'nun ağır akan yaşam ritmini en iyi burada hissedersin.',
+      descEn:
+          "Lit by red lanterns, Jinli is a market street tracing back to the Three Kingdoms era. With teahouses, shadow puppetry and sugar-painting masters, it's where Chengdu's famously slow rhythm of life is felt best.",
+    ),
+  ],
   'beijing': [
     Landmark(
       icon: 'great-wall',

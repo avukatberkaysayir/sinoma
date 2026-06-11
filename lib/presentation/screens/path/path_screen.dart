@@ -176,12 +176,7 @@ class PathScreen extends ConsumerWidget {
       case _Section.shop:
         return _RightSidebar(tr: tr);
       case _Section.profile:
-        return RightInfoCard(
-            tr: tr,
-            title: tr ? 'Etkinlik' : 'Activity',
-            body: tr
-                ? 'Arkadaş etkinliği yakında burada görünecek.'
-                : 'Friend activity will appear here soon.');
+        return ProfileListsRight(tr: tr);
       case _Section.more:
       case _Section.editProfile:
         return SettingsRight(
@@ -234,8 +229,8 @@ class _LeftNav extends StatelessWidget {
               padding: const EdgeInsets.only(left: 6, bottom: 24, top: 4),
               child: Row(
                 children: [
-                  const Icon(Icons.play_circle_fill,
-                      color: _duoGreen, size: 28),
+                  Image.asset('assets/mascot/mascot.png',
+                      width: 34, height: 34, fit: BoxFit.contain),
                   if (!compact) ...[
                     const SizedBox(width: 8),
                     const Text('Sinoma',
@@ -465,13 +460,15 @@ Color _unitColor(PathStep step) {
 }
 
 // An admin-uploaded image (network URL) when present, else the bundled asset.
+// A missing bundled asset (e.g. a landmark set added before its art) degrades
+// to an empty box instead of the red error widget.
 Widget _slotImage(String? url, String assetPath, {BoxFit fit = BoxFit.contain}) {
+  final asset = Image.asset(assetPath,
+      fit: fit, errorBuilder: (_, __, ___) => const SizedBox.shrink());
   if (url != null && url.isNotEmpty) {
-    return Image.network(url,
-        fit: fit,
-        errorBuilder: (_, __, ___) => Image.asset(assetPath, fit: fit));
+    return Image.network(url, fit: fit, errorBuilder: (_, __, ___) => asset);
   }
-  return Image.asset(assetPath, fit: fit);
+  return asset;
 }
 
 // Small corner badge on a node that marks its state (done = check, locked = lock).
@@ -695,7 +692,7 @@ class _BannerCard extends ConsumerWidget {
             .valueOrNull ??
         const UnitAssets();
 
-    final titleText = Text('${city.zh}  ${city.pinyin}',
+    final titleText = Text(cityDisplayName(city, tr: tr),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
@@ -957,8 +954,6 @@ class _UnitNodes extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final city = cityForUnit(step.hsk, step.index);
-    final label = '${city.zh}  ${city.pinyin}';
     // The 4 phase circles in order, then the reward chest at the bottom.
     final nodes = <Widget>[];
     for (var i = 0; i < step.phases.length; i++) {
@@ -994,15 +989,7 @@ class _UnitNodes extends StatelessWidget {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const SizedBox(height: 12),
-                    // Per-unit caption (the city name for this unit).
-                    Text(label,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Colors.white38,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 20),
                     ...nodes,
                     const SizedBox(height: 6),
                   ],
@@ -1098,16 +1085,40 @@ class _PhaseNode extends ConsumerWidget {
       // Real/uploaded landmark icon — shown alone, no circle behind it. The admin
       // scale lets the size be tuned per slot.
       final sz = (104.0 * iconOverride.scale).clamp(48.0, 200.0);
+      // A landmark set without its bundled art yet (icons come later or via
+      // admin upload) falls back to the generic coloured circle.
+      Widget genericCircle() => Container(
+            width: sz,
+            height: sz * 0.94,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: available ? _duoGreen : _duoLocked,
+              borderRadius: BorderRadius.circular(sz / 2),
+              boxShadow: [
+                BoxShadow(
+                    color: available
+                        ? _duoGreenDark
+                        : const Color(0xFF2A363D),
+                    offset: const Offset(0, 7)),
+              ],
+            ),
+            child: Icon(ni.icon,
+                size: sz * 0.46,
+                color: available ? Colors.white : Colors.white30),
+          );
+      final assetImg = ni.asset != null
+          ? Image.asset(ni.asset!,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => genericCircle())
+          : genericCircle();
       final img = SizedBox(
         width: sz,
         height: sz,
         child: iconUrl != null
             ? Image.network(iconUrl,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => ni.asset != null
-                    ? Image.asset(ni.asset!, fit: BoxFit.contain)
-                    : const SizedBox())
-            : Image.asset(ni.asset!, fit: BoxFit.contain),
+                errorBuilder: (_, __, ___) => assetImg)
+            : assetImg,
       );
       art = Stack(
         clipBehavior: Clip.none,
@@ -1607,56 +1618,174 @@ class _SlotWordPanel extends ConsumerWidget {
   }
 }
 
-// Reward chest in the middle of each unit. Tap (once) to claim points.
+// Unit reward: the mascot stands holding a closed chest; tapping plays an
+// opening animation and grants the gold; afterwards the mascot sits on the
+// opened chest. The mascot idles (blink every 5s, gentle sway / bob).
 const _rewardGold = Color(0xFFFFC800);
 const _rewardGoldDark = Color(0xFFE0A800);
 
-class _RewardNode extends ConsumerWidget {
+class _RewardNode extends ConsumerStatefulWidget {
   final String rewardKey;
   const _RewardNode({required this.rewardKey});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_RewardNode> createState() => _RewardNodeState();
+}
+
+class _RewardNodeState extends ConsumerState<_RewardNode>
+    with TickerProviderStateMixin {
+  // 5s idle loop: blink near the end of the cycle + sway/bob.
+  late final AnimationController _idle = AnimationController(
+      vsync: this, duration: const Duration(seconds: 5))
+    ..repeat();
+  late final AnimationController _open = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 900));
+  bool _opening = false;
+
+  @override
+  void dispose() {
+    _idle.dispose();
+    _open.dispose();
+    super.dispose();
+  }
+
+  Widget _mascot(double size, {required bool seated}) {
+    return AnimatedBuilder(
+      animation: _idle,
+      builder: (_, child) {
+        final t = _idle.value;
+        final blink = t > 0.94 ? 0.92 : 1.0; // quick squash ≈ a blink
+        final sway = seated ? 0.0 : 0.05 * sin(2 * pi * t); // standing sway
+        final bob = seated ? 1.5 * sin(4 * pi * t) : 0.0; // seated leg bob
+        return Transform.translate(
+          offset: Offset(0, bob),
+          child: Transform.rotate(
+            angle: sway,
+            child: Transform(
+              alignment: Alignment.bottomCenter,
+              transform: Matrix4.diagonal3Values(1, blink, 1),
+              child: child,
+            ),
+          ),
+        );
+      },
+      child: Image.asset('assets/mascot/mascot.png',
+          width: size, height: size, fit: BoxFit.contain),
+    );
+  }
+
+  Widget _chest({required bool claimed}) {
+    final box = Container(
+      width: 54,
+      height: 48,
+      decoration: BoxDecoration(
+        color: claimed ? _duoLocked : _rewardGold,
+        borderRadius: BorderRadius.circular(14),
+        boxShadow: [
+          BoxShadow(
+              color: claimed ? const Color(0xFF2A363D) : _rewardGoldDark,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Icon(
+        claimed ? Icons.redeem_rounded : Icons.card_giftcard_rounded,
+        color: claimed ? Colors.white38 : Colors.white,
+        size: 26,
+      ),
+    );
+    if (!_opening) return box;
+    // Opening: the chest shakes, then bursts.
+    return AnimatedBuilder(
+      animation: _open,
+      builder: (_, child) {
+        final v = _open.value;
+        final shake = sin(v * pi * 10) * 0.12 * (1 - v);
+        return Transform.rotate(
+          angle: shake,
+          child: Transform.scale(scale: 1 + 0.15 * v, child: child),
+        );
+      },
+      child: box,
+    );
+  }
+
+  Future<void> _claim() async {
+    if (_opening) return;
+    setState(() => _opening = true);
+    await _open.forward(from: 0); // chest-opening animation first
+    final ok =
+        await ref.read(userRepositoryProvider).claimReward(widget.rewardKey);
+    if (!mounted) return;
+    setState(() => _opening = false);
+    if (ok) {
+      final tr = ref.read(localeProvider).languageCode == 'tr';
+      ref.invalidate(pathProgressProvider);
+      ref.invalidate(currentUserProvider);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        duration: const Duration(seconds: 2),
+        content: Text(tr
+            ? '🪙 Üniteyi tamamladın — +20 altın!'
+            : '🪙 Unit complete — +20 gold!'),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
     final rewards = progress['__rewards'];
-    final claimed = rewards is Map && rewards[rewardKey] == true;
-    final tr = ref.watch(localeProvider).languageCode == 'tr';
+    final claimed = rewards is Map && rewards[widget.rewardKey] == true;
 
-    Future<void> claim() async {
-      final ok = await ref.read(userRepositoryProvider).claimReward(rewardKey);
-      if (!context.mounted) return;
-      if (ok) {
-        ref.invalidate(pathProgressProvider);
-        ref.invalidate(currentUserProvider);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          duration: const Duration(seconds: 2),
-          content: Text(tr ? '+20 puan kazandın! 🎉' : '+20 points! 🎉'),
-        ));
-      }
+    final Widget content;
+    if (claimed) {
+      // The mascot sits ON the opened chest.
+      content = SizedBox(
+        width: 110,
+        height: 96,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none,
+          children: [
+            _chest(claimed: true),
+            Positioned(
+                bottom: 28, child: _mascot(58, seated: true)),
+          ],
+        ),
+      );
+    } else {
+      // The mascot stands beside/holding the closed chest.
+      content = SizedBox(
+        width: 116,
+        height: 92,
+        child: Stack(
+          alignment: Alignment.bottomCenter,
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(left: 2, bottom: 0, child: _mascot(66, seated: false)),
+            Positioned(right: 6, bottom: 0, child: _chest(claimed: false)),
+            if (_opening)
+              AnimatedBuilder(
+                animation: _open,
+                builder: (_, __) => Opacity(
+                  opacity: (_open.value).clamp(0.0, 1.0),
+                  child: Transform.scale(
+                    scale: 0.6 + _open.value,
+                    child: const Icon(Icons.auto_awesome_rounded,
+                        color: _rewardGold, size: 40),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
-        onTap: claimed ? null : claim,
-        child: Container(
-          width: 64,
-          height: 60,
-          decoration: BoxDecoration(
-            color: claimed ? _duoLocked : _rewardGold,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                  color: claimed ? const Color(0xFF2A363D) : _rewardGoldDark,
-                  offset: const Offset(0, 5)),
-            ],
-          ),
-          child: Icon(
-            claimed ? Icons.redeem_rounded : Icons.card_giftcard_rounded,
-            color: claimed ? Colors.white30 : Colors.white,
-            size: 32,
-          ),
-        ),
+        onTap: claimed || _opening ? null : _claim,
+        behavior: HitTestBehavior.opaque,
+        child: content,
       ),
     );
   }

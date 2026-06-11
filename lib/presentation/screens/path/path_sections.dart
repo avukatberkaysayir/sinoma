@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -178,17 +180,30 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
               ],
             ),
             // The user's own playlists — pick one to scope the feed to it.
-            if (playlists.isNotEmpty)
-              _FilterGroup(
-                id: 'playlists',
-                label: tr ? 'LİSTELERİM' : 'MY LISTS',
-                open: _openGroup == 'playlists',
-                activeCount: selPlaylist != null ? 1 : 0,
-                onToggle: _toggleGroup,
-                children: [
+            _FilterGroup(
+              id: 'playlists',
+              label: tr ? 'LİSTELERİM' : 'MY LISTS',
+              open: _openGroup == 'playlists',
+              activeCount: selPlaylist != null ? 1 : 0,
+              onToggle: _toggleGroup,
+              children: [
+                if (playlists.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Text(
+                      tr
+                          ? 'Henüz listen yok — player altındaki "Listeye Ekle" ile oluştur.'
+                          : 'No lists yet — use "Add to Playlist" under the player.',
+                      style: const TextStyle(
+                          color: Colors.white38, fontSize: 12),
+                    ),
+                  )
+                else
                   for (final p in playlists)
                     _FilterItem(
-                      label: p['name'] as String? ?? '',
+                      label:
+                          '${p['name'] ?? ''} (${p['count'] ?? 0})',
                       selected: selPlaylist == p['id'],
                       onTap: () {
                         ref.read(selectedPlaylistProvider.notifier).state =
@@ -197,8 +212,8 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
                                 : p['id'] as String;
                       },
                     ),
-                ],
-              ),
+              ],
+            ),
           ],
         ),
       ),
@@ -338,66 +353,338 @@ class _FilterItem extends StatelessWidget {
 
 // ── Leaderboard ───────────────────────────────────────────────────────────────
 
-class LeaderboardCenter extends ConsumerWidget {
+class LeaderboardCenter extends ConsumerStatefulWidget {
   final bool tr;
   const LeaderboardCenter({super.key, required this.tr});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final board = ref.watch(leaderboardProvider);
+  ConsumerState<LeaderboardCenter> createState() => _LeaderboardCenterState();
+}
+
+class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
+  int _tab = 0; // 0 = Ligim, 1 = Arkadaşlarım, 2 = Elmas Ligi
+
+  void _openFriendSearch() {
+    showDialog(
+        context: context,
+        builder: (_) => _FriendSearchDialog(tr: widget.tr));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = widget.tr;
     final myUid = Supabase.instance.client.auth.currentUser?.id;
-    return board.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: _green)),
-      error: (e, _) =>
-          Center(child: Text('$e', style: const TextStyle(color: Colors.white54))),
-      data: (users) => ListView(
-        padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
-        children: [
-          Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 620),
-              child: Column(
-                children: [
-                  Text(tr ? 'Yakut Ligi' : 'Ruby League',
-                      style: const TextStyle(
-                          color: _green, fontSize: 24, fontWeight: FontWeight.w800)),
-                  const SizedBox(height: 4),
-                  Text(tr ? 'Bu haftanın puan sıralaması' : "This week's ranking",
-                      style: const TextStyle(color: Colors.white54, fontSize: 14)),
-                  const SizedBox(height: 20),
-                  for (var i = 0; i < users.length; i++)
-                    _LeaderRow(rank: i + 1, user: users[i], isMe: users[i]['id'] == myUid),
-                ],
-              ),
+
+    Widget tabChip(int i, String label, IconData icon) {
+      final on = _tab == i;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _tab = i),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: on ? _green.withValues(alpha: 0.15) : _panel,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                  color: on ? _green : const Color(0xFF2C3B45)),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, size: 16, color: on ? _green : Colors.white54),
+                const SizedBox(width: 6),
+                Text(label,
+                    style: TextStyle(
+                        color: on ? _green : Colors.white70,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800)),
+              ],
             ),
           ),
-        ],
-      ),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 620),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Row(children: [
+                  tabChip(0, tr ? 'Ligim' : 'My League',
+                      Icons.shield_rounded),
+                  const SizedBox(width: 8),
+                  tabChip(1, tr ? 'Arkadaşlarım' : 'Friends',
+                      Icons.group_rounded),
+                  const SizedBox(width: 8),
+                  tabChip(2, tr ? 'Elmas Ligi' : 'Diamond Rank',
+                      Icons.diamond_rounded),
+                ]),
+                const SizedBox(height: 20),
+                if (_tab == 0) _LeagueTab(tr: tr, myUid: myUid),
+                if (_tab == 1)
+                  _FriendsTab(
+                      tr: tr, myUid: myUid, onSearch: _openFriendSearch),
+                if (_tab == 2) _DiamondsTab(tr: tr, myUid: myUid),
+              ],
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _LeaderRow extends StatelessWidget {
+// ── Ligim: the 30-user weekly cohort ──────────────────────────────────────────
+
+class _LeagueTab extends ConsumerWidget {
+  final bool tr;
+  final String? myUid;
+  const _LeagueTab({required this.tr, required this.myUid});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final group = ref.watch(leagueGroupProvider);
+    return group.when(
+      loading: () =>
+          const Center(child: CircularProgressIndicator(color: _green)),
+      error: (e, _) => Center(
+          child:
+              Text('$e', style: const TextStyle(color: Colors.white54))),
+      data: (rows) {
+        final lg = rows.isEmpty
+            ? 1
+            : ((rows.firstWhere((r) => r['id'] == myUid,
+                            orElse: () => rows.first)['league'] as num?)
+                        ?.toInt() ??
+                    1)
+                .clamp(1, 10);
+        final color = kLeagueColors[lg - 1];
+        final size = rows.length;
+        return Column(
+          children: [
+            Icon(Icons.shield_rounded, color: color, size: 44),
+            const SizedBox(height: 6),
+            Text(
+                tr
+                    ? '${kLeagueNames[lg - 1]} Ligi  ·  $lg/10'
+                    : '${kLeagueNames[lg - 1]} League  ·  $lg/10',
+                style: TextStyle(
+                    color: color,
+                    fontSize: 24,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 4),
+            Text(
+                tr
+                    ? 'Bu haftanın sıralaması — ilk 6 yükselir, son 6 düşer'
+                    : "This week's ranking — top 6 promote, bottom 6 demote",
+                style:
+                    const TextStyle(color: Colors.white54, fontSize: 13)),
+            const SizedBox(height: 20),
+            for (var i = 0; i < rows.length; i++)
+              _RankRow(
+                rank: i + 1,
+                name: _rowName(rows[i]),
+                sub: '@${rows[i]['username'] ?? ''}',
+                photo: rows[i]['photo_url'] as String?,
+                score: (rows[i]['weekly'] as num?)?.toInt() ?? 0,
+                scoreIcon: Icons.bolt_rounded,
+                scoreColor: const Color(0xFFFFC800),
+                isMe: rows[i]['id'] == myUid,
+                zone: i < 6
+                    ? _RankZone.up
+                    : (size > 12 && i >= size - 6)
+                        ? _RankZone.down
+                        : _RankZone.mid,
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+String _rowName(Map<String, dynamic> r) {
+  final n = (r['display_name'] as String?)?.trim();
+  return n?.isNotEmpty == true ? n! : (r['username'] as String? ?? 'Öğrenci');
+}
+
+// ── Arkadaşlarım ──────────────────────────────────────────────────────────────
+
+class _FriendsTab extends ConsumerWidget {
+  final bool tr;
+  final String? myUid;
+  final VoidCallback onSearch;
+  const _FriendsTab(
+      {required this.tr, required this.myUid, required this.onSearch});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final friends = ref.watch(friendsLeaderboardProvider);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        FilledButton.icon(
+          onPressed: onSearch,
+          icon: const Icon(Icons.person_search_rounded, size: 20),
+          label: Text(tr ? 'ARKADAŞ ARA' : 'FIND FRIENDS',
+              style: const TextStyle(
+                  fontSize: 13, fontWeight: FontWeight.w800)),
+          style: FilledButton.styleFrom(
+            backgroundColor: _green,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
+        const SizedBox(height: 16),
+        friends.when(
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: _green)),
+          error: (e, _) => Text('$e',
+              style: const TextStyle(color: Colors.white54)),
+          data: (rows) => rows.length <= 1
+              ? Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Text(
+                    tr
+                        ? 'Henüz arkadaşın yok — kullanıcı adıyla arayıp ekleyebilirsin.'
+                        : 'No friends yet — search by username and add them.',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 13),
+                  ),
+                )
+              : Column(children: [
+                  for (var i = 0; i < rows.length; i++)
+                    _RankRow(
+                      rank: i + 1,
+                      name: _rowName(rows[i]),
+                      sub: '@${rows[i]['username'] ?? ''}',
+                      photo: rows[i]['photo_url'] as String?,
+                      score: (rows[i]['score'] as num?)?.toInt() ?? 0,
+                      scoreIcon: Icons.diamond_rounded,
+                      scoreColor: const Color(0xFF1CB0F6),
+                      isMe: rows[i]['id'] == myUid,
+                      zone: _RankZone.mid,
+                      onRemove: rows[i]['id'] == myUid
+                          ? null
+                          : () async {
+                              await ref
+                                  .read(userRepositoryProvider)
+                                  .removeFriend(rows[i]['id'] as String);
+                              ref.invalidate(friendsLeaderboardProvider);
+                            },
+                    ),
+                ]),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Elmas Ligi (global diamond ranking) ───────────────────────────────────────
+
+class _DiamondsTab extends ConsumerWidget {
+  final bool tr;
+  final String? myUid;
+  const _DiamondsTab({required this.tr, required this.myUid});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref.watch(diamondsLeaderboardProvider);
+    return Column(
+      children: [
+        const Icon(Icons.diamond_rounded, color: Color(0xFF7DE3F4), size: 44),
+        const SizedBox(height: 6),
+        Text(tr ? 'Elmas Sıralaması' : 'Diamond Ranking',
+            style: const TextStyle(
+                color: Color(0xFF7DE3F4),
+                fontSize: 24,
+                fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        Text(
+            tr
+                ? 'Elmas Ligi\'nde geçirilen her hafta +1 elmas; dışında kalınan her hafta −1.'
+                : 'Each week in the Diamond League earns +1 diamond; each week outside costs −1.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white54, fontSize: 13)),
+        const SizedBox(height: 20),
+        rows.when(
+          loading: () =>
+              const Center(child: CircularProgressIndicator(color: _green)),
+          error: (e, _) =>
+              Text('$e', style: const TextStyle(color: Colors.white54)),
+          data: (list) => list.isEmpty
+              ? Text(
+                  tr
+                      ? 'Henüz elmas kazanan yok — Elmas Ligi\'ne ilk ulaşan sen ol!'
+                      : 'No diamonds earned yet — be the first to reach the Diamond League!',
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: Colors.white54, fontSize: 13))
+              : Column(children: [
+                  for (var i = 0; i < list.length; i++)
+                    _RankRow(
+                      rank: i + 1,
+                      name: _rowName(list[i]),
+                      sub: '@${list[i]['username'] ?? ''}',
+                      photo: list[i]['photo_url'] as String?,
+                      score: (list[i]['diamonds'] as num?)?.toInt() ?? 0,
+                      scoreIcon: Icons.diamond_rounded,
+                      scoreColor: const Color(0xFF7DE3F4),
+                      isMe: list[i]['id'] == myUid,
+                      zone: _RankZone.mid,
+                    ),
+                ]),
+        ),
+      ],
+    );
+  }
+}
+
+// ── Shared rank row ───────────────────────────────────────────────────────────
+
+enum _RankZone { up, mid, down }
+
+class _RankRow extends StatelessWidget {
   final int rank;
-  final Map<String, dynamic> user;
+  final String name;
+  final String sub;
+  final String? photo;
+  final int score;
+  final IconData scoreIcon;
+  final Color scoreColor;
   final bool isMe;
-  const _LeaderRow({required this.rank, required this.user, required this.isMe});
+  final _RankZone zone;
+  final VoidCallback? onRemove;
+  const _RankRow({
+    required this.rank,
+    required this.name,
+    required this.sub,
+    required this.photo,
+    required this.score,
+    required this.scoreIcon,
+    required this.scoreColor,
+    required this.isMe,
+    required this.zone,
+    this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final name = (user['display_name'] as String?)?.trim();
-    final score = ((user['stats'] as Map?)?['totalScore'] as num?)?.toInt() ?? 0;
-    final photo = user['photo_url'] as String?;
-    final medal = rank == 1
-        ? const Color(0xFFFFC800)
-        : rank == 2
-            ? const Color(0xFFB8C4CC)
-            : rank == 3
-                ? const Color(0xFFCD7F32)
-                : Colors.white38;
+    final zoneColor = switch (zone) {
+      _RankZone.up => _green,
+      _RankZone.down => const Color(0xFFFF4B4B),
+      _RankZone.mid => Colors.white38,
+    };
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
         color: isMe ? _green.withValues(alpha: 0.15) : _panel,
         borderRadius: BorderRadius.circular(14),
@@ -406,37 +693,263 @@ class _LeaderRow extends StatelessWidget {
       child: Row(
         children: [
           SizedBox(
-            width: 28,
+            width: 26,
             child: Text('$rank',
-                style: TextStyle(color: medal, fontSize: 16, fontWeight: FontWeight.w800)),
+                style: TextStyle(
+                    color: zoneColor,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800)),
           ),
-          const SizedBox(width: 8),
+          if (zone != _RankZone.mid)
+            Icon(
+                zone == _RankZone.up
+                    ? Icons.arrow_drop_up_rounded
+                    : Icons.arrow_drop_down_rounded,
+                color: zoneColor,
+                size: 22)
+          else
+            const SizedBox(width: 22),
+          const SizedBox(width: 4),
           CircleAvatar(
-            radius: 16,
+            radius: 15,
             backgroundColor: _bg,
-            backgroundImage: photo?.isNotEmpty == true ? NetworkImage(photo!) : null,
+            backgroundImage:
+                photo?.isNotEmpty == true ? NetworkImage(photo!) : null,
             child: photo?.isNotEmpty == true
                 ? null
-                : const Icon(Icons.person, color: Colors.white38, size: 18),
+                : const Icon(Icons.person, color: Colors.white38, size: 16),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: Text(name?.isNotEmpty == true ? name! : 'Öğrenci',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+                Text(sub,
+                    style: const TextStyle(
+                        color: Colors.white38, fontSize: 11)),
+              ],
+            ),
           ),
-          const Icon(Icons.diamond_rounded, color: Color(0xFF1CB0F6), size: 16),
+          Icon(scoreIcon, color: scoreColor, size: 15),
           const SizedBox(width: 4),
           Text('$score',
               style: const TextStyle(
-                  color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w700)),
+                  color: Colors.white70,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700)),
+          if (onRemove != null)
+            IconButton(
+              icon: const Icon(Icons.person_remove_outlined,
+                  color: Colors.white38, size: 17),
+              onPressed: onRemove,
+            ),
         ],
       ),
     );
   }
 }
+
+// ── Friend search dialog ──────────────────────────────────────────────────────
+
+class _FriendSearchDialog extends ConsumerStatefulWidget {
+  final bool tr;
+  const _FriendSearchDialog({required this.tr});
+
+  @override
+  ConsumerState<_FriendSearchDialog> createState() =>
+      _FriendSearchDialogState();
+}
+
+class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
+  final _ctrl = TextEditingController();
+  List<Map<String, dynamic>> _results = [];
+  bool _busy = false;
+  Timer? _debounce;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  void _onChanged(String v) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) return;
+      setState(() => _busy = true);
+      try {
+        final r = await ref.read(userRepositoryProvider).searchUsers(v);
+        if (mounted) setState(() => _results = r);
+      } finally {
+        if (mounted) setState(() => _busy = false);
+      }
+    });
+  }
+
+  Future<void> _toggleFriend(Map<String, dynamic> u) async {
+    final repo = ref.read(userRepositoryProvider);
+    final isFriend = u['is_friend'] == true;
+    setState(() => u['is_friend'] = !isFriend);
+    if (isFriend) {
+      await repo.removeFriend(u['id'] as String);
+    } else {
+      await repo.addFriend(u['id'] as String);
+    }
+    ref.invalidate(friendsLeaderboardProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final tr = widget.tr;
+    return AlertDialog(
+      backgroundColor: _panel,
+      title: Text(tr ? 'Arkadaş Ara' : 'Find Friends',
+          style: const TextStyle(color: Colors.white, fontSize: 18)),
+      content: SizedBox(
+        width: 380,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            TextField(
+              controller: _ctrl,
+              autofocus: true,
+              onChanged: _onChanged,
+              style: const TextStyle(color: Colors.white, fontSize: 14),
+              decoration: InputDecoration(
+                hintText:
+                    tr ? 'Kullanıcı adı yaz…' : 'Type a username…',
+                hintStyle: const TextStyle(color: Colors.white38),
+                prefixIcon: const Icon(Icons.search,
+                    color: Colors.white38, size: 18),
+                filled: true,
+                fillColor: _bg,
+                isDense: true,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 10),
+            if (_busy)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Center(
+                    child: SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: _green))),
+              )
+            else
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 260),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      for (final u in _results)
+                        Padding(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: 4),
+                          child: Row(
+                            children: [
+                              CircleAvatar(
+                                radius: 15,
+                                backgroundColor: _bg,
+                                backgroundImage: (u['photo_url']
+                                            as String?)
+                                            ?.isNotEmpty ==
+                                        true
+                                    ? NetworkImage(
+                                        u['photo_url'] as String)
+                                    : null,
+                                child: (u['photo_url'] as String?)
+                                            ?.isNotEmpty ==
+                                        true
+                                    ? null
+                                    : const Icon(Icons.person,
+                                        color: Colors.white38,
+                                        size: 16),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(_rowName(u),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 14,
+                                            fontWeight:
+                                                FontWeight.w700)),
+                                    Text('@${u['username'] ?? ''}',
+                                        style: const TextStyle(
+                                            color: Colors.white38,
+                                            fontSize: 11)),
+                                  ],
+                                ),
+                              ),
+                              OutlinedButton(
+                                onPressed: () => _toggleFriend(u),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: u['is_friend'] == true
+                                      ? Colors.white54
+                                      : _green,
+                                  side: BorderSide(
+                                      color: u['is_friend'] == true
+                                          ? Colors.white24
+                                          : _green),
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 10, vertical: 6),
+                                ),
+                                child: Text(
+                                    u['is_friend'] == true
+                                        ? (tr ? 'Çıkar' : 'Remove')
+                                        : (tr ? 'Ekle' : 'Add'),
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w800)),
+                              ),
+                            ],
+                          ),
+                        ),
+                      if (_results.isEmpty &&
+                          _ctrl.text.trim().isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Text(
+                              tr ? 'Sonuç yok' : 'No results',
+                              style: const TextStyle(
+                                  color: Colors.white38, fontSize: 13)),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr ? 'Kapat' : 'Close'),
+        ),
+      ],
+    );
+  }
+}
+
 
 // ── Quests ────────────────────────────────────────────────────────────────────
 
@@ -1059,7 +1572,11 @@ class ProfileView extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(currentUserProvider).valueOrNull;
+    // stableCurrentUserProvider keeps the last good photoUrl through the
+    // loading transients that fire on every section switch — without it the
+    // avatar flashes empty when navigating between home tabs.
+    final user = ref.watch(stableCurrentUserProvider) ??
+        ref.watch(currentUserProvider).valueOrNull;
     final meta = ref.watch(pathMetaProvider);
     if (user == null) {
       return Center(
@@ -1267,6 +1784,38 @@ class ProfileView extends ConsumerWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// Right rail of the Profile section — the user's playlists (replaces the old
+// "Etkinlik" placeholder card).
+class ProfileListsRight extends ConsumerWidget {
+  final bool tr;
+  const ProfileListsRight({super.key, required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: 340,
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(tr ? 'Listelerim' : 'My Lists',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800)),
+            const SizedBox(height: 12),
+            _ProfilePlaylists(tr: tr),
+          ],
+        ),
+      ),
     );
   }
 }

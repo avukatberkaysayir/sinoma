@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Color;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../data/models/video_segment_model.dart';
@@ -463,4 +464,35 @@ final leaderboardProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) {
   ref.watch(authUidProvider.select((a) => a.valueOrNull));
   return ref.watch(userRepositoryProvider).loadLeaderboard();
+});
+
+// ── Leagues + friends ─────────────────────────────────────────────────────────
+// 10 tiers, bottom-up. Everyone starts in tier 1; weekly 30-user groups, the
+// top 6 promote, the bottom 6 demote (pg_cron job 'league-rollover').
+const List<String> kLeagueNames = [
+  'Bronz', 'Gümüş', 'Altın', 'Safir', 'Yakut',
+  'Zümrüt', 'Ametist', 'İnci', 'Obsidyen', 'Elmas',
+];
+const List<Color> kLeagueColors = [
+  Color(0xFFCD7F32), Color(0xFFB8C4CC), Color(0xFFFFC800), Color(0xFF1CB0F6),
+  Color(0xFFE94557), Color(0xFF58CC02), Color(0xFFCE82FF), Color(0xFFF4ECE0),
+  Color(0xFF3B3B4F), Color(0xFF7DE3F4),
+];
+
+final leagueGroupProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(userRepositoryProvider).loadLeagueGroup();
+});
+
+final friendsLeaderboardProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(userRepositoryProvider).loadFriendsLeaderboard();
+});
+
+final diamondsLeaderboardProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(userRepositoryProvider).loadDiamondsLeaderboard();
 });

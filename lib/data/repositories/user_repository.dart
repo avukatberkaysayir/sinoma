@@ -120,6 +120,49 @@ class UserRepository {
     return m;
   }
 
+  // ── Leagues + friends ───────────────────────────────────────────────────────
+
+  // My 30-user weekly league cohort, ordered by weekly score.
+  Future<List<Map<String, dynamic>>> loadLeagueGroup() async {
+    final data = await _db.rpc('my_league_group');
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
+  // Me + my friends, ordered by total score.
+  Future<List<Map<String, dynamic>>> loadFriendsLeaderboard() async {
+    final data = await _db.rpc('friends_leaderboard');
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> loadDiamondsLeaderboard() async {
+    final data = await _db.rpc('diamonds_leaderboard');
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
+  Future<List<Map<String, dynamic>>> searchUsers(String q) async {
+    if (q.trim().isEmpty) return const [];
+    final data = await _db.rpc('search_users', params: {'p_q': q.trim()});
+    return List<Map<String, dynamic>>.from(data as List);
+  }
+
+  Future<void> addFriend(String friendUid) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    await _db.from('friends').upsert(
+        {'uid': uid, 'friend_uid': friendUid},
+        onConflict: 'uid,friend_uid');
+  }
+
+  Future<void> removeFriend(String friendUid) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    await _db
+        .from('friends')
+        .delete()
+        .eq('uid', uid)
+        .eq('friend_uid', friendUid);
+  }
+
   // Top users by total score — for the leaderboard ("Puan Tabloları").
   Future<List<Map<String, dynamic>>> loadLeaderboard({int limit = 25}) async {
     final data = await _db

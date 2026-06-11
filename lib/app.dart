@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'core/constants/app_colors.dart';
@@ -188,8 +189,13 @@ class SinomaApp extends ConsumerWidget {
     );
   }
 
+  // One shared, playful typeface (Baloo 2 — soft brush-like rounds that echo
+  // Chinese calligraphy without copying Duolingo) across landing AND app, so
+  // the two halves of the site no longer look like different products.
+  TextTheme _appTextTheme(TextTheme base) => GoogleFonts.baloo2TextTheme(base);
+
   ThemeData _buildDarkTheme() {
-    return ThemeData(
+    final base = ThemeData(
       useMaterial3: true,
       colorScheme: const ColorScheme.dark(
         primary: AppColors.primary,
@@ -203,10 +209,11 @@ class SinomaApp extends ConsumerWidget {
         elevation: 0,
       ),
     );
+    return base.copyWith(textTheme: _appTextTheme(base.textTheme));
   }
 
   ThemeData _buildLightTheme() {
-    return ThemeData(
+    final base = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
@@ -220,5 +227,6 @@ class SinomaApp extends ConsumerWidget {
         surfaceTintColor: Colors.transparent,
       ),
     );
+    return base.copyWith(textTheme: _appTextTheme(base.textTheme));
   }
 }

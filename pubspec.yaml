@@ -44,6 +44,7 @@ dependencies:
   http: ^1.2.0
   image_picker: ^1.1.2
   web: ^1.1.0
+  google_fonts: ^8.1.0
 
 dev_dependencies:
   flutter_test:
@@ -66,3 +67,4 @@ flutter:
     - assets/data/
     - assets/cities/
     - assets/landmarks/
+    - assets/mascot/
