@@ -226,6 +226,42 @@ const Map<String, List<Landmark>> kCityLandmarks = {
     Landmark(icon: 'shoe', photo: 'shoe', nameTr: 'Ayakkabı Başkenti', nameEn: 'Shoe Capital', descTr: 'Dünya spor ayakkabılarının büyük bölümü bu atölyelerden çıkar.', descEn: 'A huge share of the world\'s sports shoes comes from these workshops.'),
     Landmark(icon: 'wave', photo: 'wave', nameTr: 'Meizhou Adası', nameEn: 'Meizhou Island', descTr: 'Feribotla ulaşılan ada, plajları ve tapınak şenlikleriyle ünlüdür.', descEn: 'Reached by ferry, the island is famed for beaches and temple festivals.'),
   ],
+  'mudanjiang': [
+    Landmark(icon: 'snow', photo: 'snow', nameTr: 'Çin Kar Kasabası', nameEn: 'China Snow Town', descTr: 'Kalın kar yastıklarıyla kaplı masal köyü, kışın ışıl ışıl parlar.', descEn: 'A fairy-tale village under thick pillows of snow, glowing in winter.'),
+    Landmark(icon: 'lake', photo: 'lake', nameTr: 'Jingpo Gölü', nameEn: 'Jingpo Lake', descTr: 'Volkanik set gölü; Diaoshuilou şelalesi kışın bile dökülür.', descEn: 'A volcanic barrier lake whose Diaoshuilou falls pour even in winter.'),
+    Landmark(icon: 'tiger', photo: 'tiger', nameTr: 'Sibirya Kaplanı Parkı', nameEn: 'Siberian Tiger Park', descTr: 'Dünyanın en büyük Sibirya kaplanı koruma merkezlerinden biri.', descEn: 'One of the world\'s largest Siberian tiger sanctuaries.'),
+    Landmark(icon: 'ski', photo: 'ski', nameTr: 'Kayak Sezonu', nameEn: 'Ski Season', descTr: 'Uzun ve karlı kış, bölgeyi kayak tutkunlarının rotasına koyar.', descEn: 'Long snowy winters put the region on every skier\'s map.'),
+  ],
+  'changzhou': [
+    Landmark(icon: 'dino', photo: 'dino', nameTr: 'Dinozor Parkı', nameEn: 'Dinosaur Park', descTr: 'Çin\'in en ünlü dinozor temalı parkı aileler için şehrin simgesidir.', descEn: 'China\'s most famous dinosaur theme park is the city\'s family icon.'),
+    Landmark(icon: 'pagoda', photo: 'pagoda', nameTr: 'Tianning Pagodası', nameEn: 'Tianning Pagoda', descTr: '153 metreyle dünyanın en yüksek pagodası şehir merkezinde yükselir.', descEn: 'At 153 m, the world\'s tallest pagoda rises downtown.'),
+    Landmark(icon: 'comb', photo: 'comb', nameTr: 'Tarak Ustalığı', nameEn: 'Comb Craft', descTr: 'Bin yıllık Changzhou tarağı, imparatorluk saraylarına hediye edilirdi.', descEn: 'Thousand-year Changzhou combs were once palace gifts.'),
+    Landmark(icon: 'canal', photo: 'canal', nameTr: 'Büyük Kanal', nameEn: 'Grand Canal', descTr: 'Kanal kıyısı eski mahalleleri ve gece ışıklarıyla gezilir.', descEn: 'The canal banks are strolled for old quarters and night lights.'),
+  ],
+  'shaoxing': [
+    Landmark(icon: 'wine', photo: 'wine', nameTr: 'Shaoxing Şarabı', nameEn: 'Shaoxing Wine', descTr: 'Çin mutfağının ünlü sarı pirinç şarabı binlerce yıldır burada mayalanır.', descEn: 'The famous yellow rice wine of Chinese cooking has been brewed here for millennia.'),
+    Landmark(icon: 'bridge', photo: 'bridge', nameTr: 'Taş Köprüler', nameEn: 'Stone Bridges', descTr: 'Kanallar şehri Shaoxing\'de yüzlerce kavisli taş köprü vardır.', descEn: 'Canal-laced Shaoxing keeps hundreds of arched stone bridges.'),
+    Landmark(icon: 'pen', photo: 'pen', nameTr: 'Kaligrafi Beşiği', nameEn: 'Calligraphy Cradle', descTr: 'Usta Wang Xizhi\'nin Orkide Köşkü, kaligrafinin kutsal mekanıdır.', descEn: 'Master Wang Xizhi\'s Orchid Pavilion is calligraphy\'s sacred site.'),
+    Landmark(icon: 'boat', photo: 'boat', nameTr: 'Siyah Tenteli Kayık', nameEn: 'Black-Awning Boats', descTr: 'Ayakla kürek çekilen wupeng kayıkları kanalların klasiğidir.', descEn: 'Foot-rowed wupeng boats are the canals\' classic ride.'),
+  ],
+  'bengbu': [
+    Landmark(icon: 'shell', photo: 'shell', nameTr: 'İnci Limanı', nameEn: 'Pearl Port', descTr: 'Adı \'istiridye iskelesi\'nden gelir; Huai Nehri incileriyle ünlüydü.', descEn: 'Its name means \'oyster wharf\' — once famed for Huai River pearls.'),
+    Landmark(icon: 'train', photo: 'train', nameTr: 'Demiryolu Kapısı', nameEn: 'Rail Gateway', descTr: 'Kuzey-güney hattının Huai geçidi; şehir istasyonla büyüdü.', descEn: 'The north-south line\'s Huai crossing — the city grew with its station.'),
+    Landmark(icon: 'river', photo: 'river', nameTr: 'Huai Nehri', nameEn: 'Huai River', descTr: 'Çin\'in kuzey-güney iklim sınırı kabul edilen nehir buradan akar.', descEn: 'The river held to divide China\'s north and south flows here.'),
+    Landmark(icon: 'blossom', photo: 'blossom', nameTr: 'Bahar Şenlikleri', nameEn: 'Spring Fairs', descTr: 'Nehir kıyısı parkları baharda çiçek şenlikleriyle dolar.', descEn: 'Riverside parks fill with blossom fairs each spring.'),
+  ],
+  'jiujiang': [
+    Landmark(icon: 'mountain', photo: 'mountain', nameTr: 'Lushan Dağı', nameEn: 'Mount Lu', descTr: 'UNESCO mirası Lushan\'ın sisli zirveleri şair ve ressamların ilhamıdır.', descEn: 'UNESCO-listed Mount Lu\'s misty peaks inspired poets and painters.'),
+    Landmark(icon: 'tea', photo: 'tea', nameTr: 'Bulut-Sis Çayı', nameEn: 'Cloud-Mist Tea', descTr: 'Lushan\'ın yamaçlarında yetişen yunwu çayı Çin\'in en incelerindendir.', descEn: 'Yunwu tea from Lu\'s slopes is among China\'s most delicate.'),
+    Landmark(icon: 'lake', photo: 'lake', nameTr: 'Poyang Gölü', nameEn: 'Poyang Lake', descTr: 'Çin\'in en büyük tatlı su gölü; kışın binlerce göçmen turna konaklar.', descEn: 'China\'s largest freshwater lake hosts thousands of wintering cranes.'),
+    Landmark(icon: 'scroll', photo: 'scroll', nameTr: 'Şiir Şehri', nameEn: 'City of Poems', descTr: 'Bai Juyi ve Su Shi\'nin dizeleri bu nehir kapısında yazıldı.', descEn: 'Bai Juyi\'s and Su Shi\'s lines were written at this river gate.'),
+  ],
+  'quanzhou': [
+    Landmark(icon: 'ship', photo: 'ship', nameTr: 'Deniz İpek Yolu', nameEn: 'Maritime Silk Road', descTr: 'Marco Polo\'nun \'Zayton\'u; ortaçağın en büyük limanı ve UNESCO mirası.', descEn: 'Marco Polo\'s \'Zayton\' — the medieval world\'s greatest port, UNESCO-listed.'),
+    Landmark(icon: 'mosque', photo: 'mosque', nameTr: 'Qingjing Camii', nameEn: 'Qingjing Mosque', descTr: '1009 tarihli taş cami, Çin\'in en eski camilerindendir.', descEn: 'The stone mosque of 1009 is among China\'s oldest.'),
+    Landmark(icon: 'puppet', photo: 'puppet', nameTr: 'Kukla Sanatı', nameEn: 'Marionette Art', descTr: 'Quanzhou ipli kuklaları bin yıllık sahne geleneğidir.', descEn: 'Quanzhou string puppetry is a thousand-year stage tradition.'),
+    Landmark(icon: 'tea', photo: 'tea', nameTr: 'Tieguanyin Çayı', nameEn: 'Tieguanyin Tea', descTr: 'Komşu Anxi\'nin oolong\'u dünyaca ünlü \'Demir Tanrıça\' çayıdır.', descEn: 'Neighbouring Anxi\'s oolong is the world-famous \'Iron Goddess\' tea.'),
+  ],
   'beijing': [
     Landmark(
       icon: 'great-wall',

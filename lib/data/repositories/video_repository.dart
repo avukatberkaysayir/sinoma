@@ -272,6 +272,18 @@ class VideoRepository {
         .eq('video_id', videoId);
   }
 
+  // Lightweight rows for the right-rail playlist preview (thumb via youtube_id).
+  Future<List<Map<String, dynamic>>> loadPlaylistVideos(
+      String playlistId) async {
+    final ids = await loadPlaylistVideoIds(playlistId);
+    if (ids.isEmpty) return const [];
+    final data = await _db
+        .from('videos')
+        .select('id, transcription, hsk_level, youtube_id')
+        .inFilter('id', ids.toList());
+    return List<Map<String, dynamic>>.from(data);
+  }
+
   Future<Set<String>> loadPlaylistVideoIds(String playlistId) async {
     final data = await _db
         .from('playlist_items')

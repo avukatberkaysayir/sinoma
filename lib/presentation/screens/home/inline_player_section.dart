@@ -6,10 +6,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../data/models/video_segment_model.dart';
+import '../../providers/dictionary_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/video/direct_youtube_player.dart';
+
+// The player's subtitle + answer options keep a familiar handwritten face
+// (site-wide ZCOOL XiaoWei stays everywhere else).
+const _kComic = 'Comic Sans MS';
 
 // ── Public entry point ────────────────────────────────────────────────────────
 
@@ -287,7 +292,24 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     setState(() => _subtitleChoice = !(_subtitleChoice ?? false));
   }
 
+  // Tap a subtitle word chip → instant mini dictionary popup. The player must
+  // hide while the dialog is up (its iframe sits above the Flutter canvas).
+  Future<void> _showWordMeaning(String word) async {
+    _playerCtrl.setHidden(true);
+    try {
+      await showDialog(
+        context: context,
+        builder: (_) => _WordMeaningDialog(word: word),
+      );
+    } finally {
+      _playerCtrl.setHidden(false);
+    }
+  }
+
+  bool _plDialogOpen = false; // a second tap must NOT stack a second barrier
+
   Future<void> _openPlaylistDialog(AppL10n l10n) async {
+    if (_plDialogOpen) return;
     if (ref.read(currentUserProvider).valueOrNull == null) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.signInForPlaylists)));
@@ -295,6 +317,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     }
     // The YouTube iframe sits ABOVE the Flutter canvas — hide it while the
     // dialog is open or the dialog renders invisibly behind the video.
+    _plDialogOpen = true;
     _playerCtrl.setHidden(true);
     try {
       await showDialog(
@@ -302,6 +325,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         builder: (_) => _PlaylistDialog(videoId: _seg.videoId),
       );
     } finally {
+      _plDialogOpen = false;
       _playerCtrl.setHidden(false);
     }
   }
@@ -403,7 +427,12 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
               GestureDetector(
                 onTap: _toggleSubtitle,
                 child: _subtitleChoice == true
-                    ? _ChineseSubtitleBar(transcription: seg.subtitleText)
+                    ? _ChineseSubtitleBar(
+                        words: seg.targetWords.isNotEmpty
+                            ? seg.targetWords
+                            : [seg.subtitleText],
+                        onWordTap: _showWordMeaning,
+                      )
                     : _SubtitleRevealBar(label: l10n.subtitleTitle),
               ),
               const SizedBox(height: 14),
@@ -901,6 +930,7 @@ class _ChoiceBtn extends StatelessWidget {
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w600,
+                  fontFamily: _kComic,
                   color: filled ? Colors.white : textColor,
                 ),
               ),
@@ -944,6 +974,7 @@ class _SubtitleRevealBar extends StatelessWidget {
               color: AppColors.onSurfaceMuted,
               fontSize: 20,
               fontWeight: FontWeight.w500,
+              fontFamily: _kComic,
               height: 1.4,
             ),
           ),
@@ -958,28 +989,162 @@ class _SubtitleRevealBar extends StatelessWidget {
 // renders stacked automatically (Text honours '\n').
 
 class _ChineseSubtitleBar extends StatelessWidget {
-  final String transcription;
-  const _ChineseSubtitleBar({required this.transcription});
+  // Confirmed word list ('\n' = line break) rendered as admin-style chips —
+  // tapping a chip opens the instant dictionary popup.
+  final List<String> words;
+  final void Function(String word) onWordTap;
+  const _ChineseSubtitleBar({required this.words, required this.onWordTap});
+
+  static final _cjk = RegExp(r'[一-鿿]');
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C2E),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: Text(
-        transcription,
-        textAlign: TextAlign.center,
-        style: const TextStyle(
-          color: Colors.white,
-          fontSize: 20,
-          fontWeight: FontWeight.w500,
-          height: 1.4,
+      child: Wrap(
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final w in words)
+            if (w == '\n')
+              const SizedBox(width: double.infinity, height: 0)
+            else if (_cjk.hasMatch(w))
+              Material(
+                color: Colors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(8),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(8),
+                  onTap: () => onWordTap(w),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                          color: Colors.white.withValues(alpha: 0.18)),
+                    ),
+                    child: Text(
+                      w,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: _kComic,
+                        height: 1.3,
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            else
+              Text(
+                w,
+                style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 20,
+                  fontFamily: _kComic,
+                  height: 1.3,
+                ),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
+// Mini dictionary popup for a tapped subtitle word.
+class _WordMeaningDialog extends ConsumerWidget {
+  final String word;
+  const _WordMeaningDialog({required this.word});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(localeProvider).languageCode;
+    return AlertDialog(
+      backgroundColor: AppColors.surfaceVariant,
+      content: SizedBox(
+        width: 300,
+        child: FutureBuilder(
+          future: ref.read(dictionaryRepositoryProvider).loadWord(word),
+          builder: (context, snap) {
+            if (snap.connectionState != ConnectionState.done) {
+              return const SizedBox(
+                height: 80,
+                child: Center(
+                    child: SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2))),
+              );
+            }
+            final w = snap.data;
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(word,
+                    style: const TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 36,
+                        fontWeight: FontWeight.w800)),
+                if (w != null) ...[
+                  const SizedBox(height: 2),
+                  Text(w.pinyin,
+                      style: const TextStyle(
+                          color: AppColors.primary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 8),
+                  Text(
+                    lang == 'tr' ? w.definitions.tr : w.definitions.en,
+                    style: const TextStyle(
+                        color: AppColors.onSurface, fontSize: 15),
+                  ),
+                  if (w.hskLevel > 0) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: AppColors.forHskLevel(w.hskLevel),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Text('HSK ${w.hskLevel}',
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold)),
+                    ),
+                  ],
+                ] else
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      lang == 'tr'
+                          ? 'Sözlükte bulunamadı.'
+                          : 'Not found in the dictionary.',
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 13),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(lang == 'tr' ? 'Kapat' : 'Close'),
+        ),
+      ],
     );
   }
 }
@@ -1094,6 +1259,7 @@ class _AnswerButton extends StatelessWidget {
             style: TextStyle(
               fontSize: 14,
               fontWeight: FontWeight.w600,
+              fontFamily: _kComic,
               color: textColor,
             ),
           ),

@@ -36,6 +36,12 @@ final myPlaylistsProvider =
 // Feed scope: show only the videos of this playlist (null = all).
 final selectedPlaylistProvider = StateProvider<String?>((ref) => null);
 
+// Right-rail preview of one playlist's clips (thumb + title + HSK).
+final playlistVideosProvider = FutureProvider.autoDispose
+    .family<List<Map<String, dynamic>>, String>((ref, playlistId) {
+  return ref.watch(videoRepositoryProvider).loadPlaylistVideos(playlistId);
+});
+
 // Profile page: per-day answer stats + global rank.
 final dailyAnswerStatsProvider =
     FutureProvider<List<Map<String, dynamic>>>((ref) {
@@ -88,6 +94,9 @@ final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
     final ids = await repo.loadPlaylistVideoIds(playlistId);
     segments = segments.where((s) => ids.contains(s.videoId)).toList();
   }
+  // Practice is a shuffled mix of every unlocked level — never a fixed
+  // HSK-ordered sequence.
+  segments.shuffle();
   return segments;
 });
 

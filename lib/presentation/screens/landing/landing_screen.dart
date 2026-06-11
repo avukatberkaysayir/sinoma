@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -9,7 +9,7 @@ import '../../widgets/common/auth_dialog.dart';
 
 // Duolingo-warm landing palette — matches /home (same green, same navy bg)
 // so the public page and the app read as ONE product.
-const _lpGreen = Color(0xFF58CC02);
+const _lpGreen = Color(0xFF2EC4B6);
 const _lpBg = Color(0xFF131F2A);
 const _lpBg2 = Color(0xFF18242F);
 

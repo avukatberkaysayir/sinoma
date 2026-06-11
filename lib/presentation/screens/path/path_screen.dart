@@ -1,4 +1,4 @@
-import 'dart:math';
+﻿import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,8 +16,8 @@ import 'path_sections.dart';
 import 'phase_runner_screen.dart';
 
 // Duolingo-style colours.
-const _duoGreen = Color(0xFF58CC02);
-const _duoGreenDark = Color(0xFF4CAF00);
+const _duoGreen = Color(0xFF2EC4B6);
+const _duoGreenDark = Color(0xFF21968B);
 const _duoBg = Color(0xFF131F2A);
 const _duoPanel = Color(0xFF1C2A35);
 const _duoLocked = Color(0xFF37464F);

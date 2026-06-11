@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -16,7 +16,7 @@ import '../home/inline_player_section.dart';
 import 'phase_runner_screen.dart';
 
 // Duolingo palette (kept local to this file).
-const _green = Color(0xFF58CC02);
+const _green = Color(0xFF2EC4B6);
 const _bg = Color(0xFF131F2A);
 const _panel = Color(0xFF1C2A35);
 
@@ -137,14 +137,62 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
               ),
             ),
             const SizedBox(height: 8),
-            Text(
-              tr
-                  ? 'Mevcut seviyen: HSK $userLevel — HSK $userLevel ve altı videoları görürsün.'
-                  : 'Your level: HSK $userLevel — you see videos up to HSK $userLevel.',
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white54, fontSize: 12),
+            // Just the current level — same size/format as the group headers.
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: _panel,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFF2C3B45)),
+              ),
+              child: Text('HSK $userLevel',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                      color: _green,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.5)),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+            // LISTELERIM stands on its own, ABOVE the filters.
+            _FilterGroup(
+              id: 'playlists',
+              label: tr ? 'LİSTELERİM' : 'MY LISTS',
+              open: _openGroup == 'playlists',
+              activeCount: selPlaylist != null ? 1 : 0,
+              onToggle: _toggleGroup,
+              children: [
+                if (playlists.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 10),
+                    child: Text(
+                      tr
+                          ? 'Henüz listen yok — player altındaki "Listeye Ekle" ile oluştur.'
+                          : 'No lists yet — use "Add to Playlist" under the player.',
+                      style: const TextStyle(
+                          color: Colors.white38, fontSize: 12),
+                    ),
+                  )
+                else
+                  for (final p in playlists) ...[
+                    _FilterItem(
+                      label: '${p['name'] ?? ''} (${p['count'] ?? 0})',
+                      selected: selPlaylist == p['id'],
+                      onTap: () {
+                        ref.read(selectedPlaylistProvider.notifier).state =
+                            selPlaylist == p['id']
+                                ? null
+                                : p['id'] as String;
+                      },
+                    ),
+                    if (selPlaylist == p['id'])
+                      _PlaylistVideoList(playlistId: p['id'] as String),
+                  ],
+              ],
+            ),
+            const SizedBox(height: 12),
             Text(tr ? 'Filtreler' : 'Filters',
                 style: const TextStyle(
                     color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
@@ -179,43 +227,83 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
                   ),
               ],
             ),
-            // The user's own playlists — pick one to scope the feed to it.
-            _FilterGroup(
-              id: 'playlists',
-              label: tr ? 'LİSTELERİM' : 'MY LISTS',
-              open: _openGroup == 'playlists',
-              activeCount: selPlaylist != null ? 1 : 0,
-              onToggle: _toggleGroup,
-              children: [
-                if (playlists.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 10),
-                    child: Text(
-                      tr
-                          ? 'Henüz listen yok — player altındaki "Listeye Ekle" ile oluştur.'
-                          : 'No lists yet — use "Add to Playlist" under the player.',
-                      style: const TextStyle(
-                          color: Colors.white38, fontSize: 12),
-                    ),
-                  )
-                else
-                  for (final p in playlists)
-                    _FilterItem(
-                      label:
-                          '${p['name'] ?? ''} (${p['count'] ?? 0})',
-                      selected: selPlaylist == p['id'],
-                      onTap: () {
-                        ref.read(selectedPlaylistProvider.notifier).state =
-                            selPlaylist == p['id']
-                                ? null
-                                : p['id'] as String;
-                      },
-                    ),
-              ],
-            ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// The selected playlist's clips: static thumb + title + HSK; 10 rows visible,
+// the rest scroll.
+class _PlaylistVideoList extends ConsumerWidget {
+  final String playlistId;
+  const _PlaylistVideoList({required this.playlistId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows =
+        ref.watch(playlistVideosProvider(playlistId)).valueOrNull ?? const [];
+    if (rows.isEmpty) return const SizedBox.shrink();
+    const rowH = 48.0;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxHeight: rowH * 10),
+      child: ListView.builder(
+        shrinkWrap: true,
+        padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+        itemCount: rows.length,
+        itemBuilder: (_, i) {
+          final v = rows[i];
+          final yt = v['youtube_id'] as String? ?? '';
+          return SizedBox(
+            height: rowH,
+            child: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(6),
+                  child: yt.isEmpty
+                      ? Container(
+                          width: 64, height: 38, color: _bg,
+                          child: const Icon(Icons.movie_outlined,
+                              size: 16, color: Colors.white38))
+                      : Image.network(
+                          'https://img.youtube.com/vi/$yt/default.jpg',
+                          width: 64,
+                          height: 38,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                              width: 64, height: 38, color: _bg),
+                        ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    (v['transcription'] as String? ?? '')
+                        .replaceAll('\n', ' '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white70, fontSize: 12),
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: _green.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text('HSK ${v['hsk_level'] ?? '-'}',
+                      style: const TextStyle(
+                          color: _green,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -1648,37 +1736,52 @@ class ProfileView extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-                Text(name.isNotEmpty ? name : username,
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
-                Text('@$username',
-                    style: const TextStyle(color: Colors.white54, fontSize: 14)),
-                const SizedBox(height: 6),
-                Row(children: [
-                  const Icon(Icons.calendar_today_rounded,
-                      color: Colors.white38, size: 14),
-                  const SizedBox(width: 6),
-                  Text(joined,
-                      style:
-                          const TextStyle(color: Colors.white54, fontSize: 13)),
-                  const SizedBox(width: 14),
-                  Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                    decoration: BoxDecoration(
-                      color: _green,
-                      borderRadius: BorderRadius.circular(8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(name.isNotEmpty ? name : username,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.w800)),
+                          const SizedBox(height: 2),
+                          Text('@$username',
+                              style: const TextStyle(
+                                  color: Colors.white54, fontSize: 14)),
+                          const SizedBox(height: 6),
+                          Row(children: [
+                            const Icon(Icons.calendar_today_rounded,
+                                color: Colors.white38, size: 14),
+                            const SizedBox(width: 6),
+                            Text(joined,
+                                style: const TextStyle(
+                                    color: Colors.white54, fontSize: 13)),
+                            const SizedBox(width: 14),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: _green,
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text('HSK ${user.hskLevel}',
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                            ),
+                          ]),
+                        ],
+                      ),
                     ),
-                    child: Text('HSK ${user.hskLevel}',
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold)),
-                  ),
-                ]),
+                    const SizedBox(width: 16),
+                    SizedBox(width: 240, child: _ProfileFriends(tr: tr)),
+                  ],
+                ),
                 const SizedBox(height: 24),
                 // "Continue where you left off" → opens the current phase lesson.
                 SizedBox(
@@ -1866,6 +1969,155 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
           ],
         ),
       ),
+    );
+  }
+}
+
+// ── Profile: friends (next to the name block) ─────────────────────────────────
+// Max 5 rows visible, the rest scroll; tapping opens a mini profile.
+
+class _ProfileFriends extends ConsumerWidget {
+  final bool tr;
+  const _ProfileFriends({required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myUid = Supabase.instance.client.auth.currentUser?.id;
+    final rows = (ref.watch(friendsLeaderboardProvider).valueOrNull ?? const [])
+        .where((r) => r['id'] != myUid)
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(tr ? 'Arkadaşlarım' : 'My Friends',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          if (rows.isEmpty)
+            Text(
+              tr
+                  ? 'Henüz arkadaşın yok — Puan Tabloları > Arkadaş Ara.'
+                  : 'No friends yet — Leaderboards > Find Friends.',
+              style: const TextStyle(color: Colors.white38, fontSize: 11),
+            )
+          else
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 5 * 40),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: rows.length,
+                itemBuilder: (_, i) {
+                  final f = rows[i];
+                  final photo = f['photo_url'] as String?;
+                  return InkWell(
+                    onTap: () => showDialog(
+                      context: context,
+                      builder: (_) => _FriendProfileDialog(friend: f, tr: tr),
+                    ),
+                    borderRadius: BorderRadius.circular(8),
+                    child: SizedBox(
+                      height: 40,
+                      child: Row(children: [
+                        CircleAvatar(
+                          radius: 13,
+                          backgroundColor: _bg,
+                          backgroundImage: photo?.isNotEmpty == true
+                              ? NetworkImage(photo!)
+                              : null,
+                          child: photo?.isNotEmpty == true
+                              ? null
+                              : const Icon(Icons.person,
+                                  color: Colors.white38, size: 14),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(_rowName(f),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600)),
+                        ),
+                        const Icon(Icons.chevron_right_rounded,
+                            color: Colors.white24, size: 16),
+                      ]),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _FriendProfileDialog extends StatelessWidget {
+  final Map<String, dynamic> friend;
+  final bool tr;
+  const _FriendProfileDialog({required this.friend, required this.tr});
+
+  @override
+  Widget build(BuildContext context) {
+    final photo = friend['photo_url'] as String?;
+    return AlertDialog(
+      backgroundColor: _panel,
+      content: SizedBox(
+        width: 280,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircleAvatar(
+              radius: 36,
+              backgroundColor: _bg,
+              backgroundImage:
+                  photo?.isNotEmpty == true ? NetworkImage(photo!) : null,
+              child: photo?.isNotEmpty == true
+                  ? null
+                  : const Icon(Icons.person, color: Colors.white38, size: 36),
+            ),
+            const SizedBox(height: 10),
+            Text(_rowName(friend),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800)),
+            Text('@${friend['username'] ?? ''}',
+                style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.diamond_rounded,
+                    color: Color(0xFF1CB0F6), size: 18),
+                const SizedBox(width: 6),
+                Text('${friend['score'] ?? 0} ${tr ? 'puan' : 'points'}',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(tr ? 'Kapat' : 'Close'),
+        ),
+      ],
     );
   }
 }
