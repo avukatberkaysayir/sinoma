@@ -2141,8 +2141,10 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
                 .toList() ??
             const [];
         if (ws.isNotEmpty) {
-          final p =
-              ws.map((w) => pmap[w] ?? '').where((x) => x.isNotEmpty).join(' ');
+          final p = ws
+              .map((w) => AdminService.firstReading(pmap[w] ?? ''))
+              .where((x) => x.isNotEmpty)
+              .join(' ');
           if (p.isNotEmpty) v['pinyin_derived'] = p;
         }
       }
@@ -3257,7 +3259,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       final spoken = words.where((w) => w != '\n').toList();
       final pmap = await widget.service.pinyinForWords(spoken);
       final py = spoken
-          .map((w) => pmap[w] ?? '')
+          .map((w) => AdminService.firstReading(pmap[w] ?? ''))
           .where((p) => p.isNotEmpty)
           .join(' ');
       if (mounted && py.isNotEmpty) {

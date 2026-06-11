@@ -488,12 +488,18 @@ class AdminService {
   // Pinyin for a whole sentence: segment it against the dictionary, then join
   // each word's dictionary pinyin. Used to refresh the pinyin field after the
   // sentence text changes (e.g. applying a Whisper transcription).
+  // Polyphonic entries store ALL readings comma-separated ('xíng, háng');
+  // sentence pinyin uses only the first (most common) one.
+  static String firstReading(String p) => p.split(',').first.trim();
+
   Future<String> pinyinForText(String text) async {
     final t = text.trim();
     if (t.isEmpty) return '';
     final words = await segmentSentence(t);
     final map = await pinyinForWords(words);
-    final parts = words.map((w) => map[w] ?? '').where((p) => p.isNotEmpty);
+    final parts = words
+        .map((w) => firstReading(map[w] ?? ''))
+        .where((p) => p.isNotEmpty);
     return parts.join(' ');
   }
 
