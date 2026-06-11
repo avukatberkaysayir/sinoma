@@ -192,6 +192,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         _playerCtrl.showScorePopup(delta);
         widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
         _updateTicks(false);
+        ref.read(videoRepositoryProvider).bumpAnswerStat(false);
         setState(() {
           _countdownActive = false;
           _timedOut = true;
@@ -266,6 +267,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _playerCtrl.showScorePopup(delta);
     widget.onAnswered?.call(correct);
     _updateTicks(correct);
+    ref.read(videoRepositoryProvider).bumpAnswerStat(correct);
     // No auto-advance — the player shows a "next" arrow; the user taps it.
     setState(() => _pickedAnswer = text);
   }
@@ -641,11 +643,14 @@ class _PlaylistDialogState extends ConsumerState<_PlaylistDialog> {
                         color: AppColors.onSurfaceMuted, fontSize: 13)),
               )
             else
+              // NOT a shrink-wrapped ListView: AlertDialog measures its content
+              // with intrinsics, which ListView doesn't support (blank dialog).
               ConstrainedBox(
                 constraints: const BoxConstraints(maxHeight: 240),
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
+                child: SingleChildScrollView(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                     for (final p in playlists)
                       InkWell(
                         onTap: () => _toggle(p['id'] as String),
@@ -677,7 +682,8 @@ class _PlaylistDialogState extends ConsumerState<_PlaylistDialog> {
                           ),
                         ),
                       ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             const Divider(color: AppColors.surface, height: 20),

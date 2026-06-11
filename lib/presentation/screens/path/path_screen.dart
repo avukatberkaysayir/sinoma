@@ -590,12 +590,16 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
 
         // The single "current" phase across the topic.
         final flat = <PathPhase>[for (final s in topic.steps) ...s.phases];
+        // No BAŞLAT pointer on levels the HSK test already passed — there is
+        // nowhere to "continue" inside them.
         PathPhase? current;
-        for (final p in flat) {
-          if (!progress.phase(p.key).done &&
-              isPhaseUnlocked(topic, p, progress, userHsk)) {
-            current = p;
-            break;
+        if (topic.hsk > userHsk) {
+          for (final p in flat) {
+            if (!progress.phase(p.key).done &&
+                isPhaseUnlocked(topic, p, progress, userHsk)) {
+              current = p;
+              break;
+            }
           }
         }
 
@@ -1053,7 +1057,9 @@ class _PhaseNode extends ConsumerWidget {
     Widget? badge;
     if (done) {
       badge = _nodeBadge(Icons.check_rounded, _duoGreenDark);
-    } else if (!unlocked) {
+    } else if (!unlocked && phase.hasVideos) {
+      // Lock badge only on REAL locked content; empty slots just render dim
+      // (a lock there reads as "you can't continue", which is wrong).
       badge = _nodeBadge(Icons.lock_rounded, const Color(0xFF2A363D));
     }
 

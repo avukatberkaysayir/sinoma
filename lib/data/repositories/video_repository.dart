@@ -175,15 +175,58 @@ class VideoRepository {
 
   // ── User playlists ──────────────────────────────────────────────────────────
 
+  // Playlists with their clip counts ('count' int per row).
   Future<List<Map<String, dynamic>>> loadPlaylists() async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return const [];
     final data = await _db
         .from('playlists')
-        .select('id, name')
+        .select('id, name, playlist_items(count)')
         .eq('uid', uid)
         .order('created_at');
+    return List<Map<String, dynamic>>.from(data).map((r) {
+      final items = r['playlist_items'];
+      final count = (items is List && items.isNotEmpty)
+          ? ((items.first as Map)['count'] as num?)?.toInt() ?? 0
+          : 0;
+      return {'id': r['id'], 'name': r['name'], 'count': count};
+    }).toList();
+  }
+
+  Future<void> deletePlaylist(String playlistId) async {
+    await _db.from('playlists').delete().eq('id', playlistId);
+  }
+
+  // ── Daily answer stats + global rank (profile page) ─────────────────────────
+
+  Future<void> bumpAnswerStat(bool correct) async {
+    if (_db.auth.currentUser == null) return;
+    try {
+      await _db.rpc('bump_answer_stat', params: {'p_correct': correct});
+    } catch (_) {/* stats are best-effort */}
+  }
+
+  Future<List<Map<String, dynamic>>> loadDailyStats() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final data = await _db
+        .from('answer_stats')
+        .select('day, total, correct')
+        .eq('uid', uid)
+        .order('day', ascending: false)
+        .limit(14);
     return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<int?> loadUserRank() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return null;
+    try {
+      final r = await _db.rpc('user_rank', params: {'p_uid': uid});
+      return (r as num?)?.toInt();
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<String?> createPlaylist(String name) async {

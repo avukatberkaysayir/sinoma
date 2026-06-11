@@ -1238,11 +1238,227 @@ class ProfileView extends ConsumerWidget {
                         label: tr ? 'Cevaplanan' : 'Answered'),
                   ],
                 ),
+                const SizedBox(height: 24),
+                Text(tr ? 'Puan ve Sıralama' : 'Scores & Ranking',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 12),
+                _ProfileRank(tr: tr, score: user.stats.totalScore),
+                const SizedBox(height: 24),
+                Text(tr ? 'Listelerim' : 'My Lists',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 12),
+                _ProfilePlaylists(tr: tr),
+                const SizedBox(height: 24),
+                Text(tr ? 'Günlük İstatistikler' : 'Daily Stats',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 12),
+                _ProfileDailyStats(tr: tr),
               ],
             ),
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Profile: playlists (VoScreen "My Playlists") ──────────────────────────────
+
+class _ProfilePlaylists extends ConsumerWidget {
+  final bool tr;
+  const _ProfilePlaylists({required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lists = ref.watch(myPlaylistsProvider).valueOrNull ?? const [];
+    if (lists.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: _panel,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF2C3B45)),
+        ),
+        child: Text(
+          tr
+              ? 'Henüz listen yok — Alıştırma sekmesinde "Listeye Ekle" ile oluşturabilirsin.'
+              : 'No lists yet — create one with "Add to Playlist" in Practice.',
+          style: const TextStyle(color: Colors.white54, fontSize: 13),
+        ),
+      );
+    }
+
+    Future<void> remove(String id) async {
+      await ref.read(videoRepositoryProvider).deletePlaylist(id);
+      if (ref.read(selectedPlaylistProvider) == id) {
+        ref.read(selectedPlaylistProvider.notifier).state = null;
+      }
+      ref.invalidate(myPlaylistsProvider);
+      ref.invalidate(videoFeedProvider);
+    }
+
+    return Column(
+      children: [
+        for (final p in lists)
+          Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: _panel,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF2C3B45)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.playlist_play_rounded,
+                    color: _green, size: 24),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(p['name'] as String? ?? '',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600)),
+                ),
+                Text('${p['count'] ?? 0} video',
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 12)),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded,
+                      color: Colors.white38, size: 18),
+                  tooltip: tr ? 'Listeyi sil' : 'Delete list',
+                  onPressed: () => remove(p['id'] as String),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Profile: daily stats (VoScreen "Stats") ───────────────────────────────────
+
+class _ProfileDailyStats extends ConsumerWidget {
+  final bool tr;
+  const _ProfileDailyStats({required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rows = ref.watch(dailyAnswerStatsProvider).valueOrNull ?? const [];
+
+    Widget cell(String s, {Color? c, bool bold = false}) => Expanded(
+          child: Text(s,
+              style: TextStyle(
+                  color: c ?? Colors.white70,
+                  fontSize: 13,
+                  fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
+        );
+
+    String fmtDay(String iso) {
+      final d = DateTime.tryParse(iso);
+      if (d == null) return iso;
+      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: rows.isEmpty
+          ? Text(
+              tr
+                  ? 'Henüz istatistik yok — soru cevapladıkça burada birikecek.'
+                  : 'No stats yet — they build up as you answer questions.',
+              style: const TextStyle(color: Colors.white54, fontSize: 13))
+          : Column(
+              children: [
+                Row(children: [
+                  cell(tr ? 'Tarih' : 'Date', c: _green, bold: true),
+                  cell(tr ? 'Toplam' : 'Total', c: _green, bold: true),
+                  cell(tr ? 'Doğru' : 'Success', c: _green, bold: true),
+                  cell(tr ? 'Yanlış' : 'Fail', c: _green, bold: true),
+                ]),
+                const Divider(color: Colors.white12, height: 18),
+                for (final r in rows) ...[
+                  Row(children: [
+                    cell(fmtDay('${r['day']}')),
+                    cell('${r['total']}'),
+                    cell('${r['correct']}',
+                        c: const Color(0xFF58CC02)),
+                    cell(
+                        '${((r['total'] as num?) ?? 0).toInt() - ((r['correct'] as num?) ?? 0).toInt()}',
+                        c: const Color(0xFFFF4B4B)),
+                  ]),
+                  const SizedBox(height: 8),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+// ── Profile: global rank (VoScreen "Scores & Rankings") ───────────────────────
+
+class _ProfileRank extends ConsumerWidget {
+  final bool tr;
+  final int score;
+  const _ProfileRank({required this.tr, required this.score});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final rank = ref.watch(userRankProvider).valueOrNull;
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C3B45)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.emoji_events_rounded,
+              color: Color(0xFFFFC800), size: 32),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tr ? 'Genel Sıralama' : 'Global Rank',
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 12)),
+                Text(rank != null ? '#$rank' : '—',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800)),
+              ],
+            ),
+          ),
+          const Icon(Icons.diamond_rounded,
+              color: Color(0xFF1CB0F6), size: 18),
+          const SizedBox(width: 6),
+          Text('$score',
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800)),
+        ],
+      ),
     );
   }
 }

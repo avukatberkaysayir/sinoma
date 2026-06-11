@@ -219,12 +219,14 @@ extension PathProgressMap on Map<String, dynamic> {
 }
 
 // The "continue where you left off" phase: the first unlocked, not-done phase
-// scanning HSK 1→6 in order. Null when there's nothing to do (no content / all
-// done).
+// scanning HSK 1→6 in order. Levels at or below the tested HSK level count as
+// already passed — the pointer (BAŞLAT) goes to the first phase ABOVE them
+// (HSK 5 test → L6 Ünite 1 Bölüm 1). Null when nothing remains (e.g. HSK 6).
 PathPhase? currentPhaseFor(
     List<PathTopic> topics, Map<String, dynamic> progress,
     [int userHskLevel = 0]) {
   for (final t in topics) {
+    if (t.hsk <= userHskLevel) continue;
     for (final s in t.steps) {
       for (final p in s.phases) {
         if (!progress.phase(p.key).done &&

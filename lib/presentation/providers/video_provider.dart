@@ -36,6 +36,18 @@ final myPlaylistsProvider =
 // Feed scope: show only the videos of this playlist (null = all).
 final selectedPlaylistProvider = StateProvider<String?>((ref) => null);
 
+// Profile page: per-day answer stats + global rank.
+final dailyAnswerStatsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(videoRepositoryProvider).loadDailyStats();
+});
+
+final userRankProvider = FutureProvider<int?>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(videoRepositoryProvider).loadUserRank();
+});
+
 final videoFeedProvider = FutureProvider<List<VideoSegmentModel>>((ref) async {
   // Depend only on the HSK level (an int), NOT on the whole user stream — otherwise
   // every stats write (scoring an answer) re-emits the user, re-runs this provider,

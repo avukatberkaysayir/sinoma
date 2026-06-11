@@ -78,6 +78,18 @@ class AppL10n {
                                          : 'Sign in to use playlists.';
   String get closeLabel         => _isTr ? 'Kapat'           : 'Close';
 
+  // ── Dictionary discover panel (Tureng-style) ────────────────────────────────
+  String get wordOfDay         => _isTr ? 'GÜNÜN KELİMESİ'    : 'WORD OF THE DAY';
+  String get idiomOfWeek       => _isTr ? 'HAFTANIN DEYİMİ'   : 'IDIOM OF THE WEEK';
+  String get trendingNow       => _isTr ? 'POPÜLER ARAMALAR'  : 'TRENDING NOW';
+  String get newlyAdded        => _isTr ? 'YENİ EKLENENLER'   : 'NEWLY ADDED';
+  String get testYourChinese   => _isTr ? 'Çinceni Test Et'   : 'Test Your Chinese';
+  String get testYourChineseSub => _isTr
+      ? '20 soruluk HSK seviye testiyle kendini dene.'
+      : 'Try the 20-question HSK placement test.';
+  String get dictSearchHint    => _isTr ? 'Çince karakter veya kelime ara…'
+                                        : 'Search Chinese characters…';
+
   // ── HSK levels ──────────────────────────────────────────────────────────────
   String hskLabel(int level) => 'HSK $level';
   String hskSublabel(int level) => switch (level) {

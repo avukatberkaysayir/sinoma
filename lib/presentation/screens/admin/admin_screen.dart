@@ -43,6 +43,9 @@ class _AdminScreenState extends State<AdminScreen> {
   // Anasayfa (home-design) collapsible sub-tabs live in the nav rail like Video.
   bool _homeOpen = false;
   int _homeSub = 0;
+  // Sözlük sub-tabs: 0 = İçerik (dictionary data), 1 = Tasarım (home layout).
+  bool _dictOpen = false;
+  int _dictSub = 0;
 
   @override
   void initState() {
@@ -80,6 +83,16 @@ class _AdminScreenState extends State<AdminScreen> {
               _section = _Section.home;
               _homeSub = i;
             }),
+            dictOpen: _dictOpen,
+            dictSub: _dictSub,
+            onToggleDict: () => setState(() {
+              _section = _Section.dictionary;
+              _dictOpen = !_dictOpen;
+            }),
+            onSelectDictSub: (i) => setState(() {
+              _section = _Section.dictionary;
+              _dictSub = i;
+            }),
             onToggleVideo: () => setState(() {
               _section = _Section.video;
               _videoOpen = !_videoOpen;
@@ -111,7 +124,9 @@ class _AdminScreenState extends State<AdminScreen> {
     return switch (_section) {
       _Section.video      => _buildVideoBody(),
       _Section.home       => _HomeDesignPanel(index: _homeSub),
-      _Section.dictionary => _DictionaryPanel(service: _service),
+      _Section.dictionary => _dictSub == 0
+          ? _DictionaryPanel(service: _service)
+          : const _DictionaryDesignPanel(),
       _Section.users      => const _UsersPanel(),
       _Section.social     => const _SocialPanel(),
       _Section.game       => const _GamePanel(),
@@ -146,9 +161,13 @@ class _NavRail extends StatelessWidget {
   final _VideoAction activeAction;
   final bool homeOpen;
   final int homeSub;
+  final bool dictOpen;
+  final int dictSub;
   final void Function(_Section) onSection;
   final void Function() onToggleHome;
   final void Function(int) onSelectHomeSub;
+  final void Function() onToggleDict;
+  final void Function(int) onSelectDictSub;
   final void Function() onToggleVideo;
   final void Function() onToggleYoutube;
   final void Function() onToggleMovie;
@@ -163,9 +182,13 @@ class _NavRail extends StatelessWidget {
     required this.activeAction,
     required this.homeOpen,
     required this.homeSub,
+    required this.dictOpen,
+    required this.dictSub,
     required this.onSection,
     required this.onToggleHome,
     required this.onSelectHomeSub,
+    required this.onToggleDict,
+    required this.onSelectDictSub,
     required this.onToggleVideo,
     required this.onToggleYoutube,
     required this.onToggleMovie,
@@ -190,6 +213,23 @@ class _NavRail extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const SizedBox(height: 8),
+          _TopItem(
+            icon: Icons.home_outlined,
+            label: 'Anasayfa',
+            selected: section == _Section.home,
+            open: homeOpen,
+            onTap: onToggleHome,
+          ),
+          if (homeOpen)
+            for (var i = 0; i < _HomeDesignPanel.labels.length; i++)
+              _MidItem(
+                icon: _HomeDesignPanel.icons[i],
+                label: _HomeDesignPanel.labels[i],
+                selected: section == _Section.home && homeSub == i,
+                open: false,
+                hasChildren: false,
+                onTap: () => onSelectHomeSub(i),
+              ),
           _TopItem(
             icon: Icons.smart_display_outlined,
             label: 'Video',
@@ -244,30 +284,30 @@ class _NavRail extends StatelessWidget {
             ],
           ],
           _TopItem(
-            icon: Icons.home_outlined,
-            label: 'Anasayfa',
-            selected: section == _Section.home,
-            open: homeOpen,
-            onTap: onToggleHome,
-          ),
-          if (homeOpen)
-            for (var i = 0; i < _HomeDesignPanel.labels.length; i++)
-              _MidItem(
-                icon: _HomeDesignPanel.icons[i],
-                label: _HomeDesignPanel.labels[i],
-                selected: section == _Section.home && homeSub == i,
-                open: false,
-                hasChildren: false,
-                onTap: () => onSelectHomeSub(i),
-              ),
-          _TopItem(
             icon: Icons.menu_book_outlined,
             label: 'Sözlük',
             selected: section == _Section.dictionary,
-            open: false,
-            hasChildren: false,
-            onTap: () => onSection(_Section.dictionary),
+            open: dictOpen,
+            onTap: onToggleDict,
           ),
+          if (dictOpen) ...[
+            _MidItem(
+              icon: Icons.list_alt_outlined,
+              label: 'İçerik',
+              selected: section == _Section.dictionary && dictSub == 0,
+              open: false,
+              hasChildren: false,
+              onTap: () => onSelectDictSub(0),
+            ),
+            _MidItem(
+              icon: Icons.design_services_outlined,
+              label: 'Tasarım',
+              selected: section == _Section.dictionary && dictSub == 1,
+              open: false,
+              hasChildren: false,
+              onTap: () => onSelectDictSub(1),
+            ),
+          ],
           _TopItem(
             icon: Icons.manage_accounts_outlined,
             label: 'Kullanıcılar',
@@ -7208,12 +7248,13 @@ class _HomeDesignPanel extends StatelessWidget {
   final int index;
   const _HomeDesignPanel({this.index = 0});
 
+  // Sözlük tasarımı moved to its own sub-tab under the Sözlük section.
   static const labels = [
-    'Öğren', 'Profil', 'Sözlük', 'Alıştırma',
+    'Öğren', 'Profil', 'Alıştırma',
     'Puan Tabloları', 'Görevler', 'Mağaza', 'Ayarlar',
   ];
   static const icons = [
-    Icons.school_outlined, Icons.person_outline, Icons.menu_book_outlined,
+    Icons.school_outlined, Icons.person_outline,
     Icons.fitness_center_outlined, Icons.leaderboard_outlined,
     Icons.flag_outlined, Icons.storefront_outlined, Icons.settings_outlined,
   ];
@@ -7245,6 +7286,44 @@ class _HomeDesignPanel extends StatelessWidget {
                       style: const TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 13)),
                 ),
+        ),
+      ],
+    );
+  }
+}
+
+// Sözlük · Tasarım — the dictionary page's home-layout designs are managed
+// here (moved out of the Anasayfa sub-tabs).
+class _DictionaryDesignPanel extends StatelessWidget {
+  const _DictionaryDesignPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+          child: Row(children: [
+            Icon(Icons.design_services_outlined,
+                size: 18, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Sözlük · Tasarım',
+                style: TextStyle(
+                    color: AppColors.onSurface,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700)),
+          ]),
+        ),
+        Divider(height: 1, color: AppColors.surfaceVariant),
+        Expanded(
+          child: Center(
+            child: Text(
+              'Sözlük sayfasının anasayfa yerleşimi tasarımları — yakında',
+              style: TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 13),
+            ),
+          ),
         ),
       ],
     );

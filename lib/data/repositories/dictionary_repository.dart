@@ -68,6 +68,67 @@ class DictionaryRepository {
     return result;
   }
 
+  // ── Discover panel (Tureng-style) ───────────────────────────────────────────
+
+  // Fire-and-forget popularity signal for "Popüler Aramalar".
+  Future<void> logSearch(String query) async {
+    try {
+      await _db.from('search_log').insert({'query': query.trim()});
+    } catch (_) {/* logging must never break the search */}
+  }
+
+  Future<List<Map<String, dynamic>>> loadTrendingSearches() async {
+    try {
+      final data = await _db.rpc('trending_searches');
+      return List<Map<String, dynamic>>.from(data as List);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  // Deterministic per-day pick over the whole dictionary (same word for
+  // everyone all day, changes at UTC midnight).
+  Future<DictionaryModel?> wordOfTheDay() async {
+    try {
+      final total = await _db.from('dictionary').count();
+      if (total == 0) return null;
+      final day =
+          DateTime.now().toUtc().difference(DateTime.utc(2026)).inDays;
+      final off = day % total;
+      final data = await _db
+          .from('dictionary')
+          .select()
+          .order('id')
+          .range(off, off);
+      final rows = List<Map<String, dynamic>>.from(data);
+      return rows.isEmpty ? null : DictionaryModel.fromMap(rows.first);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  // Criterion words of the newest ACTIVE clips ("Yeni Eklenenler").
+  Future<List<String>> newestWords({int limit = 10}) async {
+    try {
+      final data = await _db
+          .from('videos')
+          .select('slot_word')
+          .eq('status', 'active')
+          .not('slot_word', 'is', null)
+          .order('created_at', ascending: false)
+          .limit(30);
+      final out = <String>[];
+      for (final r in List<Map<String, dynamic>>.from(data)) {
+        final w = r['slot_word'] as String?;
+        if (w != null && w.isNotEmpty && !out.contains(w)) out.add(w);
+        if (out.length >= limit) break;
+      }
+      return out;
+    } catch (_) {
+      return const [];
+    }
+  }
+
   Future<DictionaryModel?> loadWord(String wordId) async {
     try {
       final data = await _db

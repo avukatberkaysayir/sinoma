@@ -2,11 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/translation_helper.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../providers/dictionary_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 
@@ -67,11 +69,49 @@ class _SearchNotifier extends StateNotifier<_SearchState> {
     try {
       final results = await _repo.searchWords(q, lang: lang);
       if (seq == _seq) state = _SearchState(results: results);
+      // Popularity signal for "Popüler Aramalar" — only settled queries
+      // (debounced + at least 2 chars or a CJK char), fire-and-forget.
+      if (q.length >= 2 || RegExp(r'[一-鿿]').hasMatch(q)) {
+        _repo.logSearch(q);
+      }
     } catch (e) {
       if (seq == _seq) state = _SearchState(error: e.toString());
     }
   }
 }
+
+// ── Discover panel data (Tureng-style) ────────────────────────────────────────
+
+final _wordOfDayProvider =
+    FutureProvider.autoDispose<DictionaryModel?>((ref) {
+  return ref.watch(dictionaryRepositoryProvider).wordOfTheDay();
+});
+
+final _trendingProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(dictionaryRepositoryProvider).loadTrendingSearches();
+});
+
+final _newestWordsProvider =
+    FutureProvider.autoDispose<List<String>>((ref) {
+  return ref.watch(dictionaryRepositoryProvider).newestWords();
+});
+
+// Curated chengyu pool — rotates weekly (UTC), same idiom for everyone.
+const List<(String, String, String, String)> _kIdioms = [
+  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing'),
+  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless'),
+  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…'),
+  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect'),
+  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily'),
+  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears'),
+  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway'),
+  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well'),
+  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck'),
+  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never'),
+  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise'),
+  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins'),
+];
 
 class DictionaryScreen extends ConsumerStatefulWidget {
   final String? initialWordId;
@@ -152,7 +192,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   autofocus: widget.initialWordId == null || widget.initialWordId == 'search',
                   style: const TextStyle(color: AppColors.onSurface),
                   decoration: InputDecoration(
-                    hintText: 'Search Chinese characters…',
+                    hintText: AppL10n.fromCode(lang).dictSearchHint,
                     hintStyle: const TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 14),
                     prefixIcon: const Icon(Icons.search,
@@ -206,19 +246,17 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     }
 
     if (_controller.text.isEmpty) {
-      return const Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.translate, color: AppColors.onSurfaceMuted, size: 48),
-            SizedBox(height: 16),
-            Text(
-              'Type a character or word to search',
-              style:
-                  TextStyle(color: AppColors.onSurfaceMuted, fontSize: 15),
-            ),
-          ],
-        ),
+      // Tureng-style discover panel: word of the day, idiom of the week,
+      // trending searches and the newest clip words — all wired to our own
+      // search/HSK infrastructure.
+      return _DiscoverPanel(
+        lang: lang,
+        onSearch: (q) {
+          _controller.text = q;
+          setState(() {});
+          ref.read(_dictionarySearchProvider.notifier).search(q, lang: lang);
+        },
+        onOpenWord: _openWordDetail,
       );
     }
 
@@ -281,6 +319,289 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
       ),
       itemBuilder: (context, i) =>
           _WordTile(word: state.results[i], lang: lang, onTap: _openWordDetail),
+    );
+  }
+}
+
+// ── Discover panel (empty search state, Tureng-style) ─────────────────────────
+
+class _DiscoverPanel extends ConsumerWidget {
+  final String lang;
+  final void Function(String query) onSearch;
+  final void Function(String wordId) onOpenWord;
+  const _DiscoverPanel({
+    required this.lang,
+    required this.onSearch,
+    required this.onOpenWord,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.fromCode(lang);
+    final word = ref.watch(_wordOfDayProvider).valueOrNull;
+    final trending = ref.watch(_trendingProvider).valueOrNull ?? const [];
+    final newest = ref.watch(_newestWordsProvider).valueOrNull ?? const [];
+    final week =
+        DateTime.now().toUtc().difference(DateTime.utc(2026)).inDays ~/ 7;
+    final idiom = _kIdioms[week % _kIdioms.length];
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+      children: [
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 720),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Word of the day + idiom of the week, side by side when wide.
+                LayoutBuilder(builder: (context, c) {
+                  final wide = c.maxWidth > 560;
+                  final wod = _DiscoverCard(
+                    title: l10n.wordOfDay,
+                    accent: AppColors.primary,
+                    onTap: word == null ? null : () => onOpenWord(word.wordId),
+                    child: word == null
+                        ? const _CardLoading()
+                        : Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(word.simplified,
+                                  style: const TextStyle(
+                                      color: AppColors.onSurface,
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.w800)),
+                              const SizedBox(height: 2),
+                              Text(word.pinyin,
+                                  style: const TextStyle(
+                                      color: AppColors.primary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 6),
+                              Text(
+                                lang == 'tr'
+                                    ? word.definitions.tr
+                                    : word.definitions.en,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    color: AppColors.onSurfaceMuted,
+                                    fontSize: 14),
+                              ),
+                            ],
+                          ),
+                  );
+                  final iow = _DiscoverCard(
+                    title: l10n.idiomOfWeek,
+                    accent: const Color(0xFFE0A800),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(idiom.$1,
+                            style: const TextStyle(
+                                color: AppColors.onSurface,
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800)),
+                        const SizedBox(height: 2),
+                        Text(idiom.$2,
+                            style: const TextStyle(
+                                color: Color(0xFFE0A800),
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 6),
+                        Text(lang == 'tr' ? idiom.$3 : idiom.$4,
+                            style: const TextStyle(
+                                color: AppColors.onSurfaceMuted,
+                                fontSize: 14)),
+                      ],
+                    ),
+                  );
+                  return wide
+                      ? Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(child: wod),
+                            const SizedBox(width: 12),
+                            Expanded(child: iow),
+                          ],
+                        )
+                      : Column(children: [wod, const SizedBox(height: 12), iow]);
+                }),
+                const SizedBox(height: 12),
+                if (trending.isNotEmpty) ...[
+                  _DiscoverCard(
+                    title: l10n.trendingNow,
+                    accent: const Color(0xFFFF4B4B),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final t in trending)
+                          _SearchChip(
+                            label: t['query'] as String? ?? '',
+                            onTap: () =>
+                                onSearch(t['query'] as String? ?? ''),
+                          ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                if (newest.isNotEmpty) ...[
+                  _DiscoverCard(
+                    title: l10n.newlyAdded,
+                    accent: const Color(0xFF22C55E),
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        for (final w in newest)
+                          _SearchChip(label: w, onTap: () => onSearch(w)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                // Test card → the existing HSK placement test.
+                Material(
+                  color: AppColors.primary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(14),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => context.push('/hsk-test'),
+                    child: Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                            color:
+                                AppColors.primary.withValues(alpha: 0.5)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.quiz_rounded,
+                              color: AppColors.primary, size: 30),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(l10n.testYourChinese,
+                                    style: const TextStyle(
+                                        color: AppColors.onSurface,
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800)),
+                                const SizedBox(height: 2),
+                                Text(l10n.testYourChineseSub,
+                                    style: const TextStyle(
+                                        color: AppColors.onSurfaceMuted,
+                                        fontSize: 12)),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right_rounded,
+                              color: AppColors.primary),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DiscoverCard extends StatelessWidget {
+  final String title;
+  final Color accent;
+  final Widget child;
+  final VoidCallback? onTap;
+  const _DiscoverCard({
+    required this.title,
+    required this.accent,
+    required this.child,
+    this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surfaceVariant,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: TextStyle(
+                      color: accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 1)),
+              const SizedBox(height: 10),
+              child,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CardLoading extends StatelessWidget {
+  const _CardLoading();
+  @override
+  Widget build(BuildContext context) => const SizedBox(
+        height: 60,
+        child: Center(
+            child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+}
+
+class _SearchChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _SearchChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(20),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+                color: AppColors.onSurfaceMuted.withValues(alpha: 0.35)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.search,
+                  size: 14, color: AppColors.onSurfaceMuted),
+              const SizedBox(width: 6),
+              Text(label,
+                  style: const TextStyle(
+                      color: AppColors.onSurface, fontSize: 13)),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
