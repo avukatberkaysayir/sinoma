@@ -40,6 +40,9 @@ class _AdminScreenState extends State<AdminScreen> {
   bool _movieOpen = false;
   _VideoSub _activeSub = _VideoSub.youtube;
   _VideoAction _activeAction = _VideoAction.add;
+  // Anasayfa (home-design) collapsible sub-tabs live in the nav rail like Video.
+  bool _homeOpen = false;
+  int _homeSub = 0;
 
   @override
   void initState() {
@@ -66,7 +69,17 @@ class _AdminScreenState extends State<AdminScreen> {
             movieOpen: _movieOpen,
             activeSub: _activeSub,
             activeAction: _activeAction,
+            homeOpen: _homeOpen,
+            homeSub: _homeSub,
             onSection: (s) => setState(() => _section = s),
+            onToggleHome: () => setState(() {
+              _section = _Section.home;
+              _homeOpen = !_homeOpen;
+            }),
+            onSelectHomeSub: (i) => setState(() {
+              _section = _Section.home;
+              _homeSub = i;
+            }),
             onToggleVideo: () => setState(() {
               _section = _Section.video;
               _videoOpen = !_videoOpen;
@@ -97,7 +110,7 @@ class _AdminScreenState extends State<AdminScreen> {
   Widget _buildBody() {
     return switch (_section) {
       _Section.video      => _buildVideoBody(),
-      _Section.home       => const _HomeDesignPanel(),
+      _Section.home       => _HomeDesignPanel(index: _homeSub),
       _Section.dictionary => _DictionaryPanel(service: _service),
       _Section.users      => const _UsersPanel(),
       _Section.social     => const _SocialPanel(),
@@ -131,7 +144,11 @@ class _NavRail extends StatelessWidget {
   final bool movieOpen;
   final _VideoSub activeSub;
   final _VideoAction activeAction;
+  final bool homeOpen;
+  final int homeSub;
   final void Function(_Section) onSection;
+  final void Function() onToggleHome;
+  final void Function(int) onSelectHomeSub;
   final void Function() onToggleVideo;
   final void Function() onToggleYoutube;
   final void Function() onToggleMovie;
@@ -144,7 +161,11 @@ class _NavRail extends StatelessWidget {
     required this.movieOpen,
     required this.activeSub,
     required this.activeAction,
+    required this.homeOpen,
+    required this.homeSub,
     required this.onSection,
+    required this.onToggleHome,
+    required this.onSelectHomeSub,
     required this.onToggleVideo,
     required this.onToggleYoutube,
     required this.onToggleMovie,
@@ -226,10 +247,19 @@ class _NavRail extends StatelessWidget {
             icon: Icons.home_outlined,
             label: 'Anasayfa',
             selected: section == _Section.home,
-            open: false,
-            hasChildren: false,
-            onTap: () => onSection(_Section.home),
+            open: homeOpen,
+            onTap: onToggleHome,
           ),
+          if (homeOpen)
+            for (var i = 0; i < _HomeDesignPanel.labels.length; i++)
+              _MidItem(
+                icon: _HomeDesignPanel.icons[i],
+                label: _HomeDesignPanel.labels[i],
+                selected: section == _Section.home && homeSub == i,
+                open: false,
+                hasChildren: false,
+                onTap: () => onSelectHomeSub(i),
+              ),
           _TopItem(
             icon: Icons.menu_book_outlined,
             label: 'Sözlük',
@@ -335,6 +365,7 @@ class _MidItem extends StatelessWidget {
   final String label;
   final bool selected;
   final bool open;
+  final bool hasChildren;
   final VoidCallback onTap;
 
   const _MidItem({
@@ -342,6 +373,7 @@ class _MidItem extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.open,
+    this.hasChildren = true,
     required this.onTap,
   });
 
@@ -353,6 +385,13 @@ class _MidItem extends StatelessWidget {
       child: Container(
         height: 38,
         padding: const EdgeInsets.only(left: 30, right: 14),
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(
+                color: selected ? AppColors.primary : Colors.transparent,
+                width: 3),
+          ),
+        ),
         child: Row(
           children: [
             Icon(icon, size: 15, color: color),
@@ -367,11 +406,12 @@ class _MidItem extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(
-              open ? Icons.expand_less : Icons.expand_more,
-              size: 14,
-              color: color,
-            ),
+            if (hasChildren)
+              Icon(
+                open ? Icons.expand_less : Icons.expand_more,
+                size: 14,
+                color: color,
+              ),
           ],
         ),
       ),
@@ -7106,76 +7146,50 @@ class AddVideoScreen extends StatelessWidget {
 
 // ── Anasayfa (home design) ────────────────────────────────────────────────────
 
-class _HomeDesignPanel extends StatefulWidget {
-  const _HomeDesignPanel();
-  @override
-  State<_HomeDesignPanel> createState() => _HomeDesignPanelState();
-}
+class _HomeDesignPanel extends StatelessWidget {
+  // The home-design sub-tabs live in the nav rail (collapsible under "Anasayfa"),
+  // so this panel just shows the one selected by [index]. Öğren is the only built
+  // tab; the rest are placeholders.
+  final int index;
+  const _HomeDesignPanel({this.index = 0});
 
-class _HomeDesignPanelState extends State<_HomeDesignPanel>
-    with SingleTickerProviderStateMixin {
-  late final TabController _tabs;
-  static const _labels = [
-    'Öğren',
-    'Profil',
-    'Sözlük',
-    'Alıştırma',
-    'Puan Tabloları',
-    'Görevler',
-    'Mağaza',
-    'Ayarlar',
+  static const labels = [
+    'Öğren', 'Profil', 'Sözlük', 'Alıştırma',
+    'Puan Tabloları', 'Görevler', 'Mağaza', 'Ayarlar',
+  ];
+  static const icons = [
+    Icons.school_outlined, Icons.person_outline, Icons.menu_book_outlined,
+    Icons.fitness_center_outlined, Icons.leaderboard_outlined,
+    Icons.flag_outlined, Icons.storefront_outlined, Icons.settings_outlined,
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: _labels.length, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabs.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
+    final i = index.clamp(0, labels.length - 1);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
           child: Row(children: [
-            Icon(Icons.home_outlined, size: 18, color: AppColors.primary),
-            SizedBox(width: 8),
-            Text('Anasayfa Tasarımı',
-                style: TextStyle(
+            Icon(icons[i], size: 18, color: AppColors.primary),
+            const SizedBox(width: 8),
+            Text('Anasayfa · ${labels[i]}',
+                style: const TextStyle(
                     color: AppColors.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w700)),
           ]),
         ),
-        TabBar(
-          controller: _tabs,
-          isScrollable: true,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.onSurfaceMuted,
-          indicatorColor: AppColors.primary,
-          tabs: [for (final l in _labels) Tab(text: l)],
-        ),
+        const Divider(height: 1, color: AppColors.surfaceVariant),
         Expanded(
-          child: TabBarView(
-            controller: _tabs,
-            children: [
-              const _LearnDesignTab(),
-              for (var i = 1; i < _labels.length; i++)
-                Center(
-                  child: Text('${_labels[i]} tasarımı — yakında',
+          child: i == 0
+              ? const _LearnDesignTab()
+              : Center(
+                  child: Text('${labels[i]} tasarımı — yakında',
                       style: const TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 13)),
                 ),
-            ],
-          ),
         ),
       ],
     );
