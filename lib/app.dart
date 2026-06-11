@@ -189,11 +189,22 @@ class SinomaApp extends ConsumerWidget {
     );
   }
 
-  // One shared typeface across landing AND app: ZCOOL XiaoWei — an expressive,
-  // playful face with genuine Chinese-calligraphy character. The admin panel
-  // opts out locally (it overrides its own Theme).
-  TextTheme _appTextTheme(TextTheme base) =>
-      GoogleFonts.zcoolXiaoWeiTextTheme(base);
+  // Typography pairing: ZCOOL XiaoWei (Chinese-calligraphy character) for
+  // display/headline/title sizes, Figtree (neutral-modern, NOT a rounded
+  // Duolingo-like face) for body text. Admin opts out via its own Theme.
+  TextTheme _appTextTheme(TextTheme base) {
+    final body = GoogleFonts.figtreeTextTheme(base);
+    final zc = GoogleFonts.zcoolXiaoWeiTextTheme(base);
+    return body.copyWith(
+      displayLarge: zc.displayLarge,
+      displayMedium: zc.displayMedium,
+      displaySmall: zc.displaySmall,
+      headlineLarge: zc.headlineLarge,
+      headlineMedium: zc.headlineMedium,
+      headlineSmall: zc.headlineSmall,
+      titleLarge: zc.titleLarge,
+    );
+  }
 
   ThemeData _buildDarkTheme() {
     final base = ThemeData(

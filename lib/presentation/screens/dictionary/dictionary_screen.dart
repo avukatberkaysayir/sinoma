@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -428,7 +428,7 @@ class DictionaryRightRail extends ConsumerWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
       ),
       child: SingleChildScrollView(
         child: Column(

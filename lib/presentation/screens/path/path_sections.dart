@@ -6,6 +6,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/constants/cities.dart';
+import '../../../core/utils/web_sfx.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
@@ -18,8 +20,8 @@ import 'phase_runner_screen.dart';
 
 // Duolingo palette (kept local to this file).
 const _green = Color(0xFF2EC4B6);
-const _bg = Color(0xFF131F2A);
-const _panel = Color(0xFF1C2A35);
+const _bg = Color(0xFF0E1414);
+const _panel = Color(0xFF161E1D);
 
 // ── Video center (free watch) ─────────────────────────────────────────────────
 
@@ -116,7 +118,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -145,7 +147,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
               decoration: BoxDecoration(
                 color: _panel,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF2C3B45)),
+                border: Border.all(color: const Color(0xFF263230)),
               ),
               child: Text('HSK $userLevel',
                   textAlign: TextAlign.center,
@@ -336,7 +338,7 @@ class _FilterGroup extends StatelessWidget {
         color: _panel,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: activeCount > 0 ? _green : const Color(0xFF2C3B45)),
+            color: activeCount > 0 ? _green : const Color(0xFF263230)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -388,7 +390,7 @@ class _FilterGroup extends StatelessWidget {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Divider(color: Color(0xFF2C3B45), height: 1),
+                      const Divider(color: Color(0xFF263230), height: 1),
                       ...children,
                       const SizedBox(height: 6),
                     ],
@@ -475,7 +477,7 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
               color: on ? _green.withValues(alpha: 0.15) : _panel,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: on ? _green : const Color(0xFF2C3B45)),
+                  color: on ? _green : const Color(0xFF263230)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -510,7 +512,7 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
                   tabChip(1, tr ? 'Arkadaşlarım' : 'Friends',
                       Icons.group_rounded),
                   const SizedBox(width: 8),
-                  tabChip(2, tr ? 'Elmas Ligi' : 'Diamond Rank',
+                  tabChip(2, tr ? 'Zhuangyuan' : 'Zhuangyuan',
                       Icons.diamond_rounded),
                 ]),
                 const SizedBox(height: 20),
@@ -698,7 +700,7 @@ class _DiamondsTab extends ConsumerWidget {
         const SizedBox(height: 4),
         Text(
             tr
-                ? 'Elmas Ligi\'nde geçirilen her hafta +1 elmas; dışında kalınan her hafta −1.'
+                ? 'Zhuangyuan rütbesinde geçirilen her hafta +1 elmas; dışında kalınan her hafta −1.'
                 : 'Each week in the Diamond League earns +1 diamond; each week outside costs −1.',
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white54, fontSize: 13)),
@@ -711,7 +713,7 @@ class _DiamondsTab extends ConsumerWidget {
           data: (list) => list.isEmpty
               ? Text(
                   tr
-                      ? 'Henüz elmas kazanan yok — Elmas Ligi\'ne ilk ulaşan sen ol!'
+                      ? 'Henüz elmas kazanan yok — Zhuangyuan rütbesine ilk ulaşan sen ol!'
                       : 'No diamonds earned yet — be the first to reach the Diamond League!',
                   textAlign: TextAlign.center,
                   style:
@@ -1126,10 +1128,11 @@ class QuestsCenter extends ConsumerWidget {
       if (!ok || !context.mounted) return;
       ref.invalidate(pathProgressProvider);
       ref.invalidate(currentUserProvider);
+      WebSfx.gong();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           duration: const Duration(seconds: 2),
-          content:
-              Text(tr ? '🪙 Görev ödülü: +20 altın!' : '🪙 Quest reward: +20 gold!')));
+          content: Text(
+              tr ? '🧧 Hongbao açıldı: +20 altın!' : '🧧 Hongbao: +20 gold!')));
     }
 
     return ListView(
@@ -1157,8 +1160,8 @@ class QuestsCenter extends ConsumerWidget {
                           children: [
                             Text(
                                 tr
-                                    ? 'Görevlerle birlikte ödül kazan!'
-                                    : 'Earn rewards with quests!',
+                                    ? 'Çayevi Siparişleri ☕'
+                                    : 'Tea House Orders ☕',
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 21,
@@ -1166,8 +1169,8 @@ class QuestsCenter extends ConsumerWidget {
                             const SizedBox(height: 6),
                             Text(
                                 tr
-                                    ? 'Bugün 3 görevin $doneCount tanesini tamamladın.'
-                                    : 'You completed $doneCount of 3 quests today.',
+                                    ? 'Siparişleri tamamla, hongbao 🧧 kazan! Bugün 3 siparişin $doneCount tanesi hazır.'
+                                    : 'Fill the orders, earn hongbao 🧧! $doneCount of 3 ready today.',
                                 style: const TextStyle(
                                     color: Colors.white70, fontSize: 14)),
                           ],
@@ -1182,7 +1185,7 @@ class QuestsCenter extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(tr ? 'Günlük Görevler' : 'Daily Quests',
+                      child: Text(tr ? 'Günün Siparişleri' : "Today's Orders",
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -1249,7 +1252,7 @@ class _QuestRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Row(children: [
         Icon(icon, color: color, size: 30),
@@ -1264,45 +1267,93 @@ class _QuestRow extends StatelessWidget {
                       fontSize: 15,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Stack(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: LinearProgressIndicator(
-                      value: (current / target).clamp(0.0, 1.0),
-                      minHeight: 14,
-                      backgroundColor: const Color(0xFF37464F),
-                      valueColor: AlwaysStoppedAnimation(color),
-                    ),
-                  ),
-                  Positioned.fill(
-                    child: Center(
-                      child: Text('${current.clamp(0, target)} / $target',
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800)),
-                    ),
-                  ),
-                ],
+              BrushBar(
+                value: (current / target).clamp(0.0, 1.0),
+                color: color,
+                height: 14,
+                label: '${current.clamp(0, target)} / $target',
               ),
             ],
           ),
         ),
         const SizedBox(width: 12),
+        // Hongbao (red envelope) reward instead of a chest icon.
         claimed
             ? const Icon(Icons.check_circle_rounded,
-                color: Color(0xFF58CC02), size: 30)
+                color: Color(0xFF3FB58E), size: 30)
             : IconButton(
                 onPressed: onClaim,
                 tooltip: done ? '+20' : null,
-                icon: Icon(Icons.redeem_rounded,
-                    size: 30,
-                    color: done
-                        ? const Color(0xFFFFC800)
-                        : Colors.white24),
+                icon: Opacity(
+                  opacity: done ? 1 : 0.3,
+                  child: const Text('🧧', style: TextStyle(fontSize: 26)),
+                ),
               ),
       ]),
+    );
+  }
+}
+
+// ── Brush-stroke progress bar ─────────────────────────────────────────────────
+// An ink line being filled by a calligraphy stroke: rounded start, tapered
+// "wet tip" end — our replacement for the stock progress bar.
+class BrushBar extends StatelessWidget {
+  final double value;
+  final Color color;
+  final double height;
+  final String? label;
+  const BrushBar({
+    super.key,
+    required this.value,
+    required this.color,
+    this.height = 12,
+    this.label,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final v = value.clamp(0.0, 1.0);
+    return SizedBox(
+      height: height,
+      child: Stack(
+        children: [
+          // Faint ink track.
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(height / 2),
+            ),
+          ),
+          FractionallySizedBox(
+            widthFactor: v <= 0 ? 0.001 : v,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(colors: [
+                  color.withValues(alpha: 0.65),
+                  color,
+                ]),
+                // Asymmetric caps: clean start, tapered brush tip.
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(height / 2),
+                  bottomLeft: Radius.circular(height / 2),
+                  topRight: Radius.circular(height * 0.9),
+                  bottomRight: Radius.circular(height * 0.25),
+                ),
+              ),
+            ),
+          ),
+          if (label != null)
+            Positioned.fill(
+              child: Center(
+                child: Text(label!,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800)),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1403,7 +1454,7 @@ class _ShopRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Row(
         children: [
@@ -1567,7 +1618,7 @@ class SettingsRight extends StatelessWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -1594,7 +1645,7 @@ class SettingsRight extends StatelessWidget {
               decoration: BoxDecoration(
                 color: _panel,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF2C3B45)),
+                border: Border.all(color: const Color(0xFF263230)),
               ),
               child: InkWell(
                 onTap: logout,
@@ -1630,7 +1681,7 @@ class _LinkCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1683,7 +1734,7 @@ class _ToggleRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Row(children: [
         Expanded(
@@ -1730,7 +1781,7 @@ class _LangRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Row(children: [
         Expanded(
@@ -1767,7 +1818,7 @@ class _MoreRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2C3B45)),
+              border: Border.all(color: const Color(0xFF263230)),
             ),
             child: Row(children: [
               Icon(icon, color: c, size: 24),
@@ -1798,14 +1849,14 @@ class RightInfoCard extends StatelessWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _panel,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF2C3B45)),
+          border: Border.all(color: const Color(0xFF263230)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2035,6 +2086,14 @@ class ProfileView extends ConsumerWidget {
                         label: tr ? 'Cevaplanan' : 'Answered'),
                   ],
                 ),
+                const SizedBox(height: 24),
+                Text(tr ? 'Pasaport 🛂' : 'Passport 🛂',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800)),
+                const SizedBox(height: 12),
+                _ProfilePassport(tr: tr),
               ],
             ),
           ),
@@ -2096,7 +2155,7 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -2150,6 +2209,159 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
   }
 }
 
+// ── Bobo hero (post-login dashboard) ──────────────────────────────────────────
+// Our mascot has a name and a voice: a day-rotating greeting / chengyu.
+
+const List<(String zh, String tr, String en)> _kBoboLines = [
+  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?'),
+  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?'),
+  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.'),
+  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!'),
+  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮'),
+  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧'),
+  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.'),
+];
+
+class _BoboHero extends StatelessWidget {
+  final bool tr;
+  const _BoboHero({required this.tr});
+
+  @override
+  Widget build(BuildContext context) {
+    final day = DateTime.now().difference(DateTime.utc(2026)).inDays;
+    final line = _kBoboLines[day % _kBoboLines.length];
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF143B37), Color(0xFF1B6E68)],
+        ),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFF263230)),
+      ),
+      child: Row(
+        children: [
+          Image.asset('assets/mascot/mascot.png',
+              width: 110, height: 110, fit: BoxFit.contain),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFF0E1414).withValues(alpha: 0.55),
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(4),
+                  topRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(line.$1,
+                      style: const TextStyle(
+                          color: Color(0xFFD4A33D),
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 4),
+                  Text(tr ? line.$2 : line.$3,
+                      style: const TextStyle(
+                          color: Colors.white, fontSize: 14, height: 1.35)),
+                  const SizedBox(height: 6),
+                  const Text('— Bobo 🦆',
+                      style:
+                          TextStyle(color: Colors.white38, fontSize: 11)),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Profile: passport / stamp book ────────────────────────────────────────────
+// Every fully completed unit earns the city's red seal stamp.
+
+class _ProfilePassport extends ConsumerWidget {
+  final bool tr;
+  const _ProfilePassport({required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final topics = ref.watch(curriculumProvider).valueOrNull ?? const [];
+    final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
+    final stamps = <(String name, int hsk)>[];
+    for (final t in topics) {
+      for (final s in t.steps) {
+        final playable = s.phases.where((p) => p.hasVideos).toList();
+        if (playable.isEmpty) continue;
+        if (playable.every((p) => progress.phase(p.key).done)) {
+          stamps.add((
+            cityDisplayName(cityForUnit(s.hsk, s.index), tr: tr),
+            s.hsk,
+          ));
+        }
+      }
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF263230)),
+      ),
+      child: stamps.isEmpty
+          ? Text(
+              tr
+                  ? 'Pasaportun henüz boş — bir üniteyi tamamla, şehrin mührünü kazan!'
+                  : 'Your passport is empty — finish a unit to earn its city seal!',
+              style: const TextStyle(color: Colors.white54, fontSize: 13))
+          : Wrap(
+              spacing: 10,
+              runSpacing: 10,
+              children: [
+                for (var i = 0; i < stamps.length; i++)
+                  Transform.rotate(
+                    angle: (i.isEven ? -1 : 1) * 0.08,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: const Color(0xFFE0442C), width: 2),
+                        color: const Color(0xFFE0442C)
+                            .withValues(alpha: 0.10),
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(stamps[i].$1,
+                              style: const TextStyle(
+                                  color: Color(0xFFE0442C),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800)),
+                          Text('L${stamps[i].$2}',
+                              style: const TextStyle(
+                                  color: Color(0xFFE0442C),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700)),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
 // ── Profile: friends (next to the name block) ─────────────────────────────────
 // Max 5 rows visible, the rest scroll; tapping opens a mini profile.
 
@@ -2169,7 +2381,7 @@ class _ProfileFriends extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -2314,7 +2526,7 @@ class _ProfilePlaylists extends ConsumerWidget {
         decoration: BoxDecoration(
           color: _panel,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF2C3B45)),
+          border: Border.all(color: const Color(0xFF263230)),
         ),
         child: Text(
           tr
@@ -2343,7 +2555,7 @@ class _ProfilePlaylists extends ConsumerWidget {
             decoration: BoxDecoration(
               color: _panel,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2C3B45)),
+              border: Border.all(color: const Color(0xFF263230)),
             ),
             child: Row(
               children: [
@@ -2405,7 +2617,7 @@ class _ProfileDailyStats extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: rows.isEmpty
           ? Text(
@@ -2455,7 +2667,7 @@ class _ProfileRank extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Row(
         children: [
@@ -2508,7 +2720,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Row(children: [
         Icon(icon, color: color, size: 28),
@@ -2557,58 +2769,9 @@ class HomeDashboard extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Hero visual
-              AspectRatio(
-                aspectRatio: 16 / 9,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF58CC02), Color(0xFF1CB0F6)],
-                    ),
-                    borderRadius: BorderRadius.circular(24),
-                    boxShadow: [
-                      BoxShadow(
-                        color: const Color(0xFF58CC02).withValues(alpha: 0.35),
-                        blurRadius: 30,
-                        offset: const Offset(0, 14),
-                      ),
-                    ],
-                  ),
-                  child: Stack(
-                    children: [
-                      const Positioned(
-                          top: 18,
-                          left: 20,
-                          child: Icon(Icons.auto_awesome,
-                              color: Colors.white70, size: 26)),
-                      const Positioned(
-                          bottom: 20,
-                          right: 26,
-                          child: Icon(Icons.auto_awesome,
-                              color: Colors.white54, size: 20)),
-                      const Positioned(
-                          top: 40,
-                          right: 40,
-                          child: Icon(Icons.star_rounded,
-                              color: Colors.white38, size: 22)),
-                      Center(
-                        child: Container(
-                          width: 96,
-                          height: 96,
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.school_rounded,
-                              color: Colors.white, size: 54),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+              // Hero: Bobo the platypus greets with a day-rotating line
+              // (a chengyu or a nudge) in a speech bubble.
+              _BoboHero(tr: tr),
               const SizedBox(height: 28),
               Text(
                 name != null

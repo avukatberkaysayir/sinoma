@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/web_sfx.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../providers/dictionary_provider.dart';
@@ -199,6 +200,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         // Missed the choice window → penalty. Don't auto-advance; the next
         // arrow appears and the user taps it to continue.
         final delta = -_penaltyPoints(_seg);
+        WebSfx.wrong();
         _addScore(delta, answered: false);
         _playerCtrl.showScorePopup(delta);
         widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
@@ -275,6 +277,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     final seg = _seg;
     final delta = correct ? _correctPoints(seg) : -_penaltyPoints(seg);
     if (correct) _correctCount++;
+    correct ? WebSfx.correct() : WebSfx.wrong();
     _addScore(delta);
     _playerCtrl.showScorePopup(delta);
     widget.onAnswered?.call(correct);

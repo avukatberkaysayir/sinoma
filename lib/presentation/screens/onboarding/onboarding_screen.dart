@@ -6,8 +6,8 @@ import '../../../core/constants/app_colors.dart';
 import '../../providers/onboarding_provider.dart';
 
 // Duo palette - matches /home.
-const _obBg = Color(0xFF131F2A);
-const _obPanel = Color(0xFF1C2A35);
+const _obBg = Color(0xFF0E1414);
+const _obPanel = Color(0xFF161E1D);
 const _obAccent = Color(0xFF2EC4B6);
 
 // Tappable inline span for ToS/PP links.
@@ -230,7 +230,7 @@ class _SignInPageState extends State<_SignInPage> {
         suffixIcon: suffix,
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: Color(0xFF2C3B45), width: 1.5),
+          borderSide: const BorderSide(color: Color(0xFF263230), width: 1.5),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
@@ -273,7 +273,7 @@ class _SignInPageState extends State<_SignInPage> {
                   setState(() => _registerMode = !_registerMode),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _obAccent,
-                side: const BorderSide(color: Color(0xFF2C3B45), width: 2),
+                side: const BorderSide(color: Color(0xFF263230), width: 2),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -397,7 +397,7 @@ class _SignInPageState extends State<_SignInPage> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.onSurface,
                             side: const BorderSide(
-                                color: Color(0xFF2C3B45), width: 2),
+                                color: Color(0xFF263230), width: 2),
                             padding:
                                 const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(

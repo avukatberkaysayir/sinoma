@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7918,7 +7918,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
       width: h * 1.6,
       height: h,
       decoration: BoxDecoration(
-        color: const Color(0xFF26323F),
+        color: const Color(0xFF1C2624),
         borderRadius: BorderRadius.circular(8),
         border:
             Border.all(color: AppColors.onSurfaceMuted.withValues(alpha: 0.2)),

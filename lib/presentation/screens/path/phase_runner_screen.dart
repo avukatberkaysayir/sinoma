@@ -1,14 +1,14 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
 import '../home/inline_player_section.dart';
 
-const _duoGreen = Color(0xFF58CC02);
-const _duoGreenDark = Color(0xFF4CAF00);
-const _duoBg = Color(0xFF131F2A);
-const _duoTrack = Color(0xFF37464F);
+const _duoGreen = Color(0xFF2EC4B6);
+const _duoGreenDark = Color(0xFF21968B);
+const _duoBg = Color(0xFF0E1414);
+const _duoTrack = Color(0xFF2E3A38);
 
 // Duolingo-style lesson view: top bar (X + segmented progress + hearts), the
 // video exercise centered, and a result screen at the end. Plays the phase's

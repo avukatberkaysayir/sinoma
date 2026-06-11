@@ -10,8 +10,8 @@ import '../../widgets/common/auth_dialog.dart';
 // Duolingo-warm landing palette — matches /home (same green, same navy bg)
 // so the public page and the app read as ONE product.
 const _lpGreen = Color(0xFF2EC4B6);
-const _lpBg = Color(0xFF131F2A);
-const _lpBg2 = Color(0xFF18242F);
+const _lpBg = Color(0xFF0E1414);
+const _lpBg2 = Color(0xFF121A19);
 
 // Public marketing landing page (root URL). Voscreen-style: top bar with a
 // login on the right, a hero with the "watch → choose the sentence" pitch and a

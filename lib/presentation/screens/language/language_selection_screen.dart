@@ -1,12 +1,12 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../providers/locale_provider.dart';
 
 // Duo palette — matches /home.
-const _bg = Color(0xFF131F2A);
-const _panel = Color(0xFF1C2A35);
+const _bg = Color(0xFF0E1414);
+const _panel = Color(0xFF161E1D);
 const _accent = Color(0xFF2EC4B6);
 
 // Each language ONLY in its own tongue (no translated subtitle). The first
@@ -105,7 +105,7 @@ class _LanguageSelectionScreenState
                                   border: Border.all(
                                       color: sel
                                           ? _accent
-                                          : const Color(0xFF2C3B45),
+                                          : const Color(0xFF263230),
                                       width: sel ? 2 : 1),
                                 ),
                                 child: Row(children: [

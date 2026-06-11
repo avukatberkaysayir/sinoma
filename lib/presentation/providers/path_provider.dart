@@ -467,16 +467,18 @@ final leaderboardProvider =
 });
 
 // ── Leagues + friends ─────────────────────────────────────────────────────────
-// 10 tiers, bottom-up. Everyone starts in tier 1; weekly 30-user groups, the
-// top 6 promote, the bottom 6 demote (pg_cron job 'league-rollover').
+// 10 tiers, bottom-up — named after the imperial examination ranks (科举):
+// from Tongsheng (novice candidate) to Zhuangyuan (top scholar of the empire).
+// Everyone starts in tier 1; weekly 30-user groups, the top 6 promote, the
+// bottom 6 demote (pg_cron job 'league-rollover').
 const List<String> kLeagueNames = [
-  'Bronz', 'Gümüş', 'Altın', 'Safir', 'Yakut',
-  'Zümrüt', 'Ametist', 'İnci', 'Obsidyen', 'Elmas',
+  'Tongsheng', 'Xiucai', 'Juren', 'Gongshi', 'Jinshi',
+  'Hanlin', 'Shilang', 'Shangshu', 'Zaixiang', 'Zhuangyuan',
 ];
 const List<Color> kLeagueColors = [
-  Color(0xFFCD7F32), Color(0xFFB8C4CC), Color(0xFFFFC800), Color(0xFF1CB0F6),
-  Color(0xFFE94557), Color(0xFF58CC02), Color(0xFFCE82FF), Color(0xFFF4ECE0),
-  Color(0xFF3B3B4F), Color(0xFF7DE3F4),
+  Color(0xFF8D9B99), Color(0xFFB8C4CC), Color(0xFF3FB58E), Color(0xFF2EC4B6),
+  Color(0xFF1CB0F6), Color(0xFFCE82FF), Color(0xFFE0442C), Color(0xFFD4A33D),
+  Color(0xFFF4ECE0), Color(0xFFFFD700),
 ];
 
 final leagueGroupProvider =

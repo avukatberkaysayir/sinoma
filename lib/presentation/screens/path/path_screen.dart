@@ -14,12 +14,14 @@ import '../profile/profile_screen.dart';
 import 'path_sections.dart';
 import 'phase_runner_screen.dart';
 
-// Duolingo-style colours.
+// Sinoma ink palette: deep ink ground, jade/turquoise accents, vermilion
+// seal red and antique gold — deliberately NOT the Duolingo navy/green set.
 const _duoGreen = Color(0xFF2EC4B6);
 const _duoGreenDark = Color(0xFF21968B);
-const _duoBg = Color(0xFF131F2A);
-const _duoPanel = Color(0xFF1C2A35);
-const _duoLocked = Color(0xFF37464F);
+const _duoBg = Color(0xFF0E1414);
+const _duoPanel = Color(0xFF161E1D);
+const _duoLocked = Color(0xFF2E3A38);
+const _vermilion = Color(0xFFE0442C); // Chinese seal red
 
 enum _Section {
   home, // post-login dashboard (no nav item highlighted)
@@ -214,7 +216,7 @@ class _LeftNav extends StatelessWidget {
       width: compact ? 76 : 230,
       decoration: const BoxDecoration(
         color: _duoBg,
-        border: Border(right: BorderSide(color: Color(0xFF24333D))),
+        border: Border(right: BorderSide(color: Color(0xFF263230))),
       ),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       child: Column(
@@ -246,17 +248,17 @@ class _LeftNav extends StatelessWidget {
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
+          // Single muted icon colour + normal-case labels; the ACTIVE item
+          // carries a vermilion "seal stamp" — our own nav language.
           _NavItem(
               icon: Icons.person_rounded,
-              color: const Color(0xFF1CB0F6),
-              label: tr ? 'PROFİL' : 'PROFILE',
+              label: tr ? 'Profil' : 'Profile',
               active: section == _Section.profile,
               compact: compact,
               onTap: () => onSelect(_Section.profile)),
           _NavItem(
-              icon: Icons.home_rounded,
-              color: const Color(0xFFFF4B4B),
-              label: tr ? 'ÖĞREN' : 'LEARN',
+              icon: Icons.temple_buddhist_rounded,
+              label: tr ? 'Öğren' : 'Learn',
               active: section == _Section.learn,
               compact: compact,
               // Tapping Öğren both goes to the path and toggles the L1-L6 list.
@@ -280,44 +282,38 @@ class _LeftNav extends StatelessWidget {
                 onTap: () => onSelectLevel(h),
               ),
           _NavItem(
-              icon: Icons.menu_book_rounded,
-              color: const Color(0xFF1CB0F6),
-              label: tr ? 'SÖZLÜK' : 'DICTIONARY',
+              icon: Icons.auto_stories_rounded,
+              label: tr ? 'Sözlük' : 'Dictionary',
               active: section == _Section.dictionary,
               compact: compact,
               onTap: () => onSelect(_Section.dictionary)),
           _NavItem(
               icon: Icons.play_circle_outline_rounded,
-              color: const Color(0xFFCE82FF),
-              label: tr ? 'ALIŞTIRMA' : 'PRACTICE',
+              label: tr ? 'Alıştırma' : 'Practice',
               active: section == _Section.video,
               compact: compact,
               onTap: () => onSelect(_Section.video)),
           _NavItem(
-              icon: Icons.shield_rounded,
-              color: const Color(0xFFFFC800),
-              label: tr ? 'PUAN TABLOLARI' : 'LEADERBOARDS',
+              icon: Icons.workspace_premium_rounded,
+              label: tr ? 'Rütbeler' : 'Ranks',
               active: section == _Section.leaderboard,
               compact: compact,
               onTap: () => onSelect(_Section.leaderboard)),
           _NavItem(
-              icon: Icons.inventory_2_rounded,
-              color: const Color(0xFFFF9600),
-              label: tr ? 'GÖREVLER' : 'QUESTS',
+              icon: Icons.emoji_food_beverage_rounded,
+              label: tr ? 'Çayevi' : 'Tea House',
               active: section == _Section.quests,
               compact: compact,
               onTap: () => onSelect(_Section.quests)),
           _NavItem(
               icon: Icons.storefront_rounded,
-              color: const Color(0xFFFF4B4B),
-              label: tr ? 'MAĞAZA' : 'SHOP',
+              label: tr ? 'Çarşı' : 'Bazaar',
               active: section == _Section.shop,
               compact: compact,
               onTap: () => onSelect(_Section.shop)),
           _NavItem(
               icon: Icons.settings_rounded,
-              color: const Color(0xFFCE82FF),
-              label: tr ? 'AYARLAR' : 'SETTINGS',
+              label: tr ? 'Ayarlar' : 'Settings',
               active: section == _Section.more,
               compact: compact,
               onTap: () => onSelect(_Section.more)),
@@ -332,7 +328,6 @@ class _LeftNav extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final IconData icon;
-  final Color color;
   final String label;
   final bool active;
   final bool compact;
@@ -340,7 +335,6 @@ class _NavItem extends StatelessWidget {
   final Widget? trailing;
   const _NavItem({
     required this.icon,
-    required this.color,
     required this.label,
     required this.active,
     required this.compact,
@@ -350,40 +344,42 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final labelColor = active ? const Color(0xFF1CB0F6) : const Color(0xFFAFAFAF);
+    final fg = active ? _vermilion : Colors.white60;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: 6),
       child: Material(
-        color: active ? const Color(0xFF1CB0F6).withValues(alpha: 0.12) : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
+        color: active
+            ? _vermilion.withValues(alpha: 0.13)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(10),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           child: Container(
             padding: EdgeInsets.symmetric(
-                horizontal: compact ? 0 : 12, vertical: 12),
+                horizontal: compact ? 0 : 12, vertical: 11),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                  color: active
-                      ? const Color(0xFF1CB0F6).withValues(alpha: 0.6)
-                      : Colors.transparent,
-                  width: 2),
+              borderRadius: BorderRadius.circular(10),
+              // Seal-stamp accent: a vermilion bar on the left edge.
+              border: Border(
+                left: BorderSide(
+                    color: active ? _vermilion : Colors.transparent,
+                    width: 3),
+              ),
             ),
             child: Row(
               mainAxisAlignment:
                   compact ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
-                Icon(icon, color: color, size: 26),
+                Icon(icon, color: fg, size: 24),
                 if (!compact) ...[
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 13),
                   Expanded(
                     child: Text(label,
                         style: TextStyle(
-                            color: labelColor,
-                            fontSize: 14,
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 0.5)),
+                            color: active ? Colors.white : Colors.white70,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700)),
                   ),
                   if (trailing != null) trailing!,
                 ],
@@ -691,6 +687,13 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                   alignment: Alignment.topCenter,
                   clipBehavior: Clip.none,
                   children: [
+                    // Dashed caravan route weaving through the stops.
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                            painter: _RoutePainter(mirror: mirror)),
+                      ),
+                    ),
                     SizedBox(
                       width: double.infinity,
                       child: Column(
@@ -732,6 +735,50 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
   }
 }
 
+// Dashed "caravan route" connecting a unit's stops (Silk-Road travel feel).
+// Node centres follow the fixed row layout of _UnitNodes.
+class _RoutePainter extends CustomPainter {
+  final bool mirror;
+  const _RoutePainter({required this.mirror});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final sgn = mirror ? -1.0 : 1.0;
+    final pts = <Offset>[
+      Offset(cx, 125),
+      Offset(cx + sgn * 112, 255),
+      Offset(cx, 424),
+      Offset(cx - sgn * 112, 577),
+      Offset(cx, 707),
+    ];
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.14)
+      ..strokeWidth = 2.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round;
+    for (var i = 0; i < pts.length - 1; i++) {
+      final a = pts[i], b = pts[i + 1];
+      final mid = Offset((a.dx + b.dx) / 2 + sgn * 18 * (i.isEven ? 1 : -1),
+          (a.dy + b.dy) / 2);
+      final path = Path()
+        ..moveTo(a.dx, a.dy)
+        ..quadraticBezierTo(mid.dx, mid.dy, b.dx, b.dy);
+      // Dash the curve by walking its metrics.
+      for (final metric in path.computeMetrics()) {
+        var d = 0.0;
+        while (d < metric.length) {
+          canvas.drawPath(metric.extractPath(d, d + 7), paint);
+          d += 16;
+        }
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_RoutePainter old) => old.mirror != mirror;
+}
+
 // City info panel — opens over the unit (sized to it, never overflows):
 // the unit-city's landmarks with photo + bilingual blurb.
 class _UnitInfoPanel extends ConsumerWidget {
@@ -754,9 +801,9 @@ class _UnitInfoPanel extends ConsumerWidget {
       margin: const EdgeInsets.fromLTRB(8, 6, 8, 10),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFF18242F), // fully opaque
+        color: const Color(0xFF121A19), // fully opaque
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -800,7 +847,7 @@ class _UnitInfoPanel extends ConsumerWidget {
                       return Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF101A22),
+                          color: const Color(0xFF0B1110),
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Row(
@@ -812,7 +859,7 @@ class _UnitInfoPanel extends ConsumerWidget {
                                   fit: StackFit.expand,
                                   children: [
                                     const ColoredBox(
-                                        color: Color(0xFF26323F)),
+                                        color: Color(0xFF1C2624)),
                                     Padding(
                                       padding: const EdgeInsets.all(8),
                                       child: _slotImage(photo.url,
@@ -993,22 +1040,38 @@ class _PhaseNode extends ConsumerWidget {
       // Generic city icon on the coloured circle (until a real icon is added).
       final topColor = available ? _duoGreen : _duoLocked;
       final shadow = available ? _duoGreenDark : const Color(0xFF2A363D);
+      // Seal-stamp square (not a circle): rounded square with an inner line,
+      // like a carved chop; locked slots read as faded ink.
       art = Container(
         width: 78,
         height: 74,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: topColor,
-          borderRadius: BorderRadius.circular(39),
+          borderRadius: BorderRadius.circular(20),
           boxShadow: [BoxShadow(color: shadow, offset: const Offset(0, 6))],
         ),
         child: Stack(
           clipBehavior: Clip.none,
           alignment: Alignment.center,
           children: [
-            Icon(ni.icon,
-                size: 36,
-                color: available ? Colors.white : Colors.white30),
+            Container(
+              width: 64,
+              height: 60,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                    color: Colors.white.withValues(
+                        alpha: available ? 0.45 : 0.15),
+                    width: 1.5),
+              ),
+            ),
+            Opacity(
+              opacity: available ? 1 : 0.35,
+              child: Icon(ni.icon,
+                  size: 34,
+                  color: available ? Colors.white : Colors.white54),
+            ),
             if (badge != null)
               Positioned(right: -3, bottom: -3, child: badge),
           ],
@@ -1113,18 +1176,22 @@ class _NodeFxState extends State<_NodeFx>
     super.dispose();
   }
 
-  // A twinkling star at [dx,dy] from the node centre; [phase] staggers them.
+  // A drifting plum-blossom petal near the node; [phase] staggers them —
+  // our replacement for generic sparkle stars.
   Widget _star(double dx, double dy, double phase, double size) {
     return AnimatedBuilder(
       animation: _c,
       builder: (_, __) {
+        final t = (_c.value + phase / (2 * pi)) % 1.0;
         final a = 0.5 + 0.5 * sin(_c.value * 2 * pi + phase);
         return Transform.translate(
-          offset: Offset(dx, dy),
-          child: Opacity(
-            opacity: 0.15 + 0.75 * a,
-            child: Icon(Icons.auto_awesome_rounded,
-                size: size, color: const Color(0xFFFFE9A8)),
+          offset: Offset(dx + 4 * sin(t * 2 * pi), dy + 8 * t),
+          child: Transform.rotate(
+            angle: t * 1.4,
+            child: Opacity(
+              opacity: 0.2 + 0.6 * a,
+              child: Text('🌸', style: TextStyle(fontSize: size)),
+            ),
           ),
         );
       },
@@ -1200,36 +1267,50 @@ class _NodeFxState extends State<_NodeFx>
                 _star(-32, 18, 4.2, 8),
                 _star(34, 24, 1.3, 10),
               ],
-              // Bouncing BAŞLAT pill above the current node.
+              // Vermilion 开始 seal stamp over the current node (replaces the
+              // Duolingo-style START balloon): slightly tilted, gently
+              // pulsing like a fresh ink stamp.
               if (widget.isCurrent)
                 Positioned(
-                  top: -44,
+                  top: -46,
                   child: AnimatedBuilder(
                     animation: _c,
-                    builder: (_, child) => Transform.translate(
-                      offset:
-                          Offset(0, 4 * sin(_c.value * 2 * pi)),
-                      child: child,
+                    builder: (_, child) => Transform.rotate(
+                      angle: -0.12,
+                      child: Transform.scale(
+                        scale: 1 + 0.04 * sin(_c.value * 2 * pi),
+                        child: child,
+                      ),
                     ),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 6),
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
-                        color: _duoBg,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _duoGreen, width: 2),
+                        color: _vermilion,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(
+                            color: const Color(0xFFF6E7D7), width: 1.5),
                         boxShadow: const [
-                          BoxShadow(color: Colors.black45, blurRadius: 8),
+                          BoxShadow(color: Colors.black54, blurRadius: 8),
                         ],
                       ),
-                      child: Text(
-                        widget.tr ? 'BAŞLAT' : 'START',
-                        style: const TextStyle(
-                          color: _duoGreen,
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: 1,
-                        ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text('开始',
+                              style: TextStyle(
+                                  color: Color(0xFFF6E7D7),
+                                  fontSize: 15,
+                                  height: 1.1,
+                                  fontWeight: FontWeight.w800)),
+                          Text(widget.tr ? 'BAŞLA' : 'START',
+                              style: const TextStyle(
+                                  color: Color(0xFFF6E7D7),
+                                  fontSize: 8,
+                                  height: 1.2,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1.5)),
+                        ],
                       ),
                     ),
                   ),
@@ -1507,20 +1588,19 @@ class _RightSidebar extends ConsumerWidget {
       width: 340,
       padding: const EdgeInsets.all(20),
       decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF24333D))),
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Lantern = streak, copper coin = gold, jade bead = lives — our own
+          // counter iconography.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _Stat(icon: Icons.local_fire_department_rounded,
-                  color: const Color(0xFFFF9600), value: '${meta.streak}'),
-              _Stat(icon: Icons.diamond_rounded,
-                  color: const Color(0xFF1CB0F6), value: '$score'),
-              _Stat(icon: Icons.favorite_rounded,
-                  color: const Color(0xFFFF4B4B), value: '${meta.hearts}'),
+              _Stat(emoji: '🏮', color: _vermilionS, value: '${meta.streak}'),
+              _Stat(emoji: '🪙', color: _goldS, value: '$score'),
+              _Stat(emoji: '🟢', color: _jadeS, value: '${meta.hearts}'),
             ],
           ),
           const SizedBox(height: 20),
@@ -1533,14 +1613,10 @@ class _RightSidebar extends ConsumerWidget {
                     '$donePhases / $totalPhases ${tr ? 'faz tamamlandı' : 'phases done'}',
                     style: const TextStyle(color: Colors.white70, fontSize: 14)),
                 const SizedBox(height: 10),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: totalPhases == 0 ? 0 : donePhases / totalPhases,
-                    minHeight: 10,
-                    backgroundColor: _duoLocked,
-                    valueColor: const AlwaysStoppedAnimation(_duoGreen),
-                  ),
+                BrushBar(
+                  value: totalPhases == 0 ? 0 : donePhases / totalPhases,
+                  color: _duoGreen,
+                  height: 10,
                 ),
               ],
             ),
@@ -1566,16 +1642,21 @@ class _RightSidebar extends ConsumerWidget {
   }
 }
 
+const _vermilionS = Color(0xFFE0442C);
+const _goldS = Color(0xFFD4A33D);
+const _jadeS = Color(0xFF3FB58E);
+
 class _Stat extends StatelessWidget {
-  final IconData icon;
+  final String emoji;
   final Color color;
   final String value;
-  const _Stat({required this.icon, required this.color, required this.value});
+  const _Stat(
+      {required this.emoji, required this.color, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, color: color, size: 22),
+      Text(emoji, style: const TextStyle(fontSize: 19)),
       const SizedBox(width: 6),
       Text(value,
           style: TextStyle(
@@ -1596,7 +1677,7 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: _duoPanel,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2C3B45)),
+        border: Border.all(color: const Color(0xFF263230)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
