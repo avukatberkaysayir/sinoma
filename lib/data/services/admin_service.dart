@@ -522,6 +522,23 @@ class AdminService {
     return List<Map<String, dynamic>>.from(data);
   }
 
+  // User-submitted "Sorun Bildir" notes, newest first, with reporter + clip.
+  Future<List<Map<String, dynamic>>> loadReports() async {
+    final data = await _db
+        .from('video_reports')
+        .select('id, message, created_at, video_id, '
+            'users(display_name, username, email), '
+            'videos(transcription, status, hsk_level, level, unit, phase, '
+            'backup_level, backup_unit, backup_phase)')
+        .order('created_at', ascending: false)
+        .limit(300);
+    return List<Map<String, dynamic>>.from(data);
+  }
+
+  Future<void> deleteReport(String id) async {
+    await _db.from('video_reports').delete().eq('id', id);
+  }
+
   Future<List<Map<String, dynamic>>> listVideosByStatus(String status) async {
     final data = await _db
         .from('videos')

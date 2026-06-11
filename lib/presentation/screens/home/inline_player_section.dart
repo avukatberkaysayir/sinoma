@@ -134,6 +134,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     _optSwap = Random().nextBool();
     _timedOut = false;
     _replayCount = 0;
+    _panel = null;
+    _resumeAfterPanel = false;
     _stopCountdown();
     _countdown = _choiceSeconds;
   }
@@ -292,42 +294,50 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     setState(() => _subtitleChoice = !(_subtitleChoice ?? false));
   }
 
-  // Tap a subtitle word chip → instant mini dictionary popup. The player must
-  // hide while the dialog is up (its iframe sits above the Flutter canvas).
-  Future<void> _showWordMeaning(String word) async {
-    _playerCtrl.setHidden(true);
-    try {
-      await showDialog(
-        context: context,
-        builder: (_) => _WordMeaningDialog(word: word),
-      );
-    } finally {
-      _playerCtrl.setHidden(false);
+  // ── Inline panels (playlist / word meaning / report) ───────────────────────
+  // They open BELOW the player instead of as dialogs, so the video is never
+  // dimmed or covered. Opening pauses only a PLAYING video; closing resumes
+  // only what the panel itself paused.
+  _PanelKind? _panel;
+  String _panelWord = '';
+  bool _resumeAfterPanel = false;
+
+  void _openPanel(_PanelKind kind, {String word = ''}) {
+    if (_panel == kind && (kind != _PanelKind.word || word == _panelWord)) {
+      _closePanel();
+      return;
     }
+    if (_panel == null) {
+      if (_playerCtrl.isPlaying) {
+        _playerCtrl.pauseVideo();
+        _resumeAfterPanel = true;
+      } else {
+        _resumeAfterPanel = false;
+      }
+    }
+    setState(() {
+      _panel = kind;
+      _panelWord = word;
+    });
   }
 
-  bool _plDialogOpen = false; // a second tap must NOT stack a second barrier
+  void _closePanel() {
+    if (_panel == null) return;
+    setState(() => _panel = null);
+    if (_resumeAfterPanel) _playerCtrl.playVideo();
+    _resumeAfterPanel = false;
+  }
 
-  Future<void> _openPlaylistDialog(AppL10n l10n) async {
-    if (_plDialogOpen) return;
+  void _showWordMeaning(String word) =>
+      _openPanel(_PanelKind.word, word: word);
+
+  void _openPlaylistDialog(AppL10n l10n) {
     if (ref.read(currentUserProvider).valueOrNull == null) {
       ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(l10n.signInForPlaylists)));
       return;
     }
-    // The YouTube iframe sits ABOVE the Flutter canvas — hide it while the
-    // dialog is open or the dialog renders invisibly behind the video.
-    _plDialogOpen = true;
-    _playerCtrl.setHidden(true);
-    try {
-      await showDialog(
-        context: context,
-        builder: (_) => _PlaylistDialog(videoId: _seg.videoId),
-      );
-    } finally {
-      _plDialogOpen = false;
-      _playerCtrl.setHidden(false);
-    }
+    _openPanel(_PanelKind.playlist);
   }
 
   @override
@@ -447,7 +457,39 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   revealed: _pickedAnswer != null || _timedOut,
                   onPick: _onPick,
                 ),
+              // "Sorun Bildir" — bottom-right, under the options (both the
+              // practice feed and the Öğren phases).
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton.icon(
+                    onPressed: () => _openPanel(_PanelKind.report),
+                    icon: const Icon(Icons.flag_outlined, size: 15),
+                    label: Text(l10n.reportProblem,
+                        style: const TextStyle(fontSize: 12)),
+                    style: TextButton.styleFrom(
+                        foregroundColor: AppColors.onSurfaceMuted),
+                  ),
+                ),
+              ),
             ],
+          ],
+
+          // ── Inline panels (no dialog, video never dims) ────────────────────
+          if (_panel != null) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: switch (_panel!) {
+                _PanelKind.word =>
+                  _WordMeaningCard(word: _panelWord, onClose: _closePanel),
+                _PanelKind.playlist => _PlaylistCard(
+                    videoId: _seg.videoId, onClose: _closePanel),
+                _PanelKind.report => _ReportCard(
+                    videoId: _seg.videoId, onClose: _closePanel),
+              },
+            ),
           ],
 
           const SizedBox(height: 24),
@@ -456,6 +498,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     );
   }
 }
+
+enum _PanelKind { playlist, word, report }
 
 class _HskBadge extends StatelessWidget {
   final int level;
@@ -585,19 +629,20 @@ class _TickRow extends StatelessWidget {
   }
 }
 
-// ── Playlist dialog (practice tab) ────────────────────────────────────────────
+// ── Playlist card (inline, below the player) ──────────────────────────────────
 // VoScreen-style "Add to Playlist": tick the lists this clip belongs to, or
 // create a new named list (the clip is added to it right away).
 
-class _PlaylistDialog extends ConsumerStatefulWidget {
+class _PlaylistCard extends ConsumerStatefulWidget {
   final String videoId;
-  const _PlaylistDialog({required this.videoId});
+  final VoidCallback onClose;
+  const _PlaylistCard({required this.videoId, required this.onClose});
 
   @override
-  ConsumerState<_PlaylistDialog> createState() => _PlaylistDialogState();
+  ConsumerState<_PlaylistCard> createState() => _PlaylistCardState();
 }
 
-class _PlaylistDialogState extends ConsumerState<_PlaylistDialog> {
+class _PlaylistCardState extends ConsumerState<_PlaylistCard> {
   final _nameCtrl = TextEditingController();
   Set<String> _inLists = {};
   bool _busy = false;
@@ -661,16 +706,33 @@ class _PlaylistDialogState extends ConsumerState<_PlaylistDialog> {
     final playlists =
         ref.watch(myPlaylistsProvider).valueOrNull ?? const [];
 
-    return AlertDialog(
-      backgroundColor: AppColors.surfaceVariant,
-      title: Text(l10n.addToPlaylist,
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 18)),
-      content: SizedBox(
-        width: 360,
-        child: Column(
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 10, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border:
+            Border.all(color: AppColors.onSurfaceMuted.withValues(alpha: 0.25)),
+      ),
+      child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Row(children: [
+              Expanded(
+                child: Text(l10n.addToPlaylist,
+                    style: const TextStyle(
+                        color: AppColors.onSurface,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700)),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close,
+                    color: AppColors.onSurfaceMuted, size: 18),
+                onPressed: widget.onClose,
+              ),
+            ]),
+            const SizedBox(height: 4),
             if (playlists.isEmpty)
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
@@ -751,14 +813,7 @@ class _PlaylistDialogState extends ConsumerState<_PlaylistDialog> {
                   backgroundColor: AppColors.primary),
             ),
           ],
-        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(l10n.closeLabel),
-        ),
-      ],
     );
   }
 }
@@ -1059,18 +1114,36 @@ class _ChineseSubtitleBar extends StatelessWidget {
   }
 }
 
-// Mini dictionary popup for a tapped subtitle word.
-class _WordMeaningDialog extends ConsumerWidget {
+// Inline mini dictionary card for a tapped subtitle word.
+class _WordMeaningCard extends ConsumerWidget {
   final String word;
-  const _WordMeaningDialog({required this.word});
+  final VoidCallback onClose;
+  const _WordMeaningCard({required this.word, required this.onClose});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final lang = ref.watch(localeProvider).languageCode;
-    return AlertDialog(
-      backgroundColor: AppColors.surfaceVariant,
-      content: SizedBox(
-        width: 300,
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: AppColors.onSurfaceMuted.withValues(alpha: 0.25)),
+      ),
+      child: Stack(
+        children: [
+          Positioned(
+            right: 0,
+            top: 0,
+            child: IconButton(
+              icon: const Icon(Icons.close,
+                  color: AppColors.onSurfaceMuted, size: 18),
+              onPressed: onClose,
+            ),
+          ),
+          Padding(
+        padding: const EdgeInsets.only(right: 36, top: 4),
         child: FutureBuilder(
           future: ref.read(dictionaryRepositoryProvider).loadWord(word),
           builder: (context, snap) {
@@ -1138,13 +1211,113 @@ class _WordMeaningDialog extends ConsumerWidget {
             );
           },
         ),
+          ),
+        ],
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: Text(lang == 'tr' ? 'Kapat' : 'Close'),
-        ),
-      ],
+    );
+  }
+}
+
+// Inline "Sorun Bildir" card: a 300-char note about this clip; confirming
+// stores it for the admin Bildirimler tab and closes the card.
+class _ReportCard extends ConsumerStatefulWidget {
+  final String videoId;
+  final VoidCallback onClose;
+  const _ReportCard({required this.videoId, required this.onClose});
+
+  @override
+  ConsumerState<_ReportCard> createState() => _ReportCardState();
+}
+
+class _ReportCardState extends ConsumerState<_ReportCard> {
+  final _ctrl = TextEditingController();
+  bool _sending = false;
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _send() async {
+    final msg = _ctrl.text.trim();
+    if (msg.isEmpty || _sending) return;
+    setState(() => _sending = true);
+    final l10n = AppL10n.fromCode(ref.read(localeProvider).languageCode);
+    try {
+      await ref.read(videoRepositoryProvider).reportVideo(widget.videoId, msg);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(l10n.reportThanks)));
+      widget.onClose();
+    } catch (_) {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.fromCode(ref.watch(localeProvider).languageCode);
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 10, 10, 14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+            color: AppColors.onSurfaceMuted.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(children: [
+            const Icon(Icons.flag_outlined,
+                size: 16, color: AppColors.onSurfaceMuted),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(l10n.reportProblem,
+                  style: const TextStyle(
+                      color: AppColors.onSurface,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700)),
+            ),
+            IconButton(
+              icon: const Icon(Icons.close,
+                  color: AppColors.onSurfaceMuted, size: 18),
+              onPressed: widget.onClose,
+            ),
+          ]),
+          TextField(
+            controller: _ctrl,
+            maxLength: 300,
+            maxLines: 3,
+            minLines: 2,
+            style: const TextStyle(color: AppColors.onSurface, fontSize: 14),
+            decoration: InputDecoration(
+              hintText: l10n.reportHint,
+              hintStyle: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 13),
+              counterStyle: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 11),
+              filled: true,
+              fillColor: AppColors.surface,
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerRight,
+            child: FilledButton.icon(
+              onPressed: _sending ? null : _send,
+              icon: const Icon(Icons.send_rounded, size: 16),
+              label: Text(l10n.reportSend),
+              style:
+                  FilledButton.styleFrom(backgroundColor: AppColors.primary),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

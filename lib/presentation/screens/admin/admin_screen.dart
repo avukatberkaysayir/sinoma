@@ -1347,7 +1347,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 4, vsync: this);
+    _tabs = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -1360,6 +1360,24 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
 
   void refresh() {
     if (mounted) setState(() => _refreshCount++);
+  }
+
+  // "Videoya git" from a report: jump to the tab the clip lives on (active
+  // clips sit in Aktif, backups in Yedek) with the search prefilled so the
+  // list shows exactly that clip, ready to edit.
+  void _openReportTarget(String status, String transcription) {
+    final q = transcription.split('\n').first.trim();
+    _searchCtrl.text = q;
+    setState(() {
+      _searchQuery = q;
+      _refreshCount++;
+    });
+    _tabs.animateTo(switch (status) {
+      'active' => 1,
+      'backup' => 2,
+      'deleted' => 3,
+      _ => 0,
+    });
   }
 
   Widget _buildFilterBar() {
@@ -1488,6 +1506,9 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
               Tab(
                   icon: Icon(Icons.delete_outline, size: 16),
                   text: 'Silinmiş'),
+              Tab(
+                  icon: Icon(Icons.flag_outlined, size: 16),
+                  text: 'Bildirimler'),
             ],
           ),
         ),
@@ -1540,10 +1561,189 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                 searchQuery: _searchQuery,
                 sourceType: widget.sourceType,
               ),
+              _ReportsTab(
+                key: ValueKey('reports-$_refreshCount'),
+                service: widget.service,
+                onOpenVideo: _openReportTarget,
+              ),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+// ── Bildirimler: user-submitted clip reports, newest first ────────────────────
+
+class _ReportsTab extends StatefulWidget {
+  final AdminService service;
+  final void Function(String status, String transcription) onOpenVideo;
+  const _ReportsTab({super.key, required this.service, required this.onOpenVideo});
+
+  @override
+  State<_ReportsTab> createState() => _ReportsTabState();
+}
+
+class _ReportsTabState extends State<_ReportsTab> {
+  List<Map<String, dynamic>> _rows = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      final rows = await widget.service.loadReports();
+      if (mounted) setState(() { _rows = rows; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = '$e'; _loading = false; });
+    }
+  }
+
+  String _fmt(String? iso) {
+    final d = DateTime.tryParse(iso ?? '')?.toLocal();
+    if (d == null) return '—';
+    String p(int n) => n.toString().padLeft(2, '0');
+    return '${p(d.day)}/${p(d.month)}/${d.year} ${p(d.hour)}:${p(d.minute)}';
+  }
+
+  // The clip's place: active slot, would-be backup slot, or just the status.
+  String _slotText(Map<String, dynamic>? v) {
+    if (v == null) return 'video silinmiş';
+    final status = v['status'] as String? ?? '?';
+    if (v['level'] != null) {
+      return 'Aktif · L${v['level']} Ünite ${v['unit']} Bölüm ${v['phase']}';
+    }
+    if (v['backup_level'] != null) {
+      return '${status == 'backup' ? 'Yedek' : status} · '
+          'L${v['backup_level']} Ünite ${v['backup_unit']} Bölüm ${v['backup_phase']}';
+    }
+    return status;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) return const Center(child: CircularProgressIndicator());
+    if (_error != null) {
+      return Center(
+          child: Text(_error!,
+              style: const TextStyle(color: AppColors.onSurfaceMuted)));
+    }
+    if (_rows.isEmpty) {
+      return const Center(
+        child: Text('Henüz bildirim yok.',
+            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
+      );
+    }
+    return ListView.separated(
+      padding: const EdgeInsets.all(12),
+      itemCount: _rows.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (_, i) {
+        final r = _rows[i];
+        final u = r['users'] as Map<String, dynamic>?;
+        final v = r['videos'] as Map<String, dynamic>?;
+        final reporter = (u?['display_name'] as String?)?.trim().isNotEmpty ==
+                true
+            ? u!['display_name'] as String
+            : (u?['username'] as String? ?? u?['email'] as String? ?? '?');
+        final transcription =
+            (v?['transcription'] as String? ?? '').replaceAll('\n', ' / ');
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceVariant,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(Icons.flag_outlined,
+                      size: 14, color: AppColors.primary),
+                  const SizedBox(width: 6),
+                  Text(_fmt(r['created_at'] as String?),
+                      style: const TextStyle(
+                          color: AppColors.onSurfaceMuted, fontSize: 11)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      '$reporter${u?['username'] != null ? ' (@${u!['username']})' : ''}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AppColors.onSurface,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${_slotText(v)} · HSK ${v?['hsk_level'] ?? '-'}',
+                      style: const TextStyle(
+                          color: AppColors.primary, fontSize: 11),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              if (transcription.isNotEmpty)
+                Text(transcription,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: AppColors.onSurfaceMuted, fontSize: 12)),
+              const SizedBox(height: 6),
+              Text(r['message'] as String? ?? '',
+                  style: const TextStyle(
+                      color: AppColors.onSurface, fontSize: 13)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: v == null
+                        ? null
+                        : () => widget.onOpenVideo(
+                            v['status'] as String? ?? 'pending',
+                            v['transcription'] as String? ?? ''),
+                    icon: const Icon(Icons.open_in_new, size: 14),
+                    label: const Text('Videoya Git'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primary,
+                      side: const BorderSide(color: AppColors.primary),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      textStyle: const TextStyle(fontSize: 11),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Bildirimi sil',
+                    icon: const Icon(Icons.delete_outline,
+                        size: 18, color: AppColors.onSurfaceMuted),
+                    onPressed: () async {
+                      await widget.service.deleteReport(r['id'] as String);
+                      _load();
+                    },
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

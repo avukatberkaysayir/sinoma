@@ -17,6 +17,9 @@ class DirectYouTubeController extends ChangeNotifier {
   void _detach() => _state = null;
 
   bool get soundOn => _state?._soundOn ?? false;
+  // Live playback state — inline panels pause only a PLAYING video and resume
+  // only what they paused.
+  bool get isPlaying => _state?._playing ?? false;
   void toggleSound() => _state?._toggleSound();
   void showScorePopup(int points) => _state?._showScorePopup(points);
 
@@ -112,6 +115,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   bool _soundOn = false;
   bool _hasPlayed = false;
   bool _ended = false;
+  bool _playing = false; // YouTube playerState == 1
   DateTime _lastUnmuteTry = DateTime.fromMillisecondsSinceEpoch(0);
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -465,6 +469,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       final info = data['info'];
       if (info is Map) {
         final state = (info['playerState'] as num?)?.toInt();
+        if (state != null) _playing = state == 1;
         if (state == 1) _markPlaying();
 
         final muted = info['muted'];
@@ -488,6 +493,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       }
     } else if (event == 'onStateChange') {
       final state = (data['info'] as num?)?.toInt();
+      if (state != null) _playing = state == 1;
       if (state == 1) _markPlaying();
     }
   }
@@ -524,6 +530,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void _forceEnd() {
     if (_ended) return;
     _ended = true;
+    _playing = false;
     _endFallbackTimer?.cancel();
     _cmd('pauseVideo', []);
     if (mounted) widget.onSegmentEnded();

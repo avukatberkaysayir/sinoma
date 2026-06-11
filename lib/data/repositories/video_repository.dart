@@ -173,6 +173,17 @@ class VideoRepository {
     } catch (_) {/* ticks are cosmetic — never block the answer flow */}
   }
 
+  // "Sorun Bildir" — a user-written note about one clip (admin reviews them).
+  Future<void> reportVideo(String videoId, String message) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    await _db.from('video_reports').insert({
+      'uid': uid,
+      'video_id': videoId,
+      'message': message.trim(),
+    });
+  }
+
   // ── User playlists ──────────────────────────────────────────────────────────
 
   // Playlists with their clip counts ('count' int per row).

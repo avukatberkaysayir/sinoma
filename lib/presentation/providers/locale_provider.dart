@@ -77,6 +77,12 @@ class AppL10n {
   String get signInForPlaylists => _isTr ? 'Liste oluşturmak için giriş yap.'
                                          : 'Sign in to use playlists.';
   String get closeLabel         => _isTr ? 'Kapat'           : 'Close';
+  String get reportProblem      => _isTr ? 'Sorun Bildir'    : 'Report a Problem';
+  String get reportHint         => _isTr ? 'Bu videodaki sorunu kısaca anlat… (en fazla 300 karakter)'
+                                         : 'Briefly describe the problem… (max 300 characters)';
+  String get reportSend         => _isTr ? 'Gönder'          : 'Send';
+  String get reportThanks       => _isTr ? '✓ Bildirimin alındı, teşekkürler!'
+                                         : '✓ Report received, thanks!';
 
   // ── Dictionary discover panel (Tureng-style) ────────────────────────────────
   String get wordOfDay         => _isTr ? 'GÜNÜN KELİMESİ'    : 'WORD OF THE DAY';
