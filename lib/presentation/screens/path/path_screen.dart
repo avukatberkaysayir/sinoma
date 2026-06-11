@@ -438,7 +438,9 @@ class _LevelNavItem extends StatelessWidget {
 
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
-const double _kUnitHeight = 760; // fixed height per unit section (5 nodes)
+// Fixed height per unit section — taller than a typical viewport so the NEXT
+// unit's top line only appears after a scroll.
+const double _kUnitHeight = 980;
 
 // An admin-uploaded image (network URL) when present, else the bundled asset.
 // A missing bundled asset (e.g. a landmark set added before its art) degrades
@@ -638,33 +640,45 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final city = cityForUnit(step.hsk, step.index);
     final hasInfo = kCityLandmarks[city.slug] != null;
 
+    // Visual rows top-to-bottom: phase1 (centre), phase2 (±112), MASCOT
+    // (centre, tap → city info), phase3 (∓112), phase4 (centre).
     double dx(int i) => switch (i) {
           1 => mirror ? -112.0 : 112.0,
-          3 => mirror ? 112.0 : -112.0,
+          2 => mirror ? 112.0 : -112.0,
           _ => 0.0,
         };
 
-    final nodes = <Widget>[];
-    for (var i = 0; i < step.phases.length; i++) {
-      nodes.add(Transform.translate(
-        offset: Offset(dx(i), 0),
-        child: _PhaseNode(
-          phase: step.phases[i],
-          topic: widget.topic,
-          progress: widget.progress,
-          isCurrent: step.phases[i].key == widget.currentKey,
-          tr: tr,
-          // Gözat opens away from the centre — mirrored with the layout.
-          browseLeft: mirror ? i < 2 : i >= 2,
+    Widget phaseRow(int i) => Transform.translate(
+          offset: Offset(dx(i), 0),
+          child: _PhaseNode(
+            phase: step.phases[i],
+            topic: widget.topic,
+            progress: widget.progress,
+            isCurrent: step.phases[i].key == widget.currentKey,
+            tr: tr,
+            // Gözat opens away from the centre — mirrored with the layout.
+            browseLeft: mirror ? i < 2 : i >= 2,
+          ),
+        );
+
+    final nodes = <Widget>[
+      phaseRow(0),
+      phaseRow(1),
+      Padding(
+        padding: const EdgeInsets.only(bottom: 36),
+        child: GestureDetector(
+          onTap: hasInfo ? () => setState(() => _infoOpen = true) : null,
+          child: _mascot(156),
         ),
-      ));
-    }
-    nodes.add(_RewardNode(rewardKey: 'r.hsk${step.hsk}.u${step.index}'));
+      ),
+      phaseRow(2),
+      phaseRow(3),
+    ];
 
     return Column(
       children: [
-        if (step.index > 0)
-          Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
+        // Every unit — including Ünite 1 — starts with the horizontal line.
+        Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
         Expanded(
           child: Center(
             child: ConstrainedBox(
@@ -682,7 +696,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 14),
                           Text(
                             tr
                                 ? '${step.index + 1}. Ünite'
@@ -693,28 +707,10 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                                 fontSize: 20,
                                 fontWeight: FontWeight.w800),
                           ),
-                          const SizedBox(height: 10),
+                          // Comfortable distance before the first circle.
+                          const SizedBox(height: 44),
                           ...nodes,
                         ],
-                      ),
-                    ),
-                    // The mascot sits in the SAME column as node 4 (∓112 from
-                    // centre), beside nodes 1-3 — tapping it opens the city
-                    // info panel (no label underneath).
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      top: 130,
-                      child: Center(
-                        child: Transform.translate(
-                          offset: Offset(mirror ? 112 : -112, 0),
-                          child: GestureDetector(
-                            onTap: hasInfo
-                                ? () => setState(() => _infoOpen = true)
-                                : null,
-                            child: _mascot(156),
-                          ),
-                        ),
                       ),
                     ),
                     if (_infoOpen)
@@ -1055,7 +1051,7 @@ class _PhaseNode extends ConsumerWidget {
       child: browse,
     );
     return Padding(
-      padding: const EdgeInsets.only(bottom: 30),
+      padding: const EdgeInsets.only(bottom: 52),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: browseLeft
@@ -1483,143 +1479,6 @@ class _SlotWordPanel extends ConsumerWidget {
   }
 }
 
-// Unit reward: the mascot stands holding a closed chest; tapping plays an
-// opening animation and grants the gold; afterwards the mascot sits on the
-// opened chest. The mascot idles (blink every 5s, gentle sway / bob).
-const _rewardGold = Color(0xFFFFC800);
-
-class _RewardNode extends ConsumerStatefulWidget {
-  final String rewardKey;
-  const _RewardNode({required this.rewardKey});
-
-  @override
-  ConsumerState<_RewardNode> createState() => _RewardNodeState();
-}
-
-class _RewardNodeState extends ConsumerState<_RewardNode>
-    with TickerProviderStateMixin {
-  late final AnimationController _open = AnimationController(
-      vsync: this, duration: const Duration(milliseconds: 900));
-  bool _opening = false;
-
-  @override
-  void dispose() {
-    _open.dispose();
-    super.dispose();
-  }
-
-  Future<void> _claimGold() async {
-    final ok =
-        await ref.read(userRepositoryProvider).claimReward(widget.rewardKey);
-    if (!mounted || !ok) return;
-    final tr = ref.read(localeProvider).languageCode == 'tr';
-    ref.invalidate(pathProgressProvider);
-    ref.invalidate(currentUserProvider);
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      duration: const Duration(seconds: 2),
-      content: Text(tr
-          ? '🪙 Üniteyi tamamladın — +20 altın!'
-          : '🪙 Unit complete — +20 gold!'),
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
-    final rewards = progress['__rewards'];
-    final claimed = rewards is Map && rewards[widget.rewardKey] == true;
-
-    // Hand-painted treasure chest art (bg/watermark cleaned); tap → shake +
-    // sparkle and the unit gold (once). Claimed → dimmed with a check badge.
-    final chest = Stack(
-      clipBehavior: Clip.none,
-      alignment: Alignment.center,
-      children: [
-        Opacity(
-          opacity: claimed ? 0.45 : 1,
-          child: Image.asset('assets/images/treasure_chest.png',
-              width: 92, height: 78, fit: BoxFit.contain),
-        ),
-        if (claimed)
-          Positioned(
-              right: 0, bottom: 0,
-              child: _nodeBadge(Icons.check_rounded, _duoGreenDark)),
-      ],
-    );
-
-    final content = SizedBox(
-      width: 130,
-      height: 96,
-      child: Stack(
-        alignment: Alignment.bottomCenter,
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            bottom: 0,
-            child: Container(
-              width: 86,
-              height: 20,
-              decoration: const BoxDecoration(
-                color: Color(0x1AFFFFFF),
-                borderRadius: BorderRadius.all(Radius.elliptical(43, 10)),
-              ),
-            ),
-          ),
-          Positioned(
-            bottom: 8,
-            child: _opening
-                ? AnimatedBuilder(
-                    animation: _open,
-                    builder: (_, child) {
-                      final v = _open.value;
-                      return Transform.rotate(
-                        angle: sin(v * pi * 10) * 0.12 * (1 - v),
-                        child: Transform.scale(
-                            scale: 1 + 0.12 * v, child: child),
-                      );
-                    },
-                    child: chest,
-                  )
-                : chest,
-          ),
-          if (_opening)
-            Positioned(
-              bottom: 44,
-              child: AnimatedBuilder(
-                animation: _open,
-                builder: (_, __) => Opacity(
-                  opacity: (1 - _open.value).clamp(0.0, 1.0),
-                  child: Transform.scale(
-                    scale: 0.6 + 1.2 * _open.value,
-                    child: const Icon(Icons.auto_awesome_rounded,
-                        color: _rewardGold, size: 44),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-
-    Future<void> tap() async {
-      if (_opening || claimed) return;
-      setState(() => _opening = true);
-      await _open.forward(from: 0);
-      if (!mounted) return;
-      setState(() => _opening = false);
-      await _claimGold();
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: GestureDetector(
-        onTap: _opening || claimed ? null : tap,
-        behavior: HitTestBehavior.opaque,
-        child: content,
-      ),
-    );
-  }
-}
 
 // ── Right sidebar (stats) ─────────────────────────────────────────────────────
 
