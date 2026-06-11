@@ -672,25 +672,31 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
               child: SizedBox(
                 width: double.infinity,
                 child: Stack(
+                  // Centre the node column — without this the Stack lays the
+                  // column out top-LEFT and every unit drifts off-centre.
+                  alignment: Alignment.topCenter,
                   clipBehavior: Clip.none,
                   children: [
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(height: 10),
-                        Text(
-                          tr
-                              ? '${step.index + 1}. Ünite'
-                              : 'Unit ${step.index + 1}',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800),
-                        ),
-                        const SizedBox(height: 10),
-                        ...nodes,
-                      ],
+                    SizedBox(
+                      width: double.infinity,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const SizedBox(height: 10),
+                          Text(
+                            tr
+                                ? '${step.index + 1}. Ünite'
+                                : 'Unit ${step.index + 1}',
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w800),
+                          ),
+                          const SizedBox(height: 10),
+                          ...nodes,
+                        ],
+                      ),
                     ),
                     // The mascot fills the empty side next to nodes 1-3 —
                     // tapping it opens the city info panel.
