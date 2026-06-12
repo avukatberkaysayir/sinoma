@@ -17,8 +17,11 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 >       Unit 5 başlangıcı: 전에/-기 전에)
 > - [x] Parti 6 — PDF 126-150 (Unit 5 Zaman: 후에, -고 나서, -아/어서,
 >       때/-(으)ㄹ 때, -(으)면서, 중/-는 중, -자마자, 동안, -(으)ㄴ 지)
-> - [ ] Parti 7 — PDF 151-175 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 151 -l 175 <pdf> D:\UserData\krgrammar\p7`
+> - [x] Parti 7 — PDF 151-175 (Unit 6 Yetenek: -(으)ㄹ 수 있다, -(으)ㄹ 줄
+>       알다; Unit 7 Talep/İzin/Yasak: -(으)세요, -지 마세요, -아/어야 되다,
+>       -아/어도 되다, -(으)면 안 되다, -지 않아도 되다; Unit 8: -고 싶다)
+> - [ ] Parti 8 — PDF 176-200 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 176 -l 200 <pdf> D:\UserData\krgrammar\p8`
 
 ---
 
@@ -468,5 +471,70 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
 
 ---
 
-*(Parti 7'den itibaren: Unit 6 Yetenek/İzin (-(으)ㄹ 수 있다...) ve
-sonraki üniteler aynı düzenle eklenecek.)*
+## 12. UNIT 6 — YETENEK VE OLASILIK
+
+### 12.1 V-(으)ㄹ 수 있다/없다 — '-ebilmek / -ememek'
+- Ünlü/ㄹ → **-ㄹ 수 있다/없다**, ünsüz → **-을 수 있다/없다**:
+  볼 수 있어요/없어요 · 갈 수 있어요 · 만날 수 있어요 · *놀 수, *살 수 ·
+  받을 수 있어요 · *들을 수 · *걸을 수 · *지을 수 · *도울 수.
+- Hem yetenek hem durumsal olasılık: 한국말을 **할 수 있어요** ·
+  이 영화를 **볼 수 없어요** (izleme imkânı yok).
+
+### 12.2 V-(으)ㄹ 줄 알다/모르다 — 'nasıl yapılacağını bilmek'
+- Ünlü/ㄹ → **-ㄹ 줄 알다/모르다**, ünsüz → **-을 줄 ...**:
+  만들 줄 알아요 · 보낼 줄 알아요 · 끓일 줄 알아요 · 쓸 줄 알아요/몰라요 ·
+  읽을 줄, *구울 줄, *지을 줄.
+- **수 있다 farkı**: 줄 알다 = öğrenilmiş beceri; 수 있다 = beceri VEYA
+  koşulların izin vermesi: 딸기잼을 만들 줄 알아요 (tarifini biliyorum) ↔
+  지금 만들 수 없어요 (çilek yok — koşul engeli).
+
+## 13. UNIT 7 — TALEP, ZORUNLULUK, İZİN, YASAK
+
+### 13.1 V-(으)세요 — kibar rica/yönerge
+- Ünlü → **-세요**, ünsüz → **-으세요**: 앉**으세요** · 보**세요** ·
+  가**세요** · 입으세요 · 찾으세요 · 받으세요. -아/어요'dan daha kibar;
+  resmî biçimi -(으)십시오.
+- Özel saygı fiilleri zorunlu: 먹다/마시다→**드세요**, 자다→**주무세요**,
+  말하다→**말씀하세요**, 있다→**계세요**.
+
+### 13.2 V-지 마세요 — 'yapmayın'
+- Kök + **-지 마세요** (resmî: -지 마십시오): 마시**지 마세요** ·
+  전화하**지 마세요** · 자**지 마세요** · 만들지 마세요, 듣지 마세요.
+- Yalnız FİİLLERLE; sıfat/이다 ile kullanılmaz (슬프지 마세요 ✗ →
+  슬퍼하**지 마세요** ✓ — sıfat önce fiilleştirilir).
+
+### 13.3 A/V-아/어야 되다/하다 — 'gerekmek, zorunda olmak'
+- Kök ünlüsü ㅏ/ㅗ → **-아야 되다/하다**, diğerleri → **-어야 되다/하다**,
+  하다 → **해야 되다/하다** (되다=하다, fark yok):
+  공부**해야 돼요** · 사**야 돼요** · 내**야 해요** · 가야 돼요 · 봐야 돼요 ·
+  읽어야 돼요 · *잘라야 돼요, *들어야 돼요. Geçmiş: -아/어야 됐어요/했어요.
+
+### 13.4 A/V-아/어도 되다 — 'yapabilir miyim? / -ebilirsin' (izin)
+- Kök + **-아/어도 되다**: 사진을 찍**어도 돼요**? · 앉**아도 돼요**? ·
+  써**도 돼요**? · 가도 돼요, 와도 돼요, 요리해도 돼요, *들어도 돼요,
+  *질러도 돼요, *누워도 돼요.
+- -아/어도 **괜찮다/좋다** da aynı işlev: 열어도 괜찮아요.
+
+### 13.5 A/V-(으)면 안 되다 — 'yasak / olmaz'
+- Ünlü/ㄹ → **-면 안 돼요**, ünsüz → **-으면 안 돼요**: 담배를 피우**면
+  안 돼요** · 전화하**면 안 돼요** · 건너**면 안 돼요** · 앉으면 안 돼요 ·
+  받으면 안 돼요 · *들으면 안 돼요 · *부으면 안 돼요.
+- Toplumsal kural/yasak bildirir.
+
+### 13.6 V-지 않아도 되다 (= 안 V-아/어도 되다) — 'gerekmez'
+- -아/어야 되다'nın olumsuzu: 내**지 않아도 돼요** (= 안 내도 돼요) ·
+  사지 않아도 돼요 = 안 사도 돼요 · 정장을 입**지 않아도 돼요** ·
+  전화하지 않아도 돼요 = 전화 안 해도 돼요 · 다이어트하지 않아도 돼요.
+
+## 14. UNIT 8 — UMUT VE İSTEK (başlangıç)
+
+### 14.1 V-고 싶다 — '-mek istemek'
+- Kök + **-고 싶다** (1. ve 2. kişi; soruda 'ne istiyorsun'):
+  한국말을 잘 하**고 싶어요** · 가족이 보**고 싶어요** (özlemek) ·
+  딸기를 먹**고 싶어요** · 만나고 싶어요, 결혼하고 싶어요.
+- Olumsuz: -고 싶지 않아요 / 안 -고 싶어요.
+
+---
+
+*(Parti 8'den itibaren: Unit 8 devamı (-(으)면 좋겠다...) ve sonraki
+üniteler aynı düzenle eklenecek.)*
