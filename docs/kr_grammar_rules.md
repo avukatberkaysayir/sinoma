@@ -15,8 +15,10 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 > - [x] Parti 5 — PDF 101-125 (İlgeç sonu: (이)나-miktar, 쯤, 처럼/같이,
 >       보다, 마다; Unit 4 Bağlama: -고, -거나, -지만, -(으)ㄴ/는데 ①;
 >       Unit 5 başlangıcı: 전에/-기 전에)
-> - [ ] Parti 6 — PDF 126-150 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 126 -l 150 <pdf> D:\UserData\krgrammar\p6`
+> - [x] Parti 6 — PDF 126-150 (Unit 5 Zaman: 후에, -고 나서, -아/어서,
+>       때/-(으)ㄹ 때, -(으)면서, 중/-는 중, -자마자, 동안, -(으)ㄴ 지)
+> - [ ] Parti 7 — PDF 151-175 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 151 -l 175 <pdf> D:\UserData\krgrammar\p7`
 
 ---
 
@@ -399,7 +401,72 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
   여행하기 전에 = 여행 전에 (하다-isimlerinde ikisi de olur; diğer
   fiillerde yalnız -기 전에: 방문하기 전에).
 
+### 11.2 N 후에, V-(으)ㄴ 후에 — 'sonra'
+- İsim + **후에**: 1년 **후에** 가요 · 수업 **후에** 시간 있어요?
+- Fiil: ünlü/ㄹ sonrası **-ㄴ 후에**, ünsüz sonrası **-은 후에**:
+  끝나다→끝난 후에, 만들다→만든 후에, 짓다→지은 후에 (düzensiz).
+- **1시간 후에** = bir saat sonra (süre); **1시 후에** = saat 1'den
+  herhangi bir zaman sonra — süre için sayı+사간/달/년 kullan.
+
+### 11.3 V-고 나서 — 'bitirip sonra'
+- Kök + **-고 나서**: 일을 하**고 나서** 쉽니다 · 보**고 나서** 자요 ·
+  먹**고 나서** 신문을 봐요. -고'ya göre "ilk eylemin tamamen bittiğini"
+  vurgular.
+- HAREKET fiilleriyle (가다, 오다, 들어가다, 올라가다, 내려가다, 일어나다,
+  앉다, 눕다, 만나다) **kullanılmaz** → onlarda **-아/어서** (11.4):
+  학교에 가**서** 공부해요 (가고 나서 ✗) · 오늘 와**서** 일을 했어요.
+
+### 11.4 V-아/어서 — sıkı sıralı 'yapıp (orada/onunla)'
+- Biçim -아/어요'daki gibi: 가다→가**서**, 씻다→씻어**서**, 결혼하다→결혼해**서**,
+  사다→사**서**, 만들다→만들어**서**, 팔다→팔아**서**.
+- İkinci eylem birinciye BAĞIMLIDIR (onsuz olmaz): 바나나를 까**서** 먹었어요
+  (soyup yedi) · 공원에 앉아**서** 이야기했어요 · 목걸이를 사**서** 줬어요.
+- **-고 vs -아/어서**: 과일을 씻**고** 다른 과일을 먹었어요 (bağımsız iki iş) ↔
+  과일을 씻**어서** (O meyveyi) 먹었어요 (aynı nesne, sıkı bağ).
+- Giyinme fiilleri -고 alır: 코트를 입**고** 공부해요 · 우산을 쓰**고** 가요 ·
+  안경을 써**서** ✗ → 쓰**고** ✓.
+
+### 11.5 N 때, A/V-(으)ㄹ 때 — '-dığında, sırasında'
+- İsim + **때**: 방학 **때**, 시험 **때**, 4살 **때**, 휴가 때, 크리스마스 때.
+- Fiil/sıfat: ünlü/ㄹ → **-ㄹ 때** (볼 때, 갈 때, 끝날 때, 살 때),
+  ünsüz → **-을 때** (먹을 때, 있을 때, 받을 때); 피곤하다→피곤할 때,
+  *춥다→추울 때, *듣다→들을 때, *짓다→지을 때.
+- 오전/오후/아침/요일ile **때 kullanılmaz**: 오전에 공부해요 (오전 때 ✗) ·
+  월요일에 가요.
+- 크리스마스**에** = günün kendisi (25 Aralık); 크리스마스 **때** = o günler
+  (öncesi-sonrası dahil dönem). 저녁 때 = 저녁에 (fark yok).
+
+### 11.6 V-(으)면서 — 'aynı anda, -erken'
+- Ünlü/ㄹ → **-면서** (가면서, 보면서, 부르면서, 울면서, 만들면서),
+  ünsüz → **-으면서** (먹으면서, 받으면서, *들으면서, *걸으면서, *지으면서,
+  *도우면서).
+- İki eylem AYNI ÖZNEDE eşzamanlı: 밥을 먹**으면서** TV를 봅니다 ·
+  피아노를 치**면서** 노래를 해요 · 운전하**면서** 전화하지 마세요.
+
+### 11.7 N 중, V-는 중 — '... sürecinde'
+- İsim + **중**: 공사 **중**입니다 · 회의 **중**이에요 · 수리 중, 샤워 중,
+  통화 중, 임신 중.
+- Fiil + **-는 중**: 가**는 중**이에요 (yoldayım) · 집을 찾**는 중**이에요 ·
+  생각하는 중, 만드는 중.
+
+### 11.8 V-자마자 — '-er -ermez'
+- Kök + **-자마자** (her kökte aynı): 집에 오**자마자** 잤어요 · 불이
+  나**자마자** 소방차가 왔어요 · 수업이 끝나**자마자** 교실을 나갔어요 ·
+  전화를 끊**자마자**.
+
+### 11.9 N 동안, V-는 동안 — 'boyunca'
+- İsim + **동안**: 4시간 **동안** 공부했어요 · 일주일 동안 · 방학 **동안** ·
+  겨울 **동안** 겨울잠을 자요.
+- Fiil + **-는 동안**: 친구들이 점심을 먹**는 동안** 숙제를 했어요 ·
+  *여행하다→여행하는 동안, *살다→사는 동안.
+
+### 11.10 V-(으)ㄴ 지 — '-eli (şu kadar) oldu'
+- Ünlü/ㄹ → **-ㄴ 지**, ünsüz → **-은 지**; süre + **되다/넘다/안 되다** ile:
+  한국에 **온 지** 2년이 됐습니다 · 담배 **끊은 지** 한 달 됐어요 ·
+  게임을 **한 지** 5시간이 넘었어요 · *듣다→들은 지, *살다→산 지,
+  *짓다→지은 지.
+
 ---
 
-*(Parti 6'dan itibaren: Unit 5 devamı (후에, -(으)ㄴ 후에, 때, 동안...)
-aynı düzenle eklenecek.)*
+*(Parti 7'den itibaren: Unit 6 Yetenek/İzin (-(으)ㄹ 수 있다...) ve
+sonraki üniteler aynı düzenle eklenecek.)*
