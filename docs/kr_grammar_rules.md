@@ -10,8 +10,10 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 >       -고 있다, -았/었었어요)
 > - [x] Parti 3 — PDF 51-75 (Unit 2 Olumsuzluk: 아니다/없다/모르다, 안, 못;
 >       Unit 3 İlgeçler: 이/가, 은/는, 을/를, 와/과·(이)랑·하고, 의, 에 ①②)
-> - [ ] Parti 4 — PDF 76-100 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 76 -l 100 <pdf> D:\UserData\krgrammar\p4`
+> - [x] Parti 4 — PDF 76-100 (İlgeçler devam: 에서, 에서/부터~까지,
+>       에게/한테, 도, 만, 밖에, (으)로, (이)나)
+> - [ ] Parti 5 — PDF 101-125 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 101 -l 125 <pdf> D:\UserData\krgrammar\p5`
 
 ---
 
@@ -267,7 +269,66 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
   한국에 왔어요 · 토요일**에** 만나요 · 봄**에**, 저녁**에**.
 - **에almayanlar**: 어제, 오늘, 내일, 지금 (어제에 ✗).
 
+### 9.8 에서 — eylem yeri
+- Eylemin GERÇEKLEŞTİĞİ yer: 학교**에서** 공부해요 · 극장**에서** 영화를
+  봤어요 · 백화점**에서** 쇼핑해요 · 헬스클럽**에서** 운동해요.
+- **에 vs 에서**: 에 = varlık/varış noktası (서울**에** 살아요, 의자**에**
+  앉으세요 — durum fiilleri 있다/없다/살다/앉다 ile); 에서 = aktivite yeri
+  (도서관**에서** 공부해요). 살다 her ikisini de alabilir (durum ↔ yaşam
+  davranışı vurgusu).
+
+### 9.9 에서 ~ 까지, 부터 ~ 까지 — aralık
+- **Yer aralığı**: N**에서** N**까지** — 학교**에서** 집**까지** 걸어왔어요 ·
+  서울**에서** 부산**까지** 시간이 얼마나 걸려요?
+- **Zaman aralığı**: N**부터** N**까지** — 오전 9시**부터** 오후 5시**까지**
+  일해요 · 월요일**부터** 금요일**까지** 학교에 가요 · 7월**부터**
+  8월**까지** 방학이에요. (Bazen iki tip birbirinin yerine kullanılabilir.)
+
+### 9.10 에게/한테 — kime (canlı alıcı)
+- İnsan/hayvan alıcılara: 캐럴 씨**에게** 선물을 줘요 · 학생들**에게**
+  한국어를 가르칩니다 · 개**한테** 밥을 줘요. **한테** günlük konuşma,
+  **에게** yazı dili.
+- CANSIZA/bitkiye/yere **에**: 나무**에** 물을 줘요 · 회사**에** 들어가요 ·
+  중국**에** 소포를 보내요.
+- Sınırlı fiil grubu: 주다, 선물하다, 던지다, 보내다, 부치다, 붙이다,
+  쓰다, 전화하다, 묻다, 가르치다, 말하다, 팔다, 가다, 오다.
+- Saygı karşılığı: 에게 → **께** (어머니**께** 드려요).
+
+### 9.11 도 — 'de/da, ayrıca'
+- İsme eklenir: 친구**도** 인도 사람이에요 · 저**도** 키가 커요 ·
+  딸기**도** 좋아해요.
+- Özne/nesne ilgecinin YERİNE geçer (yan yana gelmez): 친구는**도** ✗ →
+  친구**도** ✓. Diğer ilgeçlerin ÜSTÜNE eklenir: 학교에**도**, 회사에서**도**.
+
+### 9.12 만 — 'sadece'
+- 캐럴 씨**만** 왔어요 · 고기**만** 먹어요 · 5분**만** 기다려 주세요
+  (sayıdan sonra 'en az/sadece' tonu).
+- 이/가·은/는·을/를'ün yerine geçebilir VEYA üstüne gelebilir
+  (만이, 만은, 만을); diğer ilgeçlerle birleşir: 월요일에**만** 쉬어요.
+
+### 9.13 밖에 — 'başka yok' (+ OLUMSUZ)
+- HEP olumsuz yüklemle: 사과가 한 개**밖에** 안 남았어요 · 우유**밖에**
+  없어요 · 선물을 한 개**밖에** 못 받았어요 · 한국어는 '안녕하세요'**밖에**
+  몰라요. Azlık iması taşır.
+- 아니다 ile ve emir/öneri kipleriyle KULLANILMAZ: 조금밖에 사지 마세요 ✗ →
+  조금**만** 사세요 ✓.
+
+### 9.14 (으)로 — araç / yön / malzeme
+- Ünlü veya ㄹ'den sonra **로**, ünsüzden sonra **으로**: 버스**로** 가세요 ·
+  지하철**로** 갈 거예요 · 한국어**로** 말하세요 · 칼**로** 잘라요 ·
+  연필**로** 쓰세요.
+- Yön: 오른쪽**으로** 가세요 · 왼쪽**으로**. Malzeme: 쌀**로** 만들었어요 ·
+  콩**으로** 만들어요. Araç-gereç: 숟가락**으로**, 젓가락**으로**.
+- Taşıt FİİLLE anlatılırsa -아/어서: **걸어서** 가요, **운전해서**,
+  **수영해서** (걸기로 ✗).
+
+### 9.15 (이)나 — 'veya / ... falan'
+- İki ismi bağlar: 구두**나** 가방을 살 거예요 · 이 선생님**이나**
+  김 선생님에게 물어보세요 (ünlü→나, ünsüz→이나).
+- Yer/zaman ilgeçleriyle birleşir: 토요일**에나** 일요일에 운동해요 →
+  daha doğalı 에나/에서나 SON isimde: 공원**에서나** 커피숍에서 데이트해요.
+
 ---
 
-*(Parti 4'ten itibaren: 에서, 부터/까지 vb. kalan ilgeçler ve sonraki
+*(Parti 5'ten itibaren: kalan ilgeçler (쯤, 처럼/같이...) ve sonraki
 üniteler aynı düzenle eklenecek.)*

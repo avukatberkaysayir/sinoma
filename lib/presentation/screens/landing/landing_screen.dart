@@ -1,17 +1,19 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/locale_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../widgets/common/auth_dialog.dart';
 
-// Duolingo-warm landing palette — matches /home (same green, same navy bg)
-// so the public page and the app read as ONE product.
+// Landing palette follows the app theme (ink dark ↔ rice-paper light) so the
+// public page and the app read as ONE product.
 const _lpGreen = Color(0xFF2EC4B6);
-const _lpBg = Color(0xFF0E1414);
-const _lpBg2 = Color(0xFF121A19);
+Color get _lpBg => AppColors.surface;
+Color get _lpBg2 =>
+    AppColors.dark ? const Color(0xFF121A19) : const Color(0xFFFCFAF4);
 
 // Public marketing landing page (root URL). Voscreen-style: top bar with a
 // login on the right, a hero with the "watch → choose the sentence" pitch and a
@@ -22,6 +24,7 @@ class LandingScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(themeModeProvider); // AppColors statics need explicit rebuilds
     final lang = ref.watch(localeProvider).languageCode;
     final tr = lang == 'tr';
     final signedIn = ref.watch(currentUserProvider).valueOrNull != null;
@@ -33,7 +36,7 @@ class LandingScreen extends ConsumerWidget {
 
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
@@ -130,9 +133,9 @@ class _TopBar extends StatelessWidget {
             OutlinedButton(
               onPressed: () => showAuthDialog(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFEEEEEE),
+                foregroundColor: AppColors.onSurface,
                 side: BorderSide(
-                    color: const Color(0xFF9E9E9E).withValues(alpha: 0.4)),
+                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -202,7 +205,7 @@ class _LangToggle extends ConsumerWidget {
           ),
           child: Text(label,
               style: TextStyle(
-                  color: on ? _lpGreen : const Color(0xFF9E9E9E),
+                  color: on ? _lpGreen : AppColors.onSurfaceMuted,
                   fontSize: 13,
                   fontWeight: on ? FontWeight.w700 : FontWeight.w500)),
         ),
@@ -300,9 +303,9 @@ class _Hero extends StatelessWidget {
                 label: Text(
                     t('Videolara Göz At', 'Browse videos', '영상 둘러보기')),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFFEEEEEE),
+                  foregroundColor: AppColors.onSurface,
                   side: BorderSide(
-                      color: const Color(0xFF9E9E9E).withValues(alpha: 0.4)),
+                      color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
                   textStyle: const TextStyle(
@@ -327,7 +330,7 @@ class _MockPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF0E1414),
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: [
@@ -437,7 +440,7 @@ class _MockOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = correct ? AppColors.correctAnswer : const Color(0xFF9E9E9E);
+    final c = correct ? AppColors.correctAnswer : AppColors.onSurfaceMuted;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
@@ -458,7 +461,7 @@ class _MockOption extends StatelessWidget {
             child: Text(text,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: correct ? AppColors.correctAnswer : const Color(0xFF9E9E9E),
+                    color: correct ? AppColors.correctAnswer : AppColors.onSurfaceMuted,
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
           ),
@@ -518,7 +521,7 @@ class _Features extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF0E1414).withValues(alpha: 0.6),
+                color: AppColors.surface.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),

@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/web_sfx.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../../data/models/video_segment_model.dart';
+import '../../../data/repositories/video_repository.dart';
 import '../../providers/dictionary_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
@@ -54,6 +55,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   bool _optSwap = false; // stable left/right order for the two options
   double _speed = 1.0;
   int _replayCount = 0;
+  late final VideoRepository _videoRepo; // dispose-safe (see initState)
   bool _soundOn = false;
   final DirectYouTubeController _playerCtrl = DirectYouTubeController();
 
@@ -72,6 +74,9 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   @override
   void initState() {
     super.initState();
+    // Cached: onWatched can fire from the player's dispose, when reading a
+    // provider through ref would throw (and abort the iframe cleanup).
+    _videoRepo = ref.read(videoRepositoryProvider);
     _index = widget.phaseMode ? 0 : Random().nextInt(widget.segments.length);
     _optSwap = Random().nextBool();
     if (widget.phaseMode) {
@@ -211,6 +216,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         setState(() {
           _countdownActive = false;
           _timedOut = true;
+          // Old (wanted) behaviour: nothing disappears on timeout — the
+          // subtitle opens and the options stay, with the correct one
+          // revealed. Without this the options block (gated on a subtitle
+          // choice) vanished entirely.
+          _subtitleChoice ??= true;
         });
       }
     });
@@ -377,8 +387,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 onSoundChanged: (v) {
                   if (mounted) setState(() => _soundOn = v);
                 },
-                onWatched: (s) =>
-                    ref.read(videoRepositoryProvider).bumpWatchSeconds(s),
+                onWatched: (s) => _videoRepo.bumpWatchSeconds(s),
                 countdown: _countdown,
                 showCountdown: _countdownActive,
                 showReplay: _clipEnded && !_replaying,

@@ -674,7 +674,17 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
   @override
   void dispose() {
-    _flushWatch();
+    // DOM cleanup FIRST and unconditionally: if anything later in dispose
+    // throws (e.g. a callback touching a disposed provider), the iframe must
+    // already be gone — a leaked fixed-position iframe floats over every
+    // other tab.
+    _iframe?.remove();
+    _countdownEl?.remove();
+    _replayEl?.remove();
+    _nextEl?.remove();
+    try {
+      _flushWatch();
+    } catch (_) {/* stats are best-effort */}
     widget.controller._detach();
     _listenTimer?.cancel();
     _endFallbackTimer?.cancel();

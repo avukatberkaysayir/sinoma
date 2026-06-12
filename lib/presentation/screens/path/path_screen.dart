@@ -10,6 +10,7 @@ import '../../../core/constants/cities.dart';
 import '../../../core/constants/landmarks/landmarks_ko.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../dictionary/dictionary_screen.dart';
 import '../profile/profile_screen.dart';
@@ -67,6 +68,10 @@ class PathScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Colors come from AppColors statics (no Theme dependency) — watching the
+    // theme here rebuilds the WHOLE shell (nav + center + rails) the moment
+    // the toggle flips, instead of only after the next navigation.
+    ref.watch(themeModeProvider);
     final loc = GoRouterState.of(context).matchedLocation;
     final section = _sectionFromLoc(loc);
     final w = MediaQuery.sizeOf(context).width;
