@@ -10,7 +10,7 @@
   --heart:#e74c3c; --text:#eef5f3; --dim:#8fa6a1; --green:#4caf7d;
 }
 *{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;background:#000;overflow:hidden}
+html,body{height:100%;background:var(--bg);overflow:hidden}
 body{font-family:-apple-system,"Segoe UI","Noto Sans",Roboto,sans-serif;color:var(--text)}
 
 /* Fixed 1280x720 design canvas, scaled to fit whatever box embeds the iframe
@@ -21,7 +21,9 @@ body{font-family:-apple-system,"Segoe UI","Noto Sans",Roboto,sans-serif;color:va
   radial-gradient(1200px 700px at 70% 20%, #12201d 0%, var(--bg) 60%);}
 
 /* ---------- chrome ---------- */
-#bar{position:absolute;top:0;left:0;height:4px;background:linear-gradient(90deg,var(--teal),var(--gold));width:0%;z-index:50;transition:width .2s linear}
+/* Progress lives on the BOTTOM edge (player convention) — a top stripe read
+   as a rendering glitch against the page background. */
+#bar{position:absolute;bottom:0;left:0;height:4px;background:linear-gradient(90deg,var(--teal),var(--gold));width:0%;z-index:50;transition:width .2s linear}
 #ctrl{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center;z-index:50;opacity:.25;transition:opacity .3s}
 #ctrl:hover{opacity:1}
 #ctrl button{background:var(--panel);border:1px solid var(--line);color:var(--text);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:15px}
