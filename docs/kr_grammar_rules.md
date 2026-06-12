@@ -8,8 +8,10 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 > - [x] Parti 2 — PDF 26-50 (yerli sayılar+sayaçlar, tarih/gün, saat;
 >       Unit 1 Zamanlar: -(스)ㅂ니다, -아/어요, -았/었어요, -(으)ㄹ 거예요,
 >       -고 있다, -았/었었어요)
-> - [ ] Parti 3 — PDF 51-75 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 51 -l 75 <pdf> D:\UserData\krgrammar\p3`
+> - [x] Parti 3 — PDF 51-75 (Unit 2 Olumsuzluk: 아니다/없다/모르다, 안, 못;
+>       Unit 3 İlgeçler: 이/가, 은/는, 을/를, 와/과·(이)랑·하고, 의, 에 ①②)
+> - [ ] Parti 4 — PDF 76-100 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 76 -l 100 <pdf> D:\UserData\krgrammar\p4`
 
 ---
 
@@ -191,5 +193,81 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
 
 ---
 
-*(Parti 3'ten itibaren: Unit 2 olumsuzluk, ilgeç üniteleri, vb. bu dosyaya
-aynı düzenle eklenecek.)*
+## 8. UNIT 2 — OLUMSUZLUK
+
+### 8.1 Kelime olumsuzlama (zıt fiiller)
+- 이다 → **아니다**: 한국 사람이에요 ↔ 한국 사람이 **아니에요**
+  (resmî: 입니다 ↔ 아닙니다).
+- 있다 → **없다**: 돈이 있어요 ↔ 돈이 **없어요** (있습니다 ↔ 없습니다).
+- 알다 → **모르다**: 한국말을 알아요 ↔ 한국말을 **몰라요** (압니다 ↔ 모릅니다).
+
+### 8.2 안 A/V-아/어요 (= A/V-지 않아요) — istememe/yapmama
+- **안** yüklemin ÖNÜNE gelir veya köke **-지 않아요** eklenir:
+  안 가요 = 가지 않아요 · 안 커요 = 크지 않아요 · 안 넓어요 = 넓지 않아요.
+- '명사+하다' fiillerinde 안, isimle 하다 ARASINA girer: 공부 **안 해요**
+  (안 공부해요 ✗). Sıfatlarda öne: **안 좋아해요/안 싫어해요** (bölünmez:
+  좋아 안 해요 ✗).
+- Hem fiil hem sıfatla kullanılır; iradî "yapmıyorum" anlamı taşır:
+  저는 오늘 쇼핑 안 해요 (canım istemiyor).
+
+### 8.3 못 V-아/어요 (= V-지 못해요) — yapamama
+- **못** fiilin önüne veya köke **-지 못해요**: 못 타요 = 타지 못해요,
+  숙제 **못 해요**, 못 써요, 못 들어요.
+- Yalnız FİİLLERLE kullanılır (sıfatla 못 예뻐요 ✗).
+- Yetenek eksikliği veya dış engel: 운전 **못** 해요. 운전을 안 배웠어요. ·
+  이가 아파요, 그래서 먹지 **못해요**.
+- **안 vs 못**: 학교에 **안** 가요 (gitmeyeceğim — kendi kararım) ↔
+  학교에 **못** 가요 (gidemiyorum — engel var).
+
+## 9. UNIT 3 — İLGEÇLER (조사)
+
+### 9.1 이/가 — özne
+- Ünsüzden sonra **이**, ünlüden sonra **가**: 날씨**가** 좋아요 ·
+  조엘 씨**가** 빵을 먹어요.
+- Yeni bilgi sunarken ve özneyi vurgularken: **누가** 음식을 준비할 거예요?
+  — 준호 씨**가** 준비할 거예요.
+- Kaynaşmalar: 나+가→**내가**, 저+가→**제가**, 누구+가→**누가**
+  (나가/저가/누구가 ✗).
+
+### 9.2 은/는 — konu/karşıtlık
+- Ünlüden sonra **는**, ünsüzden sonra **은**: 저**는** 한국 사람입니다 ·
+  제 직업**은** 변호사입니다.
+- Konuşmada zaten bilinen/eski bilgi için: 옛날에 한 남자가 살았어요.
+  그 남자**는** 아이들이 두 명 있었어요 (ilk geçişte 가, sonra 는).
+- Karşılaştırma/karşıtlıkta özne VEYA nesneye gelir: 형**은** 키가 커요,
+  동생**은** 키가 작아요 · 사과**는** 없어요 (başka şey var ama elma yok).
+
+### 9.3 을/를 — nesne
+- Ünlüden sonra **를**, ünsüzden sonra **을**: 영화**를** 봐요 ·
+  신문**을** 읽어요 · 음악**을** 들어요.
+- Nesne ilgeci isteyen fiiller: 먹다, 마시다, 좋아하다, 보다, 읽다, 만나다,
+  사다, 가르치다, 배우다, 쓰다. Günlük konuşmada bazen düşer (커피 마셔요).
+
+### 9.4 와/과, (이)랑, 하고 — 've / ile'
+- Yazı/sunum dili: ünlüden sonra **와**, ünsüzden sonra **과**
+  (의자**와** 책상, 신문**과** 잡지).
+- Günlük konuşma: **하고** (her durumda) ve **(이)랑** (ünlü→랑, ünsüz→이랑):
+  햄버거**하고** 콜라 주세요 · 가방**이랑** 모자.
+- 'Birlikte' anlamında hedef kişi + **같이/함께**: 내일 친구**하고 같이**
+  영화를 볼 거예요.
+
+### 9.5 의 — iyelik
+- `sahip + 의 + sahip olunan`: 웨슬리**의** 책 · 리처드**의** 어머니.
+- Konuşmada sık düşer: 부디 씨(의) 선생님. Telaffuzu [에].
+- Zamir kaynaşmaları: 나의→**내**, 저의→**제**, 너의→**네**:
+  **제** 이름은 요코입니다.
+
+### 9.6 에 ① — yön/varış + konum
+- Hareket fiilleriyle hedef: 가다/오다/다니다/돌아가다/도착하다 +
+  **에**: 한국**에** 와요 · 대학교**에** 다녀요 · 매일 회사**에** 가요.
+- 있다/없다 ile yer bildirir: 소파 위**에** 개가 있어요 · 교회**에** 다녀요.
+
+### 9.7 에 ② — zaman
+- Zaman/durum isimlerine eklenir: 아침 8시**에** 일어나요 · 3월 2일**에**
+  한국에 왔어요 · 토요일**에** 만나요 · 봄**에**, 저녁**에**.
+- **에almayanlar**: 어제, 오늘, 내일, 지금 (어제에 ✗).
+
+---
+
+*(Parti 4'ten itibaren: 에서, 부터/까지 vb. kalan ilgeçler ve sonraki
+üniteler aynı düzenle eklenecek.)*
