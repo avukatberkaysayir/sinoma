@@ -24,8 +24,11 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 >       -아/어서 ②, -(으)니까 ①, 때문에/-기 때문에; Unit 10 Rica:
 >       -아/어 주세요/주시겠어요, -아/어 줄게요/줄까요; Unit 11:
 >       -아/어 보다, -(으)ㄴ 적이 있다)
-> - [ ] Parti 9 — PDF 201-225 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 201 -l 225 <pdf> D:\UserData\krgrammar\p9`
+> - [x] Parti 9 — PDF 201-225 (Unit 12 Öneri: -(으)ㄹ까요 ①②, -(으)ㅂ시다,
+>       -(으)시겠어요, -(으)ㄹ래요 ①; Unit 13 Niyet: -겠어요 ①②,
+>       -(으)ㄹ게요, -(으)ㄹ래요 ②; Unit 14: -(으)ㄴ/는데 ②)
+> - [ ] Parti 10 — PDF 226-250 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 226 -l 250 <pdf> D:\UserData\krgrammar\p10`
 
 ---
 
@@ -598,5 +601,67 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
 
 ---
 
-*(Parti 9'dan itibaren: Unit 12 Niyet/Plan (-(으)ㄹ게요, -(으)ㄹ래요...)
-ve sonraki üniteler aynı düzenle eklenecek.)*
+## 18. UNIT 12 — GÖRÜŞ SORMA VE ÖNERİ
+
+### 18.1 V-(으)ㄹ까요? ① — 'birlikte ... yapalım mı?'
+- Ünlü/ㄹ → **-ㄹ까요?**, ünsüz → **-을까요?**: 농구**할까요?** ·
+  쉴**까요?** · 볼**까요?** · 먹을까요? · 앉을까요? · *들을까요? ·
+  *걸을까요?. Gizli özne **우리**; yanıt önerme kipiyle (-아/어요/-ㅂ시다).
+
+### 18.2 V-(으)ㄹ까요? ② — 'ben ... yapayım mı?'
+- Aynı biçim, özne **제가/내가**: 창문을 **열까요?** · 무엇을 **입을까요?** ·
+  커피를 **드릴까요?**. Yanıt: -(으)세요 / -지 마세요.
+
+### 18.3 V-(으)ㅂ시다 — 'yapalım' (+ -지 맙시다 'yapmayalım')
+- Ünlü/ㄹ → **-ㅂ시다** (갑시다, 옵시다, 만납시다, 여행합시다, *만듭시다),
+  ünsüz → **-읍시다** (먹읍시다, 앉읍시다, *걸읍시다).
+- Olumsuz öneri: **-지 맙시다 / -지 마요**: 버스를 타**지 마요**,
+  지하철을 **탑시다** · 보**지 맙시다**.
+- Üste/yaşça büyüğe KULLANILMAZ (bkz. 4. bölüm) — kibarı -아/어요, -(으)실까요?.
+
+### 18.4 V-(으)시겠어요? — 'ister misiniz?' (resmî nazik)
+- Ünlü → **-시겠어요?**, ünsüz → **-으시겠어요?**: **드시겠어요?** ·
+  예약**하시겠어요?** · 넣**으시겠어요?** · 만나시겠어요? · *들으시겠어요? ·
+  *만드시겠어요?. -(으)ㄹ래요?'den daha resmî/kibar.
+
+### 18.5 V-(으)ㄹ래요? ① — 'ister misin?' (samimi)
+- Ünlü/ㄹ → **-ㄹ래요?**, ünsüz → **-을래요?**: 같이 **갈래요?** ·
+  **하실래요?** (saygı: -(으)실래요?) · 먹을래요? · 받을래요?.
+- Olumsuz soruyla nazikleşir: 타**지 않을래요?** (= 안 탈래요?).
+
+## 19. UNIT 13 — NİYET VE PLAN
+
+### 19.1 A/V-겠어요 ① — güçlü niyet (1./2. kişi)
+- Kök + **-겠어요/-겠습니다**: 꼭 끊**겠습니다** · 출장을 가**겠습니다** ·
+  운동하**겠어요**. Olumsuz: -지 않겠어요 / 안 -겠어요.
+- Üçüncü kişi öznesiyle niyet anlamında KULLANILMAZ (카일리 씨는
+  ...하겠어요 ✗ → 할 거예요).
+- ② Yakın gelecek/tahmin de bildirir: 잠시 후에 도착하**겠습니다** ·
+  내일은 비가 오**겠습니다** (hava durumu dili).
+- Kalıplar: 처음 뵙**겠**습니다 · 잘 먹**겠**습니다 · 다녀오**겠**습니다;
+  yumuşatma: 모르**겠**어요 (bilmiyorum).
+
+### 19.2 V-(으)ㄹ게요 — 'söz/karar: yapacağım'
+- Ünlü/ㄹ → **-ㄹ게요**, ünsüz → **-을게요**: 제가 받**을게요** ·
+  먼저 **갈게요** · 전화**할게요** · 끊을게요, *들을게요, *열게요, *도울게요.
+- DİNLEYİCİYE dönük söz/karar (onun durumunu hesaba katar); yalnız konuşma
+  dilinde, soru biçimi yok.
+- **-(으)ㄹ 거예요 farkı**: 거예요 = dinleyiciden bağımsız plan bildirimi;
+  게요 = dinleyiciyle ilişki içinde verilen söz/tepki (담배를 끊**을게요** —
+  senin uyarın üzerine).
+
+### 19.3 V-(으)ㄹ래요 ② — 'yapacağım / istiyorum' (samimi irade)
+- 그만 먹**을래요** · 커피 마**실래요** · 여행을 **할래요** · 탈래요,
+  공부할래요, *들을래요, *걸을래요. Kibarlık katmaz; yakınlar arasında.
+
+## 20. UNIT 14 — ARKA PLAN BİLGİSİ
+
+### 20.1 A/V-(으)ㄴ/는데 ② — arka plan/zemin hazırlama
+- Biçim 10.4'teki gibi (sıfat -(으)ㄴ데, fiil -는데, isim -인데).
+- İkinci cümleye zemin kurar ('...da, ... ki' tonu): 추**운데** 창문을
+  닫을까요? · 비가 오**는데** 우산이 없어요 · 제 동생은 학생**인데**
+  공부를 아주 잘해요 · 많이 있**는데** 이제 갈까요?
+
+---
+
+*(Parti 10'dan itibaren: -(으)니까 ②, Unit 15+ aynı düzenle eklenecek.)*
