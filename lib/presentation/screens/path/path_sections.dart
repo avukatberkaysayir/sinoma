@@ -2011,7 +2011,12 @@ class SettingsCenter extends ConsumerWidget {
 class SettingsRight extends StatelessWidget {
   final bool tr;
   final VoidCallback onProfile;
-  const SettingsRight({super.key, required this.tr, required this.onProfile});
+  final VoidCallback onPrefs;
+  const SettingsRight(
+      {super.key,
+      required this.tr,
+      required this.onProfile,
+      required this.onPrefs});
 
   @override
   Widget build(BuildContext context) {
@@ -2034,7 +2039,7 @@ class SettingsRight extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _LinkCard(title: AppL10n.of(context).accountLbl, links: [
-              (AppL10n.of(context).preferences, () {}),
+              (AppL10n.of(context).preferences, onPrefs),
               (AppL10n.of(context).navProfile, onProfile),
               (AppL10n.of(context).privacySettings,
                   () => context.go('/legal/privacy')),

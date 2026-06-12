@@ -103,6 +103,15 @@ final _router = GoRouter(
       if (user?.email != adminEmail) return '/learn';
     }
 
+    // Signed out — wherever the logout happened, land on the public
+    // homepage. Guests are anonymous-authed, so they are NOT caught here.
+    final isPublic = loc == '/' ||
+        loc.startsWith('/splash') ||
+        loc.startsWith('/language') ||
+        loc.startsWith('/onboarding') ||
+        loc.startsWith('/legal');
+    if (user == null && !isPublic) return '/';
+
     return null;
   },
   routes: [

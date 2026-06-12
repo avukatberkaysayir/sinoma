@@ -105,7 +105,9 @@ class SinomaTopBar extends StatelessWidget implements PreferredSizeWidget {
           if (user != null)
             _ProfileDropdown(user: user, isAdmin: isAdmin, l10n: l10n)
           else
-            _AuthButtons(l10n: l10n),
+            // The plan page pushes sign-UP only; a login button there reads
+            // wrong (you reach the paywall from inside the app).
+            _AuthButtons(l10n: l10n, showLogin: loc != '/subscription'),
         ],
       ),
     );
@@ -689,7 +691,8 @@ class _DropdownItemState extends State<_DropdownItem> {
 
 class _AuthButtons extends StatelessWidget {
   final AppL10n l10n;
-  const _AuthButtons({required this.l10n});
+  final bool showLogin;
+  const _AuthButtons({required this.l10n, this.showLogin = true});
 
   @override
   Widget build(BuildContext context) {
@@ -697,13 +700,15 @@ class _AuthButtons extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _AuthBtn(
-          label: l10n.loginBtn,
-          filled: false,
-          isDark: isDark,
-          onTap: () => showAuthDialog(context),
-        ),
-        const SizedBox(width: 8),
+        if (showLogin) ...[
+          _AuthBtn(
+            label: l10n.loginBtn,
+            filled: false,
+            isDark: isDark,
+            onTap: () => showAuthDialog(context),
+          ),
+          const SizedBox(width: 8),
+        ],
         _AuthBtn(
           label: l10n.signUpBtn,
           filled: true,

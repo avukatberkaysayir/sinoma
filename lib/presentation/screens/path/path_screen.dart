@@ -184,7 +184,9 @@ class PathScreen extends ConsumerWidget {
       case _Section.more:
       case _Section.editProfile:
         return SettingsRight(
-            tr: tr, onProfile: () => context.go('/settings/profile'));
+            tr: tr,
+            onProfile: () => context.go('/settings/profile'),
+            onPrefs: () => context.go('/settings'));
     }
   }
 }
