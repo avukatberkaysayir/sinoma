@@ -12,13 +12,15 @@ final themeModeProvider =
 });
 
 class ThemeModeNotifier extends StateNotifier<ThemeMode> {
-  ThemeModeNotifier() : super(ThemeMode.dark) {
+  // Light (rice paper) is the DEFAULT; dark ink is the opt-in.
+  ThemeModeNotifier() : super(ThemeMode.light) {
+    AppColors.dark = false;
     _load();
   }
 
   Future<void> _load() async {
     final prefs = await SharedPreferences.getInstance();
-    final isDark = prefs.getBool(_kKey) ?? true;
+    final isDark = prefs.getBool(_kKey) ?? false;
     AppColors.dark = isDark; // palette getters resolve per theme
     state = isDark ? ThemeMode.dark : ThemeMode.light;
   }

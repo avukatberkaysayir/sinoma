@@ -1,6 +1,9 @@
-﻿import 'package:flutter/material.dart';
+﻿import 'dart:ui_web' as ui_web;
+
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:web/web.dart' as web;
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/locale_provider.dart';
@@ -57,24 +60,18 @@ class LandingScreen extends ConsumerWidget {
                         .read(localeProvider.notifier)
                         .setLocale(Locale(code)),
                   ),
+                  // Promo film right under the header — same footprint as the
+                  // Öğren player (16:9, centred). The hero text moved below.
                   Padding(
-                    padding: EdgeInsets.fromLTRB(24, wide ? 48 : 28, 24, 40),
-                    child: wide
-                        ? Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            children: [
-                              Expanded(child: _Hero(t: t, signedIn: signedIn)),
-                              const SizedBox(width: 48),
-                              const Expanded(child: _MockPlayer()),
-                            ],
-                          )
-                        : Column(
-                            children: [
-                              _Hero(t: t, signedIn: signedIn),
-                              const SizedBox(height: 36),
-                              const _MockPlayer(),
-                            ],
-                          ),
+                    padding:
+                        EdgeInsets.fromLTRB(24, wide ? 36 : 24, 24, 12),
+                    child: const Center(
+                      child: _PromoFrame(),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
+                    child: _Hero(t: t, signedIn: signedIn),
                   ),
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -229,8 +226,9 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Centred under the promo film — bold, high-contrast, theme-aware.
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -244,37 +242,46 @@ class _Hero extends StatelessWidget {
               style: const TextStyle(
                   color: _lpGreen,
                   fontSize: 13,
-                  fontWeight: FontWeight.w600)),
+                  fontWeight: FontWeight.w800)),
         ),
         const SizedBox(height: 20),
         Text(
-          t('Gerçek videolarla\nMandarin öğren',
-              'Learn Mandarin with\nreal videos',
-              '진짜 영상으로\n중국어를 배우세요'),
-          style: const TextStyle(
-            color: Color(0xFFEEEEEE),
+          t('Gerçek videolarla Mandarin öğren',
+              'Learn Mandarin with real videos',
+              '진짜 영상으로 중국어를 배우세요'),
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: AppColors.onSurface,
             fontSize: 44,
             height: 1.1,
             fontWeight: FontWeight.w800,
           ),
         ),
         const SizedBox(height: 18),
-        Text(
-          t(
-            'İzle, duyduğun cümleyi seç, anında öğren. Gerçek diyaloglar, '
-                'otomatik altyazı ve HSK 1-6 seviyeleri ile.',
-            'Watch, pick the sentence you heard, and learn instantly. Real '
-                'dialogues, auto subtitles and HSK 1-6 levels.',
-            '영상을 보고, 들은 문장을 고르고, 바로 배워요. '
-                '실제 대화와 자동 자막, HSK 1-6 레벨까지.',
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 680),
+          child: Text(
+            t(
+              'İzle, duyduğun cümleyi seç, anında öğren. Gerçek diyaloglar, '
+                  'otomatik altyazı ve HSK 1-6 seviyeleri ile.',
+              'Watch, pick the sentence you heard, and learn instantly. Real '
+                  'dialogues, auto subtitles and HSK 1-6 levels.',
+              '영상을 보고, 들은 문장을 고르고, 바로 배워요. '
+                  '실제 대화와 자동 자막, HSK 1-6 레벨까지.',
+            ),
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: AppColors.text70,
+                fontSize: 17,
+                height: 1.5,
+                fontWeight: FontWeight.w600),
           ),
-          style: const TextStyle(
-              color: Color(0xFF9E9E9E), fontSize: 17, height: 1.5),
         ),
         const SizedBox(height: 28),
         Wrap(
           spacing: 14,
           runSpacing: 12,
+          alignment: WrapAlignment.center,
           children: [
             FilledButton.icon(
               onPressed: () => signedIn
@@ -321,156 +328,59 @@ class _Hero extends StatelessWidget {
   }
 }
 
-// ── Mock player (illustration of the product) ────────────────────────────────
+// ── Promo frame ───────────────────────────────────────────────────────────────
+// The scripted HTML promo (web/promo/sinoma_promo.html) embedded as an iframe
+// platform view — it scrolls with the page and keeps its own play overlay.
 
-class _MockPlayer extends StatelessWidget {
-  const _MockPlayer();
+class _PromoFrame extends StatelessWidget {
+  const _PromoFrame();
+
+  static bool _registered = false;
+
+  static void _register() {
+    if (_registered) return;
+    _registered = true;
+    ui_web.platformViewRegistry.registerViewFactory('sinoma-promo', (int id) {
+      final el = web.document.createElement('iframe')
+          as web.HTMLIFrameElement;
+      el.src = 'promo/sinoma_promo.html';
+      el.style
+        ..border = 'none'
+        ..width = '100%'
+        ..height = '100%'
+        ..borderRadius = '18px';
+      el.allow = 'autoplay';
+      return el;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
-            blurRadius: 30,
-            offset: const Offset(0, 14),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Fake video frame
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF26314F), Color(0xFF101626)],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Stack(
-                children: [
-                  Center(
-                    child: Container(
-                      width: 58,
-                      height: 58,
-                      decoration: BoxDecoration(
-                        color: _lpGreen,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: _lpGreen.withValues(alpha: 0.5),
-                            blurRadius: 20,
-                          ),
-                        ],
-                      ),
-                      child: const Icon(Icons.play_arrow_rounded,
-                          color: Colors.white, size: 34),
-                    ),
-                  ),
-                  Positioned(
-                    top: 10,
-                    left: 10,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: _lpGreen,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text('HSK 3',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
+    _register();
+    // Same footprint as the Öğren player: 16:9, centred column width.
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 680),
+      child: Container(
+        clipBehavior: Clip.antiAlias,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.border),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.30),
+              blurRadius: 26,
+              offset: const Offset(0, 12),
             ),
-          ),
-          const SizedBox(height: 12),
-          // Chinese subtitle bar
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C1C2E),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Text('你今天打算做什么？',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 19,
-                    fontWeight: FontWeight.w500)),
-          ),
-          const SizedBox(height: 10),
-          // Two answer options
-          const Row(
-            children: [
-              Expanded(
-                  child: _MockOption(
-                      text: 'What are you doing today?', correct: true)),
-              SizedBox(width: 10),
-              Expanded(
-                  child: _MockOption(
-                      text: 'Where did you go yesterday?', correct: false)),
-            ],
-          ),
-        ],
+          ],
+        ),
+        child: const AspectRatio(
+          aspectRatio: 16 / 9,
+          child: HtmlElementView(viewType: 'sinoma-promo'),
+        ),
       ),
     );
   }
 }
-
-class _MockOption extends StatelessWidget {
-  final String text;
-  final bool correct;
-  const _MockOption({required this.text, required this.correct});
-
-  @override
-  Widget build(BuildContext context) {
-    final c = correct ? AppColors.correctAnswer : AppColors.onSurfaceMuted;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-      decoration: BoxDecoration(
-        color: correct ? c.withValues(alpha: 0.14) : null,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: c.withValues(alpha: 0.6), width: 1.5),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (correct)
-            const Padding(
-              padding: EdgeInsets.only(right: 6),
-              child: Icon(Icons.check_circle,
-                  color: AppColors.correctAnswer, size: 16),
-            ),
-          Flexible(
-            child: Text(text,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    color: correct ? AppColors.correctAnswer : AppColors.onSurfaceMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 // ── Feature cards ─────────────────────────────────────────────────────────────
 
 class _Features extends StatelessWidget {

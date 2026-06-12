@@ -6,7 +6,9 @@
 class AppColors {
   AppColors._();
 
-  static bool dark = true;
+  // Light (rice paper) is the app default; ThemeModeNotifier keeps this in
+  // sync with the saved preference.
+  static bool dark = false;
 
   static const Color primary = Color(0xFF2EC4B6);
   static const Color primaryDark = Color(0xFF21968B);

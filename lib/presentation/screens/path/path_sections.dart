@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -2810,6 +2810,13 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
       await ref.read(videoRepositoryProvider).createPlaylist(name);
       _newListCtrl.clear();
       ref.invalidate(myPlaylistsProvider);
+    } catch (e) {
+      // Surface the real failure — a silent catch made "nothing happens"
+      // impossible to diagnose.
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('$e')));
+      }
     } finally {
       if (mounted) setState(() => _creating = false);
     }
@@ -2879,8 +2886,8 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
             const SizedBox(height: 10),
             _ProfilePlaylists(tr: tr),
             const SizedBox(height: 20),
-            header(AppL10n.of(context).dailyStatsTitle),
-            _ProfileDailyStats(tr: tr),
+            header(AppL10n.of(context).streakTitle),
+            const _ProfileStreak(),
           ],
         ),
       ),
@@ -3360,13 +3367,22 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
 }
 
 // ── Profile: playlists (VoScreen "My Playlists") ──────────────────────────────
+// Tapping a list expands it inline with its clips; tapping a clip opens the
+// Practice tab with that list selected.
 
-class _ProfilePlaylists extends ConsumerWidget {
+class _ProfilePlaylists extends ConsumerStatefulWidget {
   final bool tr;
   const _ProfilePlaylists({required this.tr});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_ProfilePlaylists> createState() => _ProfilePlaylistsState();
+}
+
+class _ProfilePlaylistsState extends ConsumerState<_ProfilePlaylists> {
+  String? _expandedId;
+
+  @override
+  Widget build(BuildContext context) {
     final lists = ref.watch(myPlaylistsProvider).valueOrNull ?? const [];
     if (lists.isEmpty) {
       return Container(
@@ -3392,73 +3408,162 @@ class _ProfilePlaylists extends ConsumerWidget {
       ref.invalidate(videoFeedProvider);
     }
 
+    void openInPractice(String id) {
+      ref.read(selectedPlaylistProvider.notifier).state = id;
+      ref.invalidate(videoFeedProvider);
+      context.go('/video');
+    }
+
     return Column(
       children: [
         for (final p in lists)
           Container(
             margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
             decoration: BoxDecoration(
               color: _panel,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: AppColors.border),
             ),
-            child: Row(
-              children: [
-                const Icon(Icons.playlist_play_rounded,
-                    color: _green, size: 24),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(p['name'] as String? ?? '',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          color: AppColors.text,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w600)),
+            child: Column(children: [
+              InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => setState(() => _expandedId =
+                    _expandedId == p['id'] ? null : p['id'] as String?),
+                child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.playlist_play_rounded,
+                          color: _green, size: 24),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(p['name'] as String? ?? '',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                color: AppColors.text,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600)),
+                      ),
+                      Text(
+                          AppL10n.of(context).videosCount(
+                              (p['count'] as num?)?.toInt() ?? 0),
+                          style: TextStyle(
+                              color: AppColors.text54, fontSize: 12)),
+                      Icon(
+                          _expandedId == p['id']
+                              ? Icons.expand_less_rounded
+                              : Icons.expand_more_rounded,
+                          color: AppColors.text38,
+                          size: 20),
+                      IconButton(
+                        icon: Icon(Icons.close_rounded,
+                            color: AppColors.text38, size: 18),
+                        tooltip: AppL10n.of(context).deleteListTip,
+                        onPressed: () => remove(p['id'] as String),
+                      ),
+                    ],
+                  ),
                 ),
-                Text(
-                    AppL10n.of(context)
-                        .videosCount((p['count'] as num?)?.toInt() ?? 0),
-                    style: TextStyle(
-                        color: AppColors.text54, fontSize: 12)),
-                IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      color: AppColors.text38, size: 18),
-                  tooltip: AppL10n.of(context).deleteListTip,
-                  onPressed: () => remove(p['id'] as String),
+              ),
+              if (_expandedId == p['id'])
+                _PlaylistClips(
+                  playlistId: p['id'] as String,
+                  onOpen: () => openInPractice(p['id'] as String),
                 ),
-              ],
-            ),
+            ]),
           ),
       ],
     );
   }
 }
 
-// ── Profile: daily stats (VoScreen "Stats") ───────────────────────────────────
-
-class _ProfileDailyStats extends ConsumerWidget {
-  final bool tr;
-  const _ProfileDailyStats({required this.tr});
+// The expanded clip list of one playlist.
+class _PlaylistClips extends ConsumerWidget {
+  final String playlistId;
+  final VoidCallback onOpen;
+  const _PlaylistClips({required this.playlistId, required this.onOpen});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final rows = ref.watch(dailyAnswerStatsProvider).valueOrNull ?? const [];
+    final vids =
+        ref.watch(playlistVideosProvider(playlistId)).valueOrNull;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Divider(color: AppColors.text12, height: 12),
+          if (vids == null)
+            const Padding(
+              padding: EdgeInsets.all(8),
+              child: Center(
+                  child: SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: _green))),
+            )
+          else if (vids.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 6),
+              child: Text(AppL10n.of(context).noVideosInSet,
+                  style:
+                      TextStyle(color: AppColors.text38, fontSize: 12)),
+            )
+          else ...[
+            for (final v in vids)
+              InkWell(
+                onTap: onOpen,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 5),
+                  child: Row(children: [
+                    Icon(Icons.play_circle_outline_rounded,
+                        color: AppColors.text54, size: 16),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                          (v['transcription'] as String? ?? '')
+                              .replaceAll('\n', ' '),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              color: AppColors.text70, fontSize: 13)),
+                    ),
+                    const SizedBox(width: 6),
+                    Text('HSK ${v['hsk_level'] ?? 1}',
+                        style: const TextStyle(
+                            color: _green,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800)),
+                  ]),
+                ),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+}
 
-    Widget cell(String s, {Color? c, bool bold = false}) => Expanded(
-          child: Text(s,
-              style: TextStyle(
-                  color: c ?? AppColors.text70,
-                  fontSize: 13,
-                  fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
-        );
+// ── Profile: streak milestones ────────────────────────────────────────────────
+// Current daily streak + the milestone ladder (1 week / 1 month / 100 days /
+// 6 months). Reached milestones light up like lanterns.
 
-    String fmtDay(String iso) {
-      final d = DateTime.tryParse(iso);
-      if (d == null) return iso;
-      return '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-    }
+class _ProfileStreak extends ConsumerWidget {
+  const _ProfileStreak();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final streak = ref.watch(pathMetaProvider).streak;
+    final milestones = [
+      (7, l10n.streakWeek),
+      (30, l10n.streakMonth),
+      (100, l10n.streak100),
+      (180, l10n.streak6Months),
+    ];
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -3467,36 +3572,68 @@ class _ProfileDailyStats extends ConsumerWidget {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border),
       ),
-      child: rows.isEmpty
-          ? Text(AppL10n.of(context).noStatsYet,
-              style: TextStyle(color: AppColors.text54, fontSize: 13))
-          : Column(
-              children: [
-                Row(children: [
-                  cell(AppL10n.of(context).colDate, c: _green, bold: true),
-                  cell(AppL10n.of(context).colTotal, c: _green, bold: true),
-                  cell(AppL10n.of(context).colSuccess, c: _green, bold: true),
-                  cell(AppL10n.of(context).colFail, c: _green, bold: true),
-                ]),
-                Divider(color: AppColors.text12, height: 18),
-                for (final r in rows) ...[
-                  Row(children: [
-                    cell(fmtDay('${r['day']}')),
-                    cell('${r['total']}'),
-                    cell('${r['correct']}',
-                        c: const Color(0xFF58CC02)),
-                    cell(
-                        '${((r['total'] as num?) ?? 0).toInt() - ((r['correct'] as num?) ?? 0).toInt()}',
-                        c: const Color(0xFFFF4B4B)),
-                  ]),
-                  const SizedBox(height: 8),
-                ],
-              ],
-            ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            const Text('🏮', style: TextStyle(fontSize: 26)),
+            const SizedBox(width: 10),
+            Text(l10n.streakDays(streak),
+                style: TextStyle(
+                    color: AppColors.text,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800)),
+          ]),
+          const SizedBox(height: 4),
+          Text(l10n.streakHint,
+              style: TextStyle(color: AppColors.text54, fontSize: 12)),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (final (days, label) in milestones)
+                Builder(builder: (context) {
+                  final reached = streak >= days;
+                  return Opacity(
+                    opacity: reached ? 1 : 0.4,
+                    child: Column(children: [
+                      Container(
+                        width: 46,
+                        height: 46,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: reached
+                              ? const Color(0xFFE0442C)
+                                  .withValues(alpha: 0.14)
+                              : Colors.transparent,
+                          border: Border.all(
+                              color: reached
+                                  ? const Color(0xFFE0442C)
+                                  : AppColors.locked,
+                              width: 2),
+                        ),
+                        child: Text(reached ? '🏮' : '🔒',
+                            style: const TextStyle(fontSize: 18)),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(label,
+                          style: TextStyle(
+                              color: reached
+                                  ? AppColors.text70
+                                  : AppColors.text38,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700)),
+                    ]),
+                  );
+                }),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }
-
 // ── Profile: global rank (VoScreen "Scores & Rankings") ───────────────────────
 
 class _ProfileRank extends ConsumerWidget {

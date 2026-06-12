@@ -216,6 +216,14 @@ class AppL10n {
   String get typeUsername   => _t('Kullanıcı adı yaz…', 'Type a username…', '사용자 이름 입력…');
   String get addLbl         => _t('Ekle', 'Add', '추가');
   String get friendRequests => _t('Arkadaşlık İstekleri', 'Friend Requests', '친구 요청');
+  String get streakTitle    => _t('Seri', 'Streak', '스트릭');
+  String streakDays(int n)  => _t('$n gün', '$n days', '$n일');
+  String get streakWeek     => _t('1 hafta', '1 week', '1주');
+  String get streakMonth    => _t('1 ay', '1 month', '1개월');
+  String get streak100      => _t('100 gün', '100 days', '100일');
+  String get streak6Months  => _t('6 ay', '6 months', '6개월');
+  String get streakHint     => _t('Her gün bir soru cevapla, seri büyüsün.',
+      'Answer one question a day to grow the streak.', '매일 한 문제만 풀어도 스트릭이 자라요.');
   String get requestSent    => _t('İstek gönderildi', 'Request sent', '요청 보냄');
   String get acceptLbl      => _t('Onayla', 'Accept', '수락');
   String get declineRequest => _t('Reddet', 'Decline', '거절');
