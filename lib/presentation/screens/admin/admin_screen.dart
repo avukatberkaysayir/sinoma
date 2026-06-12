@@ -4630,6 +4630,9 @@ class _WordTagEditorState extends State<_WordTagEditor> {
   Future<void> _refreshDict() async {
     final res = await widget.service.wordsInDictionary(widget.words);
     if (mounted) setState(() => _inDict = res);
+    // Any red chip the admin can SEE should already sit in Önerilen — queue
+    // missing words the moment they show up, not only when the clip is saved.
+    widget.service.suggestMissingWords(widget.words);
   }
 
   @override

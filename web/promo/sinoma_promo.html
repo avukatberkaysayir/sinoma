@@ -408,6 +408,11 @@ document.getElementById('overlay').onclick=function(){
   seek(0); play();
 };
 
+// Autoplay: the promo is a silent CSS animation (no audio track), so the
+// browser autoplay policy doesn't apply — start as soon as the page loads.
+document.getElementById('overlay').style.display='none';
+seek(0); play();
+
 document.addEventListener('keydown',e=>{
   if(e.code==='Space'){ e.preventDefault(); pp.onclick(); }
   if(e.code==='ArrowRight') seek(Math.min(cur+1,SCENES.length-1));

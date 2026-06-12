@@ -1174,11 +1174,12 @@ class _ChineseSubtitleBar extends StatelessWidget {
               )
             else if (_cjk.hasMatch(w))
               Material(
-                // Chips are the only dark element on the light bar: ink black
-                // with white hanzi. Dark theme keeps the frosted chips.
+                // Light theme: bare ink-black hanzi on the translucent bar —
+                // no fill, only a whisper of a border so taps read as taps.
+                // Dark theme keeps the frosted chips with white hanzi.
                 color: AppColors.dark
                     ? Colors.white.withValues(alpha: 0.08)
-                    : const Color(0xFF0E1414),
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(6),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(6),
@@ -1189,12 +1190,16 @@ class _ChineseSubtitleBar extends StatelessWidget {
                     decoration: BoxDecoration(
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.18)),
+                          color: AppColors.dark
+                              ? Colors.white.withValues(alpha: 0.18)
+                              : AppColors.text12),
                     ),
                     child: Text(
                       w,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: AppColors.dark
+                            ? Colors.white
+                            : const Color(0xFF0E1414),
                         fontSize: 15,
                         fontWeight: FontWeight.w500,
                         fontFamily: _kComic,
@@ -1523,7 +1528,7 @@ class _AnswerButton extends StatelessWidget {
 
     if (!revealed) {
       bg = AppColors.surfaceVariant;
-      borderColor = AppColors.onSurfaceMuted;
+      borderColor = AppColors.primary;
       textColor = AppColors.onSurface;
     } else if (opt.correct) {
       bg = AppColors.correctAnswer.withValues(alpha: 0.15);
