@@ -1147,12 +1147,14 @@ class _ChineseSubtitleBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        // The bar stays dark so the white hanzi keep their contrast, but the
-        // light theme gets the softer brand teal instead of near-black ink.
+        // Light theme: translucent white bar so it sits on rice paper without
+        // a dark band — only the word CHIPS stay ink-dark (white hanzi on
+        // them). Dark theme keeps the ink-green panel.
         color: AppColors.dark
             ? const Color(0xFF1C2624)
-            : const Color(0xFF2E6B65),
+            : Colors.white.withValues(alpha: 0.65),
         borderRadius: BorderRadius.circular(10),
+        border: AppColors.dark ? null : Border.all(color: AppColors.border),
       ),
       child: Wrap(
         alignment: WrapAlignment.center,
@@ -1172,7 +1174,11 @@ class _ChineseSubtitleBar extends StatelessWidget {
               )
             else if (_cjk.hasMatch(w))
               Material(
-                color: Colors.white.withValues(alpha: 0.08),
+                // Chips are the only dark element on the light bar: ink black
+                // with white hanzi. Dark theme keeps the frosted chips.
+                color: AppColors.dark
+                    ? Colors.white.withValues(alpha: 0.08)
+                    : const Color(0xFF0E1414),
                 borderRadius: BorderRadius.circular(6),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(6),
@@ -1201,8 +1207,8 @@ class _ChineseSubtitleBar extends StatelessWidget {
             else
               Text(
                 w,
-                style: const TextStyle(
-                  color: Colors.white70,
+                style: TextStyle(
+                  color: AppColors.dark ? Colors.white70 : AppColors.text70,
                   fontSize: 15,
                   fontFamily: _kComic,
                   height: 1.25,
