@@ -224,20 +224,25 @@ class SinomaApp extends ConsumerWidget {
     return base.copyWith(textTheme: _appTextTheme(base.textTheme));
   }
 
+  // Light = rice-paper (宣纸): warm off-white surfaces, ink text, the same
+  // turquoise/vermilion accents as the dark ink palette.
   ThemeData _buildLightTheme() {
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
         seedColor: AppColors.primary,
         brightness: Brightness.light,
+        surface: const Color(0xFFFCFAF4),
       ),
-      scaffoldBackgroundColor: const Color(0xFFF2F3F7),
+      scaffoldBackgroundColor: const Color(0xFFF6F2E8),
       appBarTheme: const AppBarTheme(
-        backgroundColor: Colors.white,
-        foregroundColor: Color(0xFF1A1A1A),
+        backgroundColor: Color(0xFFFCFAF4),
+        foregroundColor: Color(0xFF1A2422),
         elevation: 0,
         surfaceTintColor: Colors.transparent,
       ),
+      cardColor: Colors.white,
+      dividerColor: const Color(0xFFE3DDD0),
     );
     return base.copyWith(textTheme: _appTextTheme(base.textTheme));
   }

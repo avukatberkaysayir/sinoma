@@ -6,8 +6,29 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// flash-lite default for the higher free-tier daily quota; GEMINI_MODEL overrides.
+// flash-lite default; GEMINI_MODEL overrides. On free-tier quota walls we
+// also rotate through sibling models — each model has its own quota bucket.
 const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
+const MODEL_FALLBACKS = [
+  MODEL,
+  "gemini-flash-lite-latest",
+  "gemini-flash-latest",
+  "gemini-2.5-flash",
+];
+
+function geminiKeys(): string[] {
+  const list: string[] = [];
+  for (const k of (Deno.env.get("GEMINI_API_KEYS") ?? "").split(",")) {
+    const t = k.trim();
+    if (t) list.push(t);
+  }
+  for (const name of ["GEMINI_API_KEY", "GEMINI_API_KEY_2", "GEMINI_API_KEY_3",
+                      "GEMINI_API_KEY_4", "GEMINI_API_KEY_5"]) {
+    const t = (Deno.env.get(name) ?? "").trim();
+    if (t) list.push(t);
+  }
+  return [...new Set(list)];
+}
 
 function json(obj: unknown, status = 200): Response {
   return new Response(JSON.stringify(obj), {
@@ -16,43 +37,136 @@ function json(obj: unknown, status = 200): Response {
   });
 }
 
-// Faithful, literal translation of a Chinese sentence — used in the admin to
-// sanity-check that an ASR/Whisper transcription actually makes sense.
+const LANG_NAMES: Record<string, string> = {
+  tr: "Turkish",
+  en: "English",
+  ko: "Korean",
+};
+
+// Faithful translation of a Chinese sentence — or, for a single word, a
+// dictionary-style gloss. Single-language calls return {translation};
+// multi-language calls (body.langs) return {translations: {tr: ..., ko: ...}}.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   try {
     const body = await req.json().catch(() => ({}));
     const text = (body.text ?? "").toString().trim();
-    const lang = (body.lang ?? "tr").toString();
-    if (!text) return json({ translation: "" });
+    const langs: string[] = Array.isArray(body.langs) && body.langs.length
+      ? body.langs.map((l: unknown) => String(l))
+      : [(body.lang ?? "tr").toString()];
+    if (!text) return json({ translation: "", translations: {} });
 
-    const key = Deno.env.get("GEMINI_API_KEY");
-    if (!key) return json({ error: "GEMINI_API_KEY not set" }, 500);
+    const keys = geminiKeys();
+    if (!keys.length) return json({ error: "GEMINI_API_KEY not set" }, 500);
 
-    const langName = lang === "en" ? "English" : "Turkish";
-    const prompt =
-      `Translate this Chinese sentence into ${langName}. Give ONLY the faithful, ` +
-      `natural translation — no pinyin, no notes, no quotes.\n\nChinese: "${text}"`;
-
-    const r = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.2 },
-        }),
-      },
-    );
-    if (!r.ok) {
-      const t = await r.text();
-      return json({ error: `Gemini ${r.status}: ${t.slice(0, 200)}` }, 502);
+    // Proper-noun mode: word segmentation helper — multi-character names
+    // (people, places, brands, transliterations like 巴塞罗那) must stay ONE
+    // word instead of falling apart into single characters.
+    if (body.mode === "proper-nouns") {
+      const pnPrompt =
+        `List every proper noun that appears VERBATIM in this Chinese text: ` +
+        `person names, place/city/country names, brand/organisation names, ` +
+        `and foreign-name transliterations (e.g. 巴塞罗那, 麦当劳). Each item ` +
+        `must be the exact substring as written, at least 2 characters. ` +
+        `Do NOT include common nouns. Return ONLY JSON {"nouns": ["..."]} ` +
+        `(empty array if none).\n\nText: "${text}"`;
+      const pnBody = JSON.stringify({
+        contents: [{ parts: [{ text: pnPrompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          response_mime_type: "application/json",
+        },
+      });
+      let lastE = "";
+      for (const model of MODEL_FALLBACKS) {
+        for (const key of keys) {
+          const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: pnBody },
+          );
+          if (r.ok) {
+            const data = await r.json();
+            const raw: string =
+              (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+            let nouns: string[] = [];
+            try {
+              const p = JSON.parse(raw);
+              if (Array.isArray(p?.nouns)) {
+                nouns = p.nouns.map((n: unknown) => String(n))
+                  .filter((n: string) => n.length >= 2 && text.includes(n));
+              }
+            } catch { /* ignore */ }
+            return json({ nouns });
+          }
+          lastE = `Gemini ${r.status} [${model}]`;
+          if (![429, 500, 502, 503].includes(r.status)) {
+            return json({ error: lastE }, 502);
+          }
+        }
+      }
+      return json({ error: lastE || "exhausted" }, 502);
     }
-    const data = await r.json();
-    const out: string =
-      (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
-    return json({ translation: out });
+
+    const names = langs.map((l) => LANG_NAMES[l] ?? "Turkish");
+    const isWord = !/\s/.test(text) && text.length <= 6;
+    const langKeys = langs
+      .map((l, i) => `"${l}": "<${names[i]}>"`)
+      .join(", ");
+    const prompt = isWord
+      ? `You are a professional lexicographer. Give the dictionary gloss of ` +
+        `the Chinese word "${text}" in each requested language — concise, ` +
+        `1-3 senses comma-separated, natural wording a published dictionary ` +
+        `would use (Korean in natural dictionary register; verbs as -하다/-다 ` +
+        `base forms). Return ONLY JSON: {${langKeys}}`
+      : `You are a professional translator. Translate this Chinese sentence ` +
+        `faithfully and naturally into each requested language (no pinyin, ` +
+        `no notes). Korean must be idiomatic 해요체.\n` +
+        `Chinese: "${text}"\nReturn ONLY JSON: {${langKeys}}`;
+
+    const reqBody = JSON.stringify({
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.2,
+        response_mime_type: "application/json",
+      },
+    });
+
+    let lastErr = "";
+    for (const model of MODEL_FALLBACKS) {
+      for (const key of keys) {
+        const r = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: reqBody,
+          },
+        );
+        if (r.ok) {
+          const data = await r.json();
+          const raw: string =
+            (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+          let parsed: Record<string, unknown> = {};
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            const m = raw.match(/\{[\s\S]*\}/);
+            if (m) { try { parsed = JSON.parse(m[0]); } catch { /* ignore */ } }
+          }
+          const translations: Record<string, string> = {};
+          for (const l of langs) translations[l] = String(parsed[l] ?? "");
+          return json({
+            translation: translations[langs[0]] ?? "",
+            translations,
+          });
+        }
+        lastErr = `Gemini ${r.status} [${model}]: ${(await r.text()).slice(0, 200)}`;
+        if (![429, 500, 502, 503].includes(r.status)) {
+          return json({ error: lastErr }, 502);
+        }
+      }
+    }
+    return json({ error: lastErr || "all models exhausted" }, 502);
   } catch (e) {
     return json({ error: String(e) }, 500);
   }

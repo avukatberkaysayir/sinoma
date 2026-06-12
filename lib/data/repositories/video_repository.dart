@@ -218,6 +218,35 @@ class VideoRepository {
     } catch (_) {/* stats are best-effort */}
   }
 
+  // Watch-time for the badge ladder: the player flushes accumulated playing
+  // seconds in small chunks (the RPC caps one bump at 10 min as sanity).
+  Future<void> bumpWatchSeconds(int seconds) async {
+    if (_db.auth.currentUser == null || seconds <= 0) return;
+    try {
+      await _db.rpc('bump_watch_seconds', params: {'p_seconds': seconds});
+    } catch (_) {/* stats are best-effort */}
+  }
+
+  // Lifetime sums across answer_stats: total answers, correct, points,
+  // watch seconds — drives the badge (rozet) thresholds.
+  Future<Map<String, int>> loadLifetimeStats() async {
+    if (_db.auth.currentUser == null) return const {};
+    try {
+      final r = await _db.rpc('lifetime_stats');
+      final row = (r as List).isNotEmpty
+          ? Map<String, dynamic>.from(r.first as Map)
+          : const <String, dynamic>{};
+      return {
+        'total': (row['total'] as num?)?.toInt() ?? 0,
+        'correct': (row['correct'] as num?)?.toInt() ?? 0,
+        'points': (row['points'] as num?)?.toInt() ?? 0,
+        'watch_seconds': (row['watch_seconds'] as num?)?.toInt() ?? 0,
+      };
+    } catch (_) {
+      return const {};
+    }
+  }
+
   Future<List<Map<String, dynamic>>> loadDailyStats() async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return const [];

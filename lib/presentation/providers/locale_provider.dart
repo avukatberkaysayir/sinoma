@@ -240,6 +240,40 @@ class AppL10n {
   String questCorrectN(int n)    => _t('$n doğru cevap ver', 'Get $n correct answers', '정답 $n개 맞히기');
   String get questKeepStreak     => _t('Seriyi sürdür (bugün 1 soru)', 'Keep the streak (1 today)', '연속 기록 잇기 (오늘 1문제)');
   String get monthlyBadges  => _t('Aylık Rozetler', 'Monthly badges', '이달의 배지');
+
+  // ── Badges (rozetler): Three Kingdoms + mythology achievement ladder ───────
+  String get badgesTitle    => _t('Rozetler', 'Badges', '배지');
+  String get badgesSub      => _t('Üç Krallık kahramanları ve Çin mitolojisinin efsaneleri — başarılarınla mühürlerini kazan.',
+      'Heroes of the Three Kingdoms and legends of Chinese mythology — earn their seals with your progress.',
+      '삼국지 영웅과 중국 신화의 전설 — 학습 성과로 인장을 모아 보세요.');
+  String get badgeCatSages    => _t('Bilgeler — izleme', 'Sages — watch time', '책사 — 시청 시간');
+  String get badgeCatWarriors => _t('Savaşçılar — doğru cevap', 'Warriors — correct answers', '무장 — 정답 수');
+  String get badgeCatRulers   => _t('Hükümdarlar — üniteler', 'Rulers — units', '군주 — 유닛');
+  String get badgeCatLegends  => _t('Efsaneler — seviyeler', 'Legends — levels', '전설 — 레벨');
+  String badgeWatchCond(int m)  => _t('$m dk video izle', 'Watch $m min', '영상 $m분 시청');
+  String badgeCorrectCond(int n) => _t('$n doğru cevap ver', '$n correct answers', '정답 $n개 달성');
+  String badgeUnitsCond(int n)  => _t('$n ünite bitir', 'Finish $n units', '유닛 $n개 완료');
+  String badgeLevelsCond(int n) => _t('$n seviye bitir', 'Finish $n levels', '레벨 $n개 완료');
+  // Figure display names: pinyin for TR/EN, established Korean readings for KO.
+  String badgeFigure(String id) => switch (id) {
+        'xushu' => _t('Xu Shu', 'Xu Shu', '서서'),
+        'pangtong' => _t('Pang Tong', 'Pang Tong', '방통'),
+        'zhugeliang' => _t('Zhuge Liang', 'Zhuge Liang', '제갈량'),
+        'jiangziya' => _t('Jiang Ziya', 'Jiang Ziya', '강태공'),
+        'zhaoyun' => _t('Zhao Yun', 'Zhao Yun', '조운'),
+        'guanyu' => _t('Guan Yu', 'Guan Yu', '관우'),
+        'lvbu' => _t('Lü Bu', 'Lü Bu', '여포'),
+        'nezha' => _t('Nezha', 'Nezha', '나타'),
+        'liubei' => _t('Liu Bei', 'Liu Bei', '유비'),
+        'sunquan' => _t('Sun Quan', 'Sun Quan', '손권'),
+        'caocao' => _t('Cao Cao', 'Cao Cao', '조조'),
+        'pangu' => _t('Pangu', 'Pangu', '반고'),
+        'zhangfei' => _t('Zhang Fei', 'Zhang Fei', '장비'),
+        'zhouyu' => _t('Zhou Yu', 'Zhou Yu', '주유'),
+        'simayi' => _t('Sima Yi', 'Sima Yi', '사마의'),
+        'nuwa' => _t('Nüwa', 'Nüwa', '여와'),
+        _ => id,
+      };
   String get monthlyBadgesBody => _t('Görevleri tamamla, bu ayın rozetini kazan.',
       "Complete quests to earn this month's badge.", '주문을 완료하고 이달의 배지를 받아 보세요.');
 

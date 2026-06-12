@@ -1872,6 +1872,194 @@ class RightInfoCard extends StatelessWidget {
   }
 }
 
+// ── Badges (rozetler) ─────────────────────────────────────────────────────────
+// Achievement ladder themed on the Three Kingdoms + Chinese mythology. Each
+// badge is a seal stamp: the figure's signature character inside a tier ring
+// (bronze → silver → gold → vermilion legend). Earned = inked; locked = faded.
+
+class _BadgeDef {
+  final String id; // l10n figure key
+  final String zh; // seal character(s)
+  final int threshold;
+  const _BadgeDef(this.id, this.zh, this.threshold);
+}
+
+const _kBadgeTierColors = [
+  Color(0xFFB0795A), // bronze
+  Color(0xFFB8C4CC), // silver
+  Color(0xFFD4A33D), // gold
+  Color(0xFFE0442C), // vermilion legend
+];
+
+// Sages (watch minutes) — the strategists.
+const _kBadgesWatch = [
+  _BadgeDef('xushu', '徐', 10),
+  _BadgeDef('pangtong', '庞', 100),
+  _BadgeDef('zhugeliang', '亮', 1000),
+  _BadgeDef('jiangziya', '姜', 5000),
+];
+// Warriors (correct answers).
+const _kBadgesCorrect = [
+  _BadgeDef('zhaoyun', '赵', 50),
+  _BadgeDef('guanyu', '关', 250),
+  _BadgeDef('lvbu', '吕', 1000),
+  _BadgeDef('nezha', '吒', 5000),
+];
+// Rulers (units finished).
+const _kBadgesUnits = [
+  _BadgeDef('liubei', '刘', 1),
+  _BadgeDef('sunquan', '孙', 5),
+  _BadgeDef('caocao', '曹', 12),
+  _BadgeDef('pangu', '盘', 24),
+];
+// Legends (HSK levels finished).
+const _kBadgesLevels = [
+  _BadgeDef('zhangfei', '张', 1),
+  _BadgeDef('zhouyu', '周', 2),
+  _BadgeDef('simayi', '司', 4),
+  _BadgeDef('nuwa', '娲', 6),
+];
+
+class BadgesRight extends ConsumerWidget {
+  final bool tr;
+  const BadgesRight({super.key, required this.tr});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final life = ref.watch(lifetimeStatsProvider).valueOrNull ?? const {};
+    final watchMin = ((life['watch_seconds'] ?? 0) / 60).floor();
+    final correct = life['correct'] ?? 0;
+
+    // Units/levels from path progress: a unit counts when every playable
+    // phase is done; a level counts when all its units with content are done.
+    final topics = ref.watch(curriculumProvider).valueOrNull ?? const [];
+    final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
+    var unitsDone = 0;
+    var levelsDone = 0;
+    for (final t in topics) {
+      var levelHadContent = false;
+      var levelAllDone = true;
+      for (final s in t.steps) {
+        final playable = s.phases.where((p) => p.hasVideos).toList();
+        if (playable.isEmpty) continue;
+        levelHadContent = true;
+        final done = playable.every((p) => progress.phase(p.key).done);
+        if (done) {
+          unitsDone++;
+        } else {
+          levelAllDone = false;
+        }
+      }
+      if (levelHadContent && levelAllDone) levelsDone++;
+    }
+
+    Widget seal(_BadgeDef b, int tier, int value, String cond) {
+      final earned = value >= b.threshold;
+      final color = _kBadgeTierColors[tier];
+      return Tooltip(
+        message: '${l10n.badgeFigure(b.id)} — $cond',
+        child: Opacity(
+          opacity: earned ? 1 : 0.32,
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(
+              width: 52,
+              height: 52,
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: earned
+                    ? color.withValues(alpha: 0.16)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: color, width: 2.5),
+              ),
+              child: Text(b.zh,
+                  style: TextStyle(
+                      color: color,
+                      fontSize: 24,
+                      fontWeight: FontWeight.w800)),
+            ),
+            const SizedBox(height: 3),
+            SizedBox(
+              width: 62,
+              child: Text(l10n.badgeFigure(b.id),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style:
+                      const TextStyle(color: Colors.white54, fontSize: 9)),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    Widget category(String title, List<_BadgeDef> defs, int value,
+        String Function(int) condOf) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var i = 0; i < defs.length; i++)
+                seal(defs[i], i, value, condOf(defs[i].threshold)),
+            ],
+          ),
+          const SizedBox(height: 14),
+        ],
+      );
+    }
+
+    return Container(
+      width: 340,
+      padding: const EdgeInsets.all(20),
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      ),
+      child: SingleChildScrollView(
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: _panel,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: const Color(0xFF263230)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(l10n.badgesTitle,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(height: 6),
+              Text(l10n.badgesSub,
+                  style: const TextStyle(
+                      color: Colors.white54, fontSize: 11, height: 1.4)),
+              const SizedBox(height: 16),
+              category(l10n.badgeCatSages, _kBadgesWatch, watchMin,
+                  l10n.badgeWatchCond),
+              category(l10n.badgeCatWarriors, _kBadgesCorrect, correct,
+                  l10n.badgeCorrectCond),
+              category(l10n.badgeCatRulers, _kBadgesUnits, unitsDone,
+                  l10n.badgeUnitsCond),
+              category(l10n.badgeCatLegends, _kBadgesLevels, levelsDone,
+                  l10n.badgeLevelsCond),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 // ── Profile view (read-only) ──────────────────────────────────────────────────
 
 class ProfileView extends ConsumerWidget {

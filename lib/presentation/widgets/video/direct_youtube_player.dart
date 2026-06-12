@@ -49,6 +49,8 @@ class DirectYouTubePlayer extends StatefulWidget {
   final DirectYouTubeController controller;
   final VoidCallback onSegmentEnded;
   final ValueChanged<bool>? onSoundChanged;
+  // Watch-time chunks (whole seconds actually played) — badge ladder source.
+  final ValueChanged<int>? onWatched;
 
   // Voscreen-style overlays drawn on top of the player.
   final int countdown; // seconds left to make a choice (e.g. 20..0)
@@ -68,6 +70,7 @@ class DirectYouTubePlayer extends StatefulWidget {
     required this.controller,
     required this.onSegmentEnded,
     this.onSoundChanged,
+    this.onWatched,
     this.countdown = 0,
     this.showCountdown = false,
     this.showReplay = false,
@@ -512,8 +515,31 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (r > 0) _cmd('setPlaybackRate', [r]);
   }
 
+  // Watch-time accumulator: currentTime ticks arrive continuously while the
+  // clip plays; sum forward deltas and flush in ~20s chunks (+ on dispose).
+  double? _lastTickT;
+  double _watchAcc = 0;
+
+  void _accumulateWatch(double t) {
+    final last = _lastTickT;
+    _lastTickT = t;
+    if (last == null) return;
+    final dt = t - last;
+    if (dt <= 0 || dt > 3) return; // seek/jump — not real watching
+    _watchAcc += dt;
+    if (_watchAcc >= 20) _flushWatch();
+  }
+
+  void _flushWatch() {
+    final s = _watchAcc.floor();
+    if (s <= 0) return;
+    _watchAcc -= s;
+    widget.onWatched?.call(s);
+  }
+
   void _handleTime(double t) {
     if (t <= 0) return;
+    _accumulateWatch(t);
 
     if (t >= widget.endTime) {
       // Hard ceiling: even if the segment already "ended" once (e.g. an inline
@@ -585,6 +611,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
   @override
   void dispose() {
+    _flushWatch();
     widget.controller._detach();
     _listenTimer?.cancel();
     _endFallbackTimer?.cancel();

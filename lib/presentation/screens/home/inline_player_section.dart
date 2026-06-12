@@ -367,6 +367,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                 onSoundChanged: (v) {
                   if (mounted) setState(() => _soundOn = v);
                 },
+                onWatched: (s) =>
+                    ref.read(videoRepositoryProvider).bumpWatchSeconds(s),
                 countdown: _countdown,
                 showCountdown: _countdownActive,
                 showReplay: _clipEnded && !_replaying,

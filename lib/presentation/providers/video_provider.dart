@@ -49,6 +49,12 @@ final dailyAnswerStatsProvider =
   return ref.watch(videoRepositoryProvider).loadDailyStats();
 });
 
+// Badge ladder source: lifetime totals (answers, correct, points, watch).
+final lifetimeStatsProvider = FutureProvider<Map<String, int>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(videoRepositoryProvider).loadLifetimeStats();
+});
+
 final userRankProvider = FutureProvider<int?>((ref) {
   ref.watch(authUidProvider.select((a) => a.valueOrNull));
   return ref.watch(videoRepositoryProvider).loadUserRank();

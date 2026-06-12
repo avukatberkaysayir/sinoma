@@ -169,10 +169,7 @@ class PathScreen extends ConsumerWidget {
             title: AppL10n.of(context).leagueHowTitle,
             body: AppL10n.of(context).leagueHowBody);
       case _Section.quests:
-        return RightInfoCard(
-            tr: tr,
-            title: AppL10n.of(context).monthlyBadges,
-            body: AppL10n.of(context).monthlyBadgesBody);
+        return BadgesRight(tr: tr);
       case _Section.shop:
         return _RightSidebar(tr: tr);
       case _Section.profile:

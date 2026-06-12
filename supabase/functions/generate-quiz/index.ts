@@ -6,10 +6,17 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-// Default to flash-lite: the free tier gives ~1000 requests/day vs only 20/day
-// for gemini-2.5-flash, which the import pipeline exhausts. Override with the
-// GEMINI_MODEL secret (e.g. "gemini-2.5-flash") once billing is enabled.
-const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
+// Quiz options are low-volume but quality-critical → prefer the stronger
+// 2.5-flash and fall through sibling models when a free-tier quota bucket
+// runs dry (each model has its OWN bucket). GEMINI_MODEL overrides the first
+// choice. The cache key keeps using MODEL so entries stay stable.
+const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash";
+const MODEL_FALLBACKS = [...new Set([
+  MODEL,
+  "gemini-flash-latest",
+  "gemini-2.5-flash-lite",
+  "gemini-flash-lite-latest",
+])];
 
 // Multiple API keys so a free-tier daily-quota wall on one key (429 PerDay) does
 // NOT stop generation — we rotate to the next key. Supply either a comma-separated
@@ -45,6 +52,8 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "PASSIVE vs ACTIVE voice: When Chinese uses 能+verb to ask about the property/edibility/usability of an OBJECT (e.g. 这个能吃吗 = is this edible?), use Turkish PASSIVE voice with -(i)l suffix (e.g. 'bu yenilebilir mi?' NOT 'bunu yiyebilir mi?'). Active voice is only correct when a named agent does the action.",
       "Capitalization: ONLY the very first word of the sentence is capitalized. Common nouns, adjectives, and verbs in the middle of a sentence are ALL lowercase (e.g. 'Küçük kafalı baba bu yenilebilir mi?' — not 'Küçük Kafalı Baba').",
       "Comma use: place a comma after a long subject phrase when it aids readability (e.g. 'Küçük kafalı baba, bu yenilebilir mi?').",
+      "da/de: the CONJUNCTION da/de ('also/too') is written as a separate word and never becomes ta/te; the locative SUFFIX -da/-de attaches to the word and follows consonant assimilation (kitapta). Same for ki: the conjunction ki is separate (diyorlar ki), the suffix -ki attaches (seninki, akşamki).",
+      "Buffer consonants (kaynaştırma y, ş, s, n) between vowels: iki-ş-er, baba-s-ı, kapı-y-ı, onun-n-... — never drop or double them.",
       "Produce idiomatic Turkish — what a fluent native speaker would naturally say, NOT a literal word-for-word mapping from Chinese.",
     ],
   },
@@ -235,21 +244,24 @@ async function callGeminiWithRetry(
   throw new Error(lastErr || "Gemini request failed");
 }
 
-// Try each API key in turn. callGeminiWithRetry already retries transient/overload
-// cases per key; here we rotate keys when one is quota-exhausted (daily 429) so a
-// single capped key never blocks generation. Non-quota errors (e.g. 400) stop early.
+// Try every model bucket × API key. callGeminiWithRetry already retries
+// transient/overload cases per attempt; here we rotate keys when one is
+// quota-exhausted and then fall through to the next MODEL (per-model quota
+// buckets are independent). Non-quota errors (e.g. 400) stop early.
 async function callGeminiRotating(reqBody: string, keys: string[]): Promise<string> {
   let lastErr = "";
-  for (const key of keys) {
-    try {
-      return await callGeminiWithRetry(
-        `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${key}`,
-        reqBody,
-      );
-    } catch (e) {
-      lastErr = String(e);
-      const quotaLike = /429|quota|RESOURCE_EXHAUSTED|50[0234]|overload|unavailable/i.test(lastErr);
-      if (!quotaLike) break; // a new key won't fix a bad request
+  for (const model of MODEL_FALLBACKS) {
+    for (const key of keys) {
+      try {
+        return await callGeminiWithRetry(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+          reqBody,
+        );
+      } catch (e) {
+        lastErr = String(e);
+        const quotaLike = /429|quota|RESOURCE_EXHAUSTED|50[0234]|overload|unavailable/i.test(lastErr);
+        if (!quotaLike) return Promise.reject(new Error(lastErr)); // bad request
+      }
     }
   }
   throw new Error(lastErr || "Gemini request failed");

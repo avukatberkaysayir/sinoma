@@ -485,6 +485,26 @@ class AdminService {
     return (res.data as Map<String, dynamic>)['translation'] as String? ?? '';
   }
 
+  // All requested languages in ONE Gemini call (e.g. ['tr','ko'] for the
+  // Önerilen editor) — single words come back as dictionary glosses.
+  Future<Map<String, String>> translateMulti(
+      String text, List<String> langs) async {
+    final t = text.trim();
+    if (t.isEmpty) return {};
+    final res = await _db.functions.invoke(
+      'translate',
+      body: {'text': t, 'langs': langs},
+    );
+    if (res.status >= 300) {
+      throw Exception((res.data as Map<String, dynamic>?)?['error'] ??
+          'Çeviri başarısız (${res.status})');
+    }
+    final raw = (res.data as Map<String, dynamic>)['translations']
+            as Map<String, dynamic>? ??
+        {};
+    return raw.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+  }
+
   // Pinyin for a whole sentence: segment it against the dictionary, then join
   // each word's dictionary pinyin. Used to refresh the pinyin field after the
   // sentence text changes (e.g. applying a Whisper transcription).
@@ -749,20 +769,49 @@ class AdminService {
       }
     }
     final valid = await existingDictionaryWords(cands.toList());
+    // Proper nouns (people/places/brands, e.g. 巴塞罗那) must survive as ONE
+    // word even when the dictionary doesn't know them — otherwise they break
+    // into meaningless single characters. Gemini lists them; treated as valid
+    // words with priority over dictionary matches.
+    final nouns = await properNounsIn(s);
     final result = <String>[];
     var i = 0;
     while (i < s.length) {
       var chosen = s[i]; // fallback: single character
-      for (var l = maxLen; l >= 2; l--) {
-        if (i + l <= s.length && valid.contains(s.substring(i, i + l))) {
-          chosen = s.substring(i, i + l);
-          break;
+      // Longest proper noun starting here wins.
+      for (final n in nouns) {
+        if (n.length > chosen.length && s.startsWith(n, i)) chosen = n;
+      }
+      if (chosen.length == 1) {
+        for (var l = maxLen; l >= 2; l--) {
+          if (i + l <= s.length && valid.contains(s.substring(i, i + l))) {
+            chosen = s.substring(i, i + l);
+            break;
+          }
         }
       }
       result.add(chosen);
       i += chosen.length;
     }
     return result;
+  }
+
+  // Proper nouns appearing verbatim in the text (best-effort; empty on error).
+  Future<List<String>> properNounsIn(String text) async {
+    try {
+      final res = await _db.functions.invoke(
+        'translate',
+        body: {'text': text, 'mode': 'proper-nouns'},
+      );
+      if (res.status >= 300) return [];
+      final list =
+          (res.data as Map<String, dynamic>)['nouns'] as List<dynamic>? ?? [];
+      final nouns = list.map((e) => e.toString()).toList()
+        ..sort((a, b) => b.length.compareTo(a.length));
+      return nouns;
+    } catch (_) {
+      return [];
+    }
   }
 
   // Dictionary pinyin for each of these words (for display when the edited
@@ -875,7 +924,13 @@ class AdminService {
         'pinyin': w[1],
         'pinyin_ascii': _stripAccents(w[1]),
         'hsk_level': 1,
-        'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+        'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
         'ai_context_cache': <String, dynamic>{},
         'radicals': <String>[],
         'stroke_count': 0,
@@ -902,7 +957,13 @@ class AdminService {
         'pinyin': w[1],
         'pinyin_ascii': _stripAccents(w[1]),
         'hsk_level': 2,
-        'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+        'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
         'ai_context_cache': <String, dynamic>{},
         'radicals': <String>[],
         'stroke_count': 0,
@@ -943,7 +1004,13 @@ class AdminService {
               'pinyin': w[1],
               'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 3,
-              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
               'ai_context_cache': <String, dynamic>{},
               'radicals': <String>[],
               'stroke_count': 0,
@@ -1020,7 +1087,13 @@ class AdminService {
               'pinyin': w[1],
               'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 4,
-              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
               'ai_context_cache': <String, dynamic>{},
               'radicals': <String>[],
               'stroke_count': 0,
@@ -1048,7 +1121,13 @@ class AdminService {
               'pinyin': w[1],
               'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 5,
-              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
               'ai_context_cache': <String, dynamic>{},
               'radicals': <String>[],
               'stroke_count': 0,
@@ -1076,7 +1155,13 @@ class AdminService {
               'pinyin': w[1],
               'pinyin_ascii': _stripAccents(w[1]),
               'hsk_level': 6,
-              'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+              'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
               'ai_context_cache': <String, dynamic>{},
               'radicals': <String>[],
               'stroke_count': 0,
@@ -1166,7 +1251,13 @@ class AdminService {
                 'pinyin': w[1],
                 'pinyin_ascii': _stripAccents(w[1]),
                 'hsk_level': 7,
-                'definitions': {'en': w[3], 'tr': w[4], 'vi': '', 'pos': w[2]},
+                'definitions': {
+          'en': w[3],
+          'tr': w[4],
+          'ko': w.length > 5 ? w[5] : '',
+          'vi': '',
+          'pos': w[2],
+        },
                 'ai_context_cache': <String, dynamic>{},
                 'radicals': <String>[],
                 'stroke_count': 0,
@@ -1187,6 +1278,7 @@ class AdminService {
     required String pinyin,
     required String en,
     required String tr,
+    String ko = '',
   }) async {
     await _db.from('dictionary').upsert({
       'id': word,
@@ -1195,7 +1287,13 @@ class AdminService {
       'pinyin': pinyin.trim(),
       'pinyin_ascii': _stripAccents(pinyin.trim()),
       'hsk_level': 7,
-      'definitions': {'en': en.trim(), 'tr': tr.trim(), 'vi': '', 'pos': ''},
+      'definitions': {
+        'en': en.trim(),
+        'tr': tr.trim(),
+        'ko': ko.trim(),
+        'vi': '',
+        'pos': '',
+      },
       'ai_context_cache': <String, dynamic>{},
       'radicals': <String>[],
       'stroke_count': 0,

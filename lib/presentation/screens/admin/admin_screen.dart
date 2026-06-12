@@ -554,6 +554,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   final _pinyinCtrl = TextEditingController();
   final _enCtrl = TextEditingController();
   final _trCtrl = TextEditingController();
+  final _koCtrl = TextEditingController();
   bool _enConfirmed = false;
   bool _translating = false;
   bool _saving = false;
@@ -565,6 +566,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
     _pinyinCtrl.dispose();
     _enCtrl.dispose();
     _trCtrl.dispose();
+    _koCtrl.dispose();
     super.dispose();
   }
 
@@ -577,8 +579,11 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   Future<void> _fillOtherLangs() async {
     setState(() => _translating = true);
     try {
-      final tr = await widget.service.translateText(_word);
-      if (mounted && tr.isNotEmpty) _trCtrl.text = tr;
+      final t = await widget.service.translateMulti(_word, ['tr', 'ko']);
+      if (mounted) {
+        if ((t['tr'] ?? '').isNotEmpty) _trCtrl.text = t['tr']!;
+        if ((t['ko'] ?? '').isNotEmpty) _koCtrl.text = t['ko']!;
+      }
     } catch (e) {
       _snack('Çeviri hatası: $e');
     } finally {
@@ -595,6 +600,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
         pinyin: _pinyinCtrl.text,
         en: _enCtrl.text,
         tr: _trCtrl.text,
+        ko: _koCtrl.text,
       );
       await widget.service
           .deleteWordSuggestion(widget.suggestion['id'] as String);
@@ -712,7 +718,16 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
                   controller: _trCtrl,
                   style: const TextStyle(
                       color: AppColors.onSurface, fontSize: 13),
-                  decoration: _dec('Türkçe anlam (diğer diller)'),
+                  decoration: _dec('Türkçe anlam'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _koCtrl,
+                  style: const TextStyle(
+                      color: AppColors.onSurface, fontSize: 13),
+                  decoration: _dec('Korece anlam'),
                 ),
               ),
               const SizedBox(width: 8),

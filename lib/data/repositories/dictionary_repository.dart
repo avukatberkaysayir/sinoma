@@ -37,6 +37,7 @@ class DictionaryRepository {
               'definitions': {
                 'en': w[3],
                 'tr': w[4],
+                'ko': w.length > 5 ? w[5] : '',
                 'vi': '',
                 'pos': w[2],
               },
