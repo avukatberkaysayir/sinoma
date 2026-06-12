@@ -373,7 +373,9 @@ class _NavItem extends StatelessWidget {
                   Expanded(
                     child: Text(label,
                         style: TextStyle(
-                            color: active ? Colors.white : AppColors.text70,
+                            // Vermilion like the icon — readable on the
+                            // tinted active pill in BOTH themes.
+                            color: active ? _vermilion : AppColors.text70,
                             fontSize: 15,
                             fontWeight: FontWeight.w700)),
                   ),
@@ -432,7 +434,7 @@ class _LevelNavItem extends StatelessWidget {
 
 // Fixed height per unit section — taller than a typical viewport so the NEXT
 // unit's top line only appears after a scroll.
-const double _kUnitHeight = 1050;
+const double _kUnitHeight = 900;
 
 // An admin-uploaded image (network URL) when present, else the bundled asset.
 // A missing bundled asset (e.g. a landmark set added before its art) degrades
@@ -657,10 +659,10 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
       phaseRow(0),
       phaseRow(1),
       Padding(
-        padding: const EdgeInsets.only(bottom: 36),
+        padding: const EdgeInsets.only(bottom: 24),
         child: GestureDetector(
           onTap: hasInfo ? () => setState(() => _infoOpen = true) : null,
-          child: _mascot(156),
+          child: _mascot(120),
         ),
       ),
       phaseRow(2),
@@ -710,7 +712,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                                 fontWeight: FontWeight.w800),
                           ),
                           // Comfortable distance before the first circle.
-                          const SizedBox(height: 88),
+                          const SizedBox(height: 36),
                           ...nodes,
                         ],
                       ),
@@ -744,13 +746,14 @@ class _RoutePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final sgn = mirror ? -1.0 : 1.0;
-    // +50 matches the taller unit title block above the first circle.
+    // Node centres of the COMPACT unit layout (title 44 + gap 36, rows
+    // 78+34, mascot 120 + 24): everything fits one viewport at scroll 0.
     final pts = <Offset>[
-      Offset(cx, 175),
-      Offset(cx + sgn * 112, 305),
-      Offset(cx, 474),
-      Offset(cx - sgn * 112, 627),
-      Offset(cx, 757),
+      Offset(cx, 119),
+      Offset(cx + sgn * 112, 231),
+      Offset(cx, 364),
+      Offset(cx - sgn * 112, 487),
+      Offset(cx, 599),
     ];
     // Antique caravan route: inlaid stepping stones (gold lozenges alternating
     // with round pebbles) along a brush curve, with a small auspicious-cloud
@@ -1197,7 +1200,7 @@ class _PhaseNode extends ConsumerWidget {
       child: browse,
     );
     return Padding(
-      padding: const EdgeInsets.only(bottom: 52),
+      padding: const EdgeInsets.only(bottom: 34),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: browseLeft
@@ -1306,7 +1309,7 @@ class _NodeFxState extends State<_NodeFx>
                   width: 66,
                   height: 16,
                   decoration: BoxDecoration(
-                    color: Colors.white
+                    color: AppColors.text
                         .withValues(alpha: widget.available ? 0.10 : 0.05),
                     borderRadius: const BorderRadius.all(
                         Radius.elliptical(43, 10)),

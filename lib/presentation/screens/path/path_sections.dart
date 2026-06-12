@@ -567,6 +567,7 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
   Map<String, dynamic>? _p;
   bool _loading = true;
   bool? _isFriend;
+  bool _requestSent = false;
   bool _busy = false;
 
   @override
@@ -588,18 +589,19 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
   Future<void> _toggleFriend() async {
     if (_busy) return;
     final was = _isFriend ?? false;
-    setState(() {
-      _busy = true;
-      _isFriend = !was;
-    });
+    setState(() => _busy = true);
     try {
       final repo = ref.read(userRepositoryProvider);
       if (was) {
+        setState(() => _isFriend = false);
         await repo.removeFriend(widget.uid);
+        ref.invalidate(friendsLeaderboardProvider);
       } else {
-        await repo.addFriend(widget.uid);
+        // Consent-based: a request goes out; the friendship starts when the
+        // other side accepts it from their profile.
+        setState(() => _requestSent = true);
+        await repo.sendFriendRequest(widget.uid);
       }
-      ref.invalidate(friendsLeaderboardProvider);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -727,17 +729,22 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
                               color: AppColors.text38, fontSize: 12)),
                     const SizedBox(height: 16),
                     FilledButton.icon(
-                      onPressed: _busy ? null : _toggleFriend,
+                      onPressed:
+                          _busy || _requestSent ? null : _toggleFriend,
                       icon: Icon(
                           _isFriend == true
                               ? Icons.person_remove_outlined
-                              : Icons.person_add_alt_1_rounded,
+                              : (_requestSent
+                                  ? Icons.hourglass_top_rounded
+                                  : Icons.person_add_alt_1_rounded),
                           size: 18),
                       label: Text(_isFriend == true
                           ? l10n.removeLbl
-                          : l10n.addLbl),
+                          : (_requestSent
+                              ? l10n.requestSent
+                              : l10n.addLbl)),
                       style: FilledButton.styleFrom(
-                        backgroundColor: _isFriend == true
+                        backgroundColor: _isFriend == true || _requestSent
                             ? AppColors.locked
                             : _green,
                         padding: const EdgeInsets.symmetric(
@@ -799,11 +806,33 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
 // show their animal in full colour; the ones ahead are matte with a lock —
 // the same visual language as locked path units.
 
-class _LeagueStrip extends ConsumerWidget {
+class _LeagueStrip extends ConsumerStatefulWidget {
   const _LeagueStrip();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_LeagueStrip> createState() => _LeagueStripState();
+}
+
+class _LeagueStripState extends ConsumerState<_LeagueStrip> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  // Page by five tiers — the arrows are the only way to move on devices
+  // without horizontal wheel/drag affordance.
+  void _page(int dir, double itemW) {
+    final target = (_scroll.offset + dir * itemW * 5)
+        .clamp(0.0, _scroll.position.maxScrollExtent);
+    _scroll.animateTo(target,
+        duration: const Duration(milliseconds: 320), curve: Curves.easeOut);
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final myUid = Supabase.instance.client.auth.currentUser?.id;
     final rows = ref.watch(leagueGroupProvider).valueOrNull ?? const [];
     final lg = rows.isEmpty
@@ -818,8 +847,18 @@ class _LeagueStrip extends ConsumerWidget {
     return SizedBox(
       height: 96,
       child: LayoutBuilder(builder: (context, c) {
-        final itemW = c.maxWidth / 5; // exactly five tiers per view
-        return ListView.builder(
+        const arrowW = 34.0;
+        final itemW = (c.maxWidth - 2 * arrowW) / 5; // five tiers per view
+        Widget arrow(IconData icon, int dir) => SizedBox(
+              width: arrowW,
+              child: IconButton(
+                padding: EdgeInsets.zero,
+                icon: Icon(icon, color: AppColors.text54, size: 26),
+                onPressed: () => _page(dir, itemW),
+              ),
+            );
+        final list = ListView.builder(
+          controller: _scroll,
           scrollDirection: Axis.horizontal,
           itemCount: kLeagueCount,
           itemBuilder: (_, i) {
@@ -890,6 +929,11 @@ class _LeagueStrip extends ConsumerWidget {
             );
           },
         );
+        return Row(children: [
+          arrow(Icons.chevron_left_rounded, -1),
+          Expanded(child: list),
+          arrow(Icons.chevron_right_rounded, 1),
+        ]);
       }),
     );
   }
@@ -1257,13 +1301,16 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
   Future<void> _toggleFriend(Map<String, dynamic> u) async {
     final repo = ref.read(userRepositoryProvider);
     final isFriend = u['is_friend'] == true;
-    setState(() => u['is_friend'] = !isFriend);
     if (isFriend) {
+      setState(() => u['is_friend'] = false);
       await repo.removeFriend(u['id'] as String);
+      ref.invalidate(friendsLeaderboardProvider);
     } else {
-      await repo.addFriend(u['id'] as String);
+      // Consent-based: only a REQUEST goes out; they become friends when
+      // the other side accepts.
+      setState(() => u['request_sent'] = true);
+      await repo.sendFriendRequest(u['id'] as String);
     }
-    ref.invalidate(friendsLeaderboardProvider);
   }
 
   @override
@@ -1360,13 +1407,16 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                 ),
                               ),
                               OutlinedButton(
-                                onPressed: () => _toggleFriend(u),
+                                onPressed: u['request_sent'] == true
+                                    ? null
+                                    : () => _toggleFriend(u),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: u['is_friend'] == true
                                       ? AppColors.text54
                                       : _green,
                                   side: BorderSide(
-                                      color: u['is_friend'] == true
+                                      color: u['is_friend'] == true ||
+                                              u['request_sent'] == true
                                           ? AppColors.text24
                                           : _green),
                                   padding: const EdgeInsets.symmetric(
@@ -1374,8 +1424,10 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                 ),
                                 child: Text(
                                     u['is_friend'] == true
-                                        ? (AppL10n.of(context).removeLbl)
-                                        : (AppL10n.of(context).addLbl),
+                                        ? AppL10n.of(context).removeLbl
+                                        : (u['request_sent'] == true
+                                            ? AppL10n.of(context).requestSent
+                                            : AppL10n.of(context).addLbl),
                                     style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800)),
@@ -2164,7 +2216,7 @@ class _MoreRow extends StatelessWidget {
       {required this.icon, required this.label, this.color, required this.onTap});
   @override
   Widget build(BuildContext context) {
-    final c = color ?? Colors.white;
+    final c = color ?? AppColors.text;
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Material(
@@ -2624,7 +2676,17 @@ class ProfileView extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: 16),
-                    SizedBox(width: 240, child: _ProfileFriends(tr: tr)),
+                    SizedBox(
+                      width: 240,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const _ProfileFriendRequests(),
+                          const SizedBox(height: 10),
+                          _ProfileFriends(tr: tr),
+                        ],
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -2991,6 +3053,108 @@ class _ProfilePassport extends ConsumerWidget {
   }
 }
 
+// ── Profile: incoming friend requests ─────────────────────────────────────────
+// Sits ABOVE "Arkadaşlarım": every pending request with accept / decline.
+
+final incomingFriendRequestsProvider =
+    FutureProvider<List<Map<String, dynamic>>>((ref) {
+  ref.watch(authUidProvider.select((a) => a.valueOrNull));
+  return ref.watch(userRepositoryProvider).loadIncomingFriendRequests();
+});
+
+class _ProfileFriendRequests extends ConsumerWidget {
+  const _ProfileFriendRequests();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final reqs =
+        ref.watch(incomingFriendRequestsProvider).valueOrNull ?? const [];
+
+    Future<void> act(String fromUid, bool accept) async {
+      final repo = ref.read(userRepositoryProvider);
+      if (accept) {
+        await repo.acceptFriendRequest(fromUid);
+        ref.invalidate(friendsLeaderboardProvider);
+      } else {
+        await repo.declineFriendRequest(fromUid);
+      }
+      ref.invalidate(incomingFriendRequestsProvider);
+    }
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: _panel,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(l10n.friendRequests,
+              style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          if (reqs.isEmpty)
+            Text(l10n.noRequests,
+                style: TextStyle(color: AppColors.text38, fontSize: 11))
+          else
+            for (final r in reqs)
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 3),
+                child: Row(children: [
+                  CircleAvatar(
+                    radius: 13,
+                    backgroundColor: _bg,
+                    backgroundImage:
+                        (r['photo_url'] as String?)?.isNotEmpty == true
+                            ? NetworkImage(r['photo_url'] as String)
+                            : null,
+                    child: (r['photo_url'] as String?)?.isNotEmpty == true
+                        ? null
+                        : Icon(Icons.person,
+                            color: AppColors.text38, size: 14),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                        (r['display_name'] as String?)?.trim().isNotEmpty ==
+                                true
+                            ? r['display_name'] as String
+                            : '@${r['username'] ?? ''}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                            color: AppColors.text, fontSize: 12)),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: l10n.acceptLbl,
+                    icon: const Icon(Icons.check_circle_rounded,
+                        color: _green, size: 22),
+                    onPressed: () => act(r['from_uid'] as String, true),
+                  ),
+                  const SizedBox(width: 4),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    tooltip: l10n.declineRequest,
+                    icon: Icon(Icons.cancel_rounded,
+                        color: AppColors.text38, size: 22),
+                    onPressed: () => act(r['from_uid'] as String, false),
+                  ),
+                ]),
+              ),
+        ],
+      ),
+    );
+  }
+}
+
 // ── Profile: friends (next to the name block) ─────────────────────────────────
 // Max 5 rows visible, the rest scroll; tapping opens a mini profile.
 
@@ -3091,6 +3255,7 @@ class _FriendProfileDialog extends ConsumerStatefulWidget {
 
 class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
   bool? _isFriend;
+  bool _requestSent = false;
   bool _busy = false;
 
   Future<void> _toggle() async {
@@ -3098,17 +3263,16 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
     if (uid == null || _busy) return;
     final repo = ref.read(userRepositoryProvider);
     final was = _isFriend ?? false;
-    setState(() {
-      _busy = true;
-      _isFriend = !was;
-    });
+    setState(() => _busy = true);
     try {
       if (was) {
+        setState(() => _isFriend = false);
         await repo.removeFriend(uid);
+        ref.invalidate(friendsLeaderboardProvider);
       } else {
-        await repo.addFriend(uid);
+        setState(() => _requestSent = true);
+        await repo.sendFriendRequest(uid);
       }
-      ref.invalidate(friendsLeaderboardProvider);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -3164,19 +3328,27 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
       ),
       actions: [
         TextButton.icon(
-          onPressed: _busy ? null : _toggle,
+          onPressed: _busy || _requestSent ? null : _toggle,
           icon: Icon(
               _isFriend == true
                   ? Icons.person_remove_outlined
-                  : Icons.person_add_alt_1_rounded,
+                  : (_requestSent
+                      ? Icons.hourglass_top_rounded
+                      : Icons.person_add_alt_1_rounded),
               size: 18,
-              color: _isFriend == true ? AppColors.text54 : _green),
+              color: _isFriend == true || _requestSent
+                  ? AppColors.text54
+                  : _green),
           label: Text(
               _isFriend == true
                   ? AppL10n.of(context).removeLbl
-                  : AppL10n.of(context).addLbl,
+                  : (_requestSent
+                      ? AppL10n.of(context).requestSent
+                      : AppL10n.of(context).addLbl),
               style: TextStyle(
-                  color: _isFriend == true ? AppColors.text54 : _green)),
+                  color: _isFriend == true || _requestSent
+                      ? AppColors.text54
+                      : _green)),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),

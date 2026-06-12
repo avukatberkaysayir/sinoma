@@ -150,24 +150,25 @@ class _PremiumHeader extends StatelessWidget {
           colors: [Color(0xFF1A1A2E), Color(0xFF2D1B00)],
         ),
       ),
-      child: Column(
+      // Fixed light text: the banner gradient stays dark in both themes.
+      child: const Column(
         children: [
-          const Icon(Icons.workspace_premium,
+          Icon(Icons.workspace_premium,
               size: 56, color: AppColors.premiumGold),
-          const SizedBox(height: 12),
+          SizedBox(height: 12),
           Text(
             'Unlock Full Access',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
-              color: AppColors.onSurface,
+              color: Color(0xFFEEEEEE),
             ),
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: 6),
           Text(
             'Unlimited AI explanations, no ads, all games unlocked.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.onSurfaceMuted, height: 1.4),
+            style: TextStyle(color: Color(0xFF9E9E9E), height: 1.4),
           ),
         ],
       ),

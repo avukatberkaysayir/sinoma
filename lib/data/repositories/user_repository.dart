@@ -158,22 +158,47 @@ class UserRepository {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
-  Future<void> addFriend(String friendUid) async {
+  // Friendship is mutual and consent-based: adding someone only SENDS a
+  // request; the friendship exists once they accept (both directions).
+  Future<void> sendFriendRequest(String toUid) async {
     final uid = _db.auth.currentUser?.id;
-    if (uid == null) return;
-    await _db.from('friends').upsert(
-        {'uid': uid, 'friend_uid': friendUid},
-        onConflict: 'uid,friend_uid');
+    if (uid == null || toUid == uid) return;
+    try {
+      await _db.from('friend_requests').upsert(
+          {'from_uid': uid, 'to_uid': toUid},
+          onConflict: 'from_uid,to_uid');
+    } catch (_) {/* duplicate → already pending */}
   }
 
-  Future<void> removeFriend(String friendUid) async {
+  Future<List<Map<String, dynamic>>> loadIncomingFriendRequests() async {
+    if (_db.auth.currentUser == null) return const [];
+    try {
+      final data = await _db.rpc('incoming_friend_requests');
+      return List<Map<String, dynamic>>.from(data as List);
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  Future<void> acceptFriendRequest(String fromUid) async {
+    await _db.rpc('accept_friend_request', params: {'p_from': fromUid});
+  }
+
+  Future<void> declineFriendRequest(String fromUid) async {
     final uid = _db.auth.currentUser?.id;
     if (uid == null) return;
     await _db
-        .from('friends')
+        .from('friend_requests')
         .delete()
-        .eq('uid', uid)
-        .eq('friend_uid', friendUid);
+        .eq('from_uid', fromUid)
+        .eq('to_uid', uid);
+  }
+
+  // Removes BOTH directions of an accepted friendship.
+  Future<void> removeFriend(String friendUid) async {
+    try {
+      await _db.rpc('remove_friendship', params: {'p_other': friendUid});
+    } catch (_) {}
   }
 
   // Top users by total score — for the leaderboard ("Puan Tabloları").

@@ -130,9 +130,9 @@ class _TopBar extends StatelessWidget {
             OutlinedButton(
               onPressed: () => showAuthDialog(context),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.onSurface,
+                foregroundColor: const Color(0xFFEEEEEE),
                 side: BorderSide(
-                    color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
+                    color: const Color(0xFF9E9E9E).withValues(alpha: 0.4)),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                 shape: RoundedRectangleBorder(
@@ -202,7 +202,7 @@ class _LangToggle extends ConsumerWidget {
           ),
           child: Text(label,
               style: TextStyle(
-                  color: on ? _lpGreen : AppColors.onSurfaceMuted,
+                  color: on ? _lpGreen : const Color(0xFF9E9E9E),
                   fontSize: 13,
                   fontWeight: on ? FontWeight.w700 : FontWeight.w500)),
         ),
@@ -248,8 +248,8 @@ class _Hero extends StatelessWidget {
           t('Gerçek videolarla\nMandarin öğren',
               'Learn Mandarin with\nreal videos',
               '진짜 영상으로\n중국어를 배우세요'),
-          style: TextStyle(
-            color: AppColors.onSurface,
+          style: const TextStyle(
+            color: Color(0xFFEEEEEE),
             fontSize: 44,
             height: 1.1,
             fontWeight: FontWeight.w800,
@@ -265,8 +265,8 @@ class _Hero extends StatelessWidget {
             '영상을 보고, 들은 문장을 고르고, 바로 배워요. '
                 '실제 대화와 자동 자막, HSK 1-6 레벨까지.',
           ),
-          style: TextStyle(
-              color: AppColors.onSurfaceMuted, fontSize: 17, height: 1.5),
+          style: const TextStyle(
+              color: Color(0xFF9E9E9E), fontSize: 17, height: 1.5),
         ),
         const SizedBox(height: 28),
         Wrap(
@@ -300,9 +300,9 @@ class _Hero extends StatelessWidget {
                 label: Text(
                     t('Videolara Göz At', 'Browse videos', '영상 둘러보기')),
                 style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.onSurface,
+                  foregroundColor: const Color(0xFFEEEEEE),
                   side: BorderSide(
-                      color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
+                      color: const Color(0xFF9E9E9E).withValues(alpha: 0.4)),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
                   textStyle: const TextStyle(
@@ -327,7 +327,7 @@ class _MockPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: const Color(0xFF0E1414),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
         boxShadow: [
@@ -437,7 +437,7 @@ class _MockOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = correct ? AppColors.correctAnswer : AppColors.onSurfaceMuted;
+    final c = correct ? AppColors.correctAnswer : const Color(0xFF9E9E9E);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       decoration: BoxDecoration(
@@ -458,7 +458,7 @@ class _MockOption extends StatelessWidget {
             child: Text(text,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                    color: correct ? AppColors.correctAnswer : AppColors.onSurfaceMuted,
+                    color: correct ? AppColors.correctAnswer : const Color(0xFF9E9E9E),
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
           ),
@@ -518,7 +518,7 @@ class _Features extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surface.withValues(alpha: 0.6),
+                color: const Color(0xFF0E1414).withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
               ),
@@ -528,14 +528,14 @@ class _Features extends StatelessWidget {
                   Icon(it.$1, color: _lpGreen, size: 28),
                   const SizedBox(height: 12),
                   Text(it.$2,
-                      style: TextStyle(
-                          color: AppColors.onSurface,
+                      style: const TextStyle(
+                          color: Color(0xFFEEEEEE),
                           fontSize: 16,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(it.$3,
-                      style: TextStyle(
-                          color: AppColors.onSurfaceMuted,
+                      style: const TextStyle(
+                          color: Color(0xFF9E9E9E),
                           fontSize: 13,
                           height: 1.4)),
                 ],
@@ -568,8 +568,8 @@ class _HowItWorks extends StatelessWidget {
     return Column(
       children: [
         Text(t('Nasıl çalışır?', 'How it works', '어떻게 진행되나요?'),
-            style: TextStyle(
-                color: AppColors.onSurface,
+            style: const TextStyle(
+                color: Color(0xFFEEEEEE),
                 fontSize: 26,
                 fontWeight: FontWeight.w800)),
         const SizedBox(height: 24),
@@ -599,15 +599,15 @@ class _HowItWorks extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(s.$2,
-                        style: TextStyle(
-                            color: AppColors.onSurface,
+                        style: const TextStyle(
+                            color: Color(0xFFEEEEEE),
                             fontSize: 17,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text(s.$3,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                            color: AppColors.onSurfaceMuted, fontSize: 13)),
+                        style: const TextStyle(
+                            color: Color(0xFF9E9E9E), fontSize: 13)),
                   ],
                 ),
               ),
@@ -638,8 +638,8 @@ class _Footer extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         runSpacing: 12,
         children: [
-          Text('© Sinoma',
-              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
+          const Text('© Sinoma',
+              style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13)),
           Wrap(
             spacing: 20,
             children: [
@@ -670,8 +670,8 @@ class _FooterLink extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Text(label,
-          style: TextStyle(
-              color: AppColors.onSurfaceMuted,
+          style: const TextStyle(
+              color: Color(0xFF9E9E9E),
               fontSize: 13,
               decoration: TextDecoration.underline)),
     );

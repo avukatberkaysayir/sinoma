@@ -197,10 +197,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
       setState(() => _countdown--);
       if (_countdown <= 0) {
         t.cancel();
-        // Missed the choice window → penalty. Don't auto-advance; the next
-        // arrow appears and the user taps it to continue.
+        // Missed the choice window → the correct option gets revealed, but
+        // it counts (and SOUNDS) as a miss: a distinct low timeout buzz, so
+        // the reveal can never be mistaken for a correct answer.
         final delta = -_penaltyPoints(_seg);
-        WebSfx.wrong();
+        WebSfx.timeout();
         _addScore(delta, answered: false);
         _playerCtrl.showScorePopup(delta);
         widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
@@ -263,6 +264,15 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   void _setSpeed(double speed) {
     _playerCtrl.setPlaybackRate(speed);
     setState(() => _speed = speed);
+  }
+
+  String _quality = 'large';
+
+  void _stepQuality(int dir) {
+    const levels = DirectYouTubeController.qualityLevels;
+    final i = (levels.indexOf(_quality) + dir).clamp(0, levels.length - 1);
+    _playerCtrl.setQuality(levels[i]);
+    setState(() => _quality = levels[i]);
   }
 
   String _fmtTime(double s) {
@@ -404,6 +414,9 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             onPrev: _goPrev,
             onReplay: _replay,
             onSpeedChanged: _setSpeed,
+            quality: _quality,
+            onQualityDown: () => _stepQuality(-1),
+            onQualityUp: () => _stepQuality(1),
             // Practice tab only — the Öğren phases show neither.
             ticks: widget.phaseMode ? null : _ticks,
             onAddToPlaylist:
@@ -552,6 +565,10 @@ class _ControlsBar extends StatelessWidget {
   final VoidCallback onPrev;
   final VoidCallback onReplay;
   final void Function(double) onSpeedChanged;
+  // Manual video quality (suggestion to YouTube): current label + steppers.
+  final String quality;
+  final VoidCallback onQualityDown;
+  final VoidCallback onQualityUp;
   // Practice extras (null in phase mode): mastery ticks + playlist button.
   final int? ticks;
   final VoidCallback? onAddToPlaylist;
@@ -564,12 +581,23 @@ class _ControlsBar extends StatelessWidget {
     required this.onPrev,
     required this.onReplay,
     required this.onSpeedChanged,
+    required this.quality,
+    required this.onQualityDown,
+    required this.onQualityUp,
     this.ticks,
     this.onAddToPlaylist,
     this.playlistTooltip = '',
   });
 
   static const _speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
+
+  static const _qualityLabels = {
+    'small': '240p',
+    'medium': '360p',
+    'large': '480p',
+    'hd720': '720p',
+    'hd1080': '1080p',
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -607,11 +635,37 @@ class _ControlsBar extends StatelessWidget {
               tooltip: playlistTooltip,
             ),
 
-          // VoScreen-style mastery ticks, centred between sound and speed.
-          if (ticks != null)
-            Expanded(child: Center(child: _TickRow(count: ticks!)))
-          else
-            const Spacer(),
+          // Mastery ticks sit left of centre; quality + speed share the right
+          // side at even spacing.
+          if (ticks != null) ...[
+            const SizedBox(width: 14),
+            _TickRow(count: ticks!),
+          ],
+          const Spacer(),
+
+          // Quality stepper: − label + (left of the speed chips).
+          _CtrlBtn(
+              icon: Icons.remove_rounded,
+              onTap: onQualityDown,
+              size: 20,
+              tooltip: AppL10n.of(context).qualityDownTip),
+          SizedBox(
+            width: 44,
+            child: Text(
+              _qualityLabels[quality] ?? quality,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: AppColors.text70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+          _CtrlBtn(
+              icon: Icons.add_rounded,
+              onTap: onQualityUp,
+              size: 20,
+              tooltip: AppL10n.of(context).qualityUpTip),
+          const SizedBox(width: 14),
 
           for (final s in _speeds)
             _SpeedChip(

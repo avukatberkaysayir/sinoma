@@ -1298,6 +1298,12 @@ class AdminService {
       'radicals': <String>[],
       'stroke_count': 0,
     }, onConflict: 'id');
+    // A new dictionary word can green-light clips that were waiting on it:
+    // re-derive placements for unplaced pending/backup clips and drop
+    // pointless pending duplicates of already-active ones.
+    try {
+      await _db.rpc('reevaluate_unplaced_videos');
+    } catch (_) {/* best-effort */}
   }
 
   static String _stripAccents(String pinyin) {

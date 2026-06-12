@@ -107,6 +107,8 @@ class AppL10n {
   String get prevTooltip    => _t('Önceki', 'Previous', '이전');
   String get replayTooltip  => _t('Tekrar oynat', 'Replay', '다시 재생');
   String get soundOnTip     => _t('Sesi aç', 'Sound on', '소리 켜기');
+  String get qualityDownTip => _t('Kaliteyi düşür', 'Lower quality', '화질 낮추기');
+  String get qualityUpTip   => _t('Kaliteyi yükselt', 'Raise quality', '화질 높이기');
   String get soundOffTip    => _t('Sesi kapat', 'Sound off', '소리 끄기');
   String get notInDict      => _t('Sözlükte bulunamadı.', 'Not found in the dictionary.', '사전에 없는 단어예요.');
   String get videosWord     => _t('video', 'videos', '개 영상');
@@ -213,6 +215,11 @@ class AppL10n {
       '아직 친구가 없어요 — 사용자 이름으로 검색해서 추가해 보세요.');
   String get typeUsername   => _t('Kullanıcı adı yaz…', 'Type a username…', '사용자 이름 입력…');
   String get addLbl         => _t('Ekle', 'Add', '추가');
+  String get friendRequests => _t('Arkadaşlık İstekleri', 'Friend Requests', '친구 요청');
+  String get requestSent    => _t('İstek gönderildi', 'Request sent', '요청 보냄');
+  String get acceptLbl      => _t('Onayla', 'Accept', '수락');
+  String get declineRequest => _t('Reddet', 'Decline', '거절');
+  String get noRequests     => _t('Bekleyen istek yok.', 'No pending requests.', '대기 중인 요청이 없어요.');
   String get removeLbl      => _t('Çıkar', 'Remove', '삭제');
   String get noResultsLbl   => _t('Sonuç yok', 'No results', '결과 없음');
   String get zhuangyuanTitle => _t('Ejderha Sıralaması', 'Dragon Ranking', '용 리그 랭킹');

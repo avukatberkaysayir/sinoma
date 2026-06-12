@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
@@ -278,7 +278,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0E1414), // Duolingo bg, matches the path
+      backgroundColor: AppColors.surface, // Duolingo bg, matches the path
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(
@@ -650,9 +650,9 @@ class _ProfileCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF161E1D), // Duolingo panel
+        color: AppColors.surfaceVariant, // Duolingo panel
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

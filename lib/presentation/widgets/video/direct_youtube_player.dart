@@ -35,6 +35,16 @@ class DirectYouTubeController extends ChangeNotifier {
     _state?._applyRate();
   }
 
+  // Manual quality preference. YouTube treats this as a SUGGESTION (its ABR
+  // can override it), but it works in many sessions — best effort by design.
+  static const qualityLevels = ['small', 'medium', 'large', 'hd720', 'hd1080'];
+  String _quality = 'large';
+  String get quality => _quality;
+  void setQuality(String q) {
+    _quality = q;
+    _state?._applyQuality();
+  }
+
   void _notify() => notifyListeners();
 }
 
@@ -111,9 +121,16 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   Timer? _listenTimer;
   int _listenTries = 0;
   bool _eventsFlowing = false;
-  // Wall-clock safety net: if the YouTube JS-API messages don't flow (so we never
-  // see currentTime), end the segment anyway after its duration + a buffer.
+  // Wall-clock safety net: if the YouTube JS-API messages don't flow (so we
+  // never see currentTime), end the segment after its duration + a generous
+  // buffer. While currentTime DOES flow, _handleTime continuously reschedules
+  // this to "remaining time + buffer", so slow networks / buffering pauses can
+  // never cut a clip short.
   Timer? _endFallbackTimer;
+  // Cold-start recovery: if autoplay didn't take (no playback within a few
+  // seconds), nudge playVideo + the listening handshake until it does.
+  Timer? _nudgeTimer;
+  int _nudgeTries = 0;
 
   bool _soundOn = false;
   bool _hasPlayed = false;
@@ -242,6 +259,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     frame.onLoad.listen((_) {
       _startListening();
       _armEndFallback();
+      _startNudge();
     });
 
     _iframe = frame;
@@ -418,8 +436,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _replayEl?.style.display = 'none';
       _nextEl?.style.display = 'none';
       _cmd('pauseVideo', []);
+      // The clip is intentionally paused: the wall-clock fallback must not
+      // keep counting down while nothing plays.
+      _endFallbackTimer?.cancel();
     } else {
       _refreshOverlays();
+      if (!_ended) _armEndFallback();
     }
   }
 
@@ -465,6 +487,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _startListening();
       _cmd('playVideo', []);
       _applyRate();
+      _applyQuality();
     } else if (event == 'infoDelivery') {
       _eventsFlowing = true;
       _listenTimer?.cancel();
@@ -540,6 +563,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
   void _handleTime(double t) {
     if (t <= 0) return;
     _accumulateWatch(t);
+    if (_playing) _rescheduleEndFallback(t);
 
     if (t >= widget.endTime) {
       // Hard ceiling: even if the segment already "ended" once (e.g. an inline
@@ -571,12 +595,49 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
   void _armEndFallback() {
     _endFallbackTimer?.cancel();
-    final dur = widget.endTime - widget.startTime;
+    final rate = widget.controller._rate > 0 ? widget.controller._rate : 1.0;
+    final dur = (widget.endTime - widget.startTime) / rate;
     if (dur <= 0) return;
-    // +4s covers initial buffering; if the JS API works the clip ends accurately
-    // first and this is cancelled, so it never cuts a healthy clip short.
+    // Generous initial window (load + buffering). As soon as currentTime
+    // flows, _handleTime keeps rescheduling to "remaining + 6s", so this can
+    // only fire when playback is truly broken — never mid-clip on a slow
+    // connection.
     _endFallbackTimer =
-        Timer(Duration(milliseconds: ((dur + 4) * 1000).round()), _forceEnd);
+        Timer(Duration(milliseconds: ((dur + 12) * 1000).round()), _forceEnd);
+  }
+
+  // Progress-anchored fallback: every currentTime tick moves the deadline to
+  // remaining-time + buffer. Buffering pauses simply stop the ticks AND the
+  // deadline stops shrinking relative to actual progress made so far.
+  void _rescheduleEndFallback(double currentT) {
+    if (_ended) return;
+    _endFallbackTimer?.cancel();
+    final rate = widget.controller._rate > 0 ? widget.controller._rate : 1.0;
+    final remaining = (widget.endTime - currentT) / rate;
+    if (remaining <= 0) return;
+    _endFallbackTimer = Timer(
+        Duration(milliseconds: ((remaining + 6) * 1000).round()), _forceEnd);
+  }
+
+  // Cold-start recovery: hard refresh sometimes leaves the iframe sitting on
+  // YouTube's play button (autoplay raced the JS-API handshake). Until real
+  // playback is seen, periodically resend the handshake + playVideo. Stops on
+  // first playback so it can never fight a user's manual pause.
+  void _startNudge() {
+    _nudgeTimer?.cancel();
+    _nudgeTries = 0;
+    _nudgeTimer = Timer.periodic(const Duration(seconds: 3), (t) {
+      if (!mounted || _hasPlayed || _ended || _hidden || _nudgeTries++ > 10) {
+        t.cancel();
+        return;
+      }
+      _sendListening();
+      _cmd('playVideo', []);
+    });
+  }
+
+  void _applyQuality() {
+    _cmd('setPlaybackQuality', [widget.controller._quality]);
   }
 
   void _cmd(String func, List<dynamic> args) {
@@ -594,10 +655,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     if (widget.replayCount != old.replayCount) {
       _ended = false;
       _hasPlayed = false;
+      _lastTickT = null;
       _cmd('seekTo', [widget.startTime, true]);
       _cmd('playVideo', []);
       _applyRate();
       _armEndFallback();
+      _startNudge();
     }
     if (widget.countdown != old.countdown ||
         widget.showCountdown != old.showCountdown ||
@@ -615,6 +678,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
     widget.controller._detach();
     _listenTimer?.cancel();
     _endFallbackTimer?.cancel();
+    _nudgeTimer?.cancel();
     if (_msgListener != null) {
       html.window.removeEventListener('message', _msgListener!);
     }

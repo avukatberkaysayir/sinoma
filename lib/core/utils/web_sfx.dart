@@ -81,6 +81,12 @@ class WebSfx {
     _tone(146.8, 0.34, type: 'triangle', gain: 0.32, when: 0.13);
   }
 
+  /// Time ran out: an unmistakable low buzz — never reads as a success cue.
+  static void timeout() {
+    _tone(220.0, 0.10, type: 'sawtooth', gain: 0.20);
+    _tone(110.0, 0.50, type: 'sawtooth', gain: 0.24, when: 0.10);
+  }
+
   /// Gong: low fundamental with a long tail + a faint octave shimmer.
   static void gong() {
     _tone(196.0, 1.6, gain: 0.22);
