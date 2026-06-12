@@ -20,8 +20,12 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 > - [x] Parti 7 — PDF 151-175 (Unit 6 Yetenek: -(으)ㄹ 수 있다, -(으)ㄹ 줄
 >       알다; Unit 7 Talep/İzin/Yasak: -(으)세요, -지 마세요, -아/어야 되다,
 >       -아/어도 되다, -(으)면 안 되다, -지 않아도 되다; Unit 8: -고 싶다)
-> - [ ] Parti 8 — PDF 176-200 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 176 -l 200 <pdf> D:\UserData\krgrammar\p8`
+> - [x] Parti 8 — PDF 176-200 (Unit 8: -았/었으면 좋겠다; Unit 9 Sebep:
+>       -아/어서 ②, -(으)니까 ①, 때문에/-기 때문에; Unit 10 Rica:
+>       -아/어 주세요/주시겠어요, -아/어 줄게요/줄까요; Unit 11:
+>       -아/어 보다, -(으)ㄴ 적이 있다)
+> - [ ] Parti 9 — PDF 201-225 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 201 -l 225 <pdf> D:\UserData\krgrammar\p9`
 
 ---
 
@@ -534,7 +538,65 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
   딸기를 먹**고 싶어요** · 만나고 싶어요, 결혼하고 싶어요.
 - Olumsuz: -고 싶지 않아요 / 안 -고 싶어요.
 
+### 14.2 A/V-았/었으면 좋겠다 — 'keşke / olsa iyi olurdu'
+- Kök ㅏ/ㅗ → **-았으면 좋겠다**, diğerleri → **-었으면 좋겠다**,
+  하다 → **했으면 좋겠다**: 차가 있**었으면 좋겠어요** · 돈이 많**았으면
+  좋겠어요** · 눈이 **왔으면 좋겠어요** · 날씬**했으면 좋겠어요**.
+- -(으)면 좋겠다 da olur; -았/었으면 daha güçlü özlem tonu taşır.
+
+## 15. UNIT 9 — SEBEP VE GEREKÇE
+
+### 15.1 A/V-아/어서 ② — 'çünkü / -dığı için'
+- Biçim -아/어요'daki gibi (와서, 읽어서, 날씬해서; 이다→**이라서**):
+  늦**어서** 죄송합니다 · 기분이 좋**아서** 춤을 췄어요 · 만나**서**
+  반갑습니다.
+- KISITLAR: (a) emir/öneri cümlesiyle KULLANILMAZ (바빠서 가세요 ✗);
+  (b) önüne zaman eki ALMAZ: 막혔어서 ✗ → 막혀**서** 늦었어요 ✓.
+- Selamlaşma kalıplarının standardı: 만나서 반갑습니다, 늦어서 미안해요,
+  도와주셔서 감사합니다.
+
+### 15.2 A/V-(으)니까 ① — 'çünkü' (öznel/önerili)
+- Ünlü/ㄹ → **-니까** (보니까, 오니까, 크니까, *사니까, *머니까),
+  ünsüz → **-으니까** (있으니까, 읽으니까, *들으니까); 이다→(이)니까.
+- -아/어서'den FARKLARI: (1) emir/öneriyle kullanılabilir: 추우**니까**
+  창문 좀 닫아 주세요 · 바쁘**니까** 다음 주에 합시다; (2) geçmiş eki
+  alabilir: 살**았으니까** 잘 알아요; (3) öznel gerekçe/karşı tarafın
+  bildiği sebep; (4) selamlaşma kalıplarında KULLANILMAZ (만나니까
+  반갑습니다 ✗).
+
+### 15.3 N 때문에, A/V-기 때문에 — 'yüzünden / nedeniyle'
+- İsim + **때문에**: 눈 **때문에** 미끄러워요 · 아이 **때문에** 피곤해요 ·
+  감기 때문에, 교통 때문에.
+- Yüklem + **-기 때문에** (daha yazınsal): 외국인**이기 때문에** 한국말을
+  잘 못해요 · 바쁘**기 때문에** · 배우**기 때문에**.
+
+## 16. UNIT 10 — RİCA VE YARDIM
+
+### 16.1 V-아/어 주세요, V-아/어 주시겠어요? — 'lütfen ... yapar mısınız'
+- Kök + -아/어 + **주세요**: 닫**아 주세요** · 사진 좀 찍**어 주시겠어요?**
+  (daha kibar) · 청소**해 주세요** · 빌려 주세요, 들어 주세요, 꺼 주세요.
+- Eylem SAYGIN birine yapılıyorsa 주다→**드리다**: 안내**해 드리세요** ·
+  제가 도와**드릴게요**.
+
+### 16.2 V-아/어 줄게요, V-아/어 줄까요? — 'yapayım mı / yaparım'
+- Yardım teklifi: 우산 빌려 **줄까요?** · 제가 도와 **드릴게요** ·
+  들어 드릴까요? · 만들어 줄게요 · 봐 줄까요?
+- Alıcı üstse 드릴게요/드릴까요?, eş/astsa 줄게요/줄까요?.
+
+## 17. UNIT 11 — DENEME VE DENEYİM
+
+### 17.1 V-아/어 보다 — 'denemek / bir deneyimi yaşamak'
+- Kök + -아/어 + **보다**: 입**어 보세요** (deneyin) · 먹**어 봤어요**?
+  (hiç yedin mi?) · 제주도에 **가 보고 싶어요** · 여행**해 보다**.
+- Şimdiki biçim deneme, geçmiş (-아/어 봤어요) yaşanmışlık anlatır.
+
+### 17.2 V-(으)ㄴ 적이 있다/없다 — '-mişliği olmak'
+- Ünlü/ㄹ → **-ㄴ 적이 있다/없다**, ünsüz → **-은 적이 ...**:
+  인도 영화를 **본 적이 있어요** · 지각**한 적이 없어요** · 읽은 적이 있다,
+  먹은 적이 있다, *들은 적이, *만든 적이.
+- Sık kalıp: -아/어 **본 적이 있다**: 이탈리아에 가 **본 적이 있어요**?
+
 ---
 
-*(Parti 8'den itibaren: Unit 8 devamı (-(으)면 좋겠다...) ve sonraki
-üniteler aynı düzenle eklenecek.)*
+*(Parti 9'dan itibaren: Unit 12 Niyet/Plan (-(으)ㄹ게요, -(으)ㄹ래요...)
+ve sonraki üniteler aynı düzenle eklenecek.)*
