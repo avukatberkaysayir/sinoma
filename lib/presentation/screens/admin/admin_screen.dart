@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -62,13 +62,13 @@ class _AdminScreenState extends State<AdminScreen> {
     return Theme(
       data: ThemeData(
         useMaterial3: true,
-        colorScheme: const ColorScheme.dark(
+        colorScheme: ColorScheme.dark(
           primary: AppColors.primary,
           surface: AppColors.surface,
           onSurface: AppColors.onSurface,
         ),
         scaffoldBackgroundColor: AppColors.surface,
-        appBarTheme: const AppBarTheme(
+        appBarTheme: AppBarTheme(
           backgroundColor: AppColors.surfaceVariant,
           foregroundColor: AppColors.onSurface,
           elevation: 0,
@@ -615,7 +615,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   InputDecoration _dec(String hint) => InputDecoration(
         hintText: hint,
         hintStyle:
-            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+            TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
         filled: true,
         fillColor: AppColors.surface,
         isDense: true,
@@ -648,14 +648,14 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
               // Selectable so the word can be copied straight into translate
               // tools / dictionaries.
               SelectableText(_word,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.w800)),
               const SizedBox(width: 10),
               Expanded(
                 child: Text('${by.isNotEmpty ? by : 'Anonim'} • $shortDate',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 11)),
               ),
               IconButton(
@@ -672,7 +672,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
               child: TextField(
                 controller: _pinyinCtrl,
                 enabled: !_enConfirmed,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 13),
                 decoration: _dec('Pinyin (örn. nǐ hǎo)'),
               ),
@@ -683,7 +683,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
               child: TextField(
                 controller: _enCtrl,
                 enabled: !_enConfirmed,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 13),
                 decoration: _dec('İngilizce anlam'),
               ),
@@ -716,7 +716,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
               Expanded(
                 child: TextField(
                   controller: _trCtrl,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface, fontSize: 13),
                   decoration: _dec('Türkçe anlam'),
                 ),
@@ -725,7 +725,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
               Expanded(
                 child: TextField(
                   controller: _koCtrl,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface, fontSize: 13),
                   decoration: _dec('Korece anlam'),
                 ),
@@ -850,8 +850,8 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
         title: Text('$id kelimesini sil?',
-            style: const TextStyle(color: AppColors.onSurface)),
-        content: const Text('Bu işlem geri alınamaz.',
+            style: TextStyle(color: AppColors.onSurface)),
+        content: Text('Bu işlem geri alınamaz.',
             style: TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
           TextButton(
@@ -938,7 +938,7 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
       );
     }
     if (_suggestions.isEmpty) {
-      return const Center(
+      return Center(
         child: Text('Henüz öneri yok',
             style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
       );
@@ -951,7 +951,7 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
           child: Row(
             children: [
               Text('${_suggestions.length} öneri',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 13)),
             ],
           ),
@@ -1004,8 +1004,8 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                 ),
               ),
               if (_tabs.index == 0) ...[
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(12, 12, 12, 6),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
                   child: Text('HSK Seviyesi',
                       style: TextStyle(
                           color: AppColors.onSurfaceMuted,
@@ -1135,7 +1135,7 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                   ),
                 ),
               ] else
-                const Expanded(
+                Expanded(
                   child: Center(
                     child: Text('Pasif kelimeler yakında',
                         style: TextStyle(
@@ -1163,7 +1163,7 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                             _loading
                                 ? 'Yükleniyor…'
                                 : '${_words.length} kelime',
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppColors.onSurfaceMuted, fontSize: 13),
                           ),
                           const Spacer(),
@@ -1187,7 +1187,7 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
                     Expanded(
                       child: _tabs.index == 0
                           ? _buildWordList()
-                          : const Center(
+                          : Center(
                               child: Text('Pasif kelimeler yakında',
                                   style: TextStyle(
                                       color: AppColors.onSurfaceMuted,
@@ -1211,14 +1211,14 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
               style: const TextStyle(color: AppColors.wrongAnswer)));
     }
     if (_words.isEmpty) {
-      return const Center(
+      return Center(
           child: Text('Kelime bulunamadı',
               style: TextStyle(color: AppColors.onSurfaceMuted)));
     }
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
       itemCount: _words.length + (_words.length == _pageSize ? 1 : 0),
-      separatorBuilder: (_, __) => const Divider(
+      separatorBuilder: (_, __) => Divider(
           height: 1,
           color: AppColors.surfaceVariant,
           indent: 56),
@@ -1291,7 +1291,7 @@ class _DictionaryWordRow extends StatelessWidget {
       title: Row(
         children: [
           Text(pinyin,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurface, fontSize: 14)),
           const SizedBox(width: 8),
           if (pos.isNotEmpty)
@@ -1303,7 +1303,7 @@ class _DictionaryWordRow extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(pos.split('/').first.split(',').first.trim(),
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 10)),
             ),
           const Spacer(),
@@ -1329,13 +1329,13 @@ class _DictionaryWordRow extends StatelessWidget {
         children: [
           if (en.isNotEmpty)
             Text('EN: $en',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurfaceMuted, fontSize: 11),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
           if (tr.isNotEmpty)
             Text('TR: $tr',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurfaceMuted, fontSize: 11),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis),
@@ -1345,7 +1345,7 @@ class _DictionaryWordRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           IconButton(
-            icon: const Icon(Icons.edit_outlined,
+            icon: Icon(Icons.edit_outlined,
                 size: 18, color: AppColors.onSurfaceMuted),
             onPressed: onEdit,
             tooltip: 'Düzenle',
@@ -1447,7 +1447,7 @@ class _WordEditDialogState extends State<_WordEditDialog> {
     return AlertDialog(
       backgroundColor: AppColors.surfaceVariant,
       title: Text(_isEdit ? '${_simplified.text} Düzenle' : 'Yeni Kelime Ekle',
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 16)),
+          style: TextStyle(color: AppColors.onSurface, fontSize: 16)),
       content: SizedBox(
         width: 440,
         child: SingleChildScrollView(
@@ -1467,7 +1467,7 @@ class _WordEditDialogState extends State<_WordEditDialog> {
               Row(
                 children: [
                   Text('HSK $_hskLevel',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurface, fontSize: 13)),
                   Expanded(
                     child: Slider(
@@ -1509,11 +1509,11 @@ class _WordEditDialogState extends State<_WordEditDialog> {
     return TextField(
       controller: ctrl,
       enabled: enabled,
-      style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+      style: TextStyle(color: AppColors.onSurface, fontSize: 13),
       decoration: InputDecoration(
         labelText: label,
         labelStyle:
-            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+            TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
         filled: true,
         fillColor: AppColors.surface,
         isDense: true,
@@ -1600,17 +1600,17 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
             height: 36,
             child: TextField(
               controller: _searchCtrl,
-              style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+              style: TextStyle(color: AppColors.onSurface, fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Ara (Çince, pinyin, kelime…)',
-                hintStyle: const TextStyle(
+                hintStyle: TextStyle(
                     color: AppColors.onSurfaceMuted, fontSize: 12),
                 filled: true,
                 fillColor: AppColors.surfaceVariant,
                 isDense: true,
                 contentPadding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                prefixIcon: const Icon(Icons.search,
+                prefixIcon: Icon(Icons.search,
                     size: 16, color: AppColors.onSurfaceMuted),
                 suffixIcon: _searchQuery.isNotEmpty
                     ? IconButton(
@@ -1640,7 +1640,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                const Text('HSK:',
+                Text('HSK:',
                     style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 11)),
                 const SizedBox(width: 4),
@@ -1651,7 +1651,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                   onChanged: (v) => setState(() => _filterHsk = v),
                 ),
                 const SizedBox(width: 10),
-                const Text('Kat:',
+                Text('Kat:',
                     style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 11)),
                 const SizedBox(width: 4),
@@ -1666,7 +1666,7 @@ class _VideoReviewPanelState extends State<_VideoReviewPanel>
                   onChanged: (v) => setState(() => _filterCategory = v),
                 ),
                 const SizedBox(width: 10),
-                const Text('Uzunluk:',
+                Text('Uzunluk:',
                     style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 11)),
                 const SizedBox(width: 4),
@@ -1841,10 +1841,10 @@ class _ReportsTabState extends State<_ReportsTab> {
     if (_error != null) {
       return Center(
           child: Text(_error!,
-              style: const TextStyle(color: AppColors.onSurfaceMuted)));
+              style: TextStyle(color: AppColors.onSurfaceMuted)));
     }
     if (_rows.isEmpty) {
-      return const Center(
+      return Center(
         child: Text('Henüz bildirim yok.',
             style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
       );
@@ -1878,7 +1878,7 @@ class _ReportsTabState extends State<_ReportsTab> {
                       size: 14, color: AppColors.primary),
                   const SizedBox(width: 6),
                   Text(_fmt(r['created_at'] as String?),
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 11)),
                   const SizedBox(width: 10),
                   Expanded(
@@ -1886,7 +1886,7 @@ class _ReportsTabState extends State<_ReportsTab> {
                       '$reporter${u?['username'] != null ? ' (@${u!['username']})' : ''}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 12,
                           fontWeight: FontWeight.w700),
@@ -1912,11 +1912,11 @@ class _ReportsTabState extends State<_ReportsTab> {
                 Text(transcription,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12)),
               const SizedBox(height: 6),
               Text(r['message'] as String? ?? '',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface, fontSize: 13)),
               const SizedBox(height: 8),
               Row(
@@ -1940,7 +1940,7 @@ class _ReportsTabState extends State<_ReportsTab> {
                   const Spacer(),
                   IconButton(
                     tooltip: 'Bildirimi sil',
-                    icon: const Icon(Icons.delete_outline,
+                    icon: Icon(Icons.delete_outline,
                         size: 18, color: AppColors.onSurfaceMuted),
                     onPressed: () async {
                       await widget.service.deleteReport(r['id'] as String);
@@ -2273,8 +2273,8 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
         title: Text('$count videoyu tamamen sil?',
-            style: const TextStyle(color: AppColors.onSurface)),
-        content: const Text(
+            style: TextStyle(color: AppColors.onSurface)),
+        content: Text(
             'Bu işlem geri alınamaz. Videolar hiçbir listede görünmeyecek.',
             style: TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
@@ -2456,7 +2456,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
           // Ünite + Bölüm are ALWAYS shown (never collapsed); clicking just filters
           // the list below. Each cell is coloured by its fill state.
           const SizedBox(height: 10),
-          const Text('Ünite',
+          Text('Ünite',
               style: TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 11,
@@ -2479,7 +2479,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
               ),
             ),
           const SizedBox(height: 6),
-          const Text('Bölüm',
+          Text('Bölüm',
               style: TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 11,
@@ -2580,7 +2580,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
               color: AppColors.wrongAnswer, size: 40),
           const SizedBox(height: 12),
           Text(_error!,
-              style: const TextStyle(color: AppColors.onSurfaceMuted),
+              style: TextStyle(color: AppColors.onSurfaceMuted),
               textAlign: TextAlign.center),
           const SizedBox(height: 16),
           FilledButton(
@@ -2602,7 +2602,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
         if (_levelNav) _buildLevelNav(),
         Expanded(
           child: !showList
-              ? const Center(
+              ? Center(
                   child: Text('Level → Ünite → Bölüm seç',
                       style: TextStyle(color: AppColors.onSurfaceMuted)))
               // Active tab renders the slot template even with no clips (all "BOŞ").
@@ -2618,7 +2618,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
                           _ => 'Video yok.',
                         },
                         style:
-                            const TextStyle(color: AppColors.onSurfaceMuted),
+                            TextStyle(color: AppColors.onSurfaceMuted),
                       ),
                     ),
         ),
@@ -2709,7 +2709,7 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
           child: Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurface,
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
@@ -2765,13 +2765,13 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
               padding: EdgeInsets.all(16),
               child: Center(
                   child: CircularProgressIndicator(color: AppColors.primary))),
-          error: (e, _) => const Padding(
-              padding: EdgeInsets.all(16),
+          error: (e, _) => Padding(
+              padding: const EdgeInsets.all(16),
               child: Text('Kelimeler yüklenemedi',
                   style: TextStyle(color: AppColors.onSurfaceMuted))),
           data: (words) => words.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(8),
+              ? Padding(
+                  padding: const EdgeInsets.all(8),
                   child: Text('Bu bölüme atanmış kelime yok.',
                       style: TextStyle(color: AppColors.onSurfaceMuted)))
               : Column(
@@ -3481,7 +3481,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             const SizedBox(width: 8),
           ],
           Text(slotText,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 11)),
         ],
       ),
@@ -3567,7 +3567,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             title: Text(
               titleText,
               style:
-                  const TextStyle(color: AppColors.onSurface, fontSize: 13),
+                  TextStyle(color: AppColors.onSurface, fontSize: 13),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -3576,7 +3576,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               children: [
                 Text(
                     headerPinyin,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis),
@@ -3600,7 +3600,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     ),
                   )
                 else
-                  const Text('—',
+                  Text('—',
                       style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 11)),
               ],
@@ -3632,7 +3632,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             ),
           ),
           if (_expanded) ...[
-            const Divider(height: 1, color: AppColors.surface),
+            Divider(height: 1, color: AppColors.surface),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
               child: Row(
@@ -3681,7 +3681,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                             label: const Text('Kapat'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: AppColors.onSurfaceMuted,
-                              side: const BorderSide(
+                              side: BorderSide(
                                   color: AppColors.onSurfaceMuted),
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 10, vertical: 6),
@@ -3721,7 +3721,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                 errorBuilder: (_, __, ___) => Container(
                                   height: 140,
                                   color: AppColors.surface,
-                                  child: const Center(
+                                  child: Center(
                                     child: Icon(Icons.play_circle_outline,
                                         color: AppColors.onSurfaceMuted,
                                         size: 48),
@@ -3827,7 +3827,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Cümle — ASR (oto-altyazı)',
+                            Text('Cümle — ASR (oto-altyazı)',
                                 style: TextStyle(
                                     color: AppColors.onSurface,
                                     fontWeight: FontWeight.bold,
@@ -3856,7 +3856,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                               Padding(
                                 padding: const EdgeInsets.only(top: 6),
                                 child: Text('TR: ${_asrTranslation!}',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                         color: AppColors.onSurfaceMuted,
                                         fontSize: 12,
                                         fontStyle: FontStyle.italic)),
@@ -3870,7 +3870,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Whisper (seçili aralık)',
+                            Text('Whisper (seçili aralık)',
                                 style: TextStyle(
                                     color: AppColors.onSurface,
                                     fontWeight: FontWeight.bold,
@@ -3893,7 +3893,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                     : 'Whisper ile çevir'),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: AppColors.onSurface,
-                                  side: const BorderSide(
+                                  side: BorderSide(
                                       color: AppColors.onSurfaceMuted),
                                   padding:
                                       const EdgeInsets.symmetric(vertical: 10),
@@ -3945,7 +3945,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                       ],
                                     ),
                                     Text(_whisperText!,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: AppColors.onSurface,
                                             fontSize: 15)),
                                     const SizedBox(height: 4),
@@ -3961,7 +3961,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                         padding: const EdgeInsets.only(top: 4),
                                         child: Text(
                                             'TR: ${_whisperTranslation!}',
-                                            style: const TextStyle(
+                                            style: TextStyle(
                                                 color: AppColors.onSurfaceMuted,
                                                 fontSize: 12,
                                                 fontStyle: FontStyle.italic)),
@@ -3970,8 +3970,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                                 ),
                               ),
                             ] else
-                              const Padding(
-                                padding: EdgeInsets.only(top: 8),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 8),
                                 child: Text(
                                   'Lokal worker çalışırken bu klibin sesini '
                                   'Whisper ile çevirir.',
@@ -4044,7 +4044,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      const Text('Quiz',
+                      Text('Quiz',
                           style: TextStyle(
                               color: AppColors.onSurface,
                               fontWeight: FontWeight.bold,
@@ -4088,8 +4088,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                     ),
                   ),
                   if (_selectedQuizLang != 'en' && !_enApproved)
-                    const Padding(
-                      padding: EdgeInsets.only(top: 4),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
                       child: Text(
                           'Önce EN sekmesinde İngilizce’yi üretip onayla.',
                           style: TextStyle(
@@ -4250,7 +4250,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600)),
@@ -4267,7 +4267,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                 value: o.value,
                 height: 38,
                 child: Text(o.text,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurface, fontSize: 12)),
               ),
           ],
@@ -4280,7 +4280,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
               border: Border.all(
                   color: AppColors.onSurfaceMuted.withValues(alpha: 0.3)),
             ),
-            child: const Row(
+            child: Row(
               children: [
                 Expanded(
                   child: Text('Ekle…',
@@ -4304,7 +4304,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600)),
@@ -4322,11 +4322,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             children: [
               Expanded(
                 child: Text(value,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                     overflow: TextOverflow.ellipsis),
               ),
-              const Icon(Icons.lock_outline,
+              Icon(Icons.lock_outline,
                   color: AppColors.onSurfaceMuted, size: 13),
             ],
           ),
@@ -4416,7 +4416,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 11,
                 fontWeight: FontWeight.w600)),
@@ -4460,7 +4460,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                           fontSize: 12),
                       overflow: TextOverflow.ellipsis),
                 ),
-                const Icon(Icons.keyboard_arrow_down,
+                Icon(Icons.keyboard_arrow_down,
                     color: AppColors.onSurfaceMuted, size: 18),
               ],
             ),
@@ -4547,11 +4547,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       child: TextField(
         controller: ctrl,
         maxLines: maxLines,
-        style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+        style: TextStyle(color: AppColors.onSurface, fontSize: 13),
         decoration: InputDecoration(
           labelText: label,
           labelStyle:
-              const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+              TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
           filled: true,
           fillColor: AppColors.surface,
           isDense: true,
@@ -4748,15 +4748,15 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                 Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: Text('${li + 1}.',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted,
                           fontSize: 12,
                           fontWeight: FontWeight.bold)),
                 ),
               Expanded(
                 child: words.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 6),
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 6),
                         child: Text('Buraya kelime sürükle…',
                             style: TextStyle(
                                 color: AppColors.onSurfaceMuted,
@@ -4775,7 +4775,7 @@ class _WordTagEditorState extends State<_WordTagEditor> {
               if (multi && words.isEmpty)
                 GestureDetector(
                   onTap: () => setState(() => _groups.removeAt(li)),
-                  child: const Icon(Icons.delete_outline,
+                  child: Icon(Icons.delete_outline,
                       size: 16, color: AppColors.onSurfaceMuted),
                 ),
             ],
@@ -4852,7 +4852,7 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
             'Kelimeler — kelimeyi sürükleyip başka satıra taşı, × ile sil',
             style: TextStyle(
                 color: AppColors.onSurface,
@@ -4883,10 +4883,10 @@ class _WordTagEditorState extends State<_WordTagEditor> {
         const SizedBox(height: 6),
         TextField(
           controller: _ctrl,
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+          style: TextStyle(color: AppColors.onSurface, fontSize: 13),
           decoration: InputDecoration(
             hintText: 'Kelime ara (Çince veya pinyin)…',
-            hintStyle: const TextStyle(
+            hintStyle: TextStyle(
                 color: AppColors.onSurfaceMuted, fontSize: 12),
             filled: true,
             fillColor: AppColors.surface,
@@ -4899,7 +4899,7 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                       height: 12,
                       child: CircularProgressIndicator(strokeWidth: 1.5),
                     ))
-                : const Icon(Icons.search,
+                : Icon(Icons.search,
                     size: 16, color: AppColors.onSurfaceMuted),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -4945,10 +4945,10 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                               fontWeight: FontWeight.bold)),
                     ),
                     title: Text(word,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurface, fontSize: 13)),
                     subtitle: Text(pinyin,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurfaceMuted, fontSize: 11)),
                     // Always tappable — duplicates allowed. A check hints it's
                     // already in the list, but you can still add it again.
@@ -4965,9 +4965,9 @@ class _WordTagEditorState extends State<_WordTagEditor> {
                     leading: const Icon(Icons.add_circle_outline,
                         color: AppColors.primary, size: 20),
                     title: Text('"${_ctrl.text.trim()}" ekle',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurface, fontSize: 13)),
-                    subtitle: const Text('Sözlükte olmasa da ekle',
+                    subtitle: Text('Sözlükte olmasa da ekle',
                         style: TextStyle(
                             color: AppColors.onSurfaceMuted, fontSize: 11)),
                     onTap: () => _addWord(_ctrl.text.trim()),
@@ -5000,17 +5000,17 @@ class _FilterDropdown<T> extends StatelessWidget {
     return DropdownButton<T?>(
       value: value,
       hint: Text(hint,
-          style: const TextStyle(
+          style: TextStyle(
               color: AppColors.onSurfaceMuted, fontSize: 12)),
       dropdownColor: AppColors.surfaceVariant,
-      style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+      style: TextStyle(color: AppColors.onSurface, fontSize: 12),
       underline: const SizedBox.shrink(),
       isDense: true,
       onChanged: onChanged,
       items: [
         DropdownMenuItem<T?>(
           value: null,
-          child: const Text('Tümü',
+          child: Text('Tümü',
               style: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 12)),
         ),
@@ -5018,7 +5018,7 @@ class _FilterDropdown<T> extends StatelessWidget {
           (opt) => DropdownMenuItem<T?>(
             value: opt.$2,
             child: Text(opt.$1,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 12)),
           ),
         ),
@@ -5442,7 +5442,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                 ? '$gC gramer + $wC kelime seçili — HSK seviyesiyle birlikte uygulanır'
                 : 'Boş = içerik ayrımı yok. HSK seviyesini açıp gramer/kelime seç. '
                     'Kırmızı = aktifte zaten videosu var.',
-            style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
+            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10),
           ),
           const SizedBox(height: 8),
           for (int lvl = 1; lvl <= 6; lvl++)
@@ -5489,7 +5489,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                       fontSize: 14,
                       fontWeight: FontWeight.w800)),
               const SizedBox(width: 8),
-              const Text('gramer + kelimeler',
+              Text('gramer + kelimeler',
                   style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
             ]),
@@ -5518,8 +5518,8 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                 ),
                 const SizedBox(height: 6),
                 if (uniqueG.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 4),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
                     child: Text('Bu seviyede gramer kuralı yok',
                         style: TextStyle(
                             color: AppColors.onSurfaceMuted, fontSize: 11)),
@@ -5609,10 +5609,10 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
               fontWeight: FontWeight.w800)),
       const SizedBox(width: 8),
       Text(count,
-          style: const TextStyle(
+          style: TextStyle(
               color: AppColors.onSurfaceMuted, fontSize: 10)),
       const SizedBox(width: 8),
-      const Expanded(child: Divider(color: AppColors.surface)),
+      Expanded(child: Divider(color: AppColors.surface)),
       if (onAll != null) ...[
         const SizedBox(width: 8),
         GestureDetector(
@@ -5690,16 +5690,16 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
               setState(() {});
               _checkPriorImport(v);
             },
-            style: const TextStyle(color: AppColors.onSurface),
+            style: TextStyle(color: AppColors.onSurface),
             decoration: InputDecoration(
               hintText: 'https://www.youtube.com/watch?v=...',
-              hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+              hintStyle: TextStyle(color: AppColors.onSurfaceMuted),
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(10),
                   borderSide: BorderSide.none),
-              prefixIcon: const Icon(Icons.link,
+              prefixIcon: Icon(Icons.link,
                   color: AppColors.onSurfaceMuted, size: 18),
             ),
           ),
@@ -5765,7 +5765,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                   _hskFilter.isEmpty
                       ? 'Boş = tüm seviyeleri aktar (sözlükte eşleşmeyen segmentler otomatik atlanır)'
                       : 'Sadece HSK ${(_hskFilter.toList()..sort()).join(" + ")} segmentleri aktarılır',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.onSurfaceMuted,
                     fontSize: 10,
                   ),
@@ -5833,15 +5833,15 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
                     const SizedBox(width: 4),
                     Text(
                       cd != null ? '~$cd kaldı (tahmini)' : 'İşleniyor…',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 12),
                     ),
                     if (_partialCount > 0) ...[
-                      const Text(' · ',
+                      Text(' · ',
                           style: TextStyle(
                               color: AppColors.onSurfaceMuted, fontSize: 12)),
                       Text('$_partialCount klip bulundu',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.onSurface,
                               fontSize: 12,
                               fontWeight: FontWeight.w600)),
@@ -5861,7 +5861,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
               Expanded(
                 child: Text(
                   '${_liveVideos.length} klip eklendi — "Onay Bekleyen" sekmesinden onaylayın',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 12),
                 ),
               ),
@@ -5970,7 +5970,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
           child: Row(children: [
             const Icon(Icons.history, size: 18, color: AppColors.primary),
             const SizedBox(width: 8),
-            const Text('Geçmiş',
+            Text('Geçmiş',
                 style: TextStyle(
                     color: AppColors.onSurface,
                     fontSize: 16,
@@ -5978,7 +5978,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
             const Spacer(),
             IconButton(
               onPressed: _reload,
-              icon: const Icon(Icons.refresh,
+              icon: Icon(Icons.refresh,
                   size: 18, color: AppColors.onSurfaceMuted),
               tooltip: 'Yenile',
             ),
@@ -6024,7 +6024,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
         final rows = snap.data?.rows ?? const [];
         final counts = snap.data?.counts ?? const {};
         if (rows.isEmpty) {
-          return const Center(
+          return Center(
             child: Text('Henüz aktif/yedek videoya dönüşen parçalama yok.',
                 style:
                     TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
@@ -6075,7 +6075,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
               Text(title!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 13,
                       fontWeight: FontWeight.w600)),
@@ -6092,7 +6092,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
                         fontSize: 12,
                         decoration: TextDecoration.underline)),
               ),
-              const Icon(Icons.open_in_new,
+              Icon(Icons.open_in_new,
                   size: 14, color: AppColors.onSurfaceMuted),
             ]),
             if (props.isNotEmpty) ...[
@@ -6100,7 +6100,7 @@ class _HistoryPanelState extends ConsumerState<_HistoryPanel>
               Text(props,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
             ],
           ],
@@ -6172,10 +6172,10 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
             _levelRow(),
             if (_pL != null) _unitGrid(),
             if (_pL != null && _pU != null) _phaseRow(),
-            const Divider(height: 1, color: AppColors.surfaceVariant),
+            Divider(height: 1, color: AppColors.surfaceVariant),
             Expanded(
               child: (_pL == null || _pU == null || _pP == null)
-                  ? const Center(
+                  ? Center(
                       child: Text('Level → Ünite → Bölüm seç',
                           style: TextStyle(
                               color: AppColors.onSurfaceMuted, fontSize: 13)))
@@ -6303,13 +6303,13 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
               padding: EdgeInsets.all(16),
               child: Center(
                   child: CircularProgressIndicator(color: AppColors.primary))),
-          error: (e, _) => const Padding(
-              padding: EdgeInsets.all(16),
+          error: (e, _) => Padding(
+              padding: const EdgeInsets.all(16),
               child: Text('Kelimeler yüklenemedi',
                   style: TextStyle(color: AppColors.onSurfaceMuted))),
           data: (words) => words.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(8),
+              ? Padding(
+                  padding: const EdgeInsets.all(8),
                   child: Text('Bu bölüme atanmış kelime yok.',
                       style: TextStyle(color: AppColors.onSurfaceMuted)))
               : Column(
@@ -6361,7 +6361,7 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
         Padding(
           padding: const EdgeInsets.fromLTRB(4, 2, 4, 4),
           child: Text(label,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurface,
                   fontSize: 13,
                   fontWeight: FontWeight.w700)),
@@ -6432,12 +6432,12 @@ class _PlacementViewState extends ConsumerState<_PlacementView> {
                   Text(meta,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 11)),
               ],
             ),
           ),
-          const Icon(Icons.open_in_new,
+          Icon(Icons.open_in_new,
               size: 15, color: AppColors.onSurfaceMuted),
         ]),
       ),
@@ -6492,10 +6492,10 @@ class _ReimportWarning extends StatelessWidget {
             Text(
               [if (date.isNotEmpty) date, '$clips klip', if (meta.isNotEmpty) meta]
                   .join(' · '),
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 11),
             ),
-            const Text('Tekrar parçalarsan yeni klipler "Onay Bekleyen"e eklenir.',
+            Text('Tekrar parçalarsan yeni klipler "Onay Bekleyen"e eklenir.',
                 style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10)),
           ]),
         ),
@@ -6547,7 +6547,7 @@ class _LiveImportCard extends StatelessWidget {
                     width: 80,
                     height: 54,
                     color: AppColors.surface,
-                    child: const Icon(Icons.play_circle_outline,
+                    child: Icon(Icons.play_circle_outline,
                         color: AppColors.onSurfaceMuted, size: 24)),
               ),
             ),
@@ -6574,7 +6574,7 @@ class _LiveImportCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 6),
                       Text('${start}s–${end}s',
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.onSurfaceMuted, fontSize: 10)),
                       const Spacer(),
                       Container(
@@ -6604,13 +6604,13 @@ class _LiveImportCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 3),
                   Text(text,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurface, fontSize: 13),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis),
                   if (pinyin.isNotEmpty)
                     Text(pinyin,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurfaceMuted, fontSize: 10),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis),
@@ -6744,13 +6744,13 @@ class _MovieImportTabState extends State<_MovieImportTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Film / Yerel Dosya → Supabase',
+          Text('Film / Yerel Dosya → Supabase',
               style: TextStyle(
                   color: AppColors.onSurface,
                   fontWeight: FontWeight.bold,
                   fontSize: 14)),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Yerel pipeline (dev_server.py) açıkken çalışır. Dosya yolu, işçinin '
             'çalıştığı bilgisayardaki yoldur. Her diyalog ayrı klip olarak kesilip '
             'Supabase Storage\'a yüklenir; kullanıcılar canlı sitede oynatır. '
@@ -6762,7 +6762,7 @@ class _MovieImportTabState extends State<_MovieImportTab> {
           const SizedBox(height: 8),
           _pathField(_subPathCtrl, 'Altyazı yolu — opsiyonel (.srt/.vtt/.ass)'),
           const SizedBox(height: 12),
-          const Text('Ön Filtre (opsiyonel) — boş = tüm seviyeler',
+          Text('Ön Filtre (opsiyonel) — boş = tüm seviyeler',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 11)),
           const SizedBox(height: 6),
           Wrap(
@@ -6819,11 +6819,11 @@ class _MovieImportTabState extends State<_MovieImportTab> {
   Widget _pathField(TextEditingController ctrl, String hint) {
     return TextField(
       controller: ctrl,
-      style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+      style: TextStyle(color: AppColors.onSurface, fontSize: 13),
       decoration: InputDecoration(
         hintText: hint,
         hintStyle:
-            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+            TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
         filled: true,
         fillColor: AppColors.surface,
         isDense: true,
@@ -7004,7 +7004,7 @@ class _UsersPanelState extends State<_UsersPanel> {
         backgroundColor: AppColors.surfaceVariant,
         title: Text(
           'Kredi Düzenle — ${user['display_name'] ?? user['email']}',
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 15),
+          style: TextStyle(color: AppColors.onSurface, fontSize: 15),
         ),
         content: SizedBox(
           width: 280,
@@ -7012,10 +7012,10 @@ class _UsersPanelState extends State<_UsersPanel> {
             controller: ctrl,
             autofocus: true,
             keyboardType: TextInputType.number,
-            style: const TextStyle(color: AppColors.onSurface),
+            style: TextStyle(color: AppColors.onSurface),
             decoration: InputDecoration(
               labelText: 'AI Kredi (mevcut: $current)',
-              labelStyle: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+              labelStyle: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
               filled: true,
               fillColor: AppColors.surface,
               border: OutlineInputBorder(
@@ -7079,17 +7079,17 @@ class _UsersPanelState extends State<_UsersPanel> {
                 height: 34,
                 child: TextField(
                   controller: _searchCtrl,
-                  style: const TextStyle(color: AppColors.onSurface, fontSize: 13),
+                  style: TextStyle(color: AppColors.onSurface, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: 'İsim veya e-posta ara…',
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                     filled: true,
                     fillColor: AppColors.surface,
                     isDense: true,
                     contentPadding:
                         const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                    prefixIcon: const Icon(Icons.search,
+                    prefixIcon: Icon(Icons.search,
                         size: 16, color: AppColors.onSurfaceMuted),
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
@@ -7099,14 +7099,14 @@ class _UsersPanelState extends State<_UsersPanel> {
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
+                icon: Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
                 onPressed: _load,
                 tooltip: 'Yenile',
               ),
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.surface),
+        Divider(height: 1, color: AppColors.surface),
         // ── User list
         Expanded(
           child: _loading
@@ -7117,14 +7117,14 @@ class _UsersPanelState extends State<_UsersPanel> {
                           style: const TextStyle(color: AppColors.wrongAnswer),
                           textAlign: TextAlign.center))
                   : _filtered.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text('Kullanıcı bulunamadı',
                               style: TextStyle(
                                   color: AppColors.onSurfaceMuted)))
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(12, 8, 12, 80),
                           itemCount: _filtered.length,
-                          separatorBuilder: (_, __) => const Divider(
+                          separatorBuilder: (_, __) => Divider(
                               height: 1, color: AppColors.surfaceVariant),
                           itemBuilder: (_, i) =>
                               _UserRow(
@@ -7183,7 +7183,7 @@ class _UserRow extends StatelessWidget {
         children: [
           Expanded(
             child: Text(name,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 13),
                 overflow: TextOverflow.ellipsis),
           ),
@@ -7204,7 +7204,7 @@ class _UserRow extends StatelessWidget {
       ),
       subtitle: Text(
         '$email · $createdAt',
-        style: const TextStyle(
+        style: TextStyle(
             color: AppColors.onSurfaceMuted, fontSize: 11),
         overflow: TextOverflow.ellipsis,
       ),
@@ -7330,9 +7330,9 @@ class _SocialPanelState extends State<_SocialPanel> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
-        title: const Text('Postu sil?',
+        title: Text('Postu sil?',
             style: TextStyle(color: AppColors.onSurface)),
-        content: const Text('Bu işlem geri alınamaz.',
+        content: Text('Bu işlem geri alınamaz.',
             style: TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
           TextButton(
@@ -7379,14 +7379,14 @@ class _SocialPanelState extends State<_SocialPanel> {
               _StatBadge(label: 'Post (son 100)', value: '${_posts.length}'),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
+                icon: Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
                 onPressed: _load,
                 tooltip: 'Yenile',
               ),
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.surfaceVariant),
+        Divider(height: 1, color: AppColors.surfaceVariant),
         // ── Post list
         Expanded(
           child: _loading
@@ -7394,12 +7394,12 @@ class _SocialPanelState extends State<_SocialPanel> {
               : _error != null
                   ? Center(child: Text(_error!, style: const TextStyle(color: AppColors.wrongAnswer)))
                   : _posts.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text('Post yok', style: TextStyle(color: AppColors.onSurfaceMuted)))
                       : ListView.separated(
                           itemCount: _posts.length,
                           separatorBuilder: (_, __) =>
-                              const Divider(height: 1, color: AppColors.surfaceVariant),
+                              Divider(height: 1, color: AppColors.surfaceVariant),
                           itemBuilder: (_, i) {
                             final p = _posts[i];
                             final likes = (p['likes'] as List?)?.length ?? 0;
@@ -7425,12 +7425,12 @@ class _SocialPanelState extends State<_SocialPanel> {
                                 (p['content'] as String? ?? '').length > 80
                                     ? '${(p['content'] as String).substring(0, 80)}…'
                                     : (p['content'] as String? ?? ''),
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.onSurface, fontSize: 13),
                               ),
                               subtitle: Text(
                                 '$date · ❤ $likes · ${(p['author_id'] as String).substring(0, 8)}…',
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.onSurfaceMuted, fontSize: 11),
                               ),
                               trailing: IconButton(
@@ -7537,14 +7537,14 @@ class _GamePanelState extends State<_GamePanel>
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
+                icon: Icon(Icons.refresh, color: AppColors.onSurfaceMuted),
                 onPressed: _load,
                 tooltip: 'Yenile',
               ),
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.surface),
+        Divider(height: 1, color: AppColors.surface),
         Expanded(
           child: _loading
               ? const Center(child: CircularProgressIndicator())
@@ -7556,13 +7556,13 @@ class _GamePanelState extends State<_GamePanel>
                       children: [
                         // ── Game requests
                         _requests.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Text('İstek yok',
                                     style: TextStyle(color: AppColors.onSurfaceMuted)))
                             : ListView.separated(
                                 itemCount: _requests.length,
                                 separatorBuilder: (_, __) =>
-                                    const Divider(height: 1, color: AppColors.surfaceVariant),
+                                    Divider(height: 1, color: AppColors.surfaceVariant),
                                 itemBuilder: (_, i) {
                                   final r = _requests[i];
                                   final status = r['status'] as String? ?? '';
@@ -7583,11 +7583,11 @@ class _GamePanelState extends State<_GamePanel>
                                     ),
                                     title: Text(
                                       '${(r['from_uid'] as String).substring(0, 8)} → ${(r['to_uid'] as String).substring(0, 8)}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: AppColors.onSurface, fontSize: 13),
                                     ),
                                     subtitle: Text(ts,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: AppColors.onSurfaceMuted, fontSize: 11)),
                                     trailing: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -7606,7 +7606,7 @@ class _GamePanelState extends State<_GamePanel>
                               ),
                         // ── Leaderboard
                         _leaderboard.isEmpty
-                            ? const Center(
+                            ? Center(
                                 child: Text('Henüz skor yok',
                                     style: TextStyle(color: AppColors.onSurfaceMuted)))
                             : ListView.builder(
@@ -7625,11 +7625,11 @@ class _GamePanelState extends State<_GamePanel>
                                       style: const TextStyle(fontSize: 18),
                                     ),
                                     title: Text(name,
-                                        style: const TextStyle(
+                                        style: TextStyle(
                                             color: AppColors.onSurface, fontSize: 13)),
                                     subtitle: Text(
                                       'HSK ${u['hsk_level']} · 🔥 $streak gün',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                           color: AppColors.onSurfaceMuted, fontSize: 11),
                                     ),
                                     trailing: Text(
@@ -7668,7 +7668,7 @@ class _StatBadge extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label,
-            style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10)),
+            style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 10)),
         Text(value,
             style: TextStyle(
               color: color ?? AppColors.onSurface,
@@ -7729,19 +7729,19 @@ class _HomeDesignPanel extends StatelessWidget {
             Icon(icons[i], size: 18, color: AppColors.primary),
             const SizedBox(width: 8),
             Text('Anasayfa · ${labels[i]}',
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface,
                     fontSize: 16,
                     fontWeight: FontWeight.w700)),
           ]),
         ),
-        const Divider(height: 1, color: AppColors.surfaceVariant),
+        Divider(height: 1, color: AppColors.surfaceVariant),
         Expanded(
           child: i == 0
               ? const _LearnDesignTab()
               : Center(
                   child: Text('${labels[i]} tasarımı — yakında',
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 13)),
                 ),
         ),
@@ -7757,15 +7757,15 @@ class _DictionaryDesignPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Column(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(16, 14, 16, 6),
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
           child: Row(children: [
-            Icon(Icons.design_services_outlined,
+            const Icon(Icons.design_services_outlined,
                 size: 18, color: AppColors.primary),
-            SizedBox(width: 8),
+            const SizedBox(width: 8),
             Text('Sözlük · Tasarım',
                 style: TextStyle(
                     color: AppColors.onSurface,
@@ -7857,13 +7857,13 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
         children: [
           _levelRow(),
           _unitGrid(),
-          const Divider(height: 1, color: AppColors.surfaceVariant),
+          Divider(height: 1, color: AppColors.surfaceVariant),
           Expanded(
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 60),
               children: [
                 Text('${city.zh}  ${city.pinyin}   ·   L$_level Ünite $_unit',
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurface,
                         fontSize: 14,
                         fontWeight: FontWeight.w700)),
@@ -7891,7 +7891,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
                   Padding(
                     padding: const EdgeInsets.only(top: 6, bottom: 4),
                     child: Text('${i + 1}. Bölüm',
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurfaceMuted,
                             fontSize: 12,
                             fontWeight: FontWeight.w700)),
@@ -7905,7 +7905,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
                         : null,
                     scale: assets.icon(i).scale,
                   ),
-                  const Divider(color: AppColors.surfaceVariant, height: 18),
+                  Divider(color: AppColors.surfaceVariant, height: 18),
                 ],
               ],
             ),
@@ -7946,7 +7946,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
     } else if (composed != null) {
       child = composed;
     } else {
-      child = const Center(
+      child = Center(
           child: Text('yok',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12)));
     }
@@ -7969,7 +7969,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
   Widget _composedBanner(
       City city, List<Landmark>? landmarks, UnitAssets assets) {
     if (landmarks == null) {
-      return const Center(
+      return Center(
           child: Text('yok',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12)));
     }
@@ -8051,7 +8051,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
             ]),
             const SizedBox(height: 4),
             Row(children: [
-              const Text('Boyut',
+              Text('Boyut',
                   style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
               Expanded(
@@ -8068,7 +8068,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
                 ),
               ),
               Text('${(scale * 100).round()}%',
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
             ]),
           ],
@@ -8089,7 +8089,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
         Padding(
           padding: const EdgeInsets.only(bottom: 4),
           child: Text('${i + 1}. Fotoğraf',
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w700)),
@@ -8230,7 +8230,7 @@ class _DescEditorState extends State<_DescEditor> {
         isDense: true,
         hintText: hint,
         hintStyle:
-            const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
+            TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12),
         filled: true,
         fillColor: AppColors.surface,
         contentPadding:
@@ -8245,14 +8245,14 @@ class _DescEditorState extends State<_DescEditor> {
       TextField(
         controller: _tr,
         maxLines: 2,
-        style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+        style: TextStyle(color: AppColors.onSurface, fontSize: 12),
         decoration: _dec('TR açıklama'),
       ),
       const SizedBox(height: 6),
       TextField(
         controller: _en,
         maxLines: 2,
-        style: const TextStyle(color: AppColors.onSurface, fontSize: 12),
+        style: TextStyle(color: AppColors.onSurface, fontSize: 12),
         decoration: _dec('EN açıklama'),
       ),
       const SizedBox(height: 6),

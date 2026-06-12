@@ -130,7 +130,7 @@ class _RewardAdWidgetState extends ConsumerState<RewardAdWidget> {
   }
 
   Widget _buildNoAd() {
-    return const Text(
+    return Text(
       'No ad available right now. Try again in a moment.',
       style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
       textAlign: TextAlign.center,

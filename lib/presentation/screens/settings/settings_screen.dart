@@ -25,7 +25,7 @@ class SettingsScreen extends ConsumerWidget {
       body: userAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
-          child: Text('$e', style: const TextStyle(color: AppColors.onSurface)),
+          child: Text('$e', style: TextStyle(color: AppColors.onSurface)),
         ),
         data: (user) => ListView(
           children: [
@@ -34,7 +34,7 @@ class SettingsScreen extends ConsumerWidget {
               email: user?.email ?? '',
               photoUrl: user?.photoUrl,
             ),
-            const Divider(color: AppColors.surfaceVariant, height: 1),
+            Divider(color: AppColors.surfaceVariant, height: 1),
             const _SectionHeader('Learning'),
             _InfoTile(
               icon: Icons.school,
@@ -52,7 +52,7 @@ class SettingsScreen extends ConsumerWidget {
               label: 'Current Streak',
               value: '${user?.stats.currentStreak ?? 0} days',
             ),
-            const Divider(color: AppColors.surfaceVariant, height: 1),
+            Divider(color: AppColors.surfaceVariant, height: 1),
             const _SectionHeader('Subscription'),
             _InfoTile(
               icon: subscription.isPremium ? Icons.star : Icons.star_border,
@@ -65,7 +65,7 @@ class SettingsScreen extends ConsumerWidget {
                   : () => context.push('/subscription'),
               trailing: subscription.isPremium
                   ? null
-                  : const Icon(Icons.chevron_right,
+                  : Icon(Icons.chevron_right,
                       color: AppColors.onSurfaceMuted),
             ),
             _InfoTile(
@@ -73,27 +73,27 @@ class SettingsScreen extends ConsumerWidget {
               label: 'AI Credits',
               value: '${user?.aiCredits ?? 0}',
             ),
-            const Divider(color: AppColors.surfaceVariant, height: 1),
+            Divider(color: AppColors.surfaceVariant, height: 1),
             const _SectionHeader('Legal & Privacy'),
             _InfoTile(
               icon: Icons.description,
               label: 'Terms of Service',
               onTap: () => context.push('/legal/terms'),
-              trailing: const Icon(Icons.chevron_right,
+              trailing: Icon(Icons.chevron_right,
                   color: AppColors.onSurfaceMuted),
             ),
             _InfoTile(
               icon: Icons.privacy_tip,
               label: 'Privacy Policy',
               onTap: () => context.push('/legal/privacy'),
-              trailing: const Icon(Icons.chevron_right,
+              trailing: Icon(Icons.chevron_right,
                   color: AppColors.onSurfaceMuted),
             ),
             _InfoTile(
               icon: Icons.download_outlined,
               label: 'Download My Data',
               onTap: () => _exportUserData(context),
-              trailing: const Icon(Icons.chevron_right,
+              trailing: Icon(Icons.chevron_right,
                   color: AppColors.onSurfaceMuted),
             ),
             _InfoTile(
@@ -104,17 +104,17 @@ class SettingsScreen extends ConsumerWidget {
               trailing: const Icon(Icons.chevron_right,
                   color: AppColors.wrongAnswer),
             ),
-            const Divider(color: AppColors.surfaceVariant, height: 1),
+            Divider(color: AppColors.surfaceVariant, height: 1),
             if (kDebugMode) ...[
               const _SectionHeader('Developer'),
               _InfoTile(
                 icon: Icons.admin_panel_settings,
                 label: 'Admin Panel',
                 onTap: () => context.push('/admin'),
-                trailing: const Icon(Icons.chevron_right,
+                trailing: Icon(Icons.chevron_right,
                     color: AppColors.onSurfaceMuted),
               ),
-              const Divider(color: AppColors.surfaceVariant, height: 1),
+              Divider(color: AppColors.surfaceVariant, height: 1),
             ],
             const SizedBox(height: 8),
             Padding(
@@ -184,7 +184,7 @@ class SettingsScreen extends ConsumerWidget {
         backgroundColor: AppColors.surfaceVariant,
         title: const Text('Hesabı Sil',
             style: TextStyle(color: AppColors.wrongAnswer)),
-        content: const Text(
+        content: Text(
           'Tüm verileriniz (profil, postlar, ilerleme) kalıcı olarak silinecek. '
           'Bu işlem geri alınamaz.',
           style: TextStyle(color: AppColors.onSurface),
@@ -232,9 +232,9 @@ class SettingsScreen extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surfaceVariant,
-        title: const Text('Sign Out',
+        title: Text('Sign Out',
             style: TextStyle(color: AppColors.onSurface)),
-        content: const Text('Are you sure you want to sign out?',
+        content: Text('Are you sure you want to sign out?',
             style: TextStyle(color: AppColors.onSurfaceMuted)),
         actions: [
           TextButton(
@@ -287,7 +287,7 @@ class _ProfileHeader extends StatelessWidget {
                     displayName.isNotEmpty
                         ? displayName[0].toUpperCase()
                         : '?',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 28,
                       fontWeight: FontWeight.bold,
@@ -302,7 +302,7 @@ class _ProfileHeader extends StatelessWidget {
               children: [
                 Text(
                   displayName,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.onSurface,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
@@ -311,7 +311,7 @@ class _ProfileHeader extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   email,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.onSurfaceMuted,
                     fontSize: 13,
                   ),
@@ -335,7 +335,7 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 4),
       child: Text(
         title.toUpperCase(),
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.onSurfaceMuted,
           fontSize: 11,
           fontWeight: FontWeight.w600,

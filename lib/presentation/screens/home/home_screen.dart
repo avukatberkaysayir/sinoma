@@ -105,7 +105,7 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
             const SizedBox(height: 12),
             Text(
                 '${AppL10n.fromCode(ref.watch(localeProvider).languageCode).failedToLoad}\n$e',
-                style: const TextStyle(color: AppColors.onSurface),
+                style: TextStyle(color: AppColors.onSurface),
                 textAlign: TextAlign.center),
             const SizedBox(height: 16),
             FilledButton(
@@ -139,7 +139,7 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
                           search != null
                       ? l10n.noVideosFilter
                       : l10n.noVideosLevel,
-                  style: const TextStyle(color: AppColors.onSurfaceMuted),
+                  style: TextStyle(color: AppColors.onSurfaceMuted),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -255,11 +255,11 @@ class _FilterSidebar extends ConsumerWidget {
               height: 34,
               child: TextField(
                 controller: searchCtrl,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 13),
                 decoration: InputDecoration(
                   hintText: l10n.searchHint,
-                  hintStyle: const TextStyle(
+                  hintStyle: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 12),
                   filled: true,
                   fillColor: isDark
@@ -275,7 +275,7 @@ class _FilterSidebar extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(8),
                       borderSide:
                           const BorderSide(color: AppColors.primary)),
-                  prefixIcon: const Icon(Icons.search,
+                  prefixIcon: Icon(Icons.search,
                       color: AppColors.onSurfaceMuted, size: 16),
                   suffixIcon: search != null && search.isNotEmpty
                       ? GestureDetector(
@@ -285,7 +285,7 @@ class _FilterSidebar extends ConsumerWidget {
                                 .read(selectedSearchProvider.notifier)
                                 .state = null;
                           },
-                          child: const Icon(Icons.close,
+                          child: Icon(Icons.close,
                               color: AppColors.onSurfaceMuted, size: 14),
                         )
                       : null,

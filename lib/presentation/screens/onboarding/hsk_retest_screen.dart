@@ -87,7 +87,7 @@ class _HskRetestScreenState extends ConsumerState<HskRetestScreen> {
             Text(
               question.text,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 44,
                 fontWeight: FontWeight.bold,
@@ -102,7 +102,7 @@ class _HskRetestScreenState extends ConsumerState<HskRetestScreen> {
                   onPressed: () => _selectAnswer(i),
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.onSurface,
-                    side: const BorderSide(color: AppColors.surfaceVariant),
+                    side: BorderSide(color: AppColors.surfaceVariant),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     backgroundColor: AppColors.surfaceVariant,
                     shape: RoundedRectangleBorder(
@@ -156,7 +156,7 @@ class _ResultPage extends StatelessWidget {
               const SizedBox(height: 12),
               Text(
                 AppL10n.of(context).hskSublabel(level),
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 18,
                 ),

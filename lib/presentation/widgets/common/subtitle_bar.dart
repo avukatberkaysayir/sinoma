@@ -26,7 +26,7 @@ class SubtitleBar extends StatelessWidget {
         children: [
           Text(
             pinyin,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurfaceMuted,
               fontSize: 13,
             ),
@@ -48,7 +48,7 @@ class SubtitleBar extends StatelessWidget {
       return [
         Text(
           transcription,
-          style: const TextStyle(color: AppColors.onSurface, fontSize: 22),
+          style: TextStyle(color: AppColors.onSurface, fontSize: 22),
         ),
       ];
     }
@@ -86,7 +86,7 @@ class SubtitleBar extends StatelessWidget {
   Widget _plainText(String text) {
     return Text(
       text,
-      style: const TextStyle(color: AppColors.onSurface, fontSize: 22),
+      style: TextStyle(color: AppColors.onSurface, fontSize: 22),
     );
   }
 

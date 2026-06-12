@@ -27,7 +27,7 @@ class GamesSectionScreen extends ConsumerWidget {
             const SizedBox(height: 6),
             Text(
               l10n.gamesSubtitle,
-              style: const TextStyle(color: AppColors.onSurfaceMuted),
+              style: TextStyle(color: AppColors.onSurfaceMuted),
             ),
             const SizedBox(height: 24),
             _GameCard(
@@ -109,7 +109,7 @@ class _GameCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 13),
                   ),
                   const SizedBox(height: 6),

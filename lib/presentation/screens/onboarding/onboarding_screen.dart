@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -140,7 +140,7 @@ class _WelcomePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Sinoma',
               style: TextStyle(
                 color: AppColors.onSurface,
@@ -152,7 +152,7 @@ class _WelcomePage extends StatelessWidget {
             Text(
               AppL10n.of(context).onbTagline,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 16,
                 height: 1.5,
@@ -226,7 +226,7 @@ class _SignInPageState extends State<_SignInPage> {
 
   InputDecoration _dec(String hint, {Widget? suffix}) => InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+        hintStyle: TextStyle(color: AppColors.onSurfaceMuted),
         filled: true,
         fillColor: _obPanel,
         suffixIcon: suffix,
@@ -262,7 +262,7 @@ class _SignInPageState extends State<_SignInPage> {
             top: 12,
             left: 12,
             child: IconButton(
-              icon: const Icon(Icons.close_rounded,
+              icon: Icon(Icons.close_rounded,
                   color: AppColors.onSurfaceMuted, size: 26),
               onPressed: () => context.go('/'),
             ),
@@ -305,7 +305,7 @@ class _SignInPageState extends State<_SignInPage> {
                       Text(
                         title,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 24,
                           fontWeight: FontWeight.w800,
@@ -322,7 +322,7 @@ class _SignInPageState extends State<_SignInPage> {
                         TextField(
                           controller: _emailCtrl,
                           keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.onSurface, fontSize: 15),
                           decoration: _dec(l10n.emailHint),
                         ),
@@ -331,7 +331,7 @@ class _SignInPageState extends State<_SignInPage> {
                           controller: _passwordCtrl,
                           obscureText: _obscurePassword,
                           onSubmitted: (_) => _submit(),
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.onSurface, fontSize: 15),
                           decoration: _dec(
                             _registerMode
@@ -380,7 +380,7 @@ class _SignInPageState extends State<_SignInPage> {
                                     horizontal: 12),
                                 child: Text(
                                   l10n.orDivider,
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       color: AppColors.onSurfaceMuted,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
@@ -416,7 +416,7 @@ class _SignInPageState extends State<_SignInPage> {
                           onPressed: widget.onAnonymous,
                           child: Text(
                             l10n.continueAsGuest,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 13),
                           ),
@@ -429,7 +429,7 @@ class _SignInPageState extends State<_SignInPage> {
                         children: [
                           Text(
                             l10n.byContinuing,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 11),
                           ),
@@ -437,7 +437,7 @@ class _SignInPageState extends State<_SignInPage> {
                               label: l10n.termsWord, route: '/legal/terms'),
                           Text(
                             l10n.andThe,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 11),
                           ),
@@ -446,7 +446,7 @@ class _SignInPageState extends State<_SignInPage> {
                               route: '/legal/privacy'),
                           Text(
                             l10n.policyAccept,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 11),
                           ),
@@ -507,7 +507,7 @@ class _EmailVerificationPage extends StatelessWidget {
             const SizedBox(height: 28),
             Text(
               AppL10n.of(context).verifyTitle,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -517,7 +517,7 @@ class _EmailVerificationPage extends StatelessWidget {
             Text(
               AppL10n.of(context).verifyBody(email),
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 14,
                   height: 1.5),
@@ -549,7 +549,7 @@ class _EmailVerificationPage extends StatelessWidget {
                 onPressed: onResend,
                 child: Text(
                   AppL10n.of(context).resendLbl,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 13),
                 ),
               ),
@@ -614,7 +614,7 @@ class _ProfilePageState extends State<_ProfilePage> {
             const Spacer(),
             Text(
               AppL10n.of(context).whatToCallYou,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -629,16 +629,16 @@ class _ProfilePageState extends State<_ProfilePage> {
               onChanged: widget.onNameChanged,
               decoration: InputDecoration(
                 hintText: AppL10n.of(context).displayNameHint,
-                hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+                hintStyle: TextStyle(color: AppColors.onSurfaceMuted),
                 filled: true,
                 fillColor: _obPanel,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none,
                 ),
-                counterStyle: const TextStyle(color: AppColors.onSurfaceMuted),
+                counterStyle: TextStyle(color: AppColors.onSurfaceMuted),
               ),
-              style: const TextStyle(color: AppColors.onSurface, fontSize: 16),
+              style: TextStyle(color: AppColors.onSurface, fontSize: 16),
             ),
             if (widget.error != null) ...[
               const SizedBox(height: 12),
@@ -708,7 +708,7 @@ class _TestPage extends StatelessWidget {
                     Text(
                       AppL10n.of(context).questionOf(state.questionIndex + 1,
                           OnboardingState.totalQuestions),
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.onSurfaceMuted,
                         fontSize: 13,
                       ),
@@ -744,7 +744,7 @@ class _TestPage extends StatelessWidget {
                       ),
                       child: Text(
                         question.text,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 48,
                           fontWeight: FontWeight.bold,
@@ -755,7 +755,7 @@ class _TestPage extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       AppL10n.of(context).whatMeans,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.onSurfaceMuted,
                         fontSize: 14,
                       ),
@@ -779,7 +779,7 @@ class _TestPage extends StatelessWidget {
                       onPressed: () => onAnswer(i),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: const BorderSide(
+                        side: BorderSide(
                             color: AppColors.onSurfaceMuted, width: 0.8),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -787,7 +787,7 @@ class _TestPage extends StatelessWidget {
                       ),
                       child: Text(
                         choices[i],
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 15,
                         ),
@@ -854,7 +854,7 @@ class _ResultsPage extends StatelessWidget {
             const SizedBox(height: 24),
             Text(
               AppL10n.of(context).yourLevelLbl,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 14,
                 letterSpacing: 1.2,
@@ -873,7 +873,7 @@ class _ResultsPage extends StatelessWidget {
             Text(
               AppL10n.of(context).hskLevelDesc(hskLevel),
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 15,
                 height: 1.5,

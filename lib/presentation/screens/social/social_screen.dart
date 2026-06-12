@@ -44,7 +44,7 @@ class _SocialScreenState extends ConsumerState<SocialScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Expanded(flex: 3, child: _FeedTab()),
-              const VerticalDivider(width: 1, color: AppColors.surface),
+              VerticalDivider(width: 1, color: AppColors.surface),
               Expanded(
                 flex: 2,
                 child: DefaultTabController(
@@ -287,7 +287,7 @@ class _PostCard extends ConsumerWidget {
               const SizedBox(width: 8),
               Text(
                 post.authorId.substring(0, 8),
-                style: const TextStyle(
+                style: TextStyle(
                   fontWeight: FontWeight.bold,
                   color: AppColors.onSurface,
                 ),
@@ -295,7 +295,7 @@ class _PostCard extends ConsumerWidget {
               const Spacer(),
               Text(
                 _formatTime(post.timestamp),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
                   color: AppColors.onSurfaceMuted,
                 ),
@@ -303,7 +303,7 @@ class _PostCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 8),
-          Text(post.content, style: const TextStyle(color: AppColors.onSurface)),
+          Text(post.content, style: TextStyle(color: AppColors.onSurface)),
           if (post.metadata.isNotEmpty) ...[
             const SizedBox(height: 8),
             _MetadataChips(metadata: post.metadata),
@@ -325,7 +325,7 @@ class _PostCard extends ConsumerWidget {
                     const SizedBox(width: 4),
                     Text(
                       '${post.likeCount}',
-                      style: const TextStyle(color: AppColors.onSurfaceMuted),
+                      style: TextStyle(color: AppColors.onSurfaceMuted),
                     ),
                   ],
                 ),
@@ -376,7 +376,7 @@ class _MetadataChips extends StatelessWidget {
         ),
         child: Text(
           '${e.key}: ${e.value}',
-          style: const TextStyle(fontSize: 11, color: AppColors.onSurfaceMuted),
+          style: TextStyle(fontSize: 11, color: AppColors.onSurfaceMuted),
         ),
       );
     }).toList();
@@ -587,7 +587,7 @@ class _LeaderboardRow extends StatelessWidget {
                   children: [
                     Text(
                       user.displayName.isEmpty ? 'Learner' : user.displayName,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.onSurface,
                       ),
@@ -643,7 +643,7 @@ class _RankBadge extends StatelessWidget {
       width: 28,
       child: Text(
         '#$rank',
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.onSurfaceMuted,
           fontWeight: FontWeight.bold,
         ),
@@ -835,7 +835,7 @@ class _UserTile extends ConsumerWidget {
           const SizedBox(width: 8),
           Text(
             '${user.stats.totalScore} pts',
-            style: const TextStyle(color: AppColors.onSurfaceMuted),
+            style: TextStyle(color: AppColors.onSurfaceMuted),
           ),
         ],
       ),

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/cities.dart';
 import '../../../core/utils/web_sfx.dart';
 import '../../../data/models/video_segment_model.dart';
@@ -19,10 +20,10 @@ import '../../providers/video_provider.dart';
 import '../home/inline_player_section.dart';
 import 'phase_runner_screen.dart';
 
-// Duolingo palette (kept local to this file).
+// Accent + theme-aware surfaces (ink ↔ rice paper via AppColors).
 const _green = Color(0xFF2EC4B6);
-const _bg = Color(0xFF0E1414);
-const _panel = Color(0xFF161E1D);
+Color get _bg => AppColors.surface;
+Color get _panel => AppColors.surfaceVariant;
 
 // ── Video center (free watch) ─────────────────────────────────────────────────
 
@@ -39,12 +40,12 @@ class VideoCenter extends ConsumerWidget {
     return feed.when(
       loading: () => const Center(child: CircularProgressIndicator(color: _green)),
       error: (e, _) =>
-          Center(child: Text('$e', style: const TextStyle(color: Colors.white54))),
+          Center(child: Text('$e', style: TextStyle(color: AppColors.text54))),
       data: (segs) {
         if (segs.isEmpty) {
           return Center(
             child: Text(AppL10n.fromCode(ref.watch(localeProvider).languageCode).noVideosFiltered,
-                style: const TextStyle(color: Colors.white54, fontSize: 15)),
+                style: TextStyle(color: AppColors.text54, fontSize: 15)),
           );
         }
         return Align(
@@ -118,8 +119,8 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -148,7 +149,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
               decoration: BoxDecoration(
                 color: _panel,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: const Color(0xFF263230)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Text('HSK $userLevel',
                   textAlign: TextAlign.center,
@@ -173,8 +174,8 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
                         horizontal: 16, vertical: 10),
                     child: Text(
                       AppL10n.of(context).noListsRail,
-                      style: const TextStyle(
-                          color: Colors.white38, fontSize: 12),
+                      style: TextStyle(
+                          color: AppColors.text38, fontSize: 12),
                     ),
                   )
                 else
@@ -196,8 +197,8 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
             ),
             const SizedBox(height: 12),
             Text(AppL10n.of(context).filters,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+                style: TextStyle(
+                    color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
             _FilterGroup(
               id: 'hsk',
@@ -266,8 +267,8 @@ class _PlaylistVideoList extends ConsumerWidget {
                   child: yt.isEmpty
                       ? Container(
                           width: 64, height: 38, color: _bg,
-                          child: const Icon(Icons.movie_outlined,
-                              size: 16, color: Colors.white38))
+                          child: Icon(Icons.movie_outlined,
+                              size: 16, color: AppColors.text38))
                       : Image.network(
                           'https://img.youtube.com/vi/$yt/default.jpg',
                           width: 64,
@@ -284,8 +285,8 @@ class _PlaylistVideoList extends ConsumerWidget {
                         .replaceAll('\n', ' '),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Colors.white70, fontSize: 12),
+                    style: TextStyle(
+                        color: AppColors.text70, fontSize: 12),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -337,7 +338,7 @@ class _FilterGroup extends StatelessWidget {
         color: _panel,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-            color: activeCount > 0 ? _green : const Color(0xFF263230)),
+            color: activeCount > 0 ? _green : AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -351,8 +352,8 @@ class _FilterGroup extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(label,
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: AppColors.text,
                             fontSize: 13,
                             fontWeight: FontWeight.w800,
                             letterSpacing: 0.5)),
@@ -367,16 +368,16 @@ class _FilterGroup extends StatelessWidget {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text('$activeCount',
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: AppColors.text,
                               fontSize: 11,
                               fontWeight: FontWeight.w800)),
                     ),
                   AnimatedRotation(
                     turns: open ? 0.5 : 0,
                     duration: const Duration(milliseconds: 150),
-                    child: const Icon(Icons.keyboard_arrow_down_rounded,
-                        color: Colors.white54, size: 20),
+                    child: Icon(Icons.keyboard_arrow_down_rounded,
+                        color: AppColors.text54, size: 20),
                   ),
                 ],
               ),
@@ -389,7 +390,7 @@ class _FilterGroup extends StatelessWidget {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Divider(color: Color(0xFF263230), height: 1),
+                      Divider(color: AppColors.border, height: 1),
                       ...children,
                       const SizedBox(height: 6),
                     ],
@@ -429,7 +430,7 @@ class _FilterItem extends StatelessWidget {
             Expanded(
               child: Text(label,
                   style: TextStyle(
-                      color: selected ? _green : Colors.white70,
+                      color: selected ? _green : AppColors.text70,
                       fontSize: 13,
                       fontWeight:
                           selected ? FontWeight.w700 : FontWeight.normal)),
@@ -485,16 +486,16 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
               color: on ? _green.withValues(alpha: 0.15) : _panel,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                  color: on ? _green : const Color(0xFF263230)),
+                  color: on ? _green : AppColors.border),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon, size: 16, color: on ? _green : Colors.white54),
+                Icon(icon, size: 16, color: on ? _green : AppColors.text54),
                 const SizedBox(width: 6),
                 Text(label,
                     style: TextStyle(
-                        color: on ? _green : Colors.white70,
+                        color: on ? _green : AppColors.text70,
                         fontSize: 13,
                         fontWeight: FontWeight.w800)),
               ],
@@ -617,7 +618,7 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
         decoration: BoxDecoration(
           color: _panel,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF263230)),
+          border: Border.all(color: AppColors.border),
         ),
         child: Row(children: [
           Icon(icon, color: color, size: 24),
@@ -627,15 +628,15 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(value,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 16,
                         fontWeight: FontWeight.w800)),
                 Text(label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 11)),
+                    style: TextStyle(
+                        color: AppColors.text54, fontSize: 11)),
               ],
             ),
           ),
@@ -650,8 +651,8 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
         Align(
           alignment: Alignment.centerLeft,
           child: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded,
-                color: Colors.white70, size: 26),
+            icon: Icon(Icons.arrow_back_rounded,
+                color: AppColors.text70, size: 26),
             tooltip: l10n.myLeague,
             onPressed: widget.onBack,
           ),
@@ -666,7 +667,7 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
             padding: const EdgeInsets.only(top: 80),
             child: Center(
                 child: Text(l10n.failedLbl,
-                    style: const TextStyle(color: Colors.white54))),
+                    style: TextStyle(color: AppColors.text54))),
           )
         else
           Center(
@@ -703,27 +704,27 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
                           backgroundImage:
                               photo.isNotEmpty ? NetworkImage(photo) : null,
                           child: photo.isEmpty
-                              ? const Icon(Icons.person,
-                                  color: Colors.white38, size: 44)
+                              ? Icon(Icons.person,
+                                  color: AppColors.text38, size: 44)
                               : null,
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(name.isNotEmpty ? name : l10n.studentFallback,
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: AppColors.text,
                             fontSize: 22,
                             fontWeight: FontWeight.w800)),
                     if (username.isNotEmpty)
                       Text('@$username',
-                          style: const TextStyle(
-                              color: Colors.white54, fontSize: 13)),
+                          style: TextStyle(
+                              color: AppColors.text54, fontSize: 13)),
                     const SizedBox(height: 6),
                     if (created != null)
                       Text(l10n.joinedOn(created.month, created.year),
-                          style: const TextStyle(
-                              color: Colors.white38, fontSize: 12)),
+                          style: TextStyle(
+                              color: AppColors.text38, fontSize: 12)),
                     const SizedBox(height: 16),
                     FilledButton.icon(
                       onPressed: _busy ? null : _toggleFriend,
@@ -737,7 +738,7 @@ class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
                           : l10n.addLbl),
                       style: FilledButton.styleFrom(
                         backgroundColor: _isFriend == true
-                            ? const Color(0xFF2E3A38)
+                            ? AppColors.locked
                             : _green,
                         padding: const EdgeInsets.symmetric(
                             horizontal: 22, vertical: 12),
@@ -848,7 +849,7 @@ class _LeagueStrip extends ConsumerWidget {
                                   ? color
                                   : (reached
                                       ? color.withValues(alpha: 0.55)
-                                      : const Color(0xFF2E3A38)),
+                                      : AppColors.locked),
                               width: current ? 2.5 : 1.5),
                         ),
                         child: reached
@@ -880,7 +881,7 @@ class _LeagueStrip extends ConsumerWidget {
                       style: TextStyle(
                           color: current
                               ? color
-                              : (reached ? Colors.white70 : Colors.white38),
+                              : (reached ? AppColors.text70 : AppColors.text38),
                           fontSize: 11,
                           fontWeight:
                               current ? FontWeight.w800 : FontWeight.w600)),
@@ -910,7 +911,7 @@ class _LeagueTab extends ConsumerWidget {
           const Center(child: CircularProgressIndicator(color: _green)),
       error: (e, _) => Center(
           child:
-              Text('$e', style: const TextStyle(color: Colors.white54))),
+              Text('$e', style: TextStyle(color: AppColors.text54))),
       data: (rows) {
         final lg = rows.isEmpty
             ? 1
@@ -935,7 +936,7 @@ class _LeagueTab extends ConsumerWidget {
             const SizedBox(height: 4),
             Text(AppL10n.of(context).leagueRules,
                 style:
-                    const TextStyle(color: Colors.white54, fontSize: 13)),
+                    TextStyle(color: AppColors.text54, fontSize: 13)),
             const SizedBox(height: 20),
             for (var i = 0; i < rows.length; i++)
               _RankRow(
@@ -1003,15 +1004,15 @@ class _FriendsTab extends ConsumerWidget {
           loading: () =>
               const Center(child: CircularProgressIndicator(color: _green)),
           error: (e, _) => Text('$e',
-              style: const TextStyle(color: Colors.white54)),
+              style: TextStyle(color: AppColors.text54)),
           data: (rows) => rows.length <= 1
               ? Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
                     AppL10n.of(context).noFriendsYet,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 13),
+                    style: TextStyle(
+                        color: AppColors.text54, fontSize: 13),
                   ),
                 )
               : Column(children: [
@@ -1064,18 +1065,18 @@ class _DiamondsTab extends ConsumerWidget {
         const SizedBox(height: 4),
         Text(AppL10n.of(context).zhuangyuanDesc,
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white54, fontSize: 13)),
+            style: TextStyle(color: AppColors.text54, fontSize: 13)),
         const SizedBox(height: 20),
         rows.when(
           loading: () =>
               const Center(child: CircularProgressIndicator(color: _green)),
           error: (e, _) =>
-              Text('$e', style: const TextStyle(color: Colors.white54)),
+              Text('$e', style: TextStyle(color: AppColors.text54)),
           data: (list) => list.isEmpty
               ? Text(AppL10n.of(context).noDiamondsYet,
                   textAlign: TextAlign.center,
                   style:
-                      const TextStyle(color: Colors.white54, fontSize: 13))
+                      TextStyle(color: AppColors.text54, fontSize: 13))
               : Column(children: [
                   for (var i = 0; i < list.length; i++)
                     _RankRow(
@@ -1131,7 +1132,7 @@ class _RankRow extends StatelessWidget {
     final zoneColor = switch (zone) {
       _RankZone.up => _green,
       _RankZone.down => const Color(0xFFFF4B4B),
-      _RankZone.mid => Colors.white38,
+      _RankZone.mid => AppColors.text38,
     };
     return GestureDetector(
       onTap: onTap,
@@ -1174,7 +1175,7 @@ class _RankRow extends StatelessWidget {
                 photo?.isNotEmpty == true ? NetworkImage(photo!) : null,
             child: photo?.isNotEmpty == true
                 ? null
-                : const Icon(Icons.person, color: Colors.white38, size: 16),
+                : Icon(Icons.person, color: AppColors.text38, size: 16),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -1184,27 +1185,27 @@ class _RankRow extends StatelessWidget {
                 Text(name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 14,
                         fontWeight: FontWeight.w700)),
                 Text(sub,
-                    style: const TextStyle(
-                        color: Colors.white38, fontSize: 11)),
+                    style: TextStyle(
+                        color: AppColors.text38, fontSize: 11)),
               ],
             ),
           ),
           Icon(scoreIcon, color: scoreColor, size: 15),
           const SizedBox(width: 4),
           Text('$score',
-              style: const TextStyle(
-                  color: Colors.white70,
+              style: TextStyle(
+                  color: AppColors.text70,
                   fontSize: 14,
                   fontWeight: FontWeight.w700)),
           if (onRemove != null)
             IconButton(
-              icon: const Icon(Icons.person_remove_outlined,
-                  color: Colors.white38, size: 17),
+              icon: Icon(Icons.person_remove_outlined,
+                  color: AppColors.text38, size: 17),
               onPressed: onRemove,
             ),
         ],
@@ -1270,7 +1271,7 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
     return AlertDialog(
       backgroundColor: _panel,
       title: Text(AppL10n.of(context).findFriends,
-          style: const TextStyle(color: Colors.white, fontSize: 18)),
+          style: TextStyle(color: AppColors.text, fontSize: 18)),
       content: SizedBox(
         width: 380,
         child: Column(
@@ -1281,13 +1282,13 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
               controller: _ctrl,
               autofocus: true,
               onChanged: _onChanged,
-              style: const TextStyle(color: Colors.white, fontSize: 14),
+              style: TextStyle(color: AppColors.text, fontSize: 14),
               decoration: InputDecoration(
                 hintText:
                     AppL10n.of(context).typeUsername,
-                hintStyle: const TextStyle(color: Colors.white38),
-                prefixIcon: const Icon(Icons.search,
-                    color: Colors.white38, size: 18),
+                hintStyle: TextStyle(color: AppColors.text38),
+                prefixIcon: Icon(Icons.search,
+                    color: AppColors.text38, size: 18),
                 filled: true,
                 fillColor: _bg,
                 isDense: true,
@@ -1333,8 +1334,8 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                             ?.isNotEmpty ==
                                         true
                                     ? null
-                                    : const Icon(Icons.person,
-                                        color: Colors.white38,
+                                    : Icon(Icons.person,
+                                        color: AppColors.text38,
                                         size: 16),
                               ),
                               const SizedBox(width: 10),
@@ -1346,14 +1347,14 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                     Text(_rowName(context, u),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            color: Colors.white,
+                                        style: TextStyle(
+                                            color: AppColors.text,
                                             fontSize: 14,
                                             fontWeight:
                                                 FontWeight.w700)),
                                     Text('@${u['username'] ?? ''}',
-                                        style: const TextStyle(
-                                            color: Colors.white38,
+                                        style: TextStyle(
+                                            color: AppColors.text38,
                                             fontSize: 11)),
                                   ],
                                 ),
@@ -1362,11 +1363,11 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                 onPressed: () => _toggleFriend(u),
                                 style: OutlinedButton.styleFrom(
                                   foregroundColor: u['is_friend'] == true
-                                      ? Colors.white54
+                                      ? AppColors.text54
                                       : _green,
                                   side: BorderSide(
                                       color: u['is_friend'] == true
-                                          ? Colors.white24
+                                          ? AppColors.text24
                                           : _green),
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: 10, vertical: 6),
@@ -1388,8 +1389,8 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                           padding: const EdgeInsets.all(12),
                           child: Text(
                               AppL10n.of(context).noResultsLbl,
-                              style: const TextStyle(
-                                  color: Colors.white38, fontSize: 13)),
+                              style: TextStyle(
+                                  color: AppColors.text38, fontSize: 13)),
                         ),
                     ],
                   ),
@@ -1524,6 +1525,8 @@ class QuestsCenter extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            // Fixed white: the banner gradient stays dark
+                            // teal in both themes.
                             Text(AppL10n.of(context).teaHouseTitle,
                                 style: const TextStyle(
                                     color: Colors.white,
@@ -1546,8 +1549,8 @@ class QuestsCenter extends ConsumerWidget {
                   children: [
                     Expanded(
                       child: Text(AppL10n.of(context).todaysOrders,
-                          style: const TextStyle(
-                              color: Colors.white,
+                          style: TextStyle(
+                              color: AppColors.text,
                               fontSize: 18,
                               fontWeight: FontWeight.w800)),
                     ),
@@ -1612,7 +1615,7 @@ class _QuestRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(children: [
         Icon(icon, color: color, size: 30),
@@ -1622,8 +1625,8 @@ class _QuestRow extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: AppColors.text,
                       fontSize: 15,
                       fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
@@ -1680,7 +1683,7 @@ class BrushBar extends StatelessWidget {
           // Faint ink track.
           Container(
             decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.07),
+              color: AppColors.text.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(height / 2),
             ),
           ),
@@ -1706,8 +1709,8 @@ class BrushBar extends StatelessWidget {
             Positioned.fill(
               child: Center(
                 child: Text(label!,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 10,
                         fontWeight: FontWeight.w800)),
               ),
@@ -1744,8 +1747,8 @@ class ShopCenter extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(AppL10n.of(context).heartsTitle,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                    style: TextStyle(
+                        color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 _ShopRow(
                   icon: Icons.favorite_rounded,
@@ -1767,8 +1770,8 @@ class ShopCenter extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(AppL10n.of(context).powerUps,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                    style: TextStyle(
+                        color: AppColors.text, fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 _ShopRow(
                   icon: Icons.ac_unit_rounded,
@@ -1809,7 +1812,7 @@ class _ShopRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -1820,11 +1823,11 @@ class _ShopRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(title,
-                    style: const TextStyle(
-                        color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+                    style: TextStyle(
+                        color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 2),
                 Text(subtitle,
-                    style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(color: AppColors.text54, fontSize: 12)),
               ],
             ),
           ),
@@ -1833,7 +1836,7 @@ class _ShopRow extends StatelessWidget {
             onPressed: onAction,
             style: OutlinedButton.styleFrom(
               foregroundColor: _green,
-              side: BorderSide(color: onAction == null ? Colors.white24 : _green),
+              side: BorderSide(color: onAction == null ? AppColors.text24 : _green),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: Text(actionLabel,
@@ -1872,9 +1875,9 @@ class SettingsCenter extends ConsumerWidget {
         builder: (_) => AlertDialog(
           backgroundColor: _panel,
           title: Text(AppL10n.of(context).deleteForever,
-              style: const TextStyle(color: Colors.white)),
+              style: TextStyle(color: AppColors.text)),
           content: Text(AppL10n.of(context).deleteForeverMsg,
-              style: const TextStyle(color: Colors.white70)),
+              style: TextStyle(color: AppColors.text70)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -1909,14 +1912,16 @@ class SettingsCenter extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(AppL10n.of(context).preferences,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 24,
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 20),
                 _GroupLabel(AppL10n.of(context).appearance),
                 _ToggleRow(
-                  label: AppL10n.of(context).darkMode,
+                  label: isDark
+                      ? AppL10n.of(context).darkThemeToggle
+                      : AppL10n.of(context).lightThemeToggle,
                   value: isDark,
                   onChanged: (_) =>
                       ref.read(themeModeProvider.notifier).toggleTheme(),
@@ -1969,8 +1974,8 @@ class SettingsRight extends StatelessWidget {
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -1997,7 +2002,7 @@ class SettingsRight extends StatelessWidget {
               decoration: BoxDecoration(
                 color: _panel,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF263230)),
+                border: Border.all(color: AppColors.border),
               ),
               child: InkWell(
                 onTap: logout,
@@ -2033,14 +2038,14 @@ class _LinkCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+              style: TextStyle(
+                  color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           for (final l in links)
             InkWell(
@@ -2067,8 +2072,8 @@ class _GroupLabel extends StatelessWidget {
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(text,
-            style: const TextStyle(
-                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+            style: TextStyle(
+                color: AppColors.text, fontSize: 17, fontWeight: FontWeight.w800)),
       );
 }
 
@@ -2086,12 +2091,12 @@ class _ToggleRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(children: [
         Expanded(
           child: Text(label,
-              style: const TextStyle(color: Colors.white, fontSize: 15)),
+              style: TextStyle(color: AppColors.text, fontSize: 15)),
         ),
         Switch(
             value: value, activeThumbColor: _green, onChanged: onChanged),
@@ -2120,7 +2125,7 @@ class _LangRow extends StatelessWidget {
           ),
           child: Text(label,
               style: TextStyle(
-                  color: on ? Colors.white : Colors.white60,
+                  color: on ? Colors.white : AppColors.text60,
                   fontWeight: FontWeight.w700,
                   fontSize: 13)),
         ),
@@ -2133,12 +2138,12 @@ class _LangRow extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(children: [
         Expanded(
           child: Text(AppL10n.fromCode(lang).appLanguage,
-              style: const TextStyle(color: Colors.white, fontSize: 15)),
+              style: TextStyle(color: AppColors.text, fontSize: 15)),
         ),
         chip('tr', 'TR'),
         const SizedBox(width: 8),
@@ -2172,7 +2177,7 @@ class _MoreRow extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF263230)),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(children: [
               Icon(icon, color: c, size: 24),
@@ -2180,7 +2185,7 @@ class _MoreRow extends StatelessWidget {
               Text(label,
                   style: TextStyle(color: c, fontSize: 15, fontWeight: FontWeight.w700)),
               const Spacer(),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white38),
+              Icon(Icons.chevron_right_rounded, color: AppColors.text38),
             ]),
           ),
         ),
@@ -2202,25 +2207,25 @@ class RightInfoCard extends StatelessWidget {
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: _panel,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: const Color(0xFF263230)),
+          border: Border.all(color: AppColors.border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(title,
-                style: const TextStyle(
-                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                style: TextStyle(
+                    color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w800)),
             const SizedBox(height: 12),
             Text(body,
-                style: const TextStyle(color: Colors.white70, fontSize: 14, height: 1.4)),
+                style: TextStyle(color: AppColors.text70, fontSize: 14, height: 1.4)),
           ],
         ),
       ),
@@ -2363,7 +2368,7 @@ class BadgesRight extends ConsumerWidget {
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
                   style:
-                      const TextStyle(color: Colors.white54, fontSize: 9)),
+                      TextStyle(color: AppColors.text54, fontSize: 9)),
             ),
           ]),
         ),
@@ -2376,8 +2381,8 @@ class BadgesRight extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
-                  color: Colors.white,
+              style: TextStyle(
+                  color: AppColors.text,
                   fontSize: 12,
                   fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
@@ -2396,8 +2401,8 @@ class BadgesRight extends ConsumerWidget {
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: SingleChildScrollView(
         child: Container(
@@ -2405,20 +2410,20 @@ class BadgesRight extends ConsumerWidget {
           decoration: BoxDecoration(
             color: _panel,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: const Color(0xFF263230)),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(l10n.badgesTitle,
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: AppColors.text,
                       fontSize: 15,
                       fontWeight: FontWeight.w800)),
               const SizedBox(height: 6),
               Text(l10n.badgesSub,
-                  style: const TextStyle(
-                      color: Colors.white54, fontSize: 11, height: 1.4)),
+                  style: TextStyle(
+                      color: AppColors.text54, fontSize: 11, height: 1.4)),
               const SizedBox(height: 16),
               category(l10n.badgeCatSages, _kBadgesWatch, watchMin,
                   l10n.badgeWatchCond),
@@ -2454,7 +2459,7 @@ class ProfileView extends ConsumerWidget {
     if (user == null) {
       return Center(
         child: Text(AppL10n.of(context).pleaseSignIn,
-            style: const TextStyle(color: Colors.white54, fontSize: 15)),
+            style: TextStyle(color: AppColors.text54, fontSize: 15)),
       );
     }
     final name = [user.displayName, user.lastName]
@@ -2513,8 +2518,8 @@ class ProfileView extends ConsumerWidget {
                                       ? NetworkImage(user.photoUrl)
                                       : null,
                                   child: user.photoUrl.isEmpty
-                                      ? const Icon(Icons.person,
-                                          color: Colors.white38, size: 44)
+                                      ? Icon(Icons.person,
+                                          color: AppColors.text38, size: 44)
                                       : null,
                                 ),
                               ),
@@ -2524,15 +2529,15 @@ class ProfileView extends ConsumerWidget {
                               bottom: -2,
                               child: Material(
                                 color: const Color(0xFF161E1D),
-                                shape: const CircleBorder(
+                                shape: CircleBorder(
                                     side: BorderSide(
-                                        color: Color(0xFF263230))),
+                                        color: AppColors.border)),
                                 child: IconButton(
                                   iconSize: 16,
                                   padding: const EdgeInsets.all(6),
                                   constraints: const BoxConstraints(),
-                                  icon: const Icon(Icons.edit,
-                                      color: Colors.white70),
+                                  icon: Icon(Icons.edit,
+                                      color: AppColors.text70),
                                   tooltip: AppL10n.of(context).editTip,
                                   onPressed: onEdit,
                                 ),
@@ -2550,8 +2555,8 @@ class ProfileView extends ConsumerWidget {
                           Row(children: [
                             Expanded(
                               child: Text(name.isNotEmpty ? name : username,
-                                  style: const TextStyle(
-                                      color: Colors.white,
+                                  style: TextStyle(
+                                      color: AppColors.text,
                                       fontSize: 24,
                                       fontWeight: FontWeight.w800)),
                             ),
@@ -2563,7 +2568,7 @@ class ProfileView extends ConsumerWidget {
                                       : Icons.volume_off_rounded,
                                   color: sfxOn
                                       ? const Color(0xFF2EC4B6)
-                                      : Colors.white38,
+                                      : AppColors.text38,
                                   size: 22),
                               tooltip: sfxOn
                                   ? AppL10n.of(context).soundOffTip
@@ -2575,16 +2580,16 @@ class ProfileView extends ConsumerWidget {
                           ]),
                           const SizedBox(height: 2),
                           Text('@$username',
-                              style: const TextStyle(
-                                  color: Colors.white54, fontSize: 14)),
+                              style: TextStyle(
+                                  color: AppColors.text54, fontSize: 14)),
                           const SizedBox(height: 6),
                           Row(children: [
-                            const Icon(Icons.calendar_today_rounded,
-                                color: Colors.white38, size: 14),
+                            Icon(Icons.calendar_today_rounded,
+                                color: AppColors.text38, size: 14),
                             const SizedBox(width: 6),
                             Text(joined,
-                                style: const TextStyle(
-                                    color: Colors.white54, fontSize: 13)),
+                                style: TextStyle(
+                                    color: AppColors.text54, fontSize: 13)),
                             const SizedBox(width: 14),
                             Container(
                               padding: const EdgeInsets.symmetric(
@@ -2663,8 +2668,8 @@ class ProfileView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(AppL10n.of(context).statistics,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 18,
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
@@ -2700,8 +2705,8 @@ class ProfileView extends ConsumerWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(AppL10n.of(context).passportTitle,
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 18,
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
@@ -2757,8 +2762,8 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
     Widget header(String t) => Padding(
           padding: const EdgeInsets.only(bottom: 10),
           child: Text(t,
-              style: const TextStyle(
-                  color: Colors.white,
+              style: TextStyle(
+                  color: AppColors.text,
                   fontSize: 16,
                   fontWeight: FontWeight.w800)),
         );
@@ -2766,8 +2771,8 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: SingleChildScrollView(
         child: Column(
@@ -2782,12 +2787,12 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
                 child: TextField(
                   controller: _newListCtrl,
                   maxLength: 60,
-                  style: const TextStyle(
-                      color: Colors.white, fontSize: 13),
+                  style: TextStyle(
+                      color: AppColors.text, fontSize: 13),
                   decoration: InputDecoration(
                     hintText: AppL10n.of(context).newListHint,
-                    hintStyle: const TextStyle(
-                        color: Colors.white38, fontSize: 12),
+                    hintStyle: TextStyle(
+                        color: AppColors.text38, fontSize: 12),
                     counterText: '',
                     filled: true,
                     fillColor: _panel,
@@ -2851,7 +2856,7 @@ class _BoboHero extends StatelessWidget {
           colors: [Color(0xFF143B37), Color(0xFF1B6E68)],
         ),
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -2886,6 +2891,8 @@ class _BoboHero extends StatelessWidget {
                     final text = lang == 'tr'
                         ? line.$2
                         : (lang == 'ko' ? line.$4 : line.$3);
+                    // Fixed white: the speech bubble stays dark ink in both
+                    // themes.
                     return Text(text,
                         style: const TextStyle(
                             color: Colors.white,
@@ -2939,11 +2946,11 @@ class _ProfilePassport extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: stamps.isEmpty
           ? Text(AppL10n.of(context).passportEmpty,
-              style: const TextStyle(color: Colors.white54, fontSize: 13))
+              style: TextStyle(color: AppColors.text54, fontSize: 13))
           : Wrap(
               spacing: 10,
               runSpacing: 10,
@@ -3003,21 +3010,21 @@ class _ProfileFriends extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(AppL10n.of(context).myFriendsTitle,
-              style: const TextStyle(
-                  color: Colors.white,
+              style: TextStyle(
+                  color: AppColors.text,
                   fontSize: 13,
                   fontWeight: FontWeight.w800)),
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(
               AppL10n.of(context).noFriendsHint,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              style: TextStyle(color: AppColors.text38, fontSize: 11),
             )
           else
             ConstrainedBox(
@@ -3045,21 +3052,21 @@ class _ProfileFriends extends ConsumerWidget {
                               : null,
                           child: photo?.isNotEmpty == true
                               ? null
-                              : const Icon(Icons.person,
-                                  color: Colors.white38, size: 14),
+                              : Icon(Icons.person,
+                                  color: AppColors.text38, size: 14),
                         ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(_rowName(context, f),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                  color: Colors.white,
+                              style: TextStyle(
+                                  color: AppColors.text,
                                   fontSize: 12,
                                   fontWeight: FontWeight.w600)),
                         ),
-                        const Icon(Icons.chevron_right_rounded,
-                            color: Colors.white24, size: 16),
+                        Icon(Icons.chevron_right_rounded,
+                            color: AppColors.text24, size: 16),
                       ]),
                     ),
                   );
@@ -3128,16 +3135,16 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
                   photo?.isNotEmpty == true ? NetworkImage(photo!) : null,
               child: photo?.isNotEmpty == true
                   ? null
-                  : const Icon(Icons.person, color: Colors.white38, size: 36),
+                  : Icon(Icons.person, color: AppColors.text38, size: 36),
             ),
             const SizedBox(height: 10),
             Text(_rowName(context, friend),
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: AppColors.text,
                     fontSize: 18,
                     fontWeight: FontWeight.w800)),
             Text('@${friend['username'] ?? ''}',
-                style: const TextStyle(color: Colors.white54, fontSize: 13)),
+                style: TextStyle(color: AppColors.text54, fontSize: 13)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -3146,8 +3153,8 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
                     color: Color(0xFF1CB0F6), size: 18),
                 const SizedBox(width: 6),
                 Text('${friend['score'] ?? 0} ${AppL10n.of(context).pointsLbl}',
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 15,
                         fontWeight: FontWeight.w700)),
               ],
@@ -3163,13 +3170,13 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
                   ? Icons.person_remove_outlined
                   : Icons.person_add_alt_1_rounded,
               size: 18,
-              color: _isFriend == true ? Colors.white54 : _green),
+              color: _isFriend == true ? AppColors.text54 : _green),
           label: Text(
               _isFriend == true
                   ? AppL10n.of(context).removeLbl
                   : AppL10n.of(context).addLbl,
               style: TextStyle(
-                  color: _isFriend == true ? Colors.white54 : _green)),
+                  color: _isFriend == true ? AppColors.text54 : _green)),
         ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
@@ -3195,11 +3202,11 @@ class _ProfilePlaylists extends ConsumerWidget {
         decoration: BoxDecoration(
           color: _panel,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF263230)),
+          border: Border.all(color: AppColors.border),
         ),
         child: Text(
           AppL10n.of(context).noListsProfile,
-          style: const TextStyle(color: Colors.white54, fontSize: 13),
+          style: TextStyle(color: AppColors.text54, fontSize: 13),
         ),
       );
     }
@@ -3222,7 +3229,7 @@ class _ProfilePlaylists extends ConsumerWidget {
             decoration: BoxDecoration(
               color: _panel,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF263230)),
+              border: Border.all(color: AppColors.border),
             ),
             child: Row(
               children: [
@@ -3233,19 +3240,19 @@ class _ProfilePlaylists extends ConsumerWidget {
                   child: Text(p['name'] as String? ?? '',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                          color: Colors.white,
+                      style: TextStyle(
+                          color: AppColors.text,
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                 ),
                 Text(
                     AppL10n.of(context)
                         .videosCount((p['count'] as num?)?.toInt() ?? 0),
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(
+                        color: AppColors.text54, fontSize: 12)),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: Colors.white38, size: 18),
+                  icon: Icon(Icons.close_rounded,
+                      color: AppColors.text38, size: 18),
                   tooltip: AppL10n.of(context).deleteListTip,
                   onPressed: () => remove(p['id'] as String),
                 ),
@@ -3270,7 +3277,7 @@ class _ProfileDailyStats extends ConsumerWidget {
     Widget cell(String s, {Color? c, bool bold = false}) => Expanded(
           child: Text(s,
               style: TextStyle(
-                  color: c ?? Colors.white70,
+                  color: c ?? AppColors.text70,
                   fontSize: 13,
                   fontWeight: bold ? FontWeight.w800 : FontWeight.w500)),
         );
@@ -3286,11 +3293,11 @@ class _ProfileDailyStats extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: rows.isEmpty
           ? Text(AppL10n.of(context).noStatsYet,
-              style: const TextStyle(color: Colors.white54, fontSize: 13))
+              style: TextStyle(color: AppColors.text54, fontSize: 13))
           : Column(
               children: [
                 Row(children: [
@@ -3299,7 +3306,7 @@ class _ProfileDailyStats extends ConsumerWidget {
                   cell(AppL10n.of(context).colSuccess, c: _green, bold: true),
                   cell(AppL10n.of(context).colFail, c: _green, bold: true),
                 ]),
-                const Divider(color: Colors.white12, height: 18),
+                Divider(color: AppColors.text12, height: 18),
                 for (final r in rows) ...[
                   Row(children: [
                     cell(fmtDay('${r['day']}')),
@@ -3333,7 +3340,7 @@ class _ProfileRank extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -3345,11 +3352,11 @@ class _ProfileRank extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(AppL10n.of(context).globalRank,
-                    style: const TextStyle(
-                        color: Colors.white54, fontSize: 12)),
+                    style: TextStyle(
+                        color: AppColors.text54, fontSize: 12)),
                 Text(rank != null ? '#$rank' : '—',
-                    style: const TextStyle(
-                        color: Colors.white,
+                    style: TextStyle(
+                        color: AppColors.text,
                         fontSize: 20,
                         fontWeight: FontWeight.w800)),
               ],
@@ -3359,8 +3366,8 @@ class _ProfileRank extends ConsumerWidget {
               color: Color(0xFF1CB0F6), size: 18),
           const SizedBox(width: 6),
           Text('$score',
-              style: const TextStyle(
-                  color: Colors.white,
+              style: TextStyle(
+                  color: AppColors.text,
                   fontSize: 16,
                   fontWeight: FontWeight.w800)),
         ],
@@ -3386,7 +3393,7 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: _panel,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Row(children: [
         Icon(icon, color: color, size: 28),
@@ -3397,14 +3404,14 @@ class _StatCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Text(value,
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: AppColors.text,
                       fontSize: 18,
                       fontWeight: FontWeight.w800)),
               Text(label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  style: TextStyle(color: AppColors.text54, fontSize: 12)),
             ],
           ),
         ),
@@ -3442,8 +3449,8 @@ class HomeDashboard extends ConsumerWidget {
               Text(
                 AppL10n.of(context).welcomeName(name),
                 textAlign: TextAlign.center,
-                style: const TextStyle(
-                    color: Colors.white,
+                style: TextStyle(
+                    color: AppColors.text,
                     fontSize: 26,
                     fontWeight: FontWeight.w800),
               ),
@@ -3451,7 +3458,7 @@ class HomeDashboard extends ConsumerWidget {
               Text(
                 AppL10n.of(context).continueLearning,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.white60, fontSize: 15),
+                style: TextStyle(color: AppColors.text60, fontSize: 15),
               ),
               const SizedBox(height: 28),
               SizedBox(

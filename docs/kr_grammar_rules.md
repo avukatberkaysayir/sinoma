@@ -5,9 +5,11 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 > İşleme durumu: PDF 344 sayfa, 25'er sayfalık partilerle damıtılıyor.
 > - [x] Parti 1 — PDF 1-25 (Giriş: cümle yapısı, çekim, bağlama, cümle türleri,
 >       saygı dili; Getting Ready: 이다, 있다, sayılar başlangıcı)
-> - [ ] Parti 2 — PDF 26-50 (Getting Ready devamı + Unit 1: Zamanlar)
+> - [x] Parti 2 — PDF 26-50 (yerli sayılar+sayaçlar, tarih/gün, saat;
+>       Unit 1 Zamanlar: -(스)ㅂ니다, -아/어요, -았/었어요, -(으)ㄹ 거예요,
+>       -고 있다, -았/었었어요)
 > - [ ] Parti 3 — PDF 51-75 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 26 -l 50 <pdf> D:\UserData\krgrammar\hi`
+> Sonraki parti için: `pdftoppm -png -r 150 -f 51 -l 75 <pdf> D:\UserData\krgrammar\p3`
 
 ---
 
@@ -107,7 +109,87 @@ Dört cümle türü × üç üslup. **Uygulama dili için esas: 해요체 (infor
 - Kullanım: telefon numarası, otobüs/oda numarası, fiyat, adres, yıl-ay-gün,
   dakika-saniye. (Saat-saat sayısı yerli sayı ile — sonraki partide.)
 
+### 6.4 Sayılar — yerli Korece (고유어 수) ve sayaçlar
+- 하나 둘 셋 넷 다섯 여섯 일곱 여덟 아홉 열 / 스물(20) 서른 마흔 쉰 …
+- Zaman miktarı, yaş ve **kişi/nesne sayarken** kullanılır; sayı + **sayaç
+  (unit noun)** + isimden sonra gelir: `N + sayı + sayaç`.
+- Sayaçlar: 명 (kişi), 분 (kişi-saygılı), 마리 (hayvan), 권 (kitap/cilt),
+  개 (genel nesne), 병 (şişe), 살 (yaş), 잔 (bardak), 송이 (çiçek demeti).
+- Sayaç önünde 하나→**한**, 둘→**두**, 셋→**세**, 넷→**네**, 스물→**스무**:
+  - 커피 **세 잔**, 맥주 **한 병**, 사과 **세 개** 주세요. 가족이 **네 명**이에요.
+  - 동생은 **스물세 살**이에요. (yaş = yerli sayı + 살)
+- Soru: 몇 + sayaç — 가족이 **몇 명**이에요? · 몇 살이에요?
+
+### 6.5 Tarih ve günler
+- Sıra: BÜYÜKTEN KÜÇÜĞE — 2010년 5월 7일 목요일 (yıl-ay-gün-haftanın günü).
+- Yıl/ay/gün hep **Çince kökenli** sayılarla: 이천십 년, 오월, 칠일.
+- Aylar: 일월 이월 삼월 사월 오월 **유월(6月)** 칠월 팔월 구월 **시월(10月)**
+  십일월 십이월 — 6월 ve 10월 düzensizdir (육월/십월 DEĞİL).
+- Günler: 일요일 월요일 화요일 수요일 목요일 금요일 토요일.
+- Soru: 몇 년? 몇 월? **며칠?** (몇 일 yazılmaz!) 무슨 요일?
+- 오늘이 며칠이에요? — 5월 5일이에요. · 언제 결혼했어요? — 2001년에 결혼했어요.
+
+### 6.6 Saat
+- **Saat = yerli sayı, dakika = Çince kökenli sayı**:
+  한 시(1:00), 두 시 삼십 분(2:30), 네 시 십오 분 — 삼십 분 = **반** (buçuk).
+- '...kala': 분 전 — 두 시 **오 분 전** (2'ye 5 var).
+- Zaman zarfına **에** eklenir: 아침 일곱 시**에** 일어났어요.
+- 오전 (öğleden önce) / 오후 (öğleden sonra); ayrıca 새벽, 아침, 점심, 저녁, 밤.
+
 ---
 
-*(Parti 2'den itibaren: Unit 1 Zamanlar — 현재/과거/미래/진행, Unit 2
-olumsuzluk, ilgeç üniteleri, vb. bu dosyaya aynı düzenle eklenecek.)*
+## 7. UNIT 1 — ZAMANLAR
+
+### 7.1 Şimdiki zaman, resmî: A/V-(스)ㅂ니다
+- Kök ünlüyle bitiyorsa **-ㅂ니다/-ㅂ니까?**, ünsüzle bitiyorsa
+  **-습니다/-습니까?**: 가다→갑니다/갑니까? · 먹다→먹습니다 · 읽다→읽습니다.
+- ㄹ ile biten köklerde ㄹ düşer: 만들다→**만듭니다**, 살다→**삽니다**.
+- Resmî/kamusal bağlam: ordu, haber, sunum, toplantı, ders.
+
+### 7.2 Şimdiki zaman, kibar günlük: A/V-아/어요 (해요체)
+Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
+1. Kök ünlüsü **ㅏ/ㅗ** ise **-아요**: 앉다→앉아요; kök ㅏ ile bitiyorsa
+   kaynaşır: 가다→**가요** (가아요 değil); ㅗ + 아 → ㅘ: 오다→**와요**, 보다→봐요.
+2. Diğer ünlüler **-어요**: 읽다→읽어요, 있다→있어요;
+   ㅜ+어→ㅝ: 배우다→**배워요**, 주다→줘요; ㅣ+어→ㅕ: 마시다→**마셔요**,
+   기다리다→기다려요; ㅡ düşer: 쓰다→**써요**, 바쁘다→바빠요.
+3. **하다 → 해요**: 공부하다→공부해요, 말하다→말해요, 운동하다→운동해요.
+4. İsim + 이다 → ünlüden sonra **예요**, ünsüzden sonra **이에요**:
+   의사예요 · 학생이에요.
+
+### 7.3 Geçmiş zaman: A/V-았/었어요
+- Kök ünlüsü ㅏ/ㅗ → **-았어요**: 앉다→앉았어요, 보다→봤어요.
+- Diğerleri → **-었어요**: 먹다→먹었어요, 읽다→읽었어요, 쓰다→썼어요.
+- 하다 → **-였어요 → 했어요**: 공부하다→공부했어요.
+- Resmî biçim: -았/었습니다 (했습니다).
+- 이다'nın geçmişi: 간호사**였어요** (ünlü) / 학생**이었어요** (ünsüz);
+  아니다 → 가 아니었어요.
+- 주다'nın geçmişi 주었어요 = **줬어요**; 오다 → 왔어요.
+- 어제 뭐 했어요? — 공부했어요. · 작년에 결혼했어요.
+
+### 7.4 Gelecek zaman / niyet: V-(으)ㄹ 거예요
+- Kök ünlü veya ㄹ ile bitiyorsa **-ㄹ 거예요**: 가다→갈 거예요,
+  살다→살 거예요, 만들다→만들 거예요.
+- Ünsüzle bitiyorsa **-을 거예요**: 먹다→먹을 거예요, 입다→입을 거예요;
+  düzensiz: 듣다→**들을 거예요**, 짓다→지을 거예요, 돕다→도울 거예요.
+- 2년 후에 차를 **살 거예요**. · 주말에 낚시를 **할 거예요**.
+
+### 7.5 Süreklilik: V-고 있다
+- Kökten sonra **-고 있다** = İngilizce '-ing': 가다→가고 있어요,
+  먹다→먹고 있었어요 (geçmişte sürerlik).
+- 댄 씨가 지금 음악을 **듣고 있어요**. · 샤워하고 있었어요.
+- Saygı öznesiyle: -고 **계세요**.
+- Geçmişte basitçe olan eylem için -고 있었어요 değil, sade geçmiş
+  kullanılır: 어제 뭐 했어요? — 집에서 **쉬었어요** (쉬고 있었어요 ✗).
+
+### 7.6 Uzak geçmiş / kopmuş geçmiş: A/V-았/었었어요
+- Geçmişte olup **bugünle bağı kopmuş** durumlar: 중국에서 **살았었어요**
+  (artık yaşamıyor) · 미국에 **갔었어요** (gidip döndü) ·
+  아버지가 뚱뚱**했었어요** (artık değil).
+- -았/었어요 yalnız geçmişte olmayı, -았/었었어요 "eskiden öyleydi, artık
+  değil" nüansını verir: 작년에 한국에 1년 살았었어요 (şimdi yaşamıyor).
+
+---
+
+*(Parti 3'ten itibaren: Unit 2 olumsuzluk, ilgeç üniteleri, vb. bu dosyaya
+aynı düzenle eklenecek.)*

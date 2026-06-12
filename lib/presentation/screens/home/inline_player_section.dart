@@ -744,13 +744,13 @@ class _PlaylistCardState extends ConsumerState<_PlaylistCard> {
             Row(children: [
               Expanded(
                 child: Text(l10n.addToPlaylist,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurface,
                         fontSize: 16,
                         fontWeight: FontWeight.w700)),
               ),
               IconButton(
-                icon: const Icon(Icons.close,
+                icon: Icon(Icons.close,
                     color: AppColors.onSurfaceMuted, size: 18),
                 onPressed: widget.onClose,
               ),
@@ -760,7 +760,7 @@ class _PlaylistCardState extends ConsumerState<_PlaylistCard> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(l10n.noPlaylistsYet,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 13)),
               )
             else
@@ -794,7 +794,7 @@ class _PlaylistCardState extends ConsumerState<_PlaylistCard> {
                               Expanded(
                                 child: Text(
                                   p['name'] as String? ?? '',
-                                  style: const TextStyle(
+                                  style: TextStyle(
                                       color: AppColors.onSurface,
                                       fontSize: 14),
                                 ),
@@ -807,16 +807,16 @@ class _PlaylistCardState extends ConsumerState<_PlaylistCard> {
                   ),
                 ),
               ),
-            const Divider(color: AppColors.surface, height: 20),
+            Divider(color: AppColors.surface, height: 20),
             TextField(
               controller: _nameCtrl,
               maxLength: 60,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurface, fontSize: 14),
               decoration: InputDecoration(
                 hintText: l10n.newPlaylistHint,
                 hintStyle:
-                    const TextStyle(color: AppColors.onSurfaceMuted),
+                    TextStyle(color: AppColors.onSurfaceMuted),
                 counterText: '',
                 filled: true,
                 fillColor: AppColors.surface,
@@ -1042,13 +1042,13 @@ class _SubtitleRevealBar extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Icon(Icons.closed_caption_off_outlined,
+          Icon(Icons.closed_caption_off_outlined,
               size: 17, color: AppColors.onSurfaceMuted),
           const SizedBox(width: 8),
           Text(
             label,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurfaceMuted,
               fontSize: 15,
               fontWeight: FontWeight.w500,
@@ -1188,7 +1188,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
             right: 0,
             top: 0,
             child: IconButton(
-              icon: const Icon(Icons.close,
+              icon: Icon(Icons.close,
                   color: AppColors.onSurfaceMuted, size: 18),
               onPressed: widget.onClose,
             ),
@@ -1215,7 +1215,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(word,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurface,
                         fontSize: 36,
                         fontWeight: FontWeight.w800)),
@@ -1229,7 +1229,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
                   const SizedBox(height: 8),
                   Text(
                     w.definitions.forLang(lang),
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurface, fontSize: 15),
                   ),
                   if (w.hskLevel > 0) ...[
@@ -1254,7 +1254,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
                       AppL10n.fromCode(lang).notInDict,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 13),
                     ),
                   ),
@@ -1322,18 +1322,18 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(children: [
-            const Icon(Icons.flag_outlined,
+            Icon(Icons.flag_outlined,
                 size: 16, color: AppColors.onSurfaceMuted),
             const SizedBox(width: 6),
             Expanded(
               child: Text(l10n.reportProblem,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 15,
                       fontWeight: FontWeight.w700)),
             ),
             IconButton(
-              icon: const Icon(Icons.close,
+              icon: Icon(Icons.close,
                   color: AppColors.onSurfaceMuted, size: 18),
               onPressed: widget.onClose,
             ),
@@ -1343,12 +1343,12 @@ class _ReportCardState extends ConsumerState<_ReportCard> {
             maxLength: 300,
             maxLines: 3,
             minLines: 2,
-            style: const TextStyle(color: AppColors.onSurface, fontSize: 14),
+            style: TextStyle(color: AppColors.onSurface, fontSize: 14),
             decoration: InputDecoration(
               hintText: l10n.reportHint,
-              hintStyle: const TextStyle(
+              hintStyle: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 13),
-              counterStyle: const TextStyle(
+              counterStyle: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 11),
               filled: true,
               fillColor: AppColors.surface,

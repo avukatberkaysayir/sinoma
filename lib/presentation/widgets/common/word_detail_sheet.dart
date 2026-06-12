@@ -140,14 +140,14 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
       minChildSize: 0.35,
       maxChildSize: 0.9,
       builder: (_, controller) => Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         child: _wordLoading
             ? const Center(child: CircularProgressIndicator())
             : _word == null
-                ? const Center(
+                ? Center(
                     child: Text(
                       'Word not found',
                       style: TextStyle(color: AppColors.onSurface),
@@ -180,7 +180,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
         const SizedBox(height: 12),
         Text(
           definition,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.onSurface,
             fontSize: 16,
             height: 1.5,
@@ -213,7 +213,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
       children: [
         Text(
           word.simplified,
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.onSurface,
             fontSize: 44,
             fontWeight: FontWeight.bold,
@@ -223,7 +223,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
           const SizedBox(width: 12),
           Text(
             word.traditional,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurfaceMuted,
               fontSize: 28,
             ),
@@ -275,10 +275,10 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
-              SizedBox(width: 8),
+              const Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
+              const SizedBox(width: 8),
               Text(
                 'AI Context Explanation',
                 style: TextStyle(
@@ -293,7 +293,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
           if (canUseAi) ...[
             Text(
               'Explain "${_word!.simplified}" in the context of this sentence.',
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 13,
               ),
@@ -313,7 +313,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
               ),
             ),
           ] else ...[
-            const Text(
+            Text(
               'You have 0 AI credits.',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
             ),
@@ -326,12 +326,12 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
   }
 
   Widget _buildAiLoading() {
-    return const Padding(
-      padding: EdgeInsets.all(24),
+    return Padding(
+      padding: const EdgeInsets.all(24),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
+          const SizedBox(
             width: 20,
             height: 20,
             child: CircularProgressIndicator(
@@ -339,7 +339,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
               color: AppColors.primary,
             ),
           ),
-          SizedBox(width: 12),
+          const SizedBox(width: 12),
           Text(
             'Generating explanation…',
             style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
@@ -361,7 +361,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
             children: [
               const Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
               const SizedBox(width: 8),
-              const Text(
+              Text(
                 'AI Explanation',
                 style: TextStyle(
                   color: AppColors.onSurface,
@@ -394,7 +394,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
           const SizedBox(height: 12),
           Text(
             result.explanation,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurface,
               fontSize: 14,
               height: 1.55,
@@ -415,7 +415,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
                   Expanded(
                     child: Text(
                       result.grammarNote,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.onSurface,
                         fontSize: 13,
                         height: 1.5,
@@ -454,7 +454,7 @@ class _WordDetailSheetState extends ConsumerState<WordDetailSheet> {
           const SizedBox(height: 8),
           Text(
             _aiError ?? 'Unknown error.',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurfaceMuted,
               fontSize: 12,
             ),

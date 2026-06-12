@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -248,7 +248,7 @@ class _Hero extends StatelessWidget {
           t('Gerçek videolarla\nMandarin öğren',
               'Learn Mandarin with\nreal videos',
               '진짜 영상으로\n중국어를 배우세요'),
-          style: const TextStyle(
+          style: TextStyle(
             color: AppColors.onSurface,
             fontSize: 44,
             height: 1.1,
@@ -265,7 +265,7 @@ class _Hero extends StatelessWidget {
             '영상을 보고, 들은 문장을 고르고, 바로 배워요. '
                 '실제 대화와 자동 자막, HSK 1-6 레벨까지.',
           ),
-          style: const TextStyle(
+          style: TextStyle(
               color: AppColors.onSurfaceMuted, fontSize: 17, height: 1.5),
         ),
         const SizedBox(height: 28),
@@ -528,13 +528,13 @@ class _Features extends StatelessWidget {
                   Icon(it.$1, color: _lpGreen, size: 28),
                   const SizedBox(height: 12),
                   Text(it.$2,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 16,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(it.$3,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted,
                           fontSize: 13,
                           height: 1.4)),
@@ -568,7 +568,7 @@ class _HowItWorks extends StatelessWidget {
     return Column(
       children: [
         Text(t('Nasıl çalışır?', 'How it works', '어떻게 진행되나요?'),
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 26,
                 fontWeight: FontWeight.w800)),
@@ -599,14 +599,14 @@ class _HowItWorks extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(s.$2,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurface,
                             fontSize: 17,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text(s.$3,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                             color: AppColors.onSurfaceMuted, fontSize: 13)),
                   ],
                 ),
@@ -638,7 +638,7 @@ class _Footer extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         runSpacing: 12,
         children: [
-          const Text('© Sinoma',
+          Text('© Sinoma',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
           Wrap(
             spacing: 20,
@@ -670,7 +670,7 @@ class _FooterLink extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Text(label,
-          style: const TextStyle(
+          style: TextStyle(
               color: AppColors.onSurfaceMuted,
               fontSize: 13,
               decoration: TextDecoration.underline)),

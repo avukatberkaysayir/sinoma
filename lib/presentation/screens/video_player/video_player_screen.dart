@@ -101,9 +101,9 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: AppColors.surface,
-        body: Center(child: CircularProgressIndicator()),
+        body: const Center(child: CircularProgressIndicator()),
       );
     }
 
@@ -114,7 +114,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
         body: Center(
           child: Text(
             _error ?? 'Unknown error',
-            style: const TextStyle(color: AppColors.onSurface),
+            style: TextStyle(color: AppColors.onSurface),
           ),
         ),
       );
@@ -171,7 +171,7 @@ class _VideoPlayerScreenState extends ConsumerState<VideoPlayerScreen> {
                             onClose: () =>
                                 setState(() => _activeWordId = null),
                           )
-                        : const Center(
+                        : Center(
                             child: Text(
                               'Tap a word to see its definition',
                               style: TextStyle(
@@ -215,7 +215,7 @@ class _SideWordDetail extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(16, 12, 8, 0),
           child: Row(
             children: [
-              const Expanded(
+              Expanded(
                 child: Text(
                   'Word Detail',
                   style: TextStyle(
@@ -226,13 +226,13 @@ class _SideWordDetail extends StatelessWidget {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.close, color: AppColors.onSurfaceMuted),
+                icon: Icon(Icons.close, color: AppColors.onSurfaceMuted),
                 onPressed: onClose,
               ),
             ],
           ),
         ),
-        const Divider(height: 1, color: AppColors.surface),
+        Divider(height: 1, color: AppColors.surface),
         Expanded(
           child: SingleChildScrollView(
             child: WordDetailSheet(

@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -193,16 +193,16 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                 child: TextField(
                   controller: _controller,
                   autofocus: widget.initialWordId == null || widget.initialWordId == 'search',
-                  style: const TextStyle(color: AppColors.onSurface),
+                  style: TextStyle(color: AppColors.onSurface),
                   decoration: InputDecoration(
                     hintText: AppL10n.fromCode(lang).dictSearchHint,
-                    hintStyle: const TextStyle(
+                    hintStyle: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 14),
-                    prefixIcon: const Icon(Icons.search,
+                    prefixIcon: Icon(Icons.search,
                         color: AppColors.onSurfaceMuted, size: 20),
                     suffixIcon: _controller.text.isNotEmpty
                         ? IconButton(
-                            icon: const Icon(Icons.clear,
+                            icon: Icon(Icons.clear,
                                 color: AppColors.onSurfaceMuted, size: 18),
                             onPressed: () {
                               _controller.clear();
@@ -244,7 +244,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
       return Center(
         child: Text(
           state.error!,
-          style: const TextStyle(color: AppColors.onSurfaceMuted),
+          style: TextStyle(color: AppColors.onSurfaceMuted),
           textAlign: TextAlign.center,
         ),
       );
@@ -273,7 +273,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
           children: [
             Text(
               AppL10n.fromCode(lang).noResultsFound,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 15),
             ),
             const SizedBox(height: 20),
@@ -317,7 +317,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     return ListView.separated(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       itemCount: state.results.length,
-      separatorBuilder: (_, __) => const Divider(
+      separatorBuilder: (_, __) => Divider(
         height: 1,
         color: AppColors.surfaceVariant,
         indent: 56,
@@ -446,7 +446,7 @@ class DictionaryRightRail extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(word.simplified,
-                            style: const TextStyle(
+                            style: TextStyle(
                                 color: AppColors.onSurface,
                                 fontSize: 34,
                                 fontWeight: FontWeight.w800)),
@@ -461,7 +461,7 @@ class DictionaryRightRail extends ConsumerWidget {
                           word.definitions.forLang(lang),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
                               color: AppColors.onSurfaceMuted, fontSize: 14),
                         ),
                       ],
@@ -475,7 +475,7 @@ class DictionaryRightRail extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(idiom.$1,
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 28,
                           fontWeight: FontWeight.w800)),
@@ -490,7 +490,7 @@ class DictionaryRightRail extends ConsumerWidget {
                       lang == 'tr'
                           ? idiom.$3
                           : (lang == 'ko' ? idiom.$5 : idiom.$4),
-                      style: const TextStyle(
+                      style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 14)),
                 ],
               ),
@@ -519,13 +519,13 @@ class DictionaryRightRail extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(l10n.testYourChinese,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.onSurface,
                                     fontSize: 15,
                                     fontWeight: FontWeight.w800)),
                             const SizedBox(height: 2),
                             Text(l10n.testYourChineseSub,
-                                style: const TextStyle(
+                                style: TextStyle(
                                     color: AppColors.onSurfaceMuted,
                                     fontSize: 12)),
                           ],
@@ -622,11 +622,11 @@ class _SearchChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.search,
+              Icon(Icons.search,
                   size: 14, color: AppColors.onSurfaceMuted),
               const SizedBox(width: 6),
               Text(label,
-                  style: const TextStyle(
+                  style: TextStyle(
                       color: AppColors.onSurface, fontSize: 13)),
             ],
           ),
@@ -668,7 +668,7 @@ class _WordTile extends StatelessWidget {
         children: [
           Text(
             word.pinyin,
-            style: const TextStyle(color: AppColors.onSurface, fontSize: 15),
+            style: TextStyle(color: AppColors.onSurface, fontSize: 15),
           ),
           const SizedBox(width: 8),
           if (word.definitions.pos.isNotEmpty)
@@ -680,7 +680,7 @@ class _WordTile extends StatelessWidget {
               ),
               child: Text(
                 word.definitions.pos.split(',').first.trim(),
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurfaceMuted, fontSize: 10),
               ),
             ),
@@ -723,12 +723,12 @@ class _WordTile extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Text('1) ${match.group(1)!}',
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis),
           Text('2) ${match.group(2)!}',
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurfaceMuted, fontSize: 12),
               maxLines: 1,
               overflow: TextOverflow.ellipsis),
@@ -737,7 +737,7 @@ class _WordTile extends StatelessWidget {
     }
     return Text(
       definition,
-      style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
+      style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
     );

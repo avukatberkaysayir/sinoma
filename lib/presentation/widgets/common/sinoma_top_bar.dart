@@ -571,14 +571,16 @@ class _DropdownCard extends ConsumerWidget {
               child: Row(
                 children: [
                   Icon(
-                    Icons.dark_mode_outlined,
+                    isDark
+                        ? Icons.dark_mode_outlined
+                        : Icons.light_mode_outlined,
                     size: 18,
                     color: isDark ? Colors.white70 : Colors.black54,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      l10n.darkTheme,
+                      isDark ? l10n.darkTheme : l10n.lightThemeToggle,
                       style: TextStyle(
                         color: isDark
                             ? Colors.white.withValues(alpha: 0.87)

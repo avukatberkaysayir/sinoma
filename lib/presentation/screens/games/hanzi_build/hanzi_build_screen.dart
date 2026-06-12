@@ -120,7 +120,7 @@ class _GameView extends StatelessWidget {
                   children: [
                     Text(
                       round.simplified,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.onSurface,
                         fontSize: 88,
                         fontWeight: FontWeight.bold,
@@ -138,7 +138,7 @@ class _GameView extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       definition,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.onSurfaceMuted,
                         fontSize: 14,
                       ),
@@ -151,7 +151,7 @@ class _GameView extends StatelessWidget {
                         correctRadicals: round.correctRadicals,
                       ),
                     const SizedBox(height: 20),
-                    const Align(
+                    Align(
                       alignment: Alignment.centerLeft,
                       child: Text(
                         'Select the radicals that form this character:',
@@ -193,7 +193,7 @@ class _GameView extends StatelessWidget {
                     const SizedBox(height: 12),
                     Text(
                       'Round ${state.currentRoundIndex + 1} / ${state.totalRounds}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.onSurfaceMuted,
                         fontSize: 13,
                       ),
@@ -228,22 +228,22 @@ class _BuildHud extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
-        border: Border(bottom: BorderSide(color: Color(0x229E9E9E))),
+        border: const Border(bottom: BorderSide(color: Color(0x229E9E9E))),
       ),
       child: Row(
         children: [
           Text(
             '${state.score}',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurface,
               fontSize: 20,
               fontWeight: FontWeight.bold,
             ),
           ),
           const SizedBox(width: 4),
-          const Text('pts',
+          Text('pts',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13)),
           const Spacer(),
           if (state.combo >= 2)
@@ -328,7 +328,7 @@ class _SelectedRow extends StatelessWidget {
         border: Border.all(color: const Color(0x339E9E9E)),
       ),
       child: selectedTiles.isEmpty
-          ? const Text(
+          ? Text(
               'Tap radicals below to select them',
               style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
               textAlign: TextAlign.center,
@@ -558,7 +558,7 @@ class _HintOverlay extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(
                     definition,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 15,
                       height: 1.5,
@@ -663,7 +663,7 @@ class _FinishedView extends StatelessWidget {
         children: [
           const Text('🎋', style: TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
-          const Text(
+          Text(
             '完成了！',
             style: TextStyle(
               color: AppColors.onSurface,
@@ -672,7 +672,7 @@ class _FinishedView extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          const Text('Build Complete!',
+          Text('Build Complete!',
               style:
                   TextStyle(color: AppColors.onSurfaceMuted, fontSize: 16)),
           const SizedBox(height: 40),
@@ -747,7 +747,7 @@ class _ErrorView extends StatelessWidget {
                 color: AppColors.wrongAnswer, size: 48),
             const SizedBox(height: 16),
             Text(message,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 16),
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
@@ -776,10 +776,10 @@ class _StatRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted, fontSize: 15)),
         Text(value,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.bold)),

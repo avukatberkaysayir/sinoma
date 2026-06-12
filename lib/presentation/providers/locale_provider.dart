@@ -510,6 +510,7 @@ class AppL10n {
   String get saveError      => _t('Kayıt hatası: ', 'Save error: ', '저장 오류: ');
   String get accountSection => _t('Hesap', 'Account', '계정');
   String get darkThemeToggle => _t('Karanlık Tema', 'Dark Theme', '다크 테마');
+  String get lightThemeToggle => _t('Açık Tema', 'Light Theme', '라이트 테마');
   String get deleteAccount  => _t('Hesabı Sil', 'Delete Account', '계정 삭제');
   String get passwordSection => _t('Şifre', 'Password', '비밀번호');
   String get currentPassword => _t('Mevcut Şifre', 'Current Password', '현재 비밀번호');

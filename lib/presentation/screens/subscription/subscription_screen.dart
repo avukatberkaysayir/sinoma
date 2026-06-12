@@ -57,7 +57,7 @@ class _PremiumActiveView extends StatelessWidget {
             const Icon(Icons.workspace_premium,
                 size: 80, color: AppColors.premiumGold),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'You\'re Premium! 🎉',
               style: TextStyle(
                 fontSize: 26,
@@ -66,7 +66,7 @@ class _PremiumActiveView extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'All features are unlocked. Enjoy your learning journey!',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.onSurfaceMuted),
@@ -83,7 +83,7 @@ class _PremiumActiveView extends StatelessWidget {
                       ? null
                       : () => ref.read(purchaseProvider.notifier).openBillingPortal(),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.onSurfaceMuted),
+                    side: BorderSide(color: AppColors.onSurfaceMuted),
                   ),
                   child: loading
                       ? const SizedBox(
@@ -91,7 +91,7 @@ class _PremiumActiveView extends StatelessWidget {
                           height: 18,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text('Manage Subscription',
+                      : Text('Manage Subscription',
                           style: TextStyle(color: AppColors.onSurfaceMuted)),
                 );
               },
@@ -150,11 +150,11 @@ class _PremiumHeader extends StatelessWidget {
           colors: [Color(0xFF1A1A2E), Color(0xFF2D1B00)],
         ),
       ),
-      child: const Column(
+      child: Column(
         children: [
-          Icon(Icons.workspace_premium,
+          const Icon(Icons.workspace_premium,
               size: 56, color: AppColors.premiumGold),
-          SizedBox(height: 12),
+          const SizedBox(height: 12),
           Text(
             'Unlock Full Access',
             style: TextStyle(
@@ -163,7 +163,7 @@ class _PremiumHeader extends StatelessWidget {
               color: AppColors.onSurface,
             ),
           ),
-          SizedBox(height: 6),
+          const SizedBox(height: 6),
           Text(
             'Unlimited AI explanations, no ads, all games unlocked.',
             textAlign: TextAlign.center,
@@ -201,7 +201,7 @@ class _FeatureTable extends StatelessWidget {
         child: Column(
           children: [
             const _FeatureTableHeader(),
-            const Divider(height: 1, color: AppColors.surface),
+            Divider(height: 1, color: AppColors.surface),
             ..._features.asMap().entries.map((e) => _FeatureTableRow(
                   feature: e.value,
                   isLast: e.key == _features.length - 1,
@@ -223,7 +223,7 @@ class _FeatureTableHeader extends StatelessWidget {
       child: Row(
         children: [
           const Expanded(flex: 3, child: SizedBox()),
-          const Expanded(
+          Expanded(
             flex: 2,
             child: Center(
               child: Text(
@@ -272,7 +272,7 @@ class _FeatureTableRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        if (!isLast) const Divider(height: 1, color: AppColors.surface),
+        if (!isLast) Divider(height: 1, color: AppColors.surface),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
           child: Row(
@@ -281,7 +281,7 @@ class _FeatureTableRow extends StatelessWidget {
                 flex: 3,
                 child: Text(
                   feature.label,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.onSurface,
                     fontSize: 13,
                   ),
@@ -293,7 +293,7 @@ class _FeatureTableRow extends StatelessWidget {
                   child: Text(
                     feature.free,
                     textAlign: TextAlign.center,
-                    style: const TextStyle(
+                    style: TextStyle(
                         color: AppColors.onSurfaceMuted, fontSize: 12),
                   ),
                 ),
@@ -335,7 +335,7 @@ class _FeatureRow extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(feature.label,
-              style: const TextStyle(color: AppColors.onSurface)),
+              style: TextStyle(color: AppColors.onSurface)),
           const Spacer(),
           Text(
             unlocked ? feature.premium : feature.free,
@@ -461,7 +461,7 @@ class _PlanCard extends StatelessWidget {
             ),
             Text(
               period,
-              style: const TextStyle(
+              style: TextStyle(
                   fontSize: 12, color: AppColors.onSurfaceMuted),
             ),
             if (plan == PurchasePlan.annual)
@@ -555,7 +555,7 @@ class _RestoreButton extends ConsumerWidget {
       child: TextButton(
         onPressed:
             loading ? null : ref.read(purchaseProvider.notifier).restorePurchases,
-        child: const Text(
+        child: Text(
           'Restore Purchases',
           style: TextStyle(color: AppColors.onSurfaceMuted),
         ),
@@ -575,7 +575,7 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24),
       child: Column(
         children: [
-          const Text(
+          Text(
             'Subscription auto-renews. Cancel any time via Manage Subscription.',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 11, color: AppColors.onSurfaceMuted),
@@ -589,20 +589,20 @@ class _Footer extends StatelessWidget {
                 style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                child: const Text(
+                child: Text(
                   'Terms of Service',
                   style: TextStyle(
                       fontSize: 11, color: AppColors.onSurfaceMuted),
                 ),
               ),
-              const Text(' · ',
+              Text(' · ',
                   style: TextStyle(color: AppColors.onSurfaceMuted)),
               TextButton(
                 onPressed: () => context.push('/legal/privacy'),
                 style: TextButton.styleFrom(
                     padding: EdgeInsets.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                child: const Text(
+                child: Text(
                   'Privacy Policy',
                   style: TextStyle(
                       fontSize: 11, color: AppColors.onSurfaceMuted),

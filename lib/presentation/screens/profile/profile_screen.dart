@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
 import 'dart:typed_data';
@@ -312,7 +312,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                     border: Border.all(
                                         color: AppColors.surface, width: 2),
                                   ),
-                                  child: const Icon(Icons.camera_alt,
+                                  child: Icon(Icons.camera_alt,
                                       size: 13,
                                       color: AppColors.onSurfaceMuted),
                                 ),
@@ -342,7 +342,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ),
                             ),
                           const SizedBox(height: 4),
-                          const Text(
+                          Text(
                             'JPG, PNG — max 5MB',
                             style: TextStyle(
                                 color: AppColors.onSurfaceMuted, fontSize: 12),
@@ -502,12 +502,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          const Icon(Icons.dark_mode_outlined,
-                              size: 18, color: AppColors.onSurfaceMuted),
+                          Icon(
+                              isDark
+                                  ? Icons.dark_mode_outlined
+                                  : Icons.light_mode_outlined,
+                              size: 18,
+                              color: AppColors.onSurfaceMuted),
                           const SizedBox(width: 12),
                           Expanded(
-                            child: Text(l10n.darkThemeToggle,
-                                style: const TextStyle(
+                            // Label names the CURRENT theme and flips with it.
+                            child: Text(
+                                isDark
+                                    ? l10n.darkThemeToggle
+                                    : l10n.lightThemeToggle,
+                                style: TextStyle(
                                     color: AppColors.onSurface, fontSize: 14)),
                           ),
                           Switch(
@@ -518,7 +526,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           ),
                         ],
                       ),
-                      const Divider(color: AppColors.surface, height: 20),
+                      Divider(color: AppColors.surface, height: 20),
                       if (isAdmin) ...[
                         _ActionRow(
                           icon: Icons.admin_panel_settings,
@@ -650,7 +658,7 @@ class _ProfileCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Text(title,
-              style: const TextStyle(
+              style: TextStyle(
                   color: AppColors.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.bold)),
@@ -683,7 +691,7 @@ class _Field extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w500)),
@@ -704,10 +712,10 @@ class _Field extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.surface)),
+                borderSide: BorderSide(color: AppColors.surface)),
             enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.surface)),
+                borderSide: BorderSide(color: AppColors.surface)),
             focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide:
@@ -736,7 +744,7 @@ class _DateField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w500)),
@@ -779,7 +787,7 @@ class _DateField extends StatelessWidget {
                         fontSize: 14),
                   ),
                 ),
-                const Icon(Icons.calendar_today_outlined,
+                Icon(Icons.calendar_today_outlined,
                     size: 15, color: AppColors.onSurfaceMuted),
               ],
             ),
@@ -809,7 +817,7 @@ class _DropdownField<T> extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 12,
                 fontWeight: FontWeight.w500)),
@@ -820,7 +828,7 @@ class _DropdownField<T> extends StatelessWidget {
           onChanged: onChanged,
           dropdownColor: AppColors.surfaceVariant,
           style:
-              const TextStyle(color: AppColors.onSurface, fontSize: 14),
+              TextStyle(color: AppColors.onSurface, fontSize: 14),
           decoration: InputDecoration(
             filled: true,
             fillColor: AppColors.surface,
@@ -828,10 +836,10 @@ class _DropdownField<T> extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.surface)),
+                borderSide: BorderSide(color: AppColors.surface)),
             enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppColors.surface)),
+                borderSide: BorderSide(color: AppColors.surface)),
           ),
         ),
       ],
@@ -850,7 +858,7 @@ class _ActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const c = AppColors.onSurface;
+    final c = AppColors.onSurface;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
@@ -861,7 +869,7 @@ class _ActionRow extends StatelessWidget {
             Icon(icon, size: 18, color: c),
             const SizedBox(width: 12),
             Text(label,
-                style: const TextStyle(color: c, fontSize: 14)),
+                style: TextStyle(color: c, fontSize: 14)),
           ],
         ),
       ),
@@ -879,11 +887,11 @@ class _GuestNotice extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const Icon(Icons.person_outline, size: 40, color: AppColors.onSurfaceMuted),
+        Icon(Icons.person_outline, size: 40, color: AppColors.onSurfaceMuted),
         const SizedBox(height: 10),
         Text(
           l10n.guestCannotEdit,
-          style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
+          style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 14),
@@ -916,8 +924,8 @@ class _ConfirmDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return AlertDialog(
       backgroundColor: AppColors.surfaceVariant,
-      title:   Text(title,   style: const TextStyle(color: AppColors.onSurface)),
-      content: Text(message, style: const TextStyle(color: AppColors.onSurfaceMuted)),
+      title:   Text(title,   style: TextStyle(color: AppColors.onSurface)),
+      content: Text(message, style: TextStyle(color: AppColors.onSurfaceMuted)),
       actions: [
         TextButton(
           onPressed: () => Navigator.pop(context, false),

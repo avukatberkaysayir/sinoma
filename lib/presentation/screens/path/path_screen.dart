@@ -1,10 +1,11 @@
-﻿import 'dart:math';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/cities.dart';
 import '../../../core/constants/landmarks/landmarks_ko.dart';
 import '../../providers/locale_provider.dart';
@@ -19,9 +20,10 @@ import 'phase_runner_screen.dart';
 // seal red and antique gold — deliberately NOT the Duolingo navy/green set.
 const _duoGreen = Color(0xFF2EC4B6);
 const _duoGreenDark = Color(0xFF21968B);
-const _duoBg = Color(0xFF0E1414);
-const _duoPanel = Color(0xFF161E1D);
-const _duoLocked = Color(0xFF2E3A38);
+// Surfaces resolve per theme (ink ↔ rice paper) through AppColors.
+Color get _duoBg => AppColors.surface;
+Color get _duoPanel => AppColors.surfaceVariant;
+Color get _duoLocked => AppColors.locked;
 const _vermilion = Color(0xFFE0442C); // Chinese seal red
 
 enum _Section {
@@ -208,9 +210,9 @@ class _LeftNav extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: compact ? 76 : 230,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: _duoBg,
-        border: Border(right: BorderSide(color: Color(0xFF263230))),
+        border: Border(right: BorderSide(color: AppColors.border)),
       ),
       padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 10),
       child: Column(
@@ -265,7 +267,7 @@ class _LeftNav extends StatelessWidget {
                   : Icon(
                       learnExpanded ? Icons.expand_less : Icons.expand_more,
                       size: 18,
-                      color: Colors.white54)),
+                      color: AppColors.text54)),
           // L1-L6 level picker, expandable under "Öğren".
           if (learnExpanded)
             for (var h = 1; h <= 6; h++)
@@ -338,7 +340,7 @@ class _NavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final fg = active ? _vermilion : Colors.white60;
+    final fg = active ? _vermilion : AppColors.text60;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: Material(
@@ -371,7 +373,7 @@ class _NavItem extends StatelessWidget {
                   Expanded(
                     child: Text(label,
                         style: TextStyle(
-                            color: active ? Colors.white : Colors.white70,
+                            color: active ? Colors.white : AppColors.text70,
                             fontSize: 15,
                             fontWeight: FontWeight.w700)),
                   ),
@@ -416,7 +418,7 @@ class _LevelNavItem extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 12),
             child: Text('L$level',
                 style: TextStyle(
-                    color: selected ? Colors.white : Colors.white70,
+                    color: selected ? Colors.white : AppColors.text70,
                     fontSize: 13,
                     fontWeight: FontWeight.w800)),
           ),
@@ -450,9 +452,9 @@ Widget _nodeBadge(IconData ic, Color bg) => Container(
       decoration: BoxDecoration(
         color: bg,
         shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: 1.5),
+        border: Border.all(color: AppColors.text, width: 1.5),
       ),
-      child: Icon(ic, size: 11, color: Colors.white),
+      child: Icon(ic, size: 11, color: AppColors.text),
     );
 
 // Generic themed landmark icons for cities without a bespoke asset.
@@ -525,7 +527,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     return curriculum.when(
       loading: () => const Center(child: CircularProgressIndicator(color: _duoGreen)),
       error: (e, _) =>
-          Center(child: Text('$e', style: const TextStyle(color: Colors.white54))),
+          Center(child: Text('$e', style: TextStyle(color: AppColors.text54))),
       data: (topics) {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
@@ -671,7 +673,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
         // at scroll 0 no line shows (unit 1 has none, unit 2's is a full
         // viewport away) — it appears only once you scroll into it.
         if (step.index > 0)
-          Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
+          Container(height: 1.5, color: AppColors.text.withValues(alpha: 0.12)),
         Expanded(
           child: Center(
             child: ConstrainedBox(
@@ -701,8 +703,8 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                           Text(
                             AppL10n.of(context).unitTitle(step.index + 1),
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: Colors.white,
+                            style: TextStyle(
+                                color: AppColors.text,
                                 fontSize: 40,
                                 height: 1.1,
                                 fontWeight: FontWeight.w800),
@@ -754,7 +756,7 @@ class _RoutePainter extends CustomPainter {
     // with round pebbles) along a brush curve, with a small auspicious-cloud
     // curl (祥云) at each segment's midpoint.
     final stone = Paint()..color = const Color(0xFFD4A33D).withValues(alpha: 0.30);
-    final pebble = Paint()..color = Colors.white.withValues(alpha: 0.16);
+    final pebble = Paint()..color = AppColors.text.withValues(alpha: 0.16);
     final cloud = Paint()
       ..color = const Color(0xFFD4A33D).withValues(alpha: 0.28)
       ..style = PaintingStyle.stroke
@@ -839,7 +841,7 @@ class _UnitInfoPanel extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF121A19), // fully opaque
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -855,20 +857,20 @@ class _UnitInfoPanel extends ConsumerWidget {
                           Localizations.maybeLocaleOf(context)
                                   ?.languageCode ??
                               (tr ? 'tr' : 'en')),
-                      style: const TextStyle(
-                          color: Colors.white,
+                      style: TextStyle(
+                          color: AppColors.text,
                           fontSize: 18,
                           fontWeight: FontWeight.w800)),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      color: Colors.white60, size: 20),
+                  icon: Icon(Icons.close_rounded,
+                      color: AppColors.text60, size: 20),
                   onPressed: onClose,
                 ),
               ],
             ),
           ),
-          const Divider(color: Colors.white12, height: 1),
+          Divider(color: AppColors.text12, height: 1),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
@@ -936,16 +938,16 @@ class _UnitInfoPanel extends ConsumerWidget {
                                       CrossAxisAlignment.start,
                                   children: [
                                     Text(name,
-                                        style: const TextStyle(
-                                            color: Colors.white,
+                                        style: TextStyle(
+                                            color: AppColors.text,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800)),
                                     const SizedBox(height: 4),
                                     Text(desc,
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                            color: Colors.white70,
+                                        style: TextStyle(
+                                            color: AppColors.text70,
                                             fontSize: 12,
                                             height: 1.3)),
                                   ],
@@ -1065,7 +1067,7 @@ class _PhaseNode extends ConsumerWidget {
             ),
             child: Icon(ni.icon,
                 size: sz * 0.46,
-                color: available ? Colors.white : Colors.white30),
+                color: available ? Colors.white : AppColors.text30),
           );
       final assetImg = ni.asset != null
           ? Image.asset(ni.asset!,
@@ -1136,7 +1138,7 @@ class _PhaseNode extends ConsumerWidget {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: Colors.white.withValues(
+                    color: AppColors.text.withValues(
                         alpha: available ? 0.45 : 0.15),
                     width: 1.5),
               ),
@@ -1145,7 +1147,7 @@ class _PhaseNode extends ConsumerWidget {
               opacity: available ? 1 : 0.55,
               child: Icon(ni.icon,
                   size: 34,
-                  color: available ? Colors.white : Colors.white54),
+                  color: available ? Colors.white : AppColors.text54),
             ),
             if (!available)
               const Positioned(
@@ -1549,21 +1551,21 @@ class _SlotWordPanel extends ConsumerWidget {
                   Expanded(
                     child: Text(
                         AppL10n.of(context).wordsInSet,
-                        style: const TextStyle(
-                            color: Colors.white,
+                        style: TextStyle(
+                            color: AppColors.text,
                             fontSize: 15,
                             fontWeight: FontWeight.w800)),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        color: Colors.white60, size: 20),
+                    icon: Icon(Icons.close_rounded,
+                        color: AppColors.text60, size: 20),
                     onPressed: onClose,
                     tooltip: AppL10n.of(context).closeLabel,
                   ),
                 ],
               ),
             ),
-            const Divider(color: Colors.white12, height: 1),
+            Divider(color: AppColors.text12, height: 1),
             // "Gramer: …" header — only on the circles this unit's grammar(s) are
             // assigned to.
             if (myG.isNotEmpty)
@@ -1578,8 +1580,8 @@ class _SlotWordPanel extends ConsumerWidget {
                 ),
                 child: Text(
                   '${AppL10n.of(context).grammarLbl}: ${myG.map((g) => g.zh).join(' · ')}',
-                  style: const TextStyle(
-                      color: Colors.white,
+                  style: TextStyle(
+                      color: AppColors.text,
                       fontSize: 14,
                       fontWeight: FontWeight.w800),
                 ),
@@ -1590,17 +1592,17 @@ class _SlotWordPanel extends ConsumerWidget {
                     child: CircularProgressIndicator(color: _duoGreen)),
                 error: (e, _) => Center(
                     child: Text(AppL10n.of(context).failedLbl,
-                        style: const TextStyle(color: Colors.white54))),
+                        style: TextStyle(color: AppColors.text54))),
                 data: (words) => words.isEmpty
                     ? Center(
                         child: Text(AppL10n.of(context).noWordsLbl,
-                            style: const TextStyle(color: Colors.white54)))
+                            style: TextStyle(color: AppColors.text54)))
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(
                             horizontal: 16, vertical: 8),
                         itemCount: words.length,
                         separatorBuilder: (_, __) =>
-                            const Divider(color: Colors.white10, height: 14),
+                            Divider(color: AppColors.text10, height: 14),
                         itemBuilder: (_, i) {
                           final w = words[i];
                           final meaning = w.meaningFor(
@@ -1611,8 +1613,8 @@ class _SlotWordPanel extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(w.word,
-                                  style: const TextStyle(
-                                      color: Colors.white,
+                                  style: TextStyle(
+                                      color: AppColors.text,
                                       fontSize: 20,
                                       fontWeight: FontWeight.w700)),
                               const SizedBox(width: 12),
@@ -1627,8 +1629,8 @@ class _SlotWordPanel extends ConsumerWidget {
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600)),
                                     Text(meaning.isNotEmpty ? meaning : '—',
-                                        style: const TextStyle(
-                                            color: Colors.white70,
+                                        style: TextStyle(
+                                            color: AppColors.text70,
                                             fontSize: 13)),
                                   ],
                                 ),
@@ -1673,8 +1675,8 @@ class _RightSidebar extends ConsumerWidget {
     return Container(
       width: 340,
       padding: const EdgeInsets.all(20),
-      decoration: const BoxDecoration(
-        border: Border(left: BorderSide(color: Color(0xFF263230))),
+      decoration: BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.border)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1696,7 +1698,7 @@ class _RightSidebar extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(AppL10n.of(context).phasesDone(donePhases, totalPhases),
-                    style: const TextStyle(color: Colors.white70, fontSize: 14)),
+                    style: TextStyle(color: AppColors.text70, fontSize: 14)),
                 const SizedBox(height: 10),
                 BrushBar(
                   value: totalPhases == 0 ? 0 : donePhases / totalPhases,
@@ -1716,7 +1718,7 @@ class _RightSidebar extends ConsumerWidget {
                 Expanded(
                   child: Text(AppL10n.of(context).completeOnePhase,
                       style:
-                          const TextStyle(color: Colors.white70, fontSize: 14)),
+                          TextStyle(color: AppColors.text70, fontSize: 14)),
                 ),
               ],
             ),
@@ -1762,14 +1764,14 @@ class _Card extends StatelessWidget {
       decoration: BoxDecoration(
         color: _duoPanel,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF263230)),
+        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title,
-              style: const TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+              style: TextStyle(
+                  color: AppColors.text, fontSize: 15, fontWeight: FontWeight.w800)),
           const SizedBox(height: 12),
           child,
         ],

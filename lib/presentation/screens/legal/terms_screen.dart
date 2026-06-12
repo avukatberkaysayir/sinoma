@@ -138,7 +138,7 @@ class _TermsContent extends StatelessWidget {
         children: [
           Text(
             title,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurface,
               fontSize: 17,
               fontWeight: FontWeight.bold,
@@ -148,7 +148,7 @@ class _TermsContent extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: const TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
+              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 13),
             ),
           ],
         ],
@@ -161,7 +161,7 @@ class _TermsContent extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 8),
       child: Text(
         text,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.onSurface,
           fontSize: 14,
           height: 1.6,
@@ -187,7 +187,7 @@ class _TermsContent extends StatelessWidget {
                     Expanded(
                       child: Text(
                         item,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 14,
                           height: 1.5,

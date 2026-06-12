@@ -38,7 +38,7 @@ class ScoreHud extends StatelessWidget {
   Widget _buildScore() {
     return Text(
       '${state.score}',
-      style: const TextStyle(
+      style: TextStyle(
         color: AppColors.onSurface,
         fontSize: 18,
         fontWeight: FontWeight.bold,

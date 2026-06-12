@@ -175,7 +175,7 @@ class _WheelSectionState extends State<_WheelSection>
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Text(
+          Text(
             'Spinning for category…',
             style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 14),
           ),
@@ -361,7 +361,7 @@ class _GameView extends StatelessWidget {
                   ),
                   child: Text(
                     round.question,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.onSurface,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,
@@ -403,7 +403,7 @@ class _GameView extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Round ${state.currentRoundIndex + 1} / ${state.totalRounds}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.onSurfaceMuted,
                     fontSize: 13,
                   ),
@@ -430,9 +430,9 @@ class _DuelHud extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surfaceVariant,
-        border: Border(bottom: BorderSide(color: Color(0x229E9E9E))),
+        border: const Border(bottom: BorderSide(color: Color(0x229E9E9E))),
       ),
       child: Row(
         children: [
@@ -441,12 +441,12 @@ class _DuelHud extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('You',
+              Text('You',
                   style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
               Text(
                 '${state.score}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -477,12 +477,12 @@ class _DuelHud extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🤖 Bot',
+              Text('🤖 Bot',
                   style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 11)),
               Text(
                 '${state.botScore}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
@@ -760,7 +760,7 @@ class _FinishedView extends StatelessWidget {
                 : survived
                     ? '对决完成！'
                     : '游戏结束',
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.onSurface,
               fontSize: 28,
               fontWeight: FontWeight.bold,
@@ -773,7 +773,7 @@ class _FinishedView extends StatelessWidget {
                 : survived
                     ? 'Duel Complete!'
                     : 'Game Over',
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted, fontSize: 16),
           ),
           const SizedBox(height: 36),
@@ -879,7 +879,7 @@ class _ErrorView extends StatelessWidget {
                 color: AppColors.wrongAnswer, size: 48),
             const SizedBox(height: 16),
             Text(message,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.onSurface, fontSize: 16),
                 textAlign: TextAlign.center),
             const SizedBox(height: 24),
@@ -908,10 +908,10 @@ class _StatRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(label,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurfaceMuted, fontSize: 15)),
         Text(value,
-            style: const TextStyle(
+            style: TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 15,
                 fontWeight: FontWeight.bold)),

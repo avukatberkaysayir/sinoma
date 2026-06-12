@@ -209,13 +209,13 @@ class SinomaApp extends ConsumerWidget {
   ThemeData _buildDarkTheme() {
     final base = ThemeData(
       useMaterial3: true,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: AppColors.primary,
         surface: AppColors.surface,
         onSurface: AppColors.onSurface,
       ),
       scaffoldBackgroundColor: AppColors.surface,
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: AppColors.surfaceVariant,
         foregroundColor: AppColors.onSurface,
         elevation: 0,

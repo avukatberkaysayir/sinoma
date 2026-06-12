@@ -74,9 +74,9 @@ class _QuizOverlayState extends ConsumerState<QuizOverlay>
     return SlideTransition(
       position: _slideAnimation,
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           color: AppColors.surfaceVariant,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
         ),
         padding: const EdgeInsets.all(20),
         child: Column(
@@ -84,7 +84,7 @@ class _QuizOverlayState extends ConsumerState<QuizOverlay>
           children: [
             Text(
               widget.quiz.question,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: AppColors.onSurface,
@@ -151,7 +151,7 @@ class _AnswerButton extends StatelessWidget {
           child: Text(
             option.text,
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               fontSize: 15,
               fontWeight: FontWeight.w500,
               color: AppColors.onSurface,
