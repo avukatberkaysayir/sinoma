@@ -13,7 +13,11 @@
 html,body{height:100%;background:#000;overflow:hidden}
 body{font-family:-apple-system,"Segoe UI","Noto Sans",Roboto,sans-serif;color:var(--text)}
 
-#stage{position:relative;width:100vw;height:100vh;background:
+/* Fixed 1280x720 design canvas, scaled to fit whatever box embeds the iframe
+   (the landing page embeds it small) — keeps every scene's layout intact. */
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;
+  transform:translate(-50%,-50%) scale(1);transform-origin:center center;
+  background:
   radial-gradient(1200px 700px at 70% 20%, #12201d 0%, var(--bg) 60%);}
 
 /* ---------- chrome ---------- */
@@ -43,7 +47,7 @@ h2{font-size:34px;font-weight:800;line-height:1.25;max-width:880px}
 @keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
 @keyframes pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-@keyframes drift{from{transform:translateY(0) rotate(0)}to{transform:translateY(-110vh) rotate(18deg)}}
+@keyframes drift{from{transform:translateY(0) rotate(0)}to{transform:translateY(-800px) rotate(18deg)}}
 @keyframes floatUp{0%{opacity:0;transform:translateY(8px)}25%{opacity:1}100%{opacity:0;transform:translateY(-46px)}}
 @keyframes shake{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 @keyframes glowPulse{0%,100%{box-shadow:0 0 0 rgba(94,207,196,0)}50%{box-shadow:0 0 34px rgba(94,207,196,.5)}}
@@ -51,7 +55,7 @@ h2{font-size:34px;font-weight:800;line-height:1.25;max-width:880px}
 @keyframes typebar{from{width:0}to{width:100%}}
 
 /* S1 pain */
-#s1 .hanzi{position:absolute;color:#21413c;font-weight:700;user-select:none;animation:drift linear infinite;top:105vh}
+#s1 .hanzi{position:absolute;color:#21413c;font-weight:700;user-select:none;animation:drift linear infinite;top:760px}
 #s1.active .l1{animation:rise .7s .2s both}
 #s1.active .l2{animation:rise .7s 1.5s both}
 #s1.active .pains{animation:rise .7s 3.2s both}
@@ -72,7 +76,7 @@ h2{font-size:34px;font-weight:800;line-height:1.25;max-width:880px}
 #s2 .name span{color:var(--teal)}
 
 /* mock player */
-.player{width:min(680px,82vw);background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;text-align:left}
+.player{width:680px;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;text-align:left}
 .player .vid{height:240px;background:linear-gradient(135deg,#1d3a36,#0e1b19);position:relative;display:flex;align-items:center;justify-content:center}
 .player .vid .pb{width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff}
 .player .vt{position:absolute;top:12px;left:14px;font-size:13px;color:#cfe5e1}
@@ -158,7 +162,7 @@ h2{font-size:34px;font-weight:800;line-height:1.25;max-width:880px}
 #s6.active .cap1{animation:rise .6s .2s both}
 
 /* S7 solved */
-.fixes{margin-top:34px;display:flex;flex-direction:column;gap:14px;width:min(760px,90vw)}
+.fixes{margin-top:34px;display:flex;flex-direction:column;gap:14px;width:760px}
 .fix{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 22px;text-align:left}
 .fix .from{color:var(--dim);text-decoration:line-through;font-size:16px;width:46%}
 .fix .arr{color:var(--teal);font-weight:800}
@@ -408,6 +412,15 @@ document.addEventListener('keydown',e=>{
   if(e.code==='ArrowLeft') seek(Math.max(cur-1,0));
   if(e.code==='KeyR'){ seek(0); play(); }
 });
+
+// Scale the fixed 1280x720 canvas to whatever box hosts the iframe.
+const stage=document.getElementById('stage');
+function fit(){
+  const s=Math.min(innerWidth/1280, innerHeight/720);
+  stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize',fit);
+fit();
 
 requestAnimationFrame(tick);
 </script>

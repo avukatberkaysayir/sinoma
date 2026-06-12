@@ -357,9 +357,9 @@ class _PromoFrame extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     _register();
-    // Same footprint as the Öğren player: 16:9, centred column width.
+    // Wide hero footprint: 16:9, centred, fills the content column.
     return ConstrainedBox(
-      constraints: const BoxConstraints(maxWidth: 680),
+      constraints: const BoxConstraints(maxWidth: 1000),
       child: Container(
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
@@ -433,7 +433,7 @@ class _Features extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.surface.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                border: Border.all(color: AppColors.border),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,14 +441,14 @@ class _Features extends StatelessWidget {
                   Icon(it.$1, color: _lpGreen, size: 28),
                   const SizedBox(height: 12),
                   Text(it.$2,
-                      style: const TextStyle(
-                          color: Color(0xFFEEEEEE),
+                      style: TextStyle(
+                          color: AppColors.text,
                           fontSize: 16,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(it.$3,
-                      style: const TextStyle(
-                          color: Color(0xFF9E9E9E),
+                      style: TextStyle(
+                          color: AppColors.text70,
                           fontSize: 13,
                           height: 1.4)),
                 ],
@@ -481,8 +481,8 @@ class _HowItWorks extends StatelessWidget {
     return Column(
       children: [
         Text(t('Nasıl çalışır?', 'How it works', '어떻게 진행되나요?'),
-            style: const TextStyle(
-                color: Color(0xFFEEEEEE),
+            style: TextStyle(
+                color: AppColors.text,
                 fontSize: 26,
                 fontWeight: FontWeight.w800)),
         const SizedBox(height: 24),
@@ -512,15 +512,15 @@ class _HowItWorks extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     Text(s.$2,
-                        style: const TextStyle(
-                            color: Color(0xFFEEEEEE),
+                        style: TextStyle(
+                            color: AppColors.text,
                             fontSize: 17,
                             fontWeight: FontWeight.w700)),
                     const SizedBox(height: 4),
                     Text(s.$3,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
-                            color: Color(0xFF9E9E9E), fontSize: 13)),
+                        style: TextStyle(
+                            color: AppColors.text70, fontSize: 13)),
                   ],
                 ),
               ),
@@ -543,7 +543,7 @@ class _Footer extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
       decoration: BoxDecoration(
         border: Border(
-          top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          top: BorderSide(color: AppColors.border),
         ),
       ),
       child: Wrap(
@@ -551,8 +551,8 @@ class _Footer extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         runSpacing: 12,
         children: [
-          const Text('© Sinoma',
-              style: TextStyle(color: Color(0xFF9E9E9E), fontSize: 13)),
+          Text('© Sinoma',
+              style: TextStyle(color: AppColors.text70, fontSize: 13)),
           Wrap(
             spacing: 20,
             children: [
@@ -583,8 +583,8 @@ class _FooterLink extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Text(label,
-          style: const TextStyle(
-              color: Color(0xFF9E9E9E),
+          style: TextStyle(
+              color: AppColors.text70,
               fontSize: 13,
               decoration: TextDecoration.underline)),
     );

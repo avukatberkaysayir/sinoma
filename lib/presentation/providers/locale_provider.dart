@@ -524,6 +524,7 @@ class AppL10n {
   String get profileSaved   => _t('Profil kaydedildi.', 'Profile saved.', '프로필이 저장되었어요.');
   String get saveError      => _t('Kayıt hatası: ', 'Save error: ', '저장 오류: ');
   String get accountSection => _t('Hesap', 'Account', '계정');
+  String get themeSection   => _t('Tema', 'Theme', '테마');
   String get darkThemeToggle => _t('Karanlık Tema', 'Dark Theme', '다크 테마');
   String get lightThemeToggle => _t('Açık Tema', 'Light Theme', '라이트 테마');
   String get deleteAccount  => _t('Hesabı Sil', 'Delete Account', '계정 삭제');

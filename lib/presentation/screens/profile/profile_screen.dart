@@ -49,6 +49,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   DateTime?  _birthday;
   String?    _gender;
   String     _motherTongue        = 'tr';
+  bool?      _pendingDark; // theme pick, applied with "Değişiklikleri Kaydet"
   bool       _notificationsEnabled = true;
   bool       _saving               = false;
   bool       _passSaving           = false;
@@ -74,7 +75,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     _emailCtrl.text      = user.email;
     _birthday            = user.birthday;
     _gender              = user.gender.isEmpty ? null : user.gender;
-    _motherTongue        = user.motherTongue == 'en' ? 'en' : 'tr';
+    // Mirror whatever language the app is currently running in (the landing
+    // pick) — never a hardcoded default.
+    final current = ref.read(localeProvider).languageCode;
+    _motherTongue = kSupportedUiLanguages.contains(current)
+        ? current
+        : (kSupportedUiLanguages.contains(user.motherTongue)
+            ? user.motherTongue
+            : 'tr');
     _notificationsEnabled = user.notificationsEnabled;
     _initialized = true;
   }
@@ -179,6 +187,20 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         await ref.read(userRepositoryProvider).updateUsername(uid, uname);
       }
       ref.invalidate(currentUserProvider);
+
+      // Theme and UI language only take effect on save — the form above the
+      // button is a draft until it's confirmed.
+      if (_pendingDark != null) {
+        await ref.read(themeModeProvider.notifier).setDark(_pendingDark!);
+        _pendingDark = null;
+      }
+      if (ref.read(localeProvider).languageCode != _motherTongue &&
+          kSupportedUiLanguages.contains(_motherTongue)) {
+        final code = _motherTongue;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ref.read(localeProvider.notifier).setLocale(Locale(code));
+        });
+      }
 
       if (mounted) _snack(l10n.profileSaved, success: true);
     } catch (e) {
@@ -415,25 +437,52 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 DropdownMenuItem(value: 'en', child: Text('English 🇬🇧')),
                                 DropdownMenuItem(value: 'ko', child: Text('한국어 🇰🇷')),
                               ],
-                              onChanged: (v) {
-                                final code = v ?? 'tr';
-                                setState(() => _motherTongue = code);
-                                // Defer the app-wide locale change: calling it
-                                // synchronously from the dropdown's onChanged
-                                // rebuilds MaterialApp while the dropdown route
-                                // is still closing → "markNeedsBuild during
-                                // build" red-screen crash. Run it after the frame.
-                                WidgetsBinding.instance.addPostFrameCallback((_) {
-                                  ref.read(localeProvider.notifier)
-                                      .setLocale(Locale(code));
-                                });
-                              },
+                              // Applied with "Değişiklikleri Kaydet" — nothing
+                              // changes app-wide until the save button confirms.
+                              onChanged: (v) =>
+                                  setState(() => _motherTongue = v ?? 'tr'),
                             ),
                           ],
                         ),
                 ),
 
                 if (!isGuest) ...[
+                  const SizedBox(height: 16),
+
+                  // ── Theme (applies on save, like everything above) ───────
+                  _ProfileCard(
+                    title: l10n.themeSection,
+                    child: Builder(builder: (context) {
+                      final pickDark = _pendingDark ?? isDark;
+                      return Row(
+                        children: [
+                          Icon(
+                              pickDark
+                                  ? Icons.dark_mode_outlined
+                                  : Icons.light_mode_outlined,
+                              size: 18,
+                              color: AppColors.onSurfaceMuted),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                                pickDark
+                                    ? l10n.darkThemeToggle
+                                    : l10n.lightThemeToggle,
+                                style: TextStyle(
+                                    color: AppColors.onSurface,
+                                    fontSize: 14)),
+                          ),
+                          Switch(
+                            value: pickDark,
+                            activeThumbColor: AppColors.primary,
+                            onChanged: (v) =>
+                                setState(() => _pendingDark = v),
+                          ),
+                        ],
+                      );
+                    }),
+                  ),
+
                   const SizedBox(height: 16),
 
                   // ── Save button ──────────────────────────────────────────
@@ -500,33 +549,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(
-                              isDark
-                                  ? Icons.dark_mode_outlined
-                                  : Icons.light_mode_outlined,
-                              size: 18,
-                              color: AppColors.onSurfaceMuted),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            // Label names the CURRENT theme and flips with it.
-                            child: Text(
-                                isDark
-                                    ? l10n.darkThemeToggle
-                                    : l10n.lightThemeToggle,
-                                style: TextStyle(
-                                    color: AppColors.onSurface, fontSize: 14)),
-                          ),
-                          Switch(
-                            value: isDark,
-                            activeThumbColor: AppColors.primary,
-                            onChanged: (_) =>
-                                ref.read(themeModeProvider.notifier).toggleTheme(),
-                          ),
-                        ],
-                      ),
-                      Divider(color: AppColors.surface, height: 20),
                       if (isAdmin) ...[
                         _ActionRow(
                           icon: Icons.admin_panel_settings,

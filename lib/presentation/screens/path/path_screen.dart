@@ -724,10 +724,22 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                     ),
                     if (_infoOpen)
                       Positioned.fill(
-                        child: _UnitInfoPanel(
-                          step: step,
-                          tr: tr,
-                          onClose: () => setState(() => _infoOpen = false),
+                        // Tapping anywhere outside the card closes the panel.
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => setState(() => _infoOpen = false),
+                          child: Align(
+                            alignment: Alignment.topCenter,
+                            child: GestureDetector(
+                              onTap: () {},
+                              child: _UnitInfoPanel(
+                                step: step,
+                                tr: tr,
+                                onClose: () =>
+                                    setState(() => _infoOpen = false),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                   ],
@@ -847,11 +859,16 @@ class _UnitInfoPanel extends ConsumerWidget {
       margin: const EdgeInsets.fromLTRB(8, 6, 8, 10),
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: const Color(0xFF121A19), // fully opaque
+        color: AppColors.surfaceVariant,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border),
+        boxShadow: const [
+          BoxShadow(
+              color: Color(0x33000000), blurRadius: 18, offset: Offset(0, 6)),
+        ],
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
@@ -870,16 +887,22 @@ class _UnitInfoPanel extends ConsumerWidget {
                           fontSize: 18,
                           fontWeight: FontWeight.w800)),
                 ),
-                IconButton(
-                  icon: Icon(Icons.close_rounded,
-                      color: AppColors.text60, size: 20),
-                  onPressed: onClose,
+                // Plain GestureDetector with a generous hit area: closing must
+                // never depend on Material ink plumbing.
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onClose,
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child:
+                        Icon(Icons.close_rounded, color: AppColors.text70),
+                  ),
                 ),
               ],
             ),
           ),
           Divider(color: AppColors.text12, height: 1),
-          Expanded(
+          Flexible(
             child: SingleChildScrollView(
               padding: const EdgeInsets.all(12),
               child: Column(
@@ -914,8 +937,9 @@ class _UnitInfoPanel extends ConsumerWidget {
                       return Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0B1110),
+                          color: AppColors.surface,
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: AppColors.border),
                         ),
                         child: Row(
                           children: [
@@ -925,8 +949,7 @@ class _UnitInfoPanel extends ConsumerWidget {
                               child: Stack(
                                   fit: StackFit.expand,
                                   children: [
-                                    const ColoredBox(
-                                        color: Color(0xFF1C2624)),
+                                    ColoredBox(color: AppColors.locked),
                                     Padding(
                                       padding: const EdgeInsets.all(8),
                                       child: _slotImage(photo.url,

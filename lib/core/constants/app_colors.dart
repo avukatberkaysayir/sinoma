@@ -30,18 +30,20 @@ class AppColors {
   static Color get onSurfaceMuted =>
       dark ? const Color(0xFF9E9E9E) : const Color(0xFF6B6B5E);
   static Color get text => onSurface;
+  // Light-side alphas run one tier stronger than their dark equivalents:
+  // ink on rice paper loses contrast faster than white on ink.
   static Color get text70 =>
-      dark ? Colors.white70 : const Color(0xB31A2422);
+      dark ? Colors.white70 : const Color(0xCC1A2422);
   static Color get text60 =>
-      dark ? Colors.white60 : const Color(0x991A2422);
+      dark ? Colors.white60 : const Color(0xB31A2422);
   static Color get text54 =>
-      dark ? Colors.white54 : const Color(0x8A1A2422);
+      dark ? Colors.white54 : const Color(0xA61A2422);
   static Color get text38 =>
-      dark ? Colors.white38 : const Color(0x611A2422);
+      dark ? Colors.white38 : const Color(0x801A2422);
   static Color get text30 =>
-      dark ? Colors.white30 : const Color(0x4D1A2422);
+      dark ? Colors.white30 : const Color(0x661A2422);
   static Color get text24 =>
-      dark ? Colors.white24 : const Color(0x3D1A2422);
+      dark ? Colors.white24 : const Color(0x521A2422);
   static Color get text12 =>
       dark ? Colors.white12 : const Color(0x1F1A2422);
   static Color get text10 =>

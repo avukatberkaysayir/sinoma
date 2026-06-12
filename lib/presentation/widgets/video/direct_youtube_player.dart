@@ -246,6 +246,9 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
           '&rel=0'
           '&playsinline=1'
           '&enablejsapi=1'
+          // YouTube's own captions stay off — ours render below the player.
+          '&cc_load_policy=0'
+          '&iv_load_policy=3'
           '&start=${widget.startTime.toInt()}'
           '&origin=$origin'
       ..allow = 'autoplay; fullscreen; encrypted-media'
@@ -488,6 +491,7 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
       _cmd('playVideo', []);
       _applyRate();
       _applyQuality();
+      _disableYtCaptions();
     } else if (event == 'infoDelivery') {
       _eventsFlowing = true;
       _listenTimer?.cancel();
@@ -526,8 +530,18 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
 
   void _markPlaying() {
     _applyRate();
+    // Re-kill YouTube's captions on every (re)start: the player restores the
+    // viewer's saved CC preference when a new clip cues.
+    _disableYtCaptions();
     if (_hasPlayed) return;
     _hasPlayed = true;
+  }
+
+  // Our own subtitles render below the player; YouTube's burned-in captions
+  // would double them up, so unload the caption modules outright.
+  void _disableYtCaptions() {
+    _cmd('unloadModule', ['captions']);
+    _cmd('unloadModule', ['cc']);
   }
 
   // Send the controller's playback rate to the iframe. Called when the user

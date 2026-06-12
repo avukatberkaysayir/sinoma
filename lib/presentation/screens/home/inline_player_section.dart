@@ -1147,7 +1147,11 @@ class _ChineseSubtitleBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C2E),
+        // The bar stays dark so the white hanzi keep their contrast, but the
+        // light theme gets the softer brand teal instead of near-black ink.
+        color: AppColors.dark
+            ? const Color(0xFF1C2624)
+            : const Color(0xFF2E6B65),
         borderRadius: BorderRadius.circular(10),
       ),
       child: Wrap(
