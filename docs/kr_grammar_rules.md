@@ -12,8 +12,11 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 >       Unit 3 İlgeçler: 이/가, 은/는, 을/를, 와/과·(이)랑·하고, 의, 에 ①②)
 > - [x] Parti 4 — PDF 76-100 (İlgeçler devam: 에서, 에서/부터~까지,
 >       에게/한테, 도, 만, 밖에, (으)로, (이)나)
-> - [ ] Parti 5 — PDF 101-125 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 101 -l 125 <pdf> D:\UserData\krgrammar\p5`
+> - [x] Parti 5 — PDF 101-125 (İlgeç sonu: (이)나-miktar, 쯤, 처럼/같이,
+>       보다, 마다; Unit 4 Bağlama: -고, -거나, -지만, -(으)ㄴ/는데 ①;
+>       Unit 5 başlangıcı: 전에/-기 전에)
+> - [ ] Parti 6 — PDF 126-150 · … · Parti 14 — PDF 326-344
+> Sonraki parti için: `pdftoppm -png -r 150 -f 126 -l 150 <pdf> D:\UserData\krgrammar\p6`
 
 ---
 
@@ -328,7 +331,75 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
 - Yer/zaman ilgeçleriyle birleşir: 토요일**에나** 일요일에 운동해요 →
   daha doğalı 에나/에서나 SON isimde: 공원**에서나** 커피숍에서 데이트해요.
 
+### 9.16 (이)나 — 'kadar çok' (miktar şaşkınlığı)
+- Sayı+sayaçtan sonra beklenenden ÇOK olduğunu vurgular: 회사까지 1시간**이나**
+  걸렸어요 (tam 1 saat!) · 개가 열 마리**나** 있어요 · 다섯 번**이나** 읽었어요 ·
+  하루에 (커피를) 여섯 잔**이나** 마셔요.
+
+### 9.17 쯤 — yaklaşık
+- Sayı/miktar/zamana eklenir: 파티에 20명**쯤** 왔어요 · 한 시**쯤** 만납시다 ·
+  10,000원**쯤** 들어요 · 두 달**쯤** 배웠어요.
+- Yaklaşık FİYAT için 'N쯤 **하다**' daha doğal: 요즘 사과가 얼마**쯤 해요**? —
+  3개에 2,000원쯤 해요.
+
+### 9.18 처럼 / 같이 — 'gibi'
+- İsme eklenir, benzerlik bildirir (eşanlamlı): 가수**처럼** 노래를 잘 불러요 ·
+  하영 씨는 천사**같이** 착해요 · 영화배우**같이** 잘생겼어요 ·
+  인형처럼 예뻐요 · 실크처럼 부드러워요.
+
+### 9.19 보다 — kıyas ('-den daha')
+- Kıyas STANDARDINA eklenir; çoğunlukla **더** (daha) / 훨씬 ile:
+  비행기가 기차**보다** (더) 빨라요 · 동생이 언니**보다** 더 커요 ·
+  백화점이 시장**보다** 더 비싸요.
+- Özne ile 보다'lı isim yer değiştirebilir, anlam değişmez:
+  기차**보다** 비행기가 빨라요.
+
+### 9.20 마다 — 'her'
+- Zaman isimleri: 일요일**마다** 교회에 가요 · 한 시간**마다** 있어요 ·
+  두 달**마다** 머리를 잘라요 · 주말**마다** 여행을 가요.
+- 'İstisnasız hepsi': 나라**마다** 국기가 달라요 · 사람마다 식사 방법이
+  달라요 · 점심시간에는 식당**마다** 자리가 없어요.
+
+## 10. UNIT 4 — SIRALAMA VE KARŞITLIK (bağlaç ekleri)
+
+### 10.1 A/V-고 — 've'
+- Kök + **-고** (her kökte aynı): 캐럴 씨는 키가 크**고** 날씬해요 ·
+  민우 씨는 한국 사람이**고** 댄 씨는 영국 사람입니다.
+- Zaman eki SON yüklemde: 어제 밥을 먹**고** 숙제를 했어요
+  (먹었고 ✗ — ardışıklıkta).
+- Aynı öznenin iki ayrı özelliği/eylemi sıralanırken geçmişte 'V했고 V했어요'
+  biçimi de kullanılır: 수영을 배웠**고** 농구도 했어요.
+- Ardışıklık ('yapıp sonra') anlamı da taşır: 밥을 먹**고** 숙제를 했어요.
+
+### 10.2 V-거나 — 'veya' (yüklemler arası)
+- Kök + **-거나**: 아침에 빵을 먹**거나** 우유를 마셔요 · 음악을 듣**거나**
+  영화를 볼 거예요 · 바쁘**거나** 가방이 무거울 때 택시를 타요.
+- Yalnız fiil/sıfat bağlar; İSİMLER için (이)나 kullanılır (9.15).
+
+### 10.3 A/V-지만 — 'ama'
+- Kök + **-지만**: 한국말은 어렵**지만** 재미있어요 · 형은 크**지만** 동생은
+  작아요 · 많이 먹**지만** 날씬해요.
+- Geçmişte -았/었지만: 봤**지만**, 수영했**지만**.
+
+### 10.4 A/V-(으)ㄴ/는데 ① — karşıtlık/arka plan
+- Sıfat: ünlüyle bitince **-ㄴ데** (예쁜데, 큰데), ünsüzle **-은데**
+  (높은데, 작은데); 있다/없다 ve FİİLLER: **-는데** (오는데, 있는데,
+  먹는데); geçmiş: **-았/었는데** (왔는데, 학생이었는데); 이다: **-인데**.
+- ㄹ-düşmesi: 멀다→먼데, 살다→사는데; ㅂ-düzensiz: 춥다→추운데.
+- Karşıtlık veya beklenmedik sonuç: 낮에는 차가 많**은데** 밤에는 없어요 ·
+  오빠는 있**는데** 언니는 없어요 · 노래는 못하**는데** 춤을 잘 춰요 ·
+  가격은 싼**데** 너무 멀어요 · 일은 많**은데** 월급이 적어요.
+
+## 11. UNIT 5 — ZAMAN İFADELERİ (başlangıç)
+
+### 11.1 N 전에, V-기 전에 — 'önce'
+- İsim + **전에**: 2년 **전에** 한국에 왔습니다 · 식사 **전에** 이 약을
+  드세요 · 1시간 전에, 한 달 전에.
+- Fiil kökü + **-기 전에**: 수영하**기 전에** 준비운동을 해요 ·
+  여행하기 전에 = 여행 전에 (하다-isimlerinde ikisi de olur; diğer
+  fiillerde yalnız -기 전에: 방문하기 전에).
+
 ---
 
-*(Parti 5'ten itibaren: kalan ilgeçler (쯤, 처럼/같이...) ve sonraki
-üniteler aynı düzenle eklenecek.)*
+*(Parti 6'dan itibaren: Unit 5 devamı (후에, -(으)ㄴ 후에, 때, 동안...)
+aynı düzenle eklenecek.)*
