@@ -2,7 +2,7 @@
 Kaynak: Korean Grammar in Use — Beginning (Ahn Jean-myung, Lee Kyung-ah, Han Hoo-young; Darakwon)
 Otorite: 국립국어원 (National Institute of Korean Language)
 
-> İşleme durumu: PDF 344 sayfa, 25'er sayfalık partilerle damıtılıyor.
+> İşleme durumu: PDF 344 sayfa, 25'er sayfalık 14 partiyle damıtıldı — TAMAM.
 > - [x] Parti 1 — PDF 1-25 (Giriş: cümle yapısı, çekim, bağlama, cümle türleri,
 >       saygı dili; Getting Ready: 이다, 있다, sayılar başlangıcı)
 > - [x] Parti 2 — PDF 26-50 (yerli sayılar+sayaçlar, tarih/gün, saat;
@@ -27,8 +27,22 @@ Otorite: 국립국어원 (National Institute of Korean Language)
 > - [x] Parti 9 — PDF 201-225 (Unit 12 Öneri: -(으)ㄹ까요 ①②, -(으)ㅂ시다,
 >       -(으)시겠어요, -(으)ㄹ래요 ①; Unit 13 Niyet: -겠어요 ①②,
 >       -(으)ㄹ게요, -(으)ㄹ래요 ②; Unit 14: -(으)ㄴ/는데 ②)
-> - [ ] Parti 10 — PDF 226-250 · … · Parti 14 — PDF 326-344
-> Sonraki parti için: `pdftoppm -png -r 150 -f 226 -l 250 <pdf> D:\UserData\krgrammar\p10`
+> - [x] Parti 10 — PDF 226-250 (-(으)니까 ②; Unit 15 Amaç: -(으)러,
+>       -(으)려고 (하다), 위해(서), -기로 하다; Unit 16: -(으)면, -(으)려면,
+>       -아/어도)
+> - [x] Parti 11 — PDF 251-275 (Unit 17 Tahmin: -겠어요 ②, -(으)ㄹ 거예요 ②,
+>       -(으)ㄹ까요 ③, -(으)ㄴ/는/(으)ㄹ 것 같다; Unit 18 Tür değiştirme:
+>       관형형 -(으)ㄴ/-는/-(으)ㄹ N, -기, -게, -아/어하다)
+> - [x] Parti 12 — PDF 276-300 (Unit 19 Durum: -고 있다 ②, -아/어 있다,
+>       -아/어지다, -게 되다; Unit 20 Teyit: -(으)ㄴ/는지, -는 데
+>       걸리다/들다, -지요?; Unit 21: -군요/는군요, -네요)
+> - [x] Parti 13 — PDF 301-325 (Unit 22: -(으)ㄴ가요?/-나요?,
+>       -(으)ㄴ/는데요; Unit 23 Aktarma: doğrudan, dolaylı, kısaltmalar;
+>       Unit 24 başlangıcı: ㅡ/ㄹ/ㅂ düzensizlikleri)
+> - [x] Parti 14 — PDF 326-344 (Unit 24 devamı: ㄷ/르/ㅎ/ㅅ düzensizlikleri;
+>       ekler/cevap anahtarı kapsam dışı)
+>
+> **KİTAP TAMAMI İŞLENDİ.**
 
 ---
 
@@ -662,6 +676,332 @@ Günlük hayatın esas biçimi; bildirme ve soru AYNI, tonlama ayırır.
   닫을까요? · 비가 오**는데** 우산이 없어요 · 제 동생은 학생**인데**
   공부를 아주 잘해요 · 많이 있**는데** 이제 갈까요?
 
+### 20.2 V-(으)니까 ② — '-ınca (fark ettim ki)'
+- Yalnız fiillerle; ilk eylemi yapınca İKİNCİ durumun keşfi: 집에
+  들어오**니까** 맛있는 냄새가 나요 · 아침에 일어나**니까** 선물이
+  있었어요 · 집에 오**니까** 밤 12시였어요.
+
+## 21. UNIT 15 — AMAÇ VE NİYET
+
+### 21.1 V-(으)러 가다/오다 — '...meye gitmek/gelmek'
+- Ünlü/ㄹ → **-러**, ünsüz → **-으러** + 가다/오다/다니다/나가다:
+  옷을 사**러** 가요 · 팬을 만나**러** 왔어요 · 돈을 찾**으러** 가요 ·
+  배우러 가요, *들으러 가요, *놀러 가요, *지으러, *도우러.
+- Yalnız HAREKET fiilleriyle; şimdiki/geçmiş/gelecek hepsiyle kullanılabilir.
+
+### 21.2 V-(으)려고 — '... niyetiyle'
+- Ünlü/ㄹ → **-려고**, ünsüz → **-으려고**: 살을 빼**려고** 운동해요 ·
+  주**려고** 선물을 샀어요 · 자지 않**으려고** 커피를 마셨어요 ·
+  먹으려고, 찾으려고, *들으려고, *지으려고.
+- -(으)러'den farkları: her fiille olur (hareket şartı yok); ardından
+  gelecek zaman GELMEZ (만나려고 갈 거예요 ✗); emir/öneriyle KULLANILMAZ
+  (onlar için -(으)러 veya -기 위해서).
+
+### 21.3 V-(으)려고 하다 — 'planlıyorum / niyetindeyim'
+- Kök + **-(으)려고 해요**: 여행을 하**려고 해요** · 아이를 두 명
+  낳**으려고 해요** · 취직하려고 해요. Geçmiş **-(으)려고 했어요** =
+  planlamıştım ama olmadı: 배우**려고 했어요**, 그런데 못 배웠어요.
+
+### 21.4 N을/를 위해(서), V-기 위해(서) — '... için / uğruna'
+- İsim: 건강**을 위해서** 비타민을 먹어요 · 나라**를 위해서** ·
+  가족을 위해서. Fiil: 되**기 위해** 연습해요 · 사기 위해서, 듣기 위해서.
+- Sıfata doğrudan eklenmez → önce -아/어지다: 건강**해지기 위해서**
+  운동해요 (건강하기 위해서 ✗).
+- -(으)려고'dan farkı: -기 위해서 emir/öneri ve gelecekle kullanılabilir.
+
+### 21.5 V-기로 하다 — 'kararlaştırmak / söz vermek'
+- Kök + **-기로 했어요**: 담배를 끊**기로 했어요** · 같이 등산하**기로
+  했어요** · 내년에 결혼하**기로 했습니다** (karşılıklı söz) ·
+  만나기로 했어요, 가기로 했어요. Kendi kendine karar için de kullanılır.
+- Karar geçmişte verildiği için **했어요** ile kullanılır (해요 değil),
+  buluşma henüz gelecekte olsa bile.
+
+## 22. UNIT 16 — KOŞUL VE VARSAYIM
+
+### 22.1 A/V-(으)면 — 'eğer / -ınca'
+- Ünlü/ㄹ → **-면** (바쁘면, 만나면, 졸업하면, *살면, *만들면),
+  ünsüz → **-으면** (받으면, 있으면, *들으면, *더우면, *나으면).
+- Koşul, genel doğruluk, henüz olmamış durum: 많이 하**면** 눈이 아파요 ·
+  기분이 좋**으면** 춤을 춰요 · 돈을 많이 벌**면** 집을 살 거예요.
+  Varsayım zarflarıyla: 혹시/만일 ...-(으)면.
+
+### 22.2 V-(으)려면 — 'yapmak istiyorsan' (= -(으)려고 하면)
+- Ünlü/ㄹ → **-려면**, ünsüz → **-으려면**: 잘하**려면** 점프를 잘해야
+  돼요 · 가**려면** 4호선을 타세요 · 만나**려면** 월요일에 오세요 ·
+  끊으려면, *들으려면, *살려면.
+- Devamında tipik: -아/어야 해요/돼요, -(으)세요, 이/가 필요해요,
+  -는 게 좋아요.
+
+### 22.3 A/V-아/어도 — '-se bile / rağmen'
+- Kök + **-아/어도** (해도): 말**해도** 못 들어요 · 비싸**도** 사고
+  싶어요 · 들**어도** 이해하지 못해요 · 가도, 봐도, 먹어도, 피곤해도,
+  *매워도, *불러도.
+- **아무리** ile pekişir: **아무리** 바빠도 아침을 꼭 먹어요.
+
 ---
 
-*(Parti 10'dan itibaren: -(으)니까 ②, Unit 15+ aynı düzenle eklenecek.)*
+## 23. UNIT 17 — TAHMİN (CONJECTURE)
+
+### 23.1 A/V-겠어요 ② — anlık izlenim tahmini ('... gibi görünüyor')
+- Kök + **-겠어요**; geçmiş varsayım için **-았/었겠어요**: 와, 맛있**겠어요**! ·
+  저 포스터를 보세요, 재미있**겠어요**! · 시원하**겠어요** · 좋겠어요,
+  예쁘겠어요, 편하**겠**어요; 힘들**었겠**어요 (zor olmuştur).
+- Gördüğü/duyduğu şeye ANLIK tepki-tahmin; 'looks/sounds ...' tonu.
+  Soruda: 옷을 입으면 멋있**겠**지요? — yanıtta -(으)ㄹ까요 kullanılmaz,
+  네, 멋있**을 거예요** denir.
+
+### 23.2 A/V-(으)ㄹ 거예요 ② — deneyime dayalı tahmin ('sanırım')
+- Ünlü/ㄹ → **-ㄹ 거예요**, ünsüz → **-을 거예요**; geçmiş tahmin
+  **-았/었을 거예요**: 그 옷을 입으면 더**울 거예요** · 티셔츠가 잘
+  어울**릴 거예요** · 7시니까 벌써 퇴근**했을 거예요** · 만들 거예요,
+  바쁠 거예요, *가까울 거예요, *추울 거예요.
+- Konuşanın KENDİ deneyim/bilgisine dayanan kanaat; -겠어요'dan daha
+  gerekçeli, daha az anlık.
+
+### 23.3 A/V-(으)ㄹ까요? ③ — olasılık sorusu ('acaba ...?')
+- Ünlü/ㄹ → **-ㄹ까요?**, ünsüz → **-을까요?**; geçmiş **-았/었을까요?**:
+  주말에 날씨가 더**울까요?** · 캐럴 씨가 오늘 나**올까요?** · 댄 씨가
+  이 책을 읽**었을까요?** · 예쁠까요?, 친절할까요?, *들을까요?, *살까요?,
+  *추울까요?.
+- Henüz olmamış/bilinmeyen şeyi 'acaba' diye sorar; yanıt tipik olarak
+  **-(으)ㄹ 거예요** veya **-(으)ㄹ 것 같아요** ile verilir.
+
+### 23.4 A/V-(으)ㄴ/는/(으)ㄹ 것 같다 — 'gibi görünüyor / sanırım'
+- Zaman, eklendiği ortaçla taşınır:
+  - Geçmiş fiil: **-(으)ㄴ 것 같다** — 어제 비가 **온 것 같아요**.
+  - Şimdiki fiil: **-는 것 같다** — 지금 비가 **오는 것 같아요** ·
+    가는/먹는/듣는 것 같아요.
+  - Gelecek fiil: **-(으)ㄹ 것 같다** — 비가 **올 것 같아요** ·
+    갈/먹을/들을 것 같아요.
+  - Şimdiki sıfat: **-(으)ㄴ 것 같다** — 작은/친절한/추운 것 같아요;
+    isim: 학생**인 것 같아요**; gelecek sıfat: 예쁠/추울 것 같아요.
+- İkinci işlev: görüşü YUMUŞAK, iddiasız söyleme: 음식 맛이 어때요? —
+  좀 **짠 것 같아요** (biraz tuzlu galiba) · 좋은 것 같아요.
+
+## 24. UNIT 18 — SÖZCÜK TÜRÜ DEĞİŞTİRME
+
+### 24.1 관형형 -(으)ㄴ/-는/-(으)ㄹ N — ortaç (isim tamlayan biçim)
+- Fiil/sıfatı ismin önüne sıfatlaştırır ('-an/-en, -dığı, -acağı'):
+  - Sıfat şimdiki: ünlü → **-ㄴ N**, ünsüz → **-은 N**: 예쁜 가방,
+    높은 산, 날씬한 사람, 낮은.
+  - Fiil geçmiş: **-(으)ㄴ N**: 간 사람, 먹은 빵, 읽은 책, *만든 요리,
+    *들은 음악.
+  - Fiil şimdiki: **-는 N**: 자는 사람, 먹는 빵, 공부하는 사람,
+    있는/없는 (있다/없다 hep -는); olumsuz: -지 않는 N.
+  - Fiil gelecek: **-(으)ㄹ N**: 먹을 음식, 읽을 책, 만날 사람, *만들 요리.
+- Örnek dönüşüm: 소파에서 **자는** 사람이 누구예요? · 오늘 저녁에
+  **먹을** 한국 음식이 뭐예요?
+- Art arda sıfatlar bağlanırken yalnız SONUNCUSU ortaç olur:
+  착하**고** 예**쁜** 여자 (착한 예쁜 여자 ✗).
+
+### 24.2 A/V-기 — fiilden isim yapma ('-mek/-me')
+- Kök + **-기**: 말하기/듣기/읽기/쓰기 · 크다→크기 (boyut), 세다→세기,
+  굵다→굵기 · 달리기, 던지기.
+- Cümle öbeğini isimleştirir: 한국말을 공부하**기**가 어려워요 ·
+  제 취미는 요리하**기**예요 · 걷**기**가 힘들어요 · 혼자 밥 먹**기**
+  싫어요 · 한국 노래 듣**기**를 좋아해요.
+
+### 24.3 A-게 — sıfattan zarf ('-ce / şekilde')
+- Kök + **-게**: 짧**게** 잘랐어요 · 늦**게** 일어났어요 · 크**게**
+  읽으세요 · 싸게, 쉽게, 귀엽게, 편하게, 깨끗하게, 예쁘게, 가깝게.
+- Amaç/derece/yöntemi anlatan zarf üretir ('in a ... manner').
+
+### 24.4 A-아/어하다 — duygu sıfatını fiilleştirme (3. kişi)
+- Kendi içsel durumunu DIŞARIDAN gözlenen kişi için söylerken sıfat
+  fiile döner: ㅏ/ㅗ → **-아하다**, diğer → **-어하다**, 하다 → **-해하다**:
+  아이들이 배고**파해요** · 아버지가 피곤**해하세요** · 아이가
+  심심**해해요** · 좋아하다, 싫어하다, 무서워하다, 어려워하다, 미워하다.
+- Olumsuz emirde kalıp -아/어하지 마세요: 무서**워하지 마세요**
+  (무섭지 마세요 ✗).
+- 예뻐하다/귀여워하다 = 'sevgiyle muamele etmek': 할머니는 저를 귀여**워하세요**.
+
+## 25. UNIT 19 — DURUM İFADELERİ
+
+### 25.1 V-고 있다 ② — giyim/taşıma durumu
+- Giyme fiilleri + **-고 있다** giymiş OLMA durumunu da anlatır:
+  치마를 입**고 있어요** · 안경을 쓰**고 있어요** · 구두를 신**고 있어요**.
+- Fiil eşyaya göre değişir: **입다** (üst/alt giysi), **쓰다**
+  (şapka/gözlük), **신다** (ayakkabı/çorap), **매다** (kravat/kemer),
+  **끼다** (yüzük/eldiven/gözlük), **하다** (kolye/atkı/küpe),
+  **차다** (saat), **들다/메다** (çanta).
+- Aynı durumu **-았/었어요** da verir: 치마를 입**고 있어요** = 입**었어요**.
+
+### 25.2 V-아/어 있다 — tamamlanmış eylemin süren hali ('-mış durumda')
+- ㅏ/ㅗ → **-아 있다**, diğer → **-어 있다**, 하다 → **해 있다**:
+  선생님이 **서 있어요** (ayakta) · 학생들이 **앉아 있어요** · 환자들이
+  **누워 있어요** · 이름이 **쓰여 있어요** · 가 있어요, 와 있어요,
+  남아 있어요, 켜 있어요.
+- Çok kez EDİLGEN fiillerle: 열리다→열**려 있어요** (açık duruyor),
+  닫히다→닫**혀 있어요**, 켜지다/꺼지다, 떨어져 있어요, 놓여 있어요.
+- -고 있다 eylemin sürmesi, -아/어 있다 bitmiş eylemin SONUÇ durumudur.
+
+### 25.3 A-아/어지다 — zamanla değişim ('-laşmak')
+- Sıfat köküne: ㅏ/ㅗ → **-아지다**, diğer → **-어지다**, 하다 → **해지다**:
+  풍선이 **커졌어요** · 언니가 날씬**해졌어요** · 거짓말을 하면 코가
+  길**어져요** · 좋아져요, 예뻐져요, 더워져요, 빨개져요, 편해져요,
+  *달라져요.
+- Tipik kullanımı geçmişte (-아/어졌어요): değişim olmuş bitmiştir:
+  옛날에는 뚱뚱했는데 날씬**해졌어요**.
+
+### 25.4 V-게 되다 — dış etkenle gelen değişim ('... olur oldu')
+- Fiil kökü + **-게 되다**: 요리를 잘하**게 되었어요** · 축구를 좋아하**게
+  되었어요** · 외국으로 출장을 가**게 됐어요** (öyle karar verildi) ·
+  마시게 되었어요, 듣게 되었어요, 일하게 되었어요.
+- Öznenin iradesi DIŞINDA ortam/başkası yüzünden gerçekleşen değişim:
+  사장님의 명령 때문에 출장을 가**게 되었어요**.
+- Sıfat değişimi -아/어지다, fiil değişimi -게 되다.
+
+## 26. UNIT 20 — BİLGİ TEYİT ETME
+
+### 26.1 A/V-(으)ㄴ/는지 — dolaylı soru ('...-(d)iğini')
+- 'Kim/ne/nerede/nasıl/...mi' içeren yan cümleyi şu fiillere bağlar:
+  알다, 모르다, 궁금하다, 질문하다, 조사하다, 알아보다, 생각하다,
+  말하다, 가르치다.
+- Biçim: sıfat ünlü/ㄹ → **-ㄴ지**, ünsüz → **-은지**; fiil → **-는지**;
+  geçmiş → **-았/었는지**; gelecek → **-(으)ㄹ 건지/-(으)ㄹ지**;
+  isim → **-인지**.
+- 명동에 어떻게 가**는지** 알아요? · 저 분이 누구**인지** 모르겠어요 ·
+  어제 무엇을 **했는지** 생각이 안 나요 · 날씨가 좋을지 나쁠지 알아요?
+
+### 26.2 V-는 데 걸리다/들다 — süre/maliyet ('... etmek ... sürer/tutar')
+- Fiil + **-는 데** + süre **걸리다** / para **들다**: 운전을 배우**는 데**
+  두 달 걸렸어요 · 숙제하**는 데** 한 시간 걸려요 · 차를 고치**는 데**
+  30만 원 들었어요 · 여행하는 데, 읽는 데, 짓는 데, *만드는 데.
+
+### 26.3 A/V-지요? — teyit sorusu ('değil mi?')
+- Kök + **-지요?** (konuşmada **-죠?**); geçmiş **-았/었지요?**, gelecek
+  **-(으)ㄹ 거지요?**; isim **-(이)지요?**: 중국 사람**이지요?** ·
+  불고기가 맛있**지요?** · 한국어를 배우**지요?** · 비쌌지요?, 춥지요?,
+  가지요?, 학생이 아니**지요?**.
+- Dinleyenin de bildiği/aşikâr şeyi onaylatır; bilgi sorusu değildir.
+
+## 27. UNIT 21 — KEŞİF VE ŞAŞKINLIK
+
+### 27.1 A/V-군요/는군요 — 'demek ki / -muş!'
+- Sıfat + **-군요** (크군요, 외사이군요, 피곤하군요, 멋있군요),
+  fiil + **-는군요** (가는군요, 사는군요, 운동하는군요, *만드는군요);
+  isim + **(이)군요**; geçmiş + **-았/었군요** (감기에 걸렸**군요**).
+- Yeni öğrenilen/duyulan bilgiye 'demek ki, anlaşılan' tepkisi:
+  눈이 나쁘**군요** · 아이스크림을 좋아하**는군요**!
+
+### 27.2 A/V-네요 — doğrudan deneyim ünlemi ('-muş ya!')
+- Kök + **-네요**; geçmiş **-았/었네요**; isim **(이)네요**: 벌써
+  여름이**네요** · 가족이 많**네요** · 글씨를 잘 쓰**네요** · 책을 많이
+  읽었**네요** · 잘 알아듣**네요**.
+- BİZZAT görüp/yaşayıp şaşırma veya karşıdakinin sözünü onaylama;
+  -군요 daha çok başkasından duyulan/gözlemle çıkarılan bilgiye gider.
+
+## 28. UNIT 22 — EK SORU/SON EKLER
+
+### 28.1 A-(으)ㄴ가요?, V-나요? — yumuşak soru
+- Sıfat: ünlü/ㄹ → **-ㄴ가요?** (아픈가요?, 빠른가요?), ünsüz →
+  **-은가요?** (많은가요?, 작은가요?); isim → **-인가요?**.
+- Fiil → **-나요?** (가나요?, 오나요?, 있나요?, 찾나요?); geçmiş her
+  ikisinde **-았/었나요?** (갔나요?, 재미있게 보내셨**나요?**); gelecek
+  fiil → **-(으)ㄹ 건가요?** (갈 건가요?, 먹을 건가요?).
+- -아/어요?'dan daha yumuşak-nazik soru tonu: 한국 친구가 많**은가요?** ·
+  나를 사랑하**나요?**
+
+### 28.2 A/V-(으)ㄴ/는데요 — yumuşak itiraz/bekleme/şaşkınlık
+- Biçim -(으)ㄴ/는데 ②'deki gibi + **요**: sıfat -(으)ㄴ데요, fiil -는데요,
+  isim -인데요, geçmiş -았/었는데요.
+- Üç işlev:
+  1. Nazik karşı görüş: 오늘 날씨가 안 추워요. — 저는 추**운데요**.
+  2. Yanıt bekleyen yarım cümle: 여보세요, 하영 씨 집**인데요**.
+     (누구세요? / 무슨 일이세요? beklenir)
+  3. Gözlem karşısında hafif şaşkınlık: 저는 재미있**는데요** ·
+     정말 높**은데요**! · 민우 씨는 지금 자리에 없**는데요**.
+
+## 29. UNIT 23 — AKTARMA (ALINTILAMA)
+
+### 29.1 Doğrudan aktarma — "..." 라고/하고 + söyleme fiili
+- Tırnak içi söz + **라고 했어요**: 에디슨은 "실패는 성공의 어머니입니다."
+  **라고 했어요** · "서로 사랑하세요."**라고 말씀하셨어요**.
+- Soru aktarımında sık **하고**: "내일 몇 시에 와요?" **하고 물어봤어요**;
+  düşünce: '문제가 너무 어려워.' **하고 생각했어요**.
+- Söyleme fiilleri: 말하다, 말씀하시다, 이야기하다, 물어보다, 묻다,
+  생각하다, 쓰다 (yazıda 뭐라고 yerine 무엇을 ... 썼어요).
+
+### 29.2 Dolaylı aktarma — -다고/-(이)라고/-냐고/-자고/-(으)라고 하다
+- Bildirme: sıfat + **-다고 하다** (예쁘**다고** 했어요), fiil +
+  **-ㄴ/는다고 하다** (간**다고**, 먹는**다고**), geçmiş **-았/었다고**,
+  gelecek/tahmin **-(으)ㄹ 거라고**; isim + **-(이)라고 하다**.
+- Öneri cümlesi → **-자고 하다**: "같이 갑시다." → 같이 가**자고 했어요**;
+  olumsuz öneri → -지 말**자고** 하다.
+- Emir cümlesi → **-(으)라고 하다**: "담배를 피우지 마세요." → 담배를
+  피우지 **말라고 하셨어요**; -아/어 주세요 aktarımı: kendisi için rica →
+  **-아/어 달라고 하다** (물 좀 달라고 했어요), üçüncü kişi için →
+  **-아/어 주라고 하다**.
+- Soru → **-냐고 하다/물어보다**.
+- Aktarılan sözdeki 나/내/제 → **자기**: "제 고향은..." → 리처드 씨가
+  **자기**(의) 고향은 뉴욕이라고 말했어요.
+
+### 29.3 Kısaltılmış aktarma — -대요/-(이)래요/-냬요/-재요/-(으)래요
+- Konuşma dilinde -다고 해요 vb. büzüşür:
+  - Bildirme: -ㄴ/는다고 해요 → **-ㄴ/는대요** (간대요, 먹는대요),
+    sıfat → **-대요** (바쁘대요), geçmiş → **-았/었대요** (만났대요),
+    isim → **-(이)래요** (변호사래요), gelecek → **-(으)ㄹ 거래요**.
+  - Soru: → **-냬요** (가냬요, 바쁘냬요, 몇 시에 모이**냬요**).
+  - Öneri: -자고 해요 → **-재요** (가재요, 같이 등산 가**재요**).
+  - Emir/rica: -(으)라고 해요 → **-(으)래요** (가래요, 입으래요);
+    달라고/주라고 해요 → **달래요/주래요** (도와 달**래요**).
+- 요코 씨는 한국어가 재미있**대요** · 재준 씨는 내일 같이 테니스를
+  치**재요** · 부디 씨는 뭐 먹고 싶**냬요**.
+
+## 30. UNIT 24 — DÜZENSİZ ÇEKİMLER (불규칙)
+
+### 30.1 'ㅡ' düzensizliği
+- Kök sonu **ㅡ**, ünlüyle başlayan ek (-아/어...) gelince DÜŞER; bir
+  önceki hecenin ünlüsü ㅏ/ㅗ ise -아요, değilse -어요; tek heceli kökte
+  -어요: 바쁘다→바**빠**요 · 예쁘다→예**뻐**요 · 끄다→**꺼** 주세요 ·
+  고프다→고**파**요 · 크다→**컸**어요 · 쓰다→**써**요.
+- İstisnasız: tüm ㅡ kökleri bu kurala uyar (르 hariç — bkz. 30.5).
+
+### 30.2 'ㄹ' düzensizliği
+- Kök sonu **ㄹ**, ardından **ㄴ/ㅂ/ㅅ** başlayan ek gelince düşer:
+  만들다→만드**니까**/만듭니다/만드세요/만드**는** · 열다→여니까/엽니다/
+  여는 · 놀다→노는 · 알다→아니까/압니다/아는 · 멀다→머니까/멉니다 ·
+  달다→다니까/답니다/단.
+- -(으)'lu eklerde 으 alınmaz, ㄹ korunur ya da ek doğrudan eklenir:
+  살다 + -(으)ㄹ 때 → **살 때** · 만들다 + -(으)ㄹ래요? → **만들래요?**,
+  -(으)면 → 만들면.
+
+### 30.3 'ㅂ' düzensizliği
+- Kök sonu **ㅂ**, ünlüyle başlayan ek gelince **우**'ya döner (오 olan
+  yalnız 돕다/곱다): 쉽다→쉬**워**요/쉬**우**면/쉬**운** · 어렵다→어려워요/
+  어려우면/어려운 · 덥다→더워요 · 춥다→추워요 · 맵다→매워요 ·
+  무겁다→무거워요 · 돕다→도**와**요/도우면.
+- Düzenli kalanlar (değişmez): **입다** (입어요), **좁다** (좁아요)
+  ve 잡다, 씹다 gibi birkaç fiil.
+
+### 30.4 'ㄷ' düzensizliği
+- Birkaç fiilde kök sonu **ㄷ**, ünlüyle başlayan ek gelince **ㄹ** olur:
+  듣다→들**어**요/들으세요/들을까요?/들으면 · 묻다→물어요/물었어요 ·
+  걷다→걸어요/걸을까요?.
+- Düzenli kalanlar: 받다 (받아요), 닫다 (닫아요), 믿다 (믿어요).
+
+### 30.5 '르' düzensizliği
+- Kök sonu **르**, -아/어 gelince ㅡ düşer + bir **ㄹ** eklenir (ㄹㄹ):
+  다르다→달**라**요/달랐어요/달라서 · 부르다→불**러**요/불러서 ·
+  빠르다→빨라요/빨랐어요 · 모르다→몰라요 · 자르다→잘라요.
+- Ünsüz eklerde düzenli: 다르고, 다르면, 다릅니다.
+
+### 30.6 'ㅎ' düzensizliği
+- Bazı sıfatlarda kök sonu **ㅎ**, ünlüyle başlayan ek gelince düşer:
+  - -(으)ㄴ/-(으)니까 önünde: 하얗다→하**얀**/하야니까 · 까맣다→까만/
+    까마니까 · 파랗다→파란 · 빨갛다→빨간 · 노랗다→노란.
+  - -아/어 önünde ㅎ düşer + ㅣ kaynaşır (→ㅐ): 까맣다→까**매**서 ·
+    하얗다→하**얘**요 · 어떻다→어**때**요; 그렇다→그래요/그래서 (이래요,
+    저래요, 어때요).
+- Düzenli kalanlar: 좋다 (좋아요/좋은), 많다, 넣다, 놓다.
+
+### 30.7 'ㅅ' düzensizliği
+- Birkaç kökte **ㅅ**, ünlüyle başlayan ek gelince düşer (ünlüler
+  KAYNAŞMAZ): 붓다→부**어**요/부었어요/부으면 (şişmek/dökmek) ·
+  젓다→저어요 (karıştırmak) · 낫다→나**아**요/나으면 (iyileşmek; daha iyi:
+  어느 옷이 더 나**아**요?) · 잇다→이어요 · 짓다→지어요/지으면.
+- Düzenli kalanlar: 웃다 (웃어요), 씻다 (씻어요), 벗다 (벗어요).
+
+---
+
+*Kitap tamamı işlendi (Unit 1-24 + Giriş). Ekler/cevap anahtarı (PDF 336-344) dilbilgisi içermediği için kapsam dışıdır.*
