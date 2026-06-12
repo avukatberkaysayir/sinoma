@@ -130,6 +130,17 @@ class UserRepository {
     return List<Map<String, dynamic>>.from(data as List);
   }
 
+  // Public profile card of any user (league member tap-through).
+  Future<Map<String, dynamic>?> loadPublicProfile(String uid) async {
+    try {
+      final data = await _db.rpc('public_profile', params: {'p_uid': uid});
+      final rows = List<Map<String, dynamic>>.from(data as List);
+      return rows.isEmpty ? null : rows.first;
+    } catch (_) {
+      return null;
+    }
+  }
+
   // Me + my friends, ordered by total score.
   Future<List<Map<String, dynamic>>> loadFriendsLeaderboard() async {
     final data = await _db.rpc('friends_leaderboard');

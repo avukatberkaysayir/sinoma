@@ -430,7 +430,7 @@ class _LevelNavItem extends StatelessWidget {
 
 // Fixed height per unit section — taller than a typical viewport so the NEXT
 // unit's top line only appears after a scroll.
-const double _kUnitHeight = 1030;
+const double _kUnitHeight = 1050;
 
 // An admin-uploaded image (network URL) when present, else the bundled asset.
 // A missing bundled asset (e.g. a landmark set added before its art) degrades
@@ -550,7 +550,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         // title and the city info opens from the unit's side mascot.
         return ListView.builder(
           controller: _scroll,
-          padding: const EdgeInsets.only(top: 8, bottom: 80),
+          padding: const EdgeInsets.only(bottom: 80),
           itemExtent: _kUnitHeight,
           itemCount: topic.steps.length,
           itemBuilder: (_, i) => _UnitNodes(
@@ -667,8 +667,11 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
 
     return Column(
       children: [
-        // Every unit — including Ünite 1 — starts with the horizontal line.
-        Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
+        // Units after the first carry the separator line at their very top;
+        // at scroll 0 no line shows (unit 1 has none, unit 2's is a full
+        // viewport away) — it appears only once you scroll into it.
+        if (step.index > 0)
+          Container(height: 1.5, color: Colors.white.withValues(alpha: 0.12)),
         Expanded(
           child: Center(
             child: ConstrainedBox(
@@ -693,9 +696,8 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Title hugs the divider line above and stays well
-                          // clear of the first circle: big display-size text.
-                          const SizedBox(height: 4),
+                          // Title sits right at the unit top, well clear of
+                          // the first circle: big display-size text.
                           Text(
                             AppL10n.of(context).unitTitle(step.index + 1),
                             textAlign: TextAlign.center,
@@ -706,7 +708,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                                 fontWeight: FontWeight.w800),
                           ),
                           // Comfortable distance before the first circle.
-                          const SizedBox(height: 64),
+                          const SizedBox(height: 88),
                           ...nodes,
                         ],
                       ),
@@ -740,13 +742,13 @@ class _RoutePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final sgn = mirror ? -1.0 : 1.0;
-    // +30 matches the taller unit title block above the first circle.
+    // +50 matches the taller unit title block above the first circle.
     final pts = <Offset>[
-      Offset(cx, 155),
-      Offset(cx + sgn * 112, 285),
-      Offset(cx, 454),
-      Offset(cx - sgn * 112, 607),
-      Offset(cx, 737),
+      Offset(cx, 175),
+      Offset(cx + sgn * 112, 305),
+      Offset(cx, 474),
+      Offset(cx - sgn * 112, 627),
+      Offset(cx, 757),
     ];
     // Antique caravan route: inlaid stepping stones (gold lozenges alternating
     // with round pebbles) along a brush curve, with a small auspicious-cloud
@@ -1086,17 +1088,8 @@ class _PhaseNode extends ConsumerWidget {
           if (available)
             img
           else ...[
-            // Matte locked look: a solid ink disc hides the route line behind
-            // the icon's transparent pixels, the icon itself goes flat grey.
-            Container(
-              width: sz * 0.96,
-              height: sz * 0.96,
-              decoration: BoxDecoration(
-                color: const Color(0xFF18211F),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF263230), width: 2),
-              ),
-            ),
+            // Matte locked look: flat grey icon (no backing disc — only the
+            // pedestal ellipse below the icon stays).
             ColorFiltered(
               colorFilter: const ColorFilter.matrix(<double>[
                 0.2126, 0.7152, 0.0722, 0, 28, //

@@ -453,6 +453,7 @@ class LeaderboardCenter extends ConsumerStatefulWidget {
 
 class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
   int _tab = 0; // 0 = Ligim, 1 = Arkadaşlarım, 2 = Elmas Ligi
+  String? _viewUid; // a league member's public profile fills the centre
 
   void _openFriendSearch() {
     showDialog(
@@ -464,6 +465,14 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
   Widget build(BuildContext context) {
     final tr = widget.tr;
     final myUid = Supabase.instance.client.auth.currentUser?.id;
+
+    if (_viewUid != null) {
+      return _PublicProfileView(
+        uid: _viewUid!,
+        tr: tr,
+        onBack: () => setState(() => _viewUid = null),
+      );
+    }
 
     Widget tabChip(int i, String label, IconData icon) {
       final on = _tab == i;
@@ -504,6 +513,10 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
+                // All 12 zodiac tiers, scrollable (5 in view): reached tiers
+                // show their animal, the rest sit matte like locked units.
+                const _LeagueStrip(),
+                const SizedBox(height: 16),
                 Row(children: [
                   tabChip(0, AppL10n.of(context).myLeague,
                       Icons.shield_rounded),
@@ -515,7 +528,11 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
                       Icons.diamond_rounded),
                 ]),
                 const SizedBox(height: 20),
-                if (_tab == 0) _LeagueTab(tr: tr, myUid: myUid),
+                if (_tab == 0)
+                  _LeagueTab(
+                      tr: tr,
+                      myUid: myUid,
+                      onMember: (uid) => setState(() => _viewUid = uid)),
                 if (_tab == 1)
                   _FriendsTab(
                       tr: tr, myUid: myUid, onSearch: _openFriendSearch),
@@ -529,12 +546,361 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
   }
 }
 
+// ── Public profile (league member tap-through) ────────────────────────────────
+// Fills the leaderboard centre; back returns to the league list. Friend
+// add/remove lives HERE rather than in a popup.
+
+class _PublicProfileView extends ConsumerStatefulWidget {
+  final String uid;
+  final bool tr;
+  final VoidCallback onBack;
+  const _PublicProfileView(
+      {required this.uid, required this.tr, required this.onBack});
+
+  @override
+  ConsumerState<_PublicProfileView> createState() =>
+      _PublicProfileViewState();
+}
+
+class _PublicProfileViewState extends ConsumerState<_PublicProfileView> {
+  Map<String, dynamic>? _p;
+  bool _loading = true;
+  bool? _isFriend;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    ref
+        .read(userRepositoryProvider)
+        .loadPublicProfile(widget.uid)
+        .then((p) {
+      if (mounted) {
+        setState(() {
+          _p = p;
+          _loading = false;
+        });
+      }
+    });
+  }
+
+  Future<void> _toggleFriend() async {
+    if (_busy) return;
+    final was = _isFriend ?? false;
+    setState(() {
+      _busy = true;
+      _isFriend = !was;
+    });
+    try {
+      final repo = ref.read(userRepositoryProvider);
+      if (was) {
+        await repo.removeFriend(widget.uid);
+      } else {
+        await repo.addFriend(widget.uid);
+      }
+      ref.invalidate(friendsLeaderboardProvider);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    _isFriend ??= (ref.watch(friendsLeaderboardProvider).valueOrNull ??
+            const [])
+        .any((f) => f['id'] == widget.uid);
+
+    Widget statTile(IconData icon, Color color, String label, String value) {
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: _panel,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF263230)),
+        ),
+        child: Row(children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(value,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w800)),
+                Text(label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                        color: Colors.white54, fontSize: 11)),
+              ],
+            ),
+          ),
+        ]),
+      );
+    }
+
+    final p = _p;
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+      children: [
+        Align(
+          alignment: Alignment.centerLeft,
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back_rounded,
+                color: Colors.white70, size: 26),
+            tooltip: l10n.myLeague,
+            onPressed: widget.onBack,
+          ),
+        ),
+        if (_loading)
+          const Padding(
+            padding: EdgeInsets.only(top: 80),
+            child: Center(child: CircularProgressIndicator(color: _green)),
+          )
+        else if (p == null)
+          Padding(
+            padding: const EdgeInsets.only(top: 80),
+            child: Center(
+                child: Text(l10n.failedLbl,
+                    style: const TextStyle(color: Colors.white54))),
+          )
+        else
+          Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 480),
+              child: Builder(builder: (context) {
+                final photo = p['photo_url'] as String? ?? '';
+                final name = (p['display_name'] as String?)?.trim() ?? '';
+                final username = p['username'] as String? ?? '';
+                final lg = ((p['league'] as num?)?.toInt() ?? 1)
+                    .clamp(1, kLeagueCount);
+                final created = DateTime.tryParse(
+                    p['created_at'] as String? ?? '');
+                return Column(
+                  children: [
+                    // Seal-ringed avatar, same identity as the own profile.
+                    Container(
+                      padding: const EdgeInsets.all(3),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                            color: const Color(0xFFE0442C), width: 3),
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: const Color(0xFFD4A33D), width: 1),
+                        ),
+                        child: CircleAvatar(
+                          radius: 44,
+                          backgroundColor: _bg,
+                          backgroundImage:
+                              photo.isNotEmpty ? NetworkImage(photo) : null,
+                          child: photo.isEmpty
+                              ? const Icon(Icons.person,
+                                  color: Colors.white38, size: 44)
+                              : null,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(name.isNotEmpty ? name : l10n.studentFallback,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 22,
+                            fontWeight: FontWeight.w800)),
+                    if (username.isNotEmpty)
+                      Text('@$username',
+                          style: const TextStyle(
+                              color: Colors.white54, fontSize: 13)),
+                    const SizedBox(height: 6),
+                    if (created != null)
+                      Text(l10n.joinedOn(created.month, created.year),
+                          style: const TextStyle(
+                              color: Colors.white38, fontSize: 12)),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: _busy ? null : _toggleFriend,
+                      icon: Icon(
+                          _isFriend == true
+                              ? Icons.person_remove_outlined
+                              : Icons.person_add_alt_1_rounded,
+                          size: 18),
+                      label: Text(_isFriend == true
+                          ? l10n.removeLbl
+                          : l10n.addLbl),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _isFriend == true
+                            ? const Color(0xFF2E3A38)
+                            : _green,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 22, vertical: 12),
+                      ),
+                    ),
+                    const SizedBox(height: 22),
+                    Row(children: [
+                      Expanded(
+                        child: statTile(
+                            Icons.school_rounded,
+                            const Color(0xFF2EC4B6),
+                            'HSK',
+                            'HSK ${p['hsk_level'] ?? 1}'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: statTile(
+                            Icons.shield_rounded,
+                            kLeagueColors[lg - 1],
+                            l10n.myLeague,
+                            '${kLeagueEmojis[lg - 1]} ${l10n.leagueName(lg)}'),
+                      ),
+                    ]),
+                    const SizedBox(height: 10),
+                    Row(children: [
+                      Expanded(
+                        child: statTile(
+                            Icons.bolt_rounded,
+                            const Color(0xFFFFC800),
+                            l10n.leagueHowTitle,
+                            '${p['weekly_score'] ?? 0}'),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: statTile(
+                            Icons.diamond_rounded,
+                            const Color(0xFF1CB0F6),
+                            l10n.dragonTab,
+                            '${p['diamonds'] ?? 0}'),
+                      ),
+                    ]),
+                    const SizedBox(height: 10),
+                    statTile(Icons.emoji_events_rounded,
+                        const Color(0xFFD4A33D), l10n.statsPoints,
+                        '${p['total_score'] ?? 0}'),
+                  ],
+                );
+              }),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// ── League strip: the whole 12-tier zodiac ladder ─────────────────────────────
+// Horizontal, 5 tiers per view. Tiers you have reached (≤ current league)
+// show their animal in full colour; the ones ahead are matte with a lock —
+// the same visual language as locked path units.
+
+class _LeagueStrip extends ConsumerWidget {
+  const _LeagueStrip();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final myUid = Supabase.instance.client.auth.currentUser?.id;
+    final rows = ref.watch(leagueGroupProvider).valueOrNull ?? const [];
+    final lg = rows.isEmpty
+        ? 1
+        : ((rows.firstWhere((r) => r['id'] == myUid,
+                        orElse: () => rows.first)['league'] as num?)
+                    ?.toInt() ??
+                1)
+            .clamp(1, kLeagueCount);
+    final l10n = AppL10n.of(context);
+
+    return SizedBox(
+      height: 96,
+      child: LayoutBuilder(builder: (context, c) {
+        final itemW = c.maxWidth / 5; // exactly five tiers per view
+        return ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: kLeagueCount,
+          itemBuilder: (_, i) {
+            final tier = i + 1;
+            final reached = tier <= lg;
+            final current = tier == lg;
+            final color = kLeagueColors[i];
+            return SizedBox(
+              width: itemW,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 52,
+                        height: 52,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: current
+                              ? color.withValues(alpha: 0.18)
+                              : Colors.transparent,
+                          border: Border.all(
+                              color: current
+                                  ? color
+                                  : (reached
+                                      ? color.withValues(alpha: 0.55)
+                                      : const Color(0xFF2E3A38)),
+                              width: current ? 2.5 : 1.5),
+                        ),
+                        child: reached
+                            ? Text(kLeagueEmojis[i],
+                                style: const TextStyle(fontSize: 26))
+                            : ColorFiltered(
+                                colorFilter: const ColorFilter.matrix(<double>[
+                                  0.2126, 0.7152, 0.0722, 0, 26, //
+                                  0.2126, 0.7152, 0.0722, 0, 30, //
+                                  0.2126, 0.7152, 0.0722, 0, 28, //
+                                  0, 0, 0, 0.55, 0,
+                                ]),
+                                child: Text(kLeagueEmojis[i],
+                                    style: const TextStyle(fontSize: 26)),
+                              ),
+                      ),
+                      if (!reached)
+                        const Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Text('🔒', style: TextStyle(fontSize: 13)),
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Text(l10n.leagueName(tier),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: current
+                              ? color
+                              : (reached ? Colors.white70 : Colors.white38),
+                          fontSize: 11,
+                          fontWeight:
+                              current ? FontWeight.w800 : FontWeight.w600)),
+                ],
+              ),
+            );
+          },
+        );
+      }),
+    );
+  }
+}
+
 // ── Ligim: the 30-user weekly cohort ──────────────────────────────────────────
 
 class _LeagueTab extends ConsumerWidget {
   final bool tr;
   final String? myUid;
-  const _LeagueTab({required this.tr, required this.myUid});
+  final void Function(String uid)? onMember;
+  const _LeagueTab({required this.tr, required this.myUid, this.onMember});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -588,17 +954,7 @@ class _LeagueTab extends ConsumerWidget {
                         : _RankZone.mid,
                 onTap: rows[i]['id'] == myUid
                     ? null
-                    : () => showDialog(
-                          context: context,
-                          builder: (_) => _FriendProfileDialog(
-                            friend: {
-                              ...rows[i],
-                              'score': rows[i]['weekly'] ?? 0,
-                            },
-                            tr: tr,
-                            showFriendAction: true,
-                          ),
-                        ),
+                    : () => onMember?.call(rows[i]['id'] as String),
               ),
           ],
         );
@@ -1957,15 +2313,39 @@ class BadgesRight extends ConsumerWidget {
     Widget seal(_BadgeDef b, int tier, int value, String cond) {
       final earned = value >= b.threshold;
       final color = _kBadgeTierColors[tier];
+      // Classic portrait of the figure (PD art from Wikimedia, bundled);
+      // the signature seal character is the fallback if art is missing.
+      Widget portrait = Image.asset(
+        'assets/badges/${b.id}.jpg',
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => Center(
+          child: Text(b.zh,
+              style: TextStyle(
+                  color: color,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800)),
+        ),
+      );
+      if (!earned) {
+        portrait = ColorFiltered(
+          colorFilter: const ColorFilter.matrix(<double>[
+            0.2126, 0.7152, 0.0722, 0, 20, //
+            0.2126, 0.7152, 0.0722, 0, 24, //
+            0.2126, 0.7152, 0.0722, 0, 22, //
+            0, 0, 0, 1, 0,
+          ]),
+          child: portrait,
+        );
+      }
       return Tooltip(
         message: '${l10n.badgeFigure(b.id)} — $cond',
         child: Opacity(
-          opacity: earned ? 1 : 0.32,
+          opacity: earned ? 1 : 0.38,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
               width: 52,
               height: 52,
-              alignment: Alignment.center,
+              clipBehavior: Clip.antiAlias,
               decoration: BoxDecoration(
                 color: earned
                     ? color.withValues(alpha: 0.16)
@@ -1973,11 +2353,7 @@ class BadgesRight extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: color, width: 2.5),
               ),
-              child: Text(b.zh,
-                  style: TextStyle(
-                      color: color,
-                      fontSize: 24,
-                      fontWeight: FontWeight.w800)),
+              child: portrait,
             ),
             const SizedBox(height: 3),
             SizedBox(
@@ -2699,10 +3075,7 @@ class _ProfileFriends extends ConsumerWidget {
 class _FriendProfileDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> friend;
   final bool tr;
-  // League rows pass true: members can be added/removed as friends here.
-  final bool showFriendAction;
-  const _FriendProfileDialog(
-      {required this.friend, required this.tr, this.showFriendAction = false});
+  const _FriendProfileDialog({required this.friend, required this.tr});
 
   @override
   ConsumerState<_FriendProfileDialog> createState() =>
@@ -2783,22 +3156,21 @@ class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
         ),
       ),
       actions: [
-        if (widget.showFriendAction)
-          TextButton.icon(
-            onPressed: _busy ? null : _toggle,
-            icon: Icon(
-                _isFriend == true
-                    ? Icons.person_remove_outlined
-                    : Icons.person_add_alt_1_rounded,
-                size: 18,
-                color: _isFriend == true ? Colors.white54 : _green),
-            label: Text(
-                _isFriend == true
-                    ? AppL10n.of(context).removeLbl
-                    : AppL10n.of(context).addLbl,
-                style: TextStyle(
-                    color: _isFriend == true ? Colors.white54 : _green)),
-          ),
+        TextButton.icon(
+          onPressed: _busy ? null : _toggle,
+          icon: Icon(
+              _isFriend == true
+                  ? Icons.person_remove_outlined
+                  : Icons.person_add_alt_1_rounded,
+              size: 18,
+              color: _isFriend == true ? Colors.white54 : _green),
+          label: Text(
+              _isFriend == true
+                  ? AppL10n.of(context).removeLbl
+                  : AppL10n.of(context).addLbl,
+              style: TextStyle(
+                  color: _isFriend == true ? Colors.white54 : _green)),
+        ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(AppL10n.of(context).closeLabel),
