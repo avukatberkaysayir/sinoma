@@ -28,7 +28,8 @@ class LandingScreen extends ConsumerWidget {
     final width = MediaQuery.sizeOf(context).width;
     final wide = width >= 900;
 
-    String t(String trText, String enText) => tr ? trText : enText;
+    String t(String trText, String enText, String koText) =>
+        tr ? trText : (lang == 'ko' ? koText : enText);
 
     return Scaffold(
       body: Container(
@@ -47,7 +48,7 @@ class LandingScreen extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   _TopBar(
-                    tr: tr,
+                    t: t,
                     signedIn: signedIn,
                     onSetLang: (code) => ref
                         .read(localeProvider.notifier)
@@ -96,11 +97,11 @@ class LandingScreen extends ConsumerWidget {
 // ── Top bar ───────────────────────────────────────────────────────────────────
 
 class _TopBar extends StatelessWidget {
-  final bool tr;
+  final String Function(String tr, String en, String ko) t;
   final bool signedIn;
   final void Function(String code) onSetLang;
   const _TopBar(
-      {required this.tr, required this.signedIn, required this.onSetLang});
+      {required this.t, required this.signedIn, required this.onSetLang});
 
   @override
   Widget build(BuildContext context) {
@@ -110,7 +111,7 @@ class _TopBar extends StatelessWidget {
         children: [
           const _Logo(),
           const Spacer(),
-          _LangToggle(tr: tr, onSetLang: onSetLang),
+          _LangToggle(onSetLang: onSetLang),
           const SizedBox(width: 12),
           if (signedIn)
             FilledButton(
@@ -122,7 +123,7 @@ class _TopBar extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(tr ? 'Uygulamaya Git' : 'Enter app',
+              child: Text(t('Uygulamaya Git', 'Enter app', '앱으로 이동'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             )
           else ...[
@@ -137,7 +138,7 @@ class _TopBar extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(tr ? 'Giriş Yap' : 'Log in',
+              child: Text(t('Giriş Yap', 'Log in', '로그인'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
             const SizedBox(width: 10),
@@ -151,7 +152,7 @@ class _TopBar extends StatelessWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(tr ? 'Kayıt Ol' : 'Sign up',
+              child: Text(t('Kayıt Ol', 'Sign up', '회원가입'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
           ],
@@ -182,15 +183,15 @@ class _Logo extends StatelessWidget {
   }
 }
 
-class _LangToggle extends StatelessWidget {
-  final bool tr;
+class _LangToggle extends ConsumerWidget {
   final void Function(String code) onSetLang;
-  const _LangToggle({required this.tr, required this.onSetLang});
+  const _LangToggle({required this.onSetLang});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lang = ref.watch(localeProvider).languageCode;
     Widget chip(String code, String label) {
-      final on = tr ? code == 'tr' : code == 'en';
+      final on = lang == code;
       return GestureDetector(
         onTap: () => onSetLang(code),
         child: Container(
@@ -211,6 +212,7 @@ class _LangToggle extends StatelessWidget {
     return Row(mainAxisSize: MainAxisSize.min, children: [
       chip('tr', 'TR'),
       chip('en', 'EN'),
+      chip('ko', '한국어'),
     ]);
   }
 }
@@ -218,7 +220,7 @@ class _LangToggle extends StatelessWidget {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 class _Hero extends StatelessWidget {
-  final String Function(String tr, String en) t;
+  final String Function(String tr, String en, String ko) t;
   final bool signedIn;
   const _Hero({required this.t, required this.signedIn});
 
@@ -233,7 +235,9 @@ class _Hero extends StatelessWidget {
             color: _lpGreen.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Text(t('🎬 Video ile Mandarin', '🎬 Mandarin through video'),
+          child: Text(
+              t('🎬 Video ile Mandarin', '🎬 Mandarin through video',
+                  '🎬 영상으로 배우는 중국어'),
               style: const TextStyle(
                   color: _lpGreen,
                   fontSize: 13,
@@ -242,7 +246,8 @@ class _Hero extends StatelessWidget {
         const SizedBox(height: 20),
         Text(
           t('Gerçek videolarla\nMandarin öğren',
-              'Learn Mandarin with\nreal videos'),
+              'Learn Mandarin with\nreal videos',
+              '진짜 영상으로\n중국어를 배우세요'),
           style: const TextStyle(
             color: AppColors.onSurface,
             fontSize: 44,
@@ -257,6 +262,8 @@ class _Hero extends StatelessWidget {
                 'otomatik altyazı ve HSK 1-6 seviyeleri ile.',
             'Watch, pick the sentence you heard, and learn instantly. Real '
                 'dialogues, auto subtitles and HSK 1-6 levels.',
+            '영상을 보고, 들은 문장을 고르고, 바로 배워요. '
+                '실제 대화와 자동 자막, HSK 1-6 레벨까지.',
           ),
           style: const TextStyle(
               color: AppColors.onSurfaceMuted, fontSize: 17, height: 1.5),
@@ -274,8 +281,8 @@ class _Hero extends StatelessWidget {
                   signedIn ? Icons.arrow_forward_rounded : Icons.rocket_launch,
                   size: 18),
               label: Text(signedIn
-                  ? t('Uygulamaya Devam Et', 'Continue to app')
-                  : t('Ücretsiz Başla', 'Start free')),
+                  ? t('Uygulamaya Devam Et', 'Continue to app', '앱으로 이동')
+                  : t('Ücretsiz Başla', 'Start free', '무료로 시작하기')),
               style: FilledButton.styleFrom(
                 backgroundColor: _lpGreen,
                 padding:
@@ -290,7 +297,8 @@ class _Hero extends StatelessWidget {
               OutlinedButton.icon(
                 onPressed: () => context.go('/learn'),
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
-                label: Text(t('Videolara Göz At', 'Browse videos')),
+                label: Text(
+                    t('Videolara Göz At', 'Browse videos', '영상 둘러보기')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.onSurface,
                   side: BorderSide(
@@ -463,7 +471,7 @@ class _MockOption extends StatelessWidget {
 // ── Feature cards ─────────────────────────────────────────────────────────────
 
 class _Features extends StatelessWidget {
-  final String Function(String tr, String en) t;
+  final String Function(String tr, String en, String ko) t;
   const _Features({required this.t});
 
   @override
@@ -471,27 +479,31 @@ class _Features extends StatelessWidget {
     final items = [
       (
         Icons.movie_filter_outlined,
-        t('Gerçek videolar', 'Authentic videos'),
+        t('Gerçek videolar', 'Authentic videos', '실제 영상'),
         t('Ezber değil; gerçek diyalog ve içeriklerle öğren.',
-            'No rote drills — learn from real dialogue and content.'),
+            'No rote drills — learn from real dialogue and content.',
+            '암기식 훈련이 아닌, 실제 대화와 콘텐츠로 배워요.'),
       ),
       (
         Icons.hearing_outlined,
-        t('Duy & Seç', 'Listen & choose'),
+        t('Duy & Seç', 'Listen & choose', '듣고 고르기'),
         t('Klibi dinle, doğru cümleyi seç. Aktif dinleme.',
-            'Hear the clip, pick the right sentence. Active listening.'),
+            'Hear the clip, pick the right sentence. Active listening.',
+            '클립을 듣고 맞는 문장을 고르세요. 능동적인 듣기 연습이에요.'),
       ),
       (
         Icons.school_outlined,
-        t('HSK 1-6 seviyeleri', 'HSK 1-6 levels'),
+        t('HSK 1-6 seviyeleri', 'HSK 1-6 levels', 'HSK 1-6 레벨'),
         t('Seviyene göre filtrele, adım adım ilerle.',
-            'Filter by your level and progress step by step.'),
+            'Filter by your level and progress step by step.',
+            '내 레벨에 맞게 골라서 차근차근 나아가요.'),
       ),
       (
         Icons.translate_outlined,
-        t('Kelime sözlüğü', 'Word dictionary'),
+        t('Kelime sözlüğü', 'Word dictionary', '단어 사전'),
         t('Her kelimeye dokun; anlam ve pinyin anında.',
-            'Tap any word for meaning and pinyin instantly.'),
+            'Tap any word for meaning and pinyin instantly.',
+            '아무 단어나 탭하면 뜻과 병음이 바로 나와요.'),
       ),
     ];
 
@@ -538,22 +550,24 @@ class _Features extends StatelessWidget {
 // ── How it works ──────────────────────────────────────────────────────────────
 
 class _HowItWorks extends StatelessWidget {
-  final String Function(String tr, String en) t;
+  final String Function(String tr, String en, String ko) t;
   const _HowItWorks({required this.t});
 
   @override
   Widget build(BuildContext context) {
     final steps = [
-      ('1', t('İzle', 'Watch'),
-          t('Kısa bir klip oynat.', 'Play a short clip.')),
-      ('2', t('Seç', 'Choose'),
-          t('Duyduğun cümleyi seç.', 'Pick the sentence you heard.')),
-      ('3', t('Öğren', 'Learn'),
-          t('Puan kazan, kelimeleri kaydet.', 'Earn points, save words.')),
+      ('1', t('İzle', 'Watch', '보기'),
+          t('Kısa bir klip oynat.', 'Play a short clip.', '짧은 클립을 재생해요.')),
+      ('2', t('Seç', 'Choose', '고르기'),
+          t('Duyduğun cümleyi seç.', 'Pick the sentence you heard.',
+              '들은 문장을 골라요.')),
+      ('3', t('Öğren', 'Learn', '배우기'),
+          t('Puan kazan, kelimeleri kaydet.', 'Earn points, save words.',
+              '점수를 얻고 단어를 저장해요.')),
     ];
     return Column(
       children: [
-        Text(t('Nasıl çalışır?', 'How it works'),
+        Text(t('Nasıl çalışır?', 'How it works', '어떻게 진행되나요?'),
             style: const TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 26,
@@ -607,7 +621,7 @@ class _HowItWorks extends StatelessWidget {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 class _Footer extends StatelessWidget {
-  final String Function(String tr, String en) t;
+  final String Function(String tr, String en, String ko) t;
   const _Footer({required this.t});
 
   @override
@@ -630,13 +644,13 @@ class _Footer extends StatelessWidget {
             spacing: 20,
             children: [
               _FooterLink(
-                  label: t('Gizlilik', 'Privacy'),
+                  label: t('Gizlilik', 'Privacy', '개인정보처리방침'),
                   onTap: () => context.go('/legal/privacy')),
               _FooterLink(
-                  label: t('Şartlar', 'Terms'),
+                  label: t('Şartlar', 'Terms', '이용약관'),
                   onTap: () => context.go('/legal/terms')),
               _FooterLink(
-                  label: t('Giriş Yap', 'Log in'),
+                  label: t('Giriş Yap', 'Log in', '로그인'),
                   onTap: () => showAuthDialog(context)),
             ],
           ),

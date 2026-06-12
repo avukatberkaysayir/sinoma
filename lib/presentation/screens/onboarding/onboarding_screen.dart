@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/onboarding_provider.dart';
 
 // Duo palette - matches /home.
@@ -148,10 +149,10 @@ class _WelcomePage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
-              'Learn Mandarin through real video clips,\nAI explanations, and fun games.',
+            Text(
+              AppL10n.of(context).onbTagline,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 16,
                 height: 1.5,
@@ -168,7 +169,8 @@ class _WelcomePage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                child: const Text('Get Started', style: TextStyle(fontSize: 16)),
+                child: Text(AppL10n.of(context).getStarted,
+                    style: const TextStyle(fontSize: 16)),
               ),
             ),
             const SizedBox(height: 32),
@@ -250,7 +252,8 @@ class _SignInPageState extends State<_SignInPage> {
 
   @override
   Widget build(BuildContext context) {
-    final title = _registerMode ? 'Hesap Oluştur' : 'Oturum Aç';
+    final l10n = AppL10n.of(context);
+    final title = _registerMode ? l10n.createAccount : l10n.signInTitle;
     return SafeArea(
       child: Stack(
         children: [
@@ -279,7 +282,7 @@ class _SignInPageState extends State<_SignInPage> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: Text(_registerMode ? 'OTURUM AÇ' : 'KAYDOL',
+              child: Text(_registerMode ? l10n.oturumAcCaps : l10n.kaydolCaps,
                   style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -321,7 +324,7 @@ class _SignInPageState extends State<_SignInPage> {
                           keyboardType: TextInputType.emailAddress,
                           style: const TextStyle(
                               color: AppColors.onSurface, fontSize: 15),
-                          decoration: _dec('E-posta'),
+                          decoration: _dec(l10n.emailHint),
                         ),
                         const SizedBox(height: 12),
                         TextField(
@@ -332,8 +335,8 @@ class _SignInPageState extends State<_SignInPage> {
                               color: AppColors.onSurface, fontSize: 15),
                           decoration: _dec(
                             _registerMode
-                                ? 'Parola (en az 6 karakter)'
-                                : 'Parola',
+                                ? l10n.passwordHintMin
+                                : l10n.passwordHint,
                             suffix: IconButton(
                               icon: Icon(
                                 _obscurePassword
@@ -358,30 +361,34 @@ class _SignInPageState extends State<_SignInPage> {
                                 borderRadius: BorderRadius.circular(14)),
                           ),
                           child: Text(
-                              _registerMode ? 'HESAP OLUŞTUR' : 'OTURUM AÇ',
+                              _registerMode
+                                  ? l10n.hesapOlusturCaps
+                                  : l10n.oturumAcCaps,
                               style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: 0.5)),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 18),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 18),
                           child: Row(
                             children: [
-                              Expanded(child: Divider(color: Colors.white12)),
+                              const Expanded(
+                                  child: Divider(color: Colors.white12)),
                               Padding(
-                                padding:
-                                    EdgeInsets.symmetric(horizontal: 12),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12),
                                 child: Text(
-                                  'VEYA',
-                                  style: TextStyle(
+                                  l10n.orDivider,
+                                  style: const TextStyle(
                                       color: AppColors.onSurfaceMuted,
                                       fontSize: 12,
                                       fontWeight: FontWeight.w800,
                                       letterSpacing: 1),
                                 ),
                               ),
-                              Expanded(child: Divider(color: Colors.white12)),
+                              const Expanded(
+                                  child: Divider(color: Colors.white12)),
                             ],
                           ),
                         ),
@@ -407,9 +414,9 @@ class _SignInPageState extends State<_SignInPage> {
                         const SizedBox(height: 12),
                         TextButton(
                           onPressed: widget.onAnonymous,
-                          child: const Text(
-                            'Misafir olarak devam et',
-                            style: TextStyle(
+                          child: Text(
+                            l10n.continueAsGuest,
+                            style: const TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 13),
                           ),
@@ -417,27 +424,29 @@ class _SignInPageState extends State<_SignInPage> {
                       ] else
                         const Center(child: CircularProgressIndicator()),
                       const SizedBox(height: 16),
-                      const Row(
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            'Devam ederek ',
-                            style: TextStyle(
-                                color: AppColors.onSurfaceMuted,
-                                fontSize: 11),
-                          ),
-                          _LegalLink(label: 'Şartlar', route: '/legal/terms'),
-                          Text(
-                            "'ı ve ",
-                            style: TextStyle(
+                            l10n.byContinuing,
+                            style: const TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 11),
                           ),
                           _LegalLink(
-                              label: 'Gizlilik', route: '/legal/privacy'),
+                              label: l10n.termsWord, route: '/legal/terms'),
                           Text(
-                            " politikasını kabul edersin.",
-                            style: TextStyle(
+                            l10n.andThe,
+                            style: const TextStyle(
+                                color: AppColors.onSurfaceMuted,
+                                fontSize: 11),
+                          ),
+                          _LegalLink(
+                              label: l10n.privacyWord,
+                              route: '/legal/privacy'),
+                          Text(
+                            l10n.policyAccept,
+                            style: const TextStyle(
                                 color: AppColors.onSurfaceMuted,
                                 fontSize: 11),
                           ),
@@ -496,9 +505,9 @@ class _EmailVerificationPage extends StatelessWidget {
                   size: 44, color: _obAccent),
             ),
             const SizedBox(height: 28),
-            const Text(
-              'E-postanı Doğrula',
-              style: TextStyle(
+            Text(
+              AppL10n.of(context).verifyTitle,
+              style: const TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -506,7 +515,7 @@ class _EmailVerificationPage extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             Text(
-              '$email adresine bir doğrulama bağlantısı gönderdik.\nE-postanı doğruladıktan sonra aşağıdaki butona bas.',
+              AppL10n.of(context).verifyBody(email),
               textAlign: TextAlign.center,
               style: const TextStyle(
                   color: AppColors.onSurfaceMuted,
@@ -526,8 +535,8 @@ class _EmailVerificationPage extends StatelessWidget {
                 child: FilledButton.icon(
                   onPressed: onCheckVerified,
                   icon: const Icon(Icons.verified_outlined, size: 20),
-                  label: const Text('Doğruladım, Devam Et',
-                      style: TextStyle(fontSize: 15)),
+                  label: Text(AppL10n.of(context).verifiedContinue,
+                      style: const TextStyle(fontSize: 15)),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
@@ -538,9 +547,9 @@ class _EmailVerificationPage extends StatelessWidget {
               const SizedBox(height: 12),
               TextButton(
                 onPressed: onResend,
-                child: const Text(
-                  'Tekrar gönder',
-                  style: TextStyle(
+                child: Text(
+                  AppL10n.of(context).resendLbl,
+                  style: const TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 13),
                 ),
               ),
@@ -603,9 +612,9 @@ class _ProfilePageState extends State<_ProfilePage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Spacer(),
-            const Text(
-              'What should we\ncall you?',
-              style: TextStyle(
+            Text(
+              AppL10n.of(context).whatToCallYou,
+              style: const TextStyle(
                 color: AppColors.onSurface,
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
@@ -619,7 +628,7 @@ class _ProfilePageState extends State<_ProfilePage> {
               maxLength: 24,
               onChanged: widget.onNameChanged,
               decoration: InputDecoration(
-                hintText: 'Display name',
+                hintText: AppL10n.of(context).displayNameHint,
                 hintStyle: const TextStyle(color: AppColors.onSurfaceMuted),
                 filled: true,
                 fillColor: _obPanel,
@@ -655,7 +664,8 @@ class _ProfilePageState extends State<_ProfilePage> {
                           color: Colors.white,
                         ),
                       )
-                    : const Text('Continue', style: TextStyle(fontSize: 16)),
+                    : Text(AppL10n.of(context).continueBtn,
+                        style: const TextStyle(fontSize: 16)),
               ),
             ),
             const SizedBox(height: 32),
@@ -680,6 +690,8 @@ class _TestPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final question = state.currentQuestion;
     if (question == null) return const SizedBox.shrink();
+    final choices = question
+        .choicesFor(Localizations.maybeLocaleOf(context)?.languageCode ?? 'en');
 
     return SafeArea(
       child: Column(
@@ -694,7 +706,8 @@ class _TestPage extends StatelessWidget {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Question ${state.questionIndex + 1} / ${OnboardingState.totalQuestions}',
+                      AppL10n.of(context).questionOf(state.questionIndex + 1,
+                          OnboardingState.totalQuestions),
                       style: const TextStyle(
                         color: AppColors.onSurfaceMuted,
                         fontSize: 13,
@@ -740,9 +753,9 @@ class _TestPage extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    const Text(
-                      'What does this mean?',
-                      style: TextStyle(
+                    Text(
+                      AppL10n.of(context).whatMeans,
+                      style: const TextStyle(
                         color: AppColors.onSurfaceMuted,
                         fontSize: 14,
                       ),
@@ -757,7 +770,7 @@ class _TestPage extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
             child: Column(
               children: List.generate(
-                question.choices.length,
+                choices.length,
                 (i) => Padding(
                   padding: const EdgeInsets.only(bottom: 12),
                   child: SizedBox(
@@ -773,7 +786,7 @@ class _TestPage extends StatelessWidget {
                         ),
                       ),
                       child: Text(
-                        question.choices[i],
+                        choices[i],
                         style: const TextStyle(
                           color: AppColors.onSurface,
                           fontSize: 15,
@@ -811,15 +824,6 @@ class _ResultsPage extends StatelessWidget {
     required this.onClearError,
   });
 
-  static const _descriptions = {
-    1: 'You\'re just starting out. We\'ll build your foundation with essential words and phrases.',
-    2: 'You know the basics. Time to expand your vocabulary and sentence patterns.',
-    3: 'Intermediate level — you can handle everyday conversations. Let\'s push further.',
-    4: 'Upper-intermediate — you\'re comfortable with complex topics. Let\'s refine your fluency.',
-    5: 'Advanced — you can discuss abstract ideas. We\'ll challenge your nuance and precision.',
-    6: 'Mastery level — you\'re at near-native proficiency. Only the finest challenges await.',
-  };
-
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -848,9 +852,9 @@ class _ResultsPage extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            const Text(
-              'Your Level',
-              style: TextStyle(
+            Text(
+              AppL10n.of(context).yourLevelLbl,
+              style: const TextStyle(
                 color: AppColors.onSurfaceMuted,
                 fontSize: 14,
                 letterSpacing: 1.2,
@@ -867,7 +871,7 @@ class _ResultsPage extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             Text(
-              _descriptions[hskLevel] ?? '',
+              AppL10n.of(context).hskLevelDesc(hskLevel),
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: AppColors.onSurfaceMuted,
@@ -900,9 +904,10 @@ class _ResultsPage extends StatelessWidget {
                           color: Colors.white,
                         ),
                       )
-                    : const Text(
-                        'Start Learning',
-                        style: TextStyle(fontSize: 16, color: Colors.white),
+                    : Text(
+                        AppL10n.of(context).startLearning,
+                        style: const TextStyle(
+                            fontSize: 16, color: Colors.white),
                       ),
               ),
             ),

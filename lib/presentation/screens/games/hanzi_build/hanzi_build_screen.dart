@@ -94,6 +94,9 @@ class _GameView extends StatelessWidget {
     final locale = Localizations.localeOf(context).languageCode;
     final definition = switch (locale) {
       'tr' => round.definitions.tr,
+      'ko' => round.definitions.ko.isNotEmpty
+          ? round.definitions.ko
+          : round.definitions.en,
       'vi' => round.definitions.vi.isNotEmpty
           ? round.definitions.vi
           : round.definitions.en,

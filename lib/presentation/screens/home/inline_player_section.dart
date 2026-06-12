@@ -580,19 +580,21 @@ class _ControlsBar extends StatelessWidget {
               icon: Icons.skip_previous_rounded,
               onTap: onPrev,
               size: 28,
-              tooltip: 'Önceki'),
+              tooltip: AppL10n.of(context).prevTooltip),
           _CtrlBtn(
               icon: Icons.replay_rounded,
               onTap: onReplay,
               size: 24,
-              tooltip: 'Tekrar oynat'),
+              tooltip: AppL10n.of(context).replayTooltip),
 
           // Sound toggle — same plain pattern as the play button (no builder).
           _CtrlBtn(
             icon: soundOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
             onTap: onToggleSound,
             size: 26,
-            tooltip: soundOn ? 'Sesi kapat' : 'Sesi aç',
+            tooltip: soundOn
+                ? AppL10n.of(context).soundOffTip
+                : AppL10n.of(context).soundOnTip,
             color: soundOn ? null : AppColors.primary,
           ),
           if (onAddToPlaylist != null)
@@ -1224,7 +1226,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
                   Text(
-                    lang == 'tr' ? w.definitions.tr : w.definitions.en,
+                    w.definitions.forLang(lang),
                     style: const TextStyle(
                         color: AppColors.onSurface, fontSize: 15),
                   ),
@@ -1238,7 +1240,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: Text(
-                          w.hskLevel >= 7 ? 'Diğer' : 'HSK ${w.hskLevel}',
+                          AppL10n.fromCode(lang).hskLabel(w.hskLevel),
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 11,
@@ -1249,9 +1251,7 @@ class _WordMeaningCardState extends ConsumerState<_WordMeaningCard> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8),
                     child: Text(
-                      lang == 'tr'
-                          ? 'Sözlükte bulunamadı.'
-                          : 'Not found in the dictionary.',
+                      AppL10n.fromCode(lang).notInDict,
                       style: const TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 13),
                     ),

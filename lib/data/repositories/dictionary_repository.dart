@@ -238,6 +238,7 @@ class DictionaryRepository {
     final pa         = w.pinyinAscii.toLowerCase();
     final langDef    = switch (lang) {
       'en' => w.definitions.en,
+      'ko' => w.definitions.ko.isNotEmpty ? w.definitions.ko : w.definitions.en,
       'vi' => w.definitions.vi,
       _    => w.definitions.tr,
     }.toLowerCase();

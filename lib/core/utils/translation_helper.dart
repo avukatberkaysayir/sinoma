@@ -7,6 +7,10 @@ class TranslationHelper {
     switch (languageCode) {
       case 'tr':
         return word.definitions.tr;
+      case 'ko':
+        return word.definitions.ko.isNotEmpty
+            ? word.definitions.ko
+            : word.definitions.en;
       case 'vi':
         return word.definitions.vi.isNotEmpty
             ? word.definitions.vi

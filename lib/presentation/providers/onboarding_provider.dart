@@ -6,6 +6,7 @@ import '../../data/models/user_model.dart';
 import '../../data/repositories/user_repository.dart';
 import '../../data/services/analytics_service.dart';
 import 'ai_provider.dart';
+import 'locale_provider.dart';
 import 'user_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -14,45 +15,136 @@ import 'user_provider.dart';
 
 class PlacementQuestion {
   final String text;
-  final List<String> choices;
+  final List<String> choices; // English (also the fallback)
+  final List<String> choicesTr;
+  final List<String> choicesKo;
   final int correctIndex;
   final int hskLevel;
 
   const PlacementQuestion({
     required this.text,
     required this.choices,
+    this.choicesTr = const [],
+    this.choicesKo = const [],
     required this.correctIndex,
     required this.hskLevel,
   });
+
+  // Same order in every language, so correctIndex stays valid.
+  List<String> choicesFor(String lang) => switch (lang) {
+        'tr' when choicesTr.length == choices.length => choicesTr,
+        'ko' when choicesKo.length == choices.length => choicesKo,
+        _ => choices,
+      };
 }
 
 const kPlacementQuestions = <PlacementQuestion>[
   // HSK 1
-  PlacementQuestion(text: '你好', choices: ['Hello', 'Goodbye', 'Thank you', 'Sorry'], correctIndex: 0, hskLevel: 1),
-  PlacementQuestion(text: '水', choices: ['Fire', 'Earth', 'Water', 'Wind'], correctIndex: 2, hskLevel: 1),
-  PlacementQuestion(text: '今天', choices: ['Yesterday', 'Tomorrow', 'Now', 'Today'], correctIndex: 3, hskLevel: 1),
-  PlacementQuestion(text: '我', choices: ['He', 'She', 'They', 'I / Me'], correctIndex: 3, hskLevel: 1),
+  PlacementQuestion(text: '你好',
+      choices: ['Hello', 'Goodbye', 'Thank you', 'Sorry'],
+      choicesTr: ['Merhaba', 'Hoşça kal', 'Teşekkürler', 'Özür dilerim'],
+      choicesKo: ['안녕하세요', '안녕히 가세요', '감사합니다', '죄송합니다'],
+      correctIndex: 0, hskLevel: 1),
+  PlacementQuestion(text: '水',
+      choices: ['Fire', 'Earth', 'Water', 'Wind'],
+      choicesTr: ['Ateş', 'Toprak', 'Su', 'Rüzgâr'],
+      choicesKo: ['불', '흙', '물', '바람'],
+      correctIndex: 2, hskLevel: 1),
+  PlacementQuestion(text: '今天',
+      choices: ['Yesterday', 'Tomorrow', 'Now', 'Today'],
+      choicesTr: ['Dün', 'Yarın', 'Şimdi', 'Bugün'],
+      choicesKo: ['어제', '내일', '지금', '오늘'],
+      correctIndex: 3, hskLevel: 1),
+  PlacementQuestion(text: '我',
+      choices: ['He', 'She', 'They', 'I / Me'],
+      choicesTr: ['O (erkek)', 'O (kadın)', 'Onlar', 'Ben'],
+      choicesKo: ['그', '그녀', '그들', '나 / 저'],
+      correctIndex: 3, hskLevel: 1),
   // HSK 2
-  PlacementQuestion(text: '高兴', choices: ['Sad', 'Happy', 'Tired', 'Angry'], correctIndex: 1, hskLevel: 2),
-  PlacementQuestion(text: '明白', choices: ['Forget', 'Explain', 'Understand', 'Remember'], correctIndex: 2, hskLevel: 2),
-  PlacementQuestion(text: '已经', choices: ['Still', 'Never', 'Often', 'Already'], correctIndex: 3, hskLevel: 2),
+  PlacementQuestion(text: '高兴',
+      choices: ['Sad', 'Happy', 'Tired', 'Angry'],
+      choicesTr: ['Üzgün', 'Mutlu', 'Yorgun', 'Kızgın'],
+      choicesKo: ['슬프다', '기쁘다', '피곤하다', '화나다'],
+      correctIndex: 1, hskLevel: 2),
+  PlacementQuestion(text: '明白',
+      choices: ['Forget', 'Explain', 'Understand', 'Remember'],
+      choicesTr: ['Unutmak', 'Açıklamak', 'Anlamak', 'Hatırlamak'],
+      choicesKo: ['잊다', '설명하다', '이해하다', '기억하다'],
+      correctIndex: 2, hskLevel: 2),
+  PlacementQuestion(text: '已经',
+      choices: ['Still', 'Never', 'Often', 'Already'],
+      choicesTr: ['Hâlâ', 'Asla', 'Sık sık', 'Çoktan'],
+      choicesKo: ['아직', '결코', '자주', '이미'],
+      correctIndex: 3, hskLevel: 2),
   // HSK 3
-  PlacementQuestion(text: '环境', choices: ['Weather', 'Environment', 'Society', 'Space'], correctIndex: 1, hskLevel: 3),
-  PlacementQuestion(text: '参加', choices: ['Leave', 'Refuse', 'Arrive', 'Participate'], correctIndex: 3, hskLevel: 3),
-  PlacementQuestion(text: '变化', choices: ['Repeat', 'Progress', 'Change', 'Difference'], correctIndex: 2, hskLevel: 3),
+  PlacementQuestion(text: '环境',
+      choices: ['Weather', 'Environment', 'Society', 'Space'],
+      choicesTr: ['Hava durumu', 'Çevre', 'Toplum', 'Uzay'],
+      choicesKo: ['날씨', '환경', '사회', '우주'],
+      correctIndex: 1, hskLevel: 3),
+  PlacementQuestion(text: '参加',
+      choices: ['Leave', 'Refuse', 'Arrive', 'Participate'],
+      choicesTr: ['Ayrılmak', 'Reddetmek', 'Varmak', 'Katılmak'],
+      choicesKo: ['떠나다', '거절하다', '도착하다', '참가하다'],
+      correctIndex: 3, hskLevel: 3),
+  PlacementQuestion(text: '变化',
+      choices: ['Repeat', 'Progress', 'Change', 'Difference'],
+      choicesTr: ['Tekrar', 'İlerleme', 'Değişim', 'Fark'],
+      choicesKo: ['반복', '발전', '변화', '차이'],
+      correctIndex: 2, hskLevel: 3),
   // HSK 4
-  PlacementQuestion(text: '批评', choices: ['Praise', 'Criticize', 'Study', 'Accept'], correctIndex: 1, hskLevel: 4),
-  PlacementQuestion(text: '不得不', choices: ['Want to', 'Prefer to', 'Have no choice but to', 'Refuse to'], correctIndex: 2, hskLevel: 4),
-  PlacementQuestion(text: '尽管', choices: ['Because', 'Unless', 'Despite', 'Without'], correctIndex: 2, hskLevel: 4),
+  PlacementQuestion(text: '批评',
+      choices: ['Praise', 'Criticize', 'Study', 'Accept'],
+      choicesTr: ['Övmek', 'Eleştirmek', 'Çalışmak', 'Kabul etmek'],
+      choicesKo: ['칭찬하다', '비판하다', '공부하다', '받아들이다'],
+      correctIndex: 1, hskLevel: 4),
+  PlacementQuestion(text: '不得不',
+      choices: ['Want to', 'Prefer to', 'Have no choice but to', 'Refuse to'],
+      choicesTr: ['İstemek', 'Tercih etmek', 'Mecbur kalmak', 'Reddetmek'],
+      choicesKo: ['~하고 싶다', '~을 선호하다', '어쩔 수 없이 ~하다', '~을 거부하다'],
+      correctIndex: 2, hskLevel: 4),
+  PlacementQuestion(text: '尽管',
+      choices: ['Because', 'Unless', 'Despite', 'Without'],
+      choicesTr: ['Çünkü', 'Olmadıkça', 'Rağmen', 'Olmadan'],
+      choicesKo: ['~때문에', '~하지 않는 한', '~에도 불구하고', '~없이'],
+      correctIndex: 2, hskLevel: 4),
   // HSK 5
-  PlacementQuestion(text: '辩论', choices: ['Agree', 'Confirm', 'Lecture', 'Debate'], correctIndex: 3, hskLevel: 5),
-  PlacementQuestion(text: '顽固', choices: ['Gentle', 'Cautious', 'Brave', 'Stubborn'], correctIndex: 3, hskLevel: 5),
-  PlacementQuestion(text: '迫不及待', choices: ['Reluctant', 'Eager / Can\'t wait', 'Hesitant', 'Indifferent'], correctIndex: 1, hskLevel: 5),
-  PlacementQuestion(text: '模糊', choices: ['Clear', 'Accurate', 'Vague', 'Specific'], correctIndex: 2, hskLevel: 5),
+  PlacementQuestion(text: '辩论',
+      choices: ['Agree', 'Confirm', 'Lecture', 'Debate'],
+      choicesTr: ['Katılmak', 'Doğrulamak', 'Ders vermek', 'Tartışmak'],
+      choicesKo: ['동의하다', '확인하다', '강의하다', '토론하다'],
+      correctIndex: 3, hskLevel: 5),
+  PlacementQuestion(text: '顽固',
+      choices: ['Gentle', 'Cautious', 'Brave', 'Stubborn'],
+      choicesTr: ['Nazik', 'Tedbirli', 'Cesur', 'İnatçı'],
+      choicesKo: ['온화하다', '신중하다', '용감하다', '완고하다'],
+      correctIndex: 3, hskLevel: 5),
+  PlacementQuestion(text: '迫不及待',
+      choices: ['Reluctant', 'Eager / Can\'t wait', 'Hesitant', 'Indifferent'],
+      choicesTr: ['İsteksiz', 'Sabırsız / Can atan', 'Kararsız', 'Kayıtsız'],
+      choicesKo: ['내키지 않다', '몹시 기대되다', '망설이다', '무관심하다'],
+      correctIndex: 1, hskLevel: 5),
+  PlacementQuestion(text: '模糊',
+      choices: ['Clear', 'Accurate', 'Vague', 'Specific'],
+      choicesTr: ['Net', 'Doğru', 'Belirsiz', 'Belirli'],
+      choicesKo: ['뚜렷하다', '정확하다', '모호하다', '구체적이다'],
+      correctIndex: 2, hskLevel: 5),
   // HSK 6
-  PlacementQuestion(text: '冠冕堂皇', choices: ['Humble', 'Sincere', 'Pompous / High-sounding', 'Eloquent'], correctIndex: 2, hskLevel: 6),
-  PlacementQuestion(text: '出乎意料', choices: ['As planned', 'Disappointing', 'Intentional', 'Unexpected'], correctIndex: 3, hskLevel: 6),
-  PlacementQuestion(text: '望而生畏', choices: ['Feel inspired', 'Feel attracted', 'Feel bored', 'Feel intimidated'], correctIndex: 3, hskLevel: 6),
+  PlacementQuestion(text: '冠冕堂皇',
+      choices: ['Humble', 'Sincere', 'Pompous / High-sounding', 'Eloquent'],
+      choicesTr: ['Alçakgönüllü', 'Samimi', 'Gösterişli / Tumturaklı', 'Belagatli'],
+      choicesKo: ['겸손하다', '진실하다', '겉만 번지르르하다', '언변이 좋다'],
+      correctIndex: 2, hskLevel: 6),
+  PlacementQuestion(text: '出乎意料',
+      choices: ['As planned', 'Disappointing', 'Intentional', 'Unexpected'],
+      choicesTr: ['Planlandığı gibi', 'Hayal kırıklığı', 'Kasıtlı', 'Beklenmedik'],
+      choicesKo: ['계획대로', '실망스럽다', '의도적이다', '뜻밖이다'],
+      correctIndex: 3, hskLevel: 6),
+  PlacementQuestion(text: '望而生畏',
+      choices: ['Feel inspired', 'Feel attracted', 'Feel bored', 'Feel intimidated'],
+      choicesTr: ['İlham almak', 'Cezbedilmek', 'Sıkılmak', 'Gözü korkmak'],
+      choicesKo: ['영감을 받다', '마음이 끌리다', '지루함을 느끼다', '보기만 해도 겁나다'],
+      correctIndex: 3, hskLevel: 6),
 ];
 
 int computeHskLevel(List<int?> answers) {
@@ -140,15 +232,19 @@ class OnboardingState {
 // ---------------------------------------------------------------------------
 
 class OnboardingNotifier extends StateNotifier<OnboardingState> {
-  OnboardingNotifier(this._userRepository, this._analytics)
+  OnboardingNotifier(this._userRepository, this._analytics, this._ref)
       : super(const OnboardingState(step: OnboardingStep.signIn)) {
     _checkExistingSession();
   }
 
   final UserRepository _userRepository;
   final AnalyticsService _analytics;
+  final Ref _ref;
 
   GoTrueClient get _auth => Supabase.instance.client.auth;
+
+  AppL10n get _l10n =>
+      AppL10n.fromCode(_ref.read(localeProvider).languageCode);
 
   // If the user is already signed in (e.g. after OAuth redirect), skip directly
   // to profile setup or mark complete if they already have a DB record.
@@ -251,7 +347,7 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
       } else {
         state = state.copyWith(
           isLoading: false,
-          error: 'E-posta henüz doğrulanmadı. Gelen kutunuzu kontrol edin.',
+          error: _l10n.errVerifyPending,
         );
       }
     } catch (e) {
@@ -273,17 +369,17 @@ class OnboardingNotifier extends StateNotifier<OnboardingState> {
   String _emailAuthError(AuthException e) {
     final msg = e.message.toLowerCase();
     if (msg.contains('already registered') || msg.contains('already exists')) {
-      return 'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.';
+      return _l10n.errEmailTaken;
     }
-    if (msg.contains('invalid email')) return 'Geçersiz e-posta adresi.';
+    if (msg.contains('invalid email')) return _l10n.errInvalidEmail;
     if (msg.contains('password') && msg.contains('short')) {
-      return 'Şifre en az 6 karakter olmalıdır.';
+      return _l10n.errPasswordShort;
     }
     if (msg.contains('invalid login') || msg.contains('wrong')) {
-      return 'E-posta veya şifre hatalı.';
+      return _l10n.errBadCredentials;
     }
     if (msg.contains('too many')) {
-      return 'Çok fazla deneme. Lütfen bir süre bekleyin.';
+      return _l10n.errTooMany;
     }
     return e.message;
   }
@@ -399,5 +495,6 @@ final onboardingProvider =
   (ref) => OnboardingNotifier(
     ref.read(userRepositoryProvider),
     ref.read(analyticsServiceProvider),
+    ref,
   ),
 );

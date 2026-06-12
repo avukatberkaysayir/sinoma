@@ -10,17 +10,17 @@ const _panel = Color(0xFF161E1D);
 const _accent = Color(0xFF2EC4B6);
 
 // Each language ONLY in its own tongue (no translated subtitle). The first
-// two are live; the rest are upcoming UI languages (tap → falls back to EN).
+// three are live; the rest are upcoming UI languages (tap → falls back to EN).
 const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇹🇷', 'Türkçe', 'tr', true),
   ('🇬🇧', 'English', 'en', true),
+  ('🇰🇷', '한국어', 'ko', true),
   ('🇪🇸', 'Español', 'es', false),
   ('🇩🇪', 'Deutsch', 'de', false),
   ('🇫🇷', 'Français', 'fr', false),
   ('🇷🇺', 'Русский', 'ru', false),
   ('🇸🇦', 'العربية', 'ar', false),
   ('🇯🇵', '日本語', 'ja', false),
-  ('🇰🇷', '한국어', 'ko', false),
   ('🇵🇹', 'Português', 'pt', false),
 ];
 
@@ -39,7 +39,8 @@ class _LanguageSelectionScreenState
   Future<void> _confirm() async {
     if (_selected == null) return;
     // Upcoming languages fall back to English until their UI ships.
-    final code = (_selected == 'tr' || _selected == 'en') ? _selected! : 'en';
+    final code =
+        kSupportedUiLanguages.contains(_selected) ? _selected! : 'en';
     await ref.read(localeProvider.notifier).setLocale(Locale(code));
     if (mounted) context.go('/onboarding');
   }
@@ -151,7 +152,9 @@ class _LanguageSelectionScreenState
                             borderRadius: BorderRadius.circular(14)),
                       ),
                       child: Text(
-                        _selected == 'tr' ? 'Devam Et' : 'Continue',
+                        _selected == 'tr'
+                            ? 'Devam Et'
+                            : (_selected == 'ko' ? '계속하기' : 'Continue'),
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800),
                       ),

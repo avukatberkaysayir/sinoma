@@ -103,7 +103,8 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
             const Icon(Icons.error_outline,
                 color: AppColors.wrongAnswer, size: 40),
             const SizedBox(height: 12),
-            Text('Failed to load videos\n$e',
+            Text(
+                '${AppL10n.fromCode(ref.watch(localeProvider).languageCode).failedToLoad}\n$e',
                 style: const TextStyle(color: AppColors.onSurface),
                 textAlign: TextAlign.center),
             const SizedBox(height: 16),
@@ -111,7 +112,9 @@ class _VideoFeedTabState extends ConsumerState<_VideoFeedTab> {
               onPressed: () => ref.invalidate(videoFeedProvider),
               style: FilledButton.styleFrom(
                   backgroundColor: AppColors.primary),
-              child: const Text('Retry'),
+              child: Text(AppL10n.fromCode(
+                      ref.watch(localeProvider).languageCode)
+                  .retryBtn),
             ),
           ],
         ),
@@ -492,7 +495,7 @@ class _ActiveFilterChips extends ConsumerWidget {
           Row(
             children: [
               Text(
-                'Aktif filtreler',
+                AppL10n.of(context).activeFilters,
                 style: TextStyle(
                   color: isDark ? Colors.white38 : Colors.black38,
                   fontSize: 10,
@@ -503,9 +506,9 @@ class _ActiveFilterChips extends ConsumerWidget {
               const Spacer(),
               GestureDetector(
                 onTap: onClearAll,
-                child: const Text(
-                  'Tümünü temizle',
-                  style: TextStyle(
+                child: Text(
+                  AppL10n.of(context).clearAllLbl,
+                  style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 10,
                   ),

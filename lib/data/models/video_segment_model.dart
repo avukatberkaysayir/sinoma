@@ -657,6 +657,8 @@ class QuizData {
   final String wrongAnswer; // tr
   final String correctAnswerEn;
   final String wrongAnswerEn;
+  final String correctAnswerKo;
+  final String wrongAnswerKo;
 
   const QuizData({
     required this.question,
@@ -664,25 +666,39 @@ class QuizData {
     required this.wrongAnswer,
     this.correctAnswerEn = '',
     this.wrongAnswerEn = '',
+    this.correctAnswerKo = '',
+    this.wrongAnswerKo = '',
   });
 
   factory QuizData.fromMap(Map<String, dynamic> map) {
     final en = (map['en'] as Map<String, dynamic>?) ?? const {};
+    final ko = (map['ko'] as Map<String, dynamic>?) ?? const {};
     return QuizData(
       question: map['question'] as String? ?? '',
       correctAnswer: map['correctAnswer'] as String? ?? '',
       wrongAnswer: map['wrongAnswer'] as String? ?? '',
       correctAnswerEn: en['correctAnswer'] as String? ?? '',
       wrongAnswerEn: en['wrongAnswer'] as String? ?? '',
+      correctAnswerKo: ko['correctAnswer'] as String? ?? '',
+      wrongAnswerKo: ko['wrongAnswer'] as String? ?? '',
     );
   }
 
-  // Resolve options for the UI language; fall back to Turkish (the always-saved
-  // top-level fields) when the requested language has no saved text.
-  String correctFor(String lang) =>
-      (lang == 'en' && correctAnswerEn.isNotEmpty) ? correctAnswerEn : correctAnswer;
-  String wrongFor(String lang) =>
-      (lang == 'en' && wrongAnswerEn.isNotEmpty) ? wrongAnswerEn : wrongAnswer;
+  // Resolve options for the UI language. Korean falls back to English (closer
+  // for a Korean reader than Turkish), everything else to Turkish (the
+  // always-saved top-level fields).
+  String correctFor(String lang) => switch (lang) {
+        'en' when correctAnswerEn.isNotEmpty => correctAnswerEn,
+        'ko' when correctAnswerKo.isNotEmpty => correctAnswerKo,
+        'ko' when correctAnswerEn.isNotEmpty => correctAnswerEn,
+        _ => correctAnswer,
+      };
+  String wrongFor(String lang) => switch (lang) {
+        'en' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
+        'ko' when wrongAnswerKo.isNotEmpty => wrongAnswerKo,
+        'ko' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
+        _ => wrongAnswer,
+      };
 
   Map<String, dynamic> toMap() => {
         'question': question,
@@ -690,5 +706,7 @@ class QuizData {
         'wrongAnswer': wrongAnswer,
         if (correctAnswerEn.isNotEmpty || wrongAnswerEn.isNotEmpty)
           'en': {'correctAnswer': correctAnswerEn, 'wrongAnswer': wrongAnswerEn},
+        if (correctAnswerKo.isNotEmpty || wrongAnswerKo.isNotEmpty)
+          'ko': {'correctAnswer': correctAnswerKo, 'wrongAnswer': wrongAnswerKo},
       };
 }

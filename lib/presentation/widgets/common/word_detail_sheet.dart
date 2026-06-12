@@ -9,6 +9,7 @@ import '../../../core/utils/sentence_hash.dart';
 import '../../../core/utils/translation_helper.dart';
 import '../../../data/models/dictionary_model.dart';
 import '../../providers/ai_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/credit_provider.dart';
 import '../../providers/dictionary_provider.dart';
 import '../../providers/user_provider.dart';
@@ -488,7 +489,7 @@ class _HskChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(
-        level >= 7 ? 'Diğer' : 'HSK $level',
+        AppL10n.of(context).hskLabel(level),
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.bold,

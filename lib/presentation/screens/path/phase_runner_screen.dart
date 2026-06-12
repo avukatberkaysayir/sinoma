@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
 import '../home/inline_player_section.dart';
@@ -152,16 +153,18 @@ class _ResultView extends StatelessWidget {
               color: color, size: 80),
           const SizedBox(height: 16),
           Text(
-            passed ? 'Tebrikler! Faz tamamlandı' : 'Bu sefer olmadı',
+            passed
+                ? AppL10n.of(context).phasePassed
+                : AppL10n.of(context).phaseFailed,
             style: const TextStyle(
                 color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
-          Text('$correct / $total doğru',
+          Text(AppL10n.of(context).correctOf(correct, total),
               style: const TextStyle(color: Colors.white60, fontSize: 16)),
           if (!passed) ...[
             const SizedBox(height: 4),
-            Text('Geçmek için en az %${(kPassRatio * 100).round()}',
+            Text(AppL10n.of(context).passReq((kPassRatio * 100).round()),
                 style: const TextStyle(color: Colors.white38, fontSize: 13)),
           ],
           const SizedBox(height: 28),
@@ -179,7 +182,10 @@ class _ResultView extends StatelessWidget {
                       borderRadius: BorderRadius.circular(14)),
                   shadowColor: _duoGreenDark,
                 ),
-                child: Text(passed ? 'DEVAM ET' : 'GERİ DÖN',
+                child: Text(
+                    passed
+                        ? AppL10n.of(context).continueCaps
+                        : AppL10n.of(context).goBackCaps,
                     style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w800)),
               ),

@@ -4,6 +4,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../providers/locale_provider.dart';
 
 class ConnectivityBanner extends StatefulWidget {
   final Widget child;
@@ -46,14 +47,14 @@ class _ConnectivityBannerState extends State<ConnectivityBanner> {
               width: double.infinity,
               color: AppColors.wrongAnswer,
               padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 16),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.wifi_off, color: Colors.white, size: 16),
-                  SizedBox(width: 8),
+                  const Icon(Icons.wifi_off, color: Colors.white, size: 16),
+                  const SizedBox(width: 8),
                   Text(
-                    'İnternet bağlantısı yok — önbellek gösteriliyor',
-                    style: TextStyle(color: Colors.white, fontSize: 12),
+                    AppL10n.of(context).offlineBanner,
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
                   ),
                 ],
               ),

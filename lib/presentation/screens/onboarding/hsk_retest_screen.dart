@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/onboarding_provider.dart';
 
@@ -61,10 +62,13 @@ class _HskRetestScreenState extends ConsumerState<HskRetestScreen> {
 
     final question = kPlacementQuestions[_questionIndex];
     final total = kPlacementQuestions.length;
+    final choices = question
+        .choicesFor(Localizations.maybeLocaleOf(context)?.languageCode ?? 'en');
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('HSK Testi  ${_questionIndex + 1} / $total'),
+        title: Text(
+            '${AppL10n.of(context).hskTestTitle}  ${_questionIndex + 1} / $total'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(4),
           child: LinearProgressIndicator(
@@ -91,7 +95,7 @@ class _HskRetestScreenState extends ConsumerState<HskRetestScreen> {
             ),
             const SizedBox(height: 48),
             ...List.generate(
-              question.choices.length,
+              choices.length,
               (i) => Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: OutlinedButton(
@@ -106,7 +110,7 @@ class _HskRetestScreenState extends ConsumerState<HskRetestScreen> {
                     ),
                   ),
                   child: Text(
-                    question.choices[i],
+                    choices[i],
                     style: const TextStyle(fontSize: 16),
                   ),
                 ),
@@ -134,7 +138,7 @@ class _ResultPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = AppColors.forHskLevel(level);
     return Scaffold(
-      appBar: AppBar(title: const Text('Sonuç')),
+      appBar: AppBar(title: Text(AppL10n.of(context).resultTitle)),
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32),
@@ -151,7 +155,7 @@ class _ResultPage extends StatelessWidget {
               ),
               const SizedBox(height: 12),
               Text(
-                _levelLabel(level),
+                AppL10n.of(context).hskSublabel(level),
                 style: const TextStyle(
                   color: AppColors.onSurfaceMuted,
                   fontSize: 18,
@@ -173,9 +177,9 @@ class _ResultPage extends StatelessWidget {
                           strokeWidth: 2,
                         ),
                       )
-                    : const Text(
-                        'Kaydet ve Geri Dön',
-                        style: TextStyle(fontSize: 16),
+                    : Text(
+                        AppL10n.of(context).saveAndReturn,
+                        style: const TextStyle(fontSize: 16),
                       ),
               ),
             ],
@@ -184,14 +188,4 @@ class _ResultPage extends StatelessWidget {
       ),
     );
   }
-
-  String _levelLabel(int level) => switch (level) {
-        1 => 'Başlangıç',
-        2 => 'Temel',
-        3 => 'Orta',
-        4 => 'Orta-İleri',
-        5 => 'İleri',
-        6 => 'Uzman',
-        _ => '',
-      };
 }

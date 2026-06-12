@@ -113,18 +113,19 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
   }
 
   String _mapError(AuthException e) {
+    final l10n = AppL10n.fromCode(ref.read(localeProvider).languageCode);
     final msg = e.message.toLowerCase();
     if (msg.contains('already registered') || msg.contains('already exists')) {
-      return 'Bu e-posta zaten kayıtlı. Giriş yapmayı deneyin.';
+      return l10n.errEmailTaken;
     }
     if (msg.contains('invalid login') ||
         msg.contains('wrong') ||
         msg.contains('invalid credentials')) {
-      return 'E-posta veya şifre hatalı.';
+      return l10n.errBadCredentials;
     }
-    if (msg.contains('too many')) return 'Çok fazla deneme. Lütfen bekleyin.';
+    if (msg.contains('too many')) return l10n.errTooMany;
     if (msg.contains('password') && msg.contains('short')) {
-      return 'Şifre en az 6 karakter olmalıdır.';
+      return l10n.errPasswordShort;
     }
     return e.message;
   }

@@ -9,6 +9,7 @@ import '../../data/models/video_segment_model.dart';
 import 'ai_provider.dart';
 import 'auth_provider.dart';
 import 'dictionary_provider.dart';
+import 'locale_provider.dart';
 import 'user_provider.dart';
 import 'video_provider.dart';
 
@@ -33,14 +34,15 @@ class DuelRound {
     required this.targetWords,
   });
 
-  factory DuelRound.fromSegment(VideoSegmentModel segment) {
-    final choices = [segment.quiz.correctAnswer, segment.quiz.wrongAnswer]
-      ..shuffle();
+  factory DuelRound.fromSegment(VideoSegmentModel segment,
+      [String lang = 'tr']) {
+    final correct = segment.quiz.correctFor(lang);
+    final choices = [correct, segment.quiz.wrongFor(lang)]..shuffle();
     return DuelRound(
       videoId: segment.videoId,
       question: segment.quiz.question,
       choices: choices,
-      correctAnswer: segment.quiz.correctAnswer,
+      correctAnswer: correct,
       category: segment.quizCategory,
       targetWords: segment.targetWords,
     );
@@ -123,7 +125,9 @@ class MandarinDuelNotifier extends StateNotifier<DuelState> {
         return;
       }
 
-      final rounds = segments.map(DuelRound.fromSegment).toList();
+      final lang = _ref.read(localeProvider).languageCode;
+      final rounds =
+          segments.map((s) => DuelRound.fromSegment(s, lang)).toList();
       _ref.read(analyticsServiceProvider).logGameStarted('mandarin_duel', hskLevel);
       state = DuelState(
         status: DuelStatus.wheelSpinning,

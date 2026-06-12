@@ -176,7 +176,7 @@ class SinomaApp extends ConsumerWidget {
       title: 'Sinoma',
       debugShowCheckedModeBanner: false,
       locale: locale,
-      supportedLocales: const [Locale('tr'), Locale('en')],
+      supportedLocales: const [Locale('tr'), Locale('en'), Locale('ko')],
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,

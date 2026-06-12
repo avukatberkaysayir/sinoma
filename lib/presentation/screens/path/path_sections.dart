@@ -42,7 +42,7 @@ class VideoCenter extends ConsumerWidget {
       data: (segs) {
         if (segs.isEmpty) {
           return Center(
-            child: Text(tr ? 'Filtreyle eşleşen video yok.' : 'No videos match.',
+            child: Text(AppL10n.fromCode(ref.watch(localeProvider).languageCode).noVideosFiltered,
                 style: const TextStyle(color: Colors.white54, fontSize: 15)),
           );
         }
@@ -129,7 +129,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
               child: FilledButton.icon(
                 onPressed: _startHskTest,
                 icon: const Icon(Icons.quiz_rounded, size: 20),
-                label: Text(tr ? 'HSK TESTİNE BAŞLA' : 'START HSK TEST',
+                label: Text(AppL10n.of(context).startHskTest,
                     style: const TextStyle(
                         fontSize: 14, fontWeight: FontWeight.w800)),
                 style: FilledButton.styleFrom(
@@ -161,7 +161,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
             // LISTELERIM stands on its own, ABOVE the filters.
             _FilterGroup(
               id: 'playlists',
-              label: tr ? 'LİSTELERİM' : 'MY LISTS',
+              label: AppL10n.of(context).myPlaylists,
               open: _openGroup == 'playlists',
               activeCount: selPlaylist != null ? 1 : 0,
               onToggle: _toggleGroup,
@@ -171,9 +171,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 10),
                     child: Text(
-                      tr
-                          ? 'Henüz listen yok — player altındaki "Listeye Ekle" ile oluştur.'
-                          : 'No lists yet — use "Add to Playlist" under the player.',
+                      AppL10n.of(context).noListsRail,
                       style: const TextStyle(
                           color: Colors.white38, fontSize: 12),
                     ),
@@ -196,7 +194,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
               ],
             ),
             const SizedBox(height: 12),
-            Text(tr ? 'Filtreler' : 'Filters',
+            Text(AppL10n.of(context).filters,
                 style: const TextStyle(
                     color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
             const SizedBox(height: 10),
@@ -217,7 +215,7 @@ class _VideoFiltersRightState extends ConsumerState<VideoFiltersRight> {
             ),
             _FilterGroup(
               id: 'life',
-              label: tr ? 'KONU' : 'TOPIC',
+              label: AppL10n.of(context).topicGroup,
               open: _openGroup == 'life',
               activeCount: life.length,
               onToggle: _toggleGroup,
@@ -506,13 +504,13 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Row(children: [
-                  tabChip(0, tr ? 'Ligim' : 'My League',
+                  tabChip(0, AppL10n.of(context).myLeague,
                       Icons.shield_rounded),
                   const SizedBox(width: 8),
-                  tabChip(1, tr ? 'Arkadaşlarım' : 'Friends',
+                  tabChip(1, AppL10n.of(context).friendsTab,
                       Icons.group_rounded),
                   const SizedBox(width: 8),
-                  tabChip(2, tr ? 'Zhuangyuan' : 'Zhuangyuan',
+                  tabChip(2, 'Zhuangyuan',
                       Icons.diamond_rounded),
                 ]),
                 const SizedBox(height: 20),
@@ -561,25 +559,20 @@ class _LeagueTab extends ConsumerWidget {
             Icon(Icons.shield_rounded, color: color, size: 44),
             const SizedBox(height: 6),
             Text(
-                tr
-                    ? '${kLeagueNames[lg - 1]} Ligi  ·  $lg/10'
-                    : '${kLeagueNames[lg - 1]} League  ·  $lg/10',
+                '${AppL10n.of(context).leagueOf(kLeagueNames[lg - 1])}  ·  $lg/10',
                 style: TextStyle(
                     color: color,
                     fontSize: 24,
                     fontWeight: FontWeight.w800)),
             const SizedBox(height: 4),
-            Text(
-                tr
-                    ? 'Bu haftanın sıralaması — ilk 6 yükselir, son 6 düşer'
-                    : "This week's ranking — top 6 promote, bottom 6 demote",
+            Text(AppL10n.of(context).leagueRules,
                 style:
                     const TextStyle(color: Colors.white54, fontSize: 13)),
             const SizedBox(height: 20),
             for (var i = 0; i < rows.length; i++)
               _RankRow(
                 rank: i + 1,
-                name: _rowName(rows[i]),
+                name: _rowName(context, rows[i]),
                 sub: '@${rows[i]['username'] ?? ''}',
                 photo: rows[i]['photo_url'] as String?,
                 score: (rows[i]['weekly'] as num?)?.toInt() ?? 0,
@@ -599,9 +592,11 @@ class _LeagueTab extends ConsumerWidget {
   }
 }
 
-String _rowName(Map<String, dynamic> r) {
+String _rowName(BuildContext context, Map<String, dynamic> r) {
   final n = (r['display_name'] as String?)?.trim();
-  return n?.isNotEmpty == true ? n! : (r['username'] as String? ?? 'Öğrenci');
+  return n?.isNotEmpty == true
+      ? n!
+      : (r['username'] as String? ?? AppL10n.of(context).studentFallback);
 }
 
 // ── Arkadaşlarım ──────────────────────────────────────────────────────────────
@@ -622,7 +617,7 @@ class _FriendsTab extends ConsumerWidget {
         FilledButton.icon(
           onPressed: onSearch,
           icon: const Icon(Icons.person_search_rounded, size: 20),
-          label: Text(tr ? 'ARKADAŞ ARA' : 'FIND FRIENDS',
+          label: Text(AppL10n.of(context).findFriends,
               style: const TextStyle(
                   fontSize: 13, fontWeight: FontWeight.w800)),
           style: FilledButton.styleFrom(
@@ -642,9 +637,7 @@ class _FriendsTab extends ConsumerWidget {
               ? Padding(
                   padding: const EdgeInsets.only(top: 12),
                   child: Text(
-                    tr
-                        ? 'Henüz arkadaşın yok — kullanıcı adıyla arayıp ekleyebilirsin.'
-                        : 'No friends yet — search by username and add them.',
+                    AppL10n.of(context).noFriendsYet,
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                         color: Colors.white54, fontSize: 13),
@@ -654,7 +647,7 @@ class _FriendsTab extends ConsumerWidget {
                   for (var i = 0; i < rows.length; i++)
                     _RankRow(
                       rank: i + 1,
-                      name: _rowName(rows[i]),
+                      name: _rowName(context, rows[i]),
                       sub: '@${rows[i]['username'] ?? ''}',
                       photo: rows[i]['photo_url'] as String?,
                       score: (rows[i]['score'] as num?)?.toInt() ?? 0,
@@ -692,16 +685,13 @@ class _DiamondsTab extends ConsumerWidget {
       children: [
         const Icon(Icons.diamond_rounded, color: Color(0xFF7DE3F4), size: 44),
         const SizedBox(height: 6),
-        Text(tr ? 'Elmas Sıralaması' : 'Diamond Ranking',
+        Text(AppL10n.of(context).zhuangyuanTitle,
             style: const TextStyle(
                 color: Color(0xFF7DE3F4),
                 fontSize: 24,
                 fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        Text(
-            tr
-                ? 'Zhuangyuan rütbesinde geçirilen her hafta +1 elmas; dışında kalınan her hafta −1.'
-                : 'Each week in the Diamond League earns +1 diamond; each week outside costs −1.',
+        Text(AppL10n.of(context).zhuangyuanDesc,
             textAlign: TextAlign.center,
             style: const TextStyle(color: Colors.white54, fontSize: 13)),
         const SizedBox(height: 20),
@@ -711,10 +701,7 @@ class _DiamondsTab extends ConsumerWidget {
           error: (e, _) =>
               Text('$e', style: const TextStyle(color: Colors.white54)),
           data: (list) => list.isEmpty
-              ? Text(
-                  tr
-                      ? 'Henüz elmas kazanan yok — Zhuangyuan rütbesine ilk ulaşan sen ol!'
-                      : 'No diamonds earned yet — be the first to reach the Diamond League!',
+              ? Text(AppL10n.of(context).noDiamondsYet,
                   textAlign: TextAlign.center,
                   style:
                       const TextStyle(color: Colors.white54, fontSize: 13))
@@ -722,7 +709,7 @@ class _DiamondsTab extends ConsumerWidget {
                   for (var i = 0; i < list.length; i++)
                     _RankRow(
                       rank: i + 1,
-                      name: _rowName(list[i]),
+                      name: _rowName(context, list[i]),
                       sub: '@${list[i]['username'] ?? ''}',
                       photo: list[i]['photo_url'] as String?,
                       score: (list[i]['diamonds'] as num?)?.toInt() ?? 0,
@@ -899,10 +886,9 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final tr = widget.tr;
     return AlertDialog(
       backgroundColor: _panel,
-      title: Text(tr ? 'Arkadaş Ara' : 'Find Friends',
+      title: Text(AppL10n.of(context).findFriends,
           style: const TextStyle(color: Colors.white, fontSize: 18)),
       content: SizedBox(
         width: 380,
@@ -917,7 +903,7 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
               style: const TextStyle(color: Colors.white, fontSize: 14),
               decoration: InputDecoration(
                 hintText:
-                    tr ? 'Kullanıcı adı yaz…' : 'Type a username…',
+                    AppL10n.of(context).typeUsername,
                 hintStyle: const TextStyle(color: Colors.white38),
                 prefixIcon: const Icon(Icons.search,
                     color: Colors.white38, size: 18),
@@ -976,7 +962,7 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    Text(_rowName(u),
+                                    Text(_rowName(context, u),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -1006,8 +992,8 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                                 ),
                                 child: Text(
                                     u['is_friend'] == true
-                                        ? (tr ? 'Çıkar' : 'Remove')
-                                        : (tr ? 'Ekle' : 'Add'),
+                                        ? (AppL10n.of(context).removeLbl)
+                                        : (AppL10n.of(context).addLbl),
                                     style: const TextStyle(
                                         fontSize: 12,
                                         fontWeight: FontWeight.w800)),
@@ -1020,7 +1006,7 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
                         Padding(
                           padding: const EdgeInsets.all(12),
                           child: Text(
-                              tr ? 'Sonuç yok' : 'No results',
+                              AppL10n.of(context).noResultsLbl,
                               style: const TextStyle(
                                   color: Colors.white38, fontSize: 13)),
                         ),
@@ -1034,7 +1020,7 @@ class _FriendSearchDialogState extends ConsumerState<_FriendSearchDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(tr ? 'Kapat' : 'Close'),
+          child: Text(AppL10n.of(context).closeLabel),
         ),
       ],
     );
@@ -1054,7 +1040,7 @@ class _QuestDef {
   final IconData icon;
   final Color color;
   final List<int> targets;
-  final String Function(int n, bool tr) label;
+  final String Function(int n, AppL10n l) label;
   final int Function(int total, int correct, int points) metric;
   const _QuestDef(
       this.id, this.icon, this.color, this.targets, this.label, this.metric);
@@ -1063,20 +1049,19 @@ class _QuestDef {
 final List<_QuestDef> _kQuestPool = [
   _QuestDef('points', Icons.bolt_rounded, const Color(0xFFFFC800),
       const [20, 40, 60, 80],
-      (n, tr) => tr ? '$n puan kazan' : 'Earn $n points',
+      (n, l) => l.questEarnPoints(n),
       (t, c, p) => p),
   _QuestDef('answer', Icons.check_circle_outline_rounded,
       const Color(0xFF1CB0F6), const [5, 10, 15],
-      (n, tr) => tr ? '$n soru cevapla' : 'Answer $n questions',
+      (n, l) => l.questAnswerN(n),
       (t, c, p) => t),
   _QuestDef('correct', Icons.track_changes_rounded, const Color(0xFF58CC02),
       const [3, 5, 8],
-      (n, tr) => tr ? '$n doğru cevap ver' : 'Get $n correct answers',
+      (n, l) => l.questCorrectN(n),
       (t, c, p) => c),
   _QuestDef('streak', Icons.local_fire_department_rounded,
       const Color(0xFFFF9600), const [1],
-      (n, tr) =>
-          tr ? 'Seriyi sürdür (bugün 1 soru)' : 'Keep the streak (1 today)',
+      (n, l) => l.questKeepStreak,
       (t, c, p) => t > 0 ? 1 : 0),
 ];
 
@@ -1132,7 +1117,7 @@ class QuestsCenter extends ConsumerWidget {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           duration: const Duration(seconds: 2),
           content: Text(
-              tr ? '🧧 Hongbao açıldı: +20 altın!' : '🧧 Hongbao: +20 gold!')));
+              AppL10n.of(context).hongbaoToast)));
     }
 
     return ListView(
@@ -1158,19 +1143,13 @@ class QuestsCenter extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                                tr
-                                    ? 'Çayevi Siparişleri ☕'
-                                    : 'Tea House Orders ☕',
+                            Text(AppL10n.of(context).teaHouseTitle,
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 21,
                                     fontWeight: FontWeight.w800)),
                             const SizedBox(height: 6),
-                            Text(
-                                tr
-                                    ? 'Siparişleri tamamla, hongbao 🧧 kazan! Bugün 3 siparişin $doneCount tanesi hazır.'
-                                    : 'Fill the orders, earn hongbao 🧧! $doneCount of 3 ready today.',
+                            Text(AppL10n.of(context).teaHouseSub(doneCount),
                                 style: const TextStyle(
                                     color: Colors.white70, fontSize: 14)),
                           ],
@@ -1185,7 +1164,7 @@ class QuestsCenter extends ConsumerWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Text(tr ? 'Günün Siparişleri' : "Today's Orders",
+                      child: Text(AppL10n.of(context).todaysOrders,
                           style: const TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -1194,7 +1173,7 @@ class QuestsCenter extends ConsumerWidget {
                     const Icon(Icons.schedule_rounded,
                         color: Color(0xFFFFC800), size: 15),
                     const SizedBox(width: 4),
-                    Text(tr ? '$hoursLeft SAAT' : '$hoursLeft HOURS',
+                    Text(AppL10n.of(context).hoursLeftLbl(hoursLeft),
                         style: const TextStyle(
                             color: Color(0xFFFFC800),
                             fontSize: 12,
@@ -1206,7 +1185,7 @@ class QuestsCenter extends ConsumerWidget {
                   _QuestRow(
                     icon: picked[i].icon,
                     color: picked[i].color,
-                    label: picked[i].label(targets[i], tr),
+                    label: picked[i].label(targets[i], AppL10n.of(context)),
                     current: picked[i].metric(t, c, p),
                     target: targets[i],
                     claimed: claimed(picked[i].id),
@@ -1383,44 +1362,39 @@ class ShopCenter extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(tr ? 'Canlar' : 'Hearts',
+                Text(AppL10n.of(context).heartsTitle,
                     style: const TextStyle(
                         color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 _ShopRow(
                   icon: Icons.favorite_rounded,
                   color: const Color(0xFFFF4B4B),
-                  title: tr ? 'Canları Yenile' : 'Refill hearts',
-                  subtitle: tr
-                      ? 'Canlarını tekrar doldur (${meta.hearts}/$kMaxHearts)'
-                      : 'Refill your hearts (${meta.hearts}/$kMaxHearts)',
-                  actionLabel: full ? (tr ? 'TAM' : 'FULL') : (tr ? 'YENİLE' : 'REFILL'),
+                  title: AppL10n.of(context).refillHearts,
+                  subtitle:
+                      AppL10n.of(context).refillSub(meta.hearts, kMaxHearts),
+                  actionLabel: full ? AppL10n.of(context).fullLbl : AppL10n.of(context).refillLbl,
                   onAction: full ? null : refill,
                 ),
                 const SizedBox(height: 10),
                 _ShopRow(
                   icon: Icons.all_inclusive_rounded,
                   color: const Color(0xFF1CB0F6),
-                  title: tr ? 'Sınırsız Can' : 'Unlimited hearts',
-                  subtitle: tr
-                      ? 'Premium ile canın hiç tükenmesin'
-                      : 'Never run out with Premium',
+                  title: AppL10n.of(context).unlimitedHearts,
+                  subtitle: AppL10n.of(context).premiumSub,
                   actionLabel: 'PREMIUM',
                   onAction: () => context.go('/subscription'),
                 ),
                 const SizedBox(height: 24),
-                Text(tr ? 'Güçlendiriciler' : 'Power-ups',
+                Text(AppL10n.of(context).powerUps,
                     style: const TextStyle(
                         color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 12),
                 _ShopRow(
                   icon: Icons.ac_unit_rounded,
                   color: const Color(0xFF1CB0F6),
-                  title: tr ? 'Seri Dondurma' : 'Streak freeze',
-                  subtitle: tr
-                      ? 'Bir gün ara verince serin bozulmasın (yakında)'
-                      : 'Protect your streak for a day (soon)',
-                  actionLabel: tr ? 'YAKINDA' : 'SOON',
+                  title: AppL10n.of(context).streakFreeze,
+                  subtitle: AppL10n.of(context).streakFreezeSub,
+                  actionLabel: AppL10n.of(context).soonLbl,
                   onAction: null,
                 ),
               ],
@@ -1516,20 +1490,17 @@ class SettingsCenter extends ConsumerWidget {
         context: context,
         builder: (_) => AlertDialog(
           backgroundColor: _panel,
-          title: Text(tr ? 'Hesabı Kalıcı Sil' : 'Delete account',
+          title: Text(AppL10n.of(context).deleteForever,
               style: const TextStyle(color: Colors.white)),
-          content: Text(
-              tr
-                  ? 'Hesabın ve tüm verilerin kalıcı olarak silinecek. Bu işlem geri alınamaz.'
-                  : 'Your account and all data will be permanently deleted. This cannot be undone.',
+          content: Text(AppL10n.of(context).deleteForeverMsg,
               style: const TextStyle(color: Colors.white70)),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text(tr ? 'Vazgeç' : 'Cancel')),
+                child: Text(AppL10n.of(context).giveUp)),
             TextButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text(tr ? 'Sil' : 'Delete',
+                child: Text(AppL10n.of(context).deleteLbl,
                     style: const TextStyle(color: Color(0xFFFF4B4B)))),
           ],
         ),
@@ -1556,15 +1527,15 @@ class SettingsCenter extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Text(tr ? 'Tercihler' : 'Preferences',
+                Text(AppL10n.of(context).preferences,
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 24,
                         fontWeight: FontWeight.w800)),
                 const SizedBox(height: 20),
-                _GroupLabel(tr ? 'Görünüm' : 'Appearance'),
+                _GroupLabel(AppL10n.of(context).appearance),
                 _ToggleRow(
-                  label: tr ? 'Karanlık mod' : 'Dark mode',
+                  label: AppL10n.of(context).darkMode,
                   value: isDark,
                   onChanged: (_) =>
                       ref.read(themeModeProvider.notifier).toggleTheme(),
@@ -1576,18 +1547,18 @@ class SettingsCenter extends ConsumerWidget {
                       ref.read(localeProvider.notifier).setLocale(Locale(c)),
                 ),
                 const SizedBox(height: 20),
-                _GroupLabel(tr ? 'Hesap' : 'Account'),
+                _GroupLabel(AppL10n.of(context).accountLbl),
                 _MoreRow(
                     icon: Icons.workspace_premium_rounded,
-                    label: tr ? 'Abonelik' : 'Subscription',
+                    label: AppL10n.of(context).subscriptionLbl,
                     onTap: () => context.go('/subscription')),
                 _MoreRow(
                     icon: Icons.logout_rounded,
-                    label: tr ? 'Çıkış Yap' : 'Log out',
+                    label: AppL10n.of(context).logoutLbl,
                     onTap: logout),
                 _MoreRow(
                     icon: Icons.delete_forever_rounded,
-                    label: tr ? 'Hesabı Kalıcı Sil' : 'Delete account',
+                    label: AppL10n.of(context).deleteForever,
                     color: const Color(0xFFFF4B4B),
                     onTap: deleteAccount),
               ],
@@ -1624,20 +1595,20 @@ class SettingsRight extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _LinkCard(title: tr ? 'Hesap' : 'Account', links: [
-              (tr ? 'Tercihler' : 'Preferences', () {}),
-              (tr ? 'Profil' : 'Profile', onProfile),
-              (tr ? 'Gizlilik ayarları' : 'Privacy settings',
+            _LinkCard(title: AppL10n.of(context).accountLbl, links: [
+              (AppL10n.of(context).preferences, () {}),
+              (AppL10n.of(context).navProfile, onProfile),
+              (AppL10n.of(context).privacySettings,
                   () => context.go('/legal/privacy')),
             ]),
             const SizedBox(height: 16),
-            _LinkCard(title: tr ? 'Abonelik' : 'Subscription', links: [
-              (tr ? 'Bir plan seç' : 'Choose a plan',
+            _LinkCard(title: AppL10n.of(context).subscriptionLbl, links: [
+              (AppL10n.of(context).choosePlan,
                   () => context.go('/subscription')),
             ]),
             const SizedBox(height: 16),
-            _LinkCard(title: tr ? 'Destek' : 'Support', links: [
-              (tr ? 'Yardım Merkezi' : 'Help Center',
+            _LinkCard(title: AppL10n.of(context).supportLbl, links: [
+              (AppL10n.of(context).helpCenter,
                   () => context.go('/legal/terms')),
             ]),
             const SizedBox(height: 16),
@@ -1653,7 +1624,7 @@ class SettingsRight extends StatelessWidget {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   child: Center(
-                    child: Text(tr ? 'OTURUMU KAPAT' : 'LOG OUT',
+                    child: Text(AppL10n.of(context).logoutCaps,
                         style: const TextStyle(
                             color: Color(0xFF1CB0F6),
                             fontSize: 14,
@@ -1785,12 +1756,14 @@ class _LangRow extends StatelessWidget {
       ),
       child: Row(children: [
         Expanded(
-          child: Text(tr ? 'Uygulama dili' : 'App language',
+          child: Text(AppL10n.fromCode(lang).appLanguage,
               style: const TextStyle(color: Colors.white, fontSize: 15)),
         ),
         chip('tr', 'TR'),
         const SizedBox(width: 8),
         chip('en', 'EN'),
+        const SizedBox(width: 8),
+        chip('ko', '한국어'),
       ]),
     );
   }
@@ -1876,11 +1849,6 @@ class RightInfoCard extends StatelessWidget {
 
 // ── Profile view (read-only) ──────────────────────────────────────────────────
 
-const List<String> _trMonths = [
-  '', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
-  'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık',
-];
-
 class ProfileView extends ConsumerWidget {
   final bool tr;
   final VoidCallback onEdit;
@@ -1896,7 +1864,7 @@ class ProfileView extends ConsumerWidget {
     final meta = ref.watch(pathMetaProvider);
     if (user == null) {
       return Center(
-        child: Text(tr ? 'Giriş yapın' : 'Please sign in',
+        child: Text(AppL10n.of(context).pleaseSignIn,
             style: const TextStyle(color: Colors.white54, fontSize: 15)),
       );
     }
@@ -1907,9 +1875,7 @@ class ProfileView extends ConsumerWidget {
         ? user.email.split('@').first
         : user.email;
     final d = user.createdAt;
-    final joined = tr
-        ? '${_trMonths[d.month]} ${d.year} tarihinde katıldı'
-        : 'Joined ${d.month}/${d.year}';
+    final joined = AppL10n.of(context).joinedOn(d.month, d.year);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
@@ -1955,7 +1921,7 @@ class ProfileView extends ConsumerWidget {
                           child: IconButton(
                             icon: const Icon(Icons.edit,
                                 color: Colors.white, size: 18),
-                            tooltip: tr ? 'Düzenle' : 'Edit',
+                            tooltip: AppL10n.of(context).editTip,
                             onPressed: onEdit,
                           ),
                         ),
@@ -2031,7 +1997,7 @@ class ProfileView extends ConsumerWidget {
                           builder: (_) => PhaseRunnerScreen(
                             phase: phase,
                             title:
-                                'L${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
+                                'L${phase.hsk} · ${AppL10n.of(context).phaseLbl} ${phase.phaseIndex + 1}',
                           ),
                         ));
                       } else {
@@ -2039,7 +2005,7 @@ class ProfileView extends ConsumerWidget {
                       }
                     },
                     icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                    label: Text(tr ? 'BAŞLA' : 'START',
+                    label: Text(AppL10n.of(context).startCaps,
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800)),
                     style: FilledButton.styleFrom(
@@ -2050,7 +2016,7 @@ class ProfileView extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Text(tr ? 'İstatistikler' : 'Statistics',
+                Text(AppL10n.of(context).statistics,
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -2068,26 +2034,26 @@ class ProfileView extends ConsumerWidget {
                         icon: Icons.local_fire_department_rounded,
                         color: const Color(0xFFFF9600),
                         value: '${meta.streak}',
-                        label: tr ? 'Günlük seri' : 'Day streak'),
+                        label: AppL10n.of(context).dayStreakLbl),
                     _StatCard(
                         icon: Icons.bolt_rounded,
                         color: const Color(0xFFFFC800),
                         value: '${user.stats.totalScore}',
-                        label: tr ? 'Toplam Puan' : 'Total XP'),
+                        label: AppL10n.of(context).totalXpLbl),
                     _StatCard(
                         icon: Icons.favorite_rounded,
                         color: const Color(0xFFFF4B4B),
                         value: '${meta.hearts}',
-                        label: tr ? 'Can' : 'Hearts'),
+                        label: AppL10n.of(context).heartsLbl),
                     _StatCard(
                         icon: Icons.check_circle_rounded,
                         color: const Color(0xFF1CB0F6),
                         value: '${user.stats.questionsAnswered}',
-                        label: tr ? 'Cevaplanan' : 'Answered'),
+                        label: AppL10n.of(context).answeredLbl),
                   ],
                 ),
                 const SizedBox(height: 24),
-                Text(tr ? 'Pasaport 🛂' : 'Passport 🛂',
+                Text(AppL10n.of(context).passportTitle,
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -2161,10 +2127,10 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            header(tr ? 'Puan ve Sıralama' : 'Scores & Ranking'),
+            header(AppL10n.of(context).scoresRanking),
             _ProfileRank(tr: tr, score: score),
             const SizedBox(height: 20),
-            header(tr ? 'Listelerim' : 'My Lists'),
+            header(AppL10n.of(context).myListsTitle),
             Row(children: [
               Expanded(
                 child: TextField(
@@ -2173,7 +2139,7 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
                   style: const TextStyle(
                       color: Colors.white, fontSize: 13),
                   decoration: InputDecoration(
-                    hintText: tr ? 'Yeni liste adı…' : 'New list name…',
+                    hintText: AppL10n.of(context).newListHint,
                     hintStyle: const TextStyle(
                         color: Colors.white38, fontSize: 12),
                     counterText: '',
@@ -2200,7 +2166,7 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
             const SizedBox(height: 10),
             _ProfilePlaylists(tr: tr),
             const SizedBox(height: 20),
-            header(tr ? 'Günlük İstatistikler' : 'Daily Stats'),
+            header(AppL10n.of(context).dailyStatsTitle),
             _ProfileDailyStats(tr: tr),
           ],
         ),
@@ -2212,14 +2178,14 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
 // ── Bobo hero (post-login dashboard) ──────────────────────────────────────────
 // Our mascot has a name and a voice: a day-rotating greeting / chengyu.
 
-const List<(String zh, String tr, String en)> _kBoboLines = [
-  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?'),
-  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?'),
-  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.'),
-  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!'),
-  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮'),
-  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧'),
-  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.'),
+const List<(String zh, String tr, String en, String ko)> _kBoboLines = [
+  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?', '오늘도 같이 공부해 볼까요?'),
+  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?', '연습이 실력을 만들어요 — 한 클립 더 어때요?'),
+  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.', '다시 만나서 반가워요! 멈췄던 곳부터 이어가요.'),
+  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!', '낙숫물이 바위를 뚫어요. 하루 5분이면 충분해요!'),
+  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮', '스트릭을 지켜요, 제가 곁에 있을게요 🏮'),
+  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧', '오늘 찻집 주문은 확인했나요? 🧧'),
+  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.', '시작이 반이에요 — 일단 시작해 봐요.'),
 ];
 
 class _BoboHero extends StatelessWidget {
@@ -2267,9 +2233,19 @@ class _BoboHero extends StatelessWidget {
                           fontSize: 20,
                           fontWeight: FontWeight.w800)),
                   const SizedBox(height: 4),
-                  Text(tr ? line.$2 : line.$3,
-                      style: const TextStyle(
-                          color: Colors.white, fontSize: 14, height: 1.35)),
+                  Builder(builder: (context) {
+                    final lang = Localizations.maybeLocaleOf(context)
+                            ?.languageCode ??
+                        'en';
+                    final text = lang == 'tr'
+                        ? line.$2
+                        : (lang == 'ko' ? line.$4 : line.$3);
+                    return Text(text,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 14,
+                            height: 1.35));
+                  }),
                   const SizedBox(height: 6),
                   const Text('— Bobo 🦆',
                       style:
@@ -2302,7 +2278,10 @@ class _ProfilePassport extends ConsumerWidget {
         if (playable.isEmpty) continue;
         if (playable.every((p) => progress.phase(p.key).done)) {
           stamps.add((
-            cityDisplayName(cityForUnit(s.hsk, s.index), tr: tr),
+            cityNameFor(
+                cityForUnit(s.hsk, s.index),
+                Localizations.maybeLocaleOf(context)?.languageCode ??
+                    (tr ? 'tr' : 'en')),
             s.hsk,
           ));
         }
@@ -2317,10 +2296,7 @@ class _ProfilePassport extends ConsumerWidget {
         border: Border.all(color: const Color(0xFF263230)),
       ),
       child: stamps.isEmpty
-          ? Text(
-              tr
-                  ? 'Pasaportun henüz boş — bir üniteyi tamamla, şehrin mührünü kazan!'
-                  : 'Your passport is empty — finish a unit to earn its city seal!',
+          ? Text(AppL10n.of(context).passportEmpty,
               style: const TextStyle(color: Colors.white54, fontSize: 13))
           : Wrap(
               spacing: 10,
@@ -2386,7 +2362,7 @@ class _ProfileFriends extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(tr ? 'Arkadaşlarım' : 'My Friends',
+          Text(AppL10n.of(context).myFriendsTitle,
               style: const TextStyle(
                   color: Colors.white,
                   fontSize: 13,
@@ -2394,9 +2370,7 @@ class _ProfileFriends extends ConsumerWidget {
           const SizedBox(height: 8),
           if (rows.isEmpty)
             Text(
-              tr
-                  ? 'Henüz arkadaşın yok — Puan Tabloları > Arkadaş Ara.'
-                  : 'No friends yet — Leaderboards > Find Friends.',
+              AppL10n.of(context).noFriendsHint,
               style: const TextStyle(color: Colors.white38, fontSize: 11),
             )
           else
@@ -2430,7 +2404,7 @@ class _ProfileFriends extends ConsumerWidget {
                         ),
                         const SizedBox(width: 8),
                         Expanded(
-                          child: Text(_rowName(f),
+                          child: Text(_rowName(context, f),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
@@ -2477,7 +2451,7 @@ class _FriendProfileDialog extends StatelessWidget {
                   : const Icon(Icons.person, color: Colors.white38, size: 36),
             ),
             const SizedBox(height: 10),
-            Text(_rowName(friend),
+            Text(_rowName(context, friend),
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 18,
@@ -2491,7 +2465,7 @@ class _FriendProfileDialog extends StatelessWidget {
                 const Icon(Icons.diamond_rounded,
                     color: Color(0xFF1CB0F6), size: 18),
                 const SizedBox(width: 6),
-                Text('${friend['score'] ?? 0} ${tr ? 'puan' : 'points'}',
+                Text('${friend['score'] ?? 0} ${AppL10n.of(context).pointsLbl}',
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,
@@ -2504,7 +2478,7 @@ class _FriendProfileDialog extends StatelessWidget {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: Text(tr ? 'Kapat' : 'Close'),
+          child: Text(AppL10n.of(context).closeLabel),
         ),
       ],
     );
@@ -2529,9 +2503,7 @@ class _ProfilePlaylists extends ConsumerWidget {
           border: Border.all(color: const Color(0xFF263230)),
         ),
         child: Text(
-          tr
-              ? 'Henüz listen yok — Alıştırma sekmesinde "Listeye Ekle" ile oluşturabilirsin.'
-              : 'No lists yet — create one with "Add to Playlist" in Practice.',
+          AppL10n.of(context).noListsProfile,
           style: const TextStyle(color: Colors.white54, fontSize: 13),
         ),
       );
@@ -2571,13 +2543,15 @@ class _ProfilePlaylists extends ConsumerWidget {
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                 ),
-                Text('${p['count'] ?? 0} video',
+                Text(
+                    AppL10n.of(context)
+                        .videosCount((p['count'] as num?)?.toInt() ?? 0),
                     style: const TextStyle(
                         color: Colors.white54, fontSize: 12)),
                 IconButton(
                   icon: const Icon(Icons.close_rounded,
                       color: Colors.white38, size: 18),
-                  tooltip: tr ? 'Listeyi sil' : 'Delete list',
+                  tooltip: AppL10n.of(context).deleteListTip,
                   onPressed: () => remove(p['id'] as String),
                 ),
               ],
@@ -2620,18 +2594,15 @@ class _ProfileDailyStats extends ConsumerWidget {
         border: Border.all(color: const Color(0xFF263230)),
       ),
       child: rows.isEmpty
-          ? Text(
-              tr
-                  ? 'Henüz istatistik yok — soru cevapladıkça burada birikecek.'
-                  : 'No stats yet — they build up as you answer questions.',
+          ? Text(AppL10n.of(context).noStatsYet,
               style: const TextStyle(color: Colors.white54, fontSize: 13))
           : Column(
               children: [
                 Row(children: [
-                  cell(tr ? 'Tarih' : 'Date', c: _green, bold: true),
-                  cell(tr ? 'Toplam' : 'Total', c: _green, bold: true),
-                  cell(tr ? 'Doğru' : 'Success', c: _green, bold: true),
-                  cell(tr ? 'Yanlış' : 'Fail', c: _green, bold: true),
+                  cell(AppL10n.of(context).colDate, c: _green, bold: true),
+                  cell(AppL10n.of(context).colTotal, c: _green, bold: true),
+                  cell(AppL10n.of(context).colSuccess, c: _green, bold: true),
+                  cell(AppL10n.of(context).colFail, c: _green, bold: true),
                 ]),
                 const Divider(color: Colors.white12, height: 18),
                 for (final r in rows) ...[
@@ -2678,7 +2649,7 @@ class _ProfileRank extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(tr ? 'Genel Sıralama' : 'Global Rank',
+                Text(AppL10n.of(context).globalRank,
                     style: const TextStyle(
                         color: Colors.white54, fontSize: 12)),
                 Text(rank != null ? '#$rank' : '—',
@@ -2774,9 +2745,7 @@ class HomeDashboard extends ConsumerWidget {
               _BoboHero(tr: tr),
               const SizedBox(height: 28),
               Text(
-                name != null
-                    ? (tr ? 'Hoş geldin, $name!' : 'Welcome, $name!')
-                    : (tr ? 'Hoş geldin!' : 'Welcome!'),
+                AppL10n.of(context).welcomeName(name),
                 textAlign: TextAlign.center,
                 style: const TextStyle(
                     color: Colors.white,
@@ -2785,9 +2754,7 @@ class HomeDashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                tr
-                    ? 'Öğrenmeye kaldığın yerden devam et.'
-                    : 'Continue learning where you left off.',
+                AppL10n.of(context).continueLearning,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white60, fontSize: 15),
               ),
@@ -2798,7 +2765,7 @@ class HomeDashboard extends ConsumerWidget {
                 child: FilledButton.icon(
                   onPressed: onStart,
                   icon: const Icon(Icons.play_arrow_rounded, size: 24),
-                  label: Text(tr ? 'BAŞLA' : 'START',
+                  label: Text(AppL10n.of(context).startCaps,
                       style: const TextStyle(
                           fontSize: 17, fontWeight: FontWeight.w800)),
                   style: FilledButton.styleFrom(

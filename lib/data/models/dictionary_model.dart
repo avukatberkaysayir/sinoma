@@ -105,12 +105,14 @@ class DictionaryModel {
 class WordDefinitions {
   final String tr;
   final String en;
+  final String ko;
   final String vi;
   final String pos; // part of speech, stored in definitions JSONB as 'pos' key
 
   const WordDefinitions({
     required this.tr,
     required this.en,
+    this.ko = '',
     this.vi = '',
     this.pos = '',
   });
@@ -118,11 +120,20 @@ class WordDefinitions {
   factory WordDefinitions.fromMap(Map<String, dynamic> map) => WordDefinitions(
         tr: map['tr'] as String? ?? '',
         en: map['en'] as String? ?? '',
+        ko: map['ko'] as String? ?? '',
         vi: map['vi'] as String? ?? '',
         pos: map['pos'] as String? ?? '',
       );
 
-  Map<String, dynamic> toMap() => {'tr': tr, 'en': en, 'vi': vi, 'pos': pos};
+  // UI display: requested language, English as the universal fallback.
+  String forLang(String lang) => switch (lang) {
+        'tr' => tr.isNotEmpty ? tr : en,
+        'ko' => ko.isNotEmpty ? ko : en,
+        _ => en,
+      };
+
+  Map<String, dynamic> toMap() =>
+      {'tr': tr, 'en': en, 'ko': ko, 'vi': vi, 'pos': pos};
 }
 
 class AiContextCache {

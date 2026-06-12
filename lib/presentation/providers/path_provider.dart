@@ -77,6 +77,7 @@ class WordSlot {
   final String pinyin;
   final String tr;
   final String en;
+  final String ko;
   const WordSlot({
     required this.word,
     required this.level,
@@ -85,9 +86,17 @@ class WordSlot {
     this.pinyin = '',
     this.tr = '',
     this.en = '',
+    this.ko = '',
   });
 
   String get slotKey => 'L$level.u$unit.p$phase';
+
+  // UI display: requested language, English as the universal fallback.
+  String meaningFor(String lang) => switch (lang) {
+        'tr' => tr.isNotEmpty ? tr : en,
+        'ko' => ko.isNotEmpty ? ko : en,
+        _ => en,
+      };
 
   factory WordSlot.fromMap(Map<String, dynamic> m) => WordSlot(
         word: m['word'] as String? ?? '',
@@ -97,6 +106,7 @@ class WordSlot {
         pinyin: m['pinyin'] as String? ?? '',
         tr: m['tr'] as String? ?? '',
         en: m['en'] as String? ?? '',
+        ko: m['ko'] as String? ?? '',
       );
 }
 

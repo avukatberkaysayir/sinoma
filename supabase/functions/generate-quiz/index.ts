@@ -78,11 +78,16 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
   Korean: {
     authority: "국립국어원 (National Institute of Korean Language) — korean.go.kr",
     rules: [
-      "SOV word order: Subject → Object → Verb.",
-      "Particles: 은/는 (topic), 이/가 (subject), 을/를 (object), 에 (static location/time), 에서 (action location), 의 (possession).",
-      "Verb at end; conjugate in formal polite speech: -습니다/-ㅂ니다 or -어요/-아요.",
-      "No articles; number + counter for quantities.",
-      "Negation: 안 + verb (short form) or verb stem + 지 않다.",
+      "SOV word order: Subject → Object → Verb. The predicate must close the sentence.",
+      "Particles must be chosen and attached correctly: 은/는 (topic), 이/가 (subject), 을/를 (object), 에 (static location/time/destination), 에서 (action location/source), 의 (possession, often omitted in speech), 도/만/까지 as meaning requires. Alternate by final consonant (받침): 은/이/을 after consonant, 는/가/를 after vowel.",
+      "Speech level: use the polite informal 해요체 (-아요/-어요/-해요) consistently — this is how learning apps and subtitles address users. Do NOT mix 합쇼체 (-습니다) and 해요체 in one sentence.",
+      "Questions end in -아요?/-어요?/-나요?/-ㄹ까요? with rising intonation marked only by '?'. No subject-auxiliary inversion exists.",
+      "No articles. Use number + native/Sino counter for quantities (한 개, 두 명, 세 번).",
+      "Negation: 안 + verb (short) or stem + 지 않다; ability: -(으)ㄹ 수 있다/없다; for 'edible/usable' questions prefer '먹을 수 있어요?' style potential forms.",
+      "Honorifics: use -(으)시- when the subject deserves respect (e.g. 아버지가 오세요), and plain forms otherwise. Kinship terms like 아빠/아버지 follow natural family-register usage.",
+      "Sino-Korean vs native vocabulary: pick the register a Korean would actually use in conversation (e.g. 'study' = 공부하다, not 학습하다 in casual speech).",
+      "Spacing (띄어쓰기) follows 한글 맞춤법: particles attach to the preceding word; dependent nouns and auxiliary verbs are spaced (먹을 수 있다, 가고 싶다).",
+      "Produce idiomatic Korean — what a native speaker would naturally say, NOT a literal word-for-word mapping from Chinese or English. Avoid translationese (번역투).",
     ],
   },
 };

@@ -22,9 +22,35 @@ const Map<String, String> kCityTrNames = {
   'hongkong': 'Hong Kong', 'macau': 'Makao',
 };
 
+// Korean transcriptions (국립국어원 중국어 표기법) for every path city; the
+// long tail falls back to pinyin like the other languages.
+const Map<String, String> kCityKoNames = {
+  'beijing': '베이징', 'shanghai': '상하이', 'nanjing': '난징',
+  'guangzhou': '광저우', 'chongqing': '충칭', 'chengdu': '청두',
+  'xian': '시안', 'tianjin': '톈진', 'hangzhou': '항저우',
+  'wuhan': '우한', 'shenzhen': '선전', 'suzhou': '쑤저우',
+  'qingdao': '칭다오', 'urumqi': '우루무치', 'kashgar': '카슈가르',
+  'hongkong': '홍콩', 'macau': '마카오',
+  'changsha': '창사', 'zhengzhou': '정저우', 'wuxi': '우시',
+  'nanning': '난닝', 'nanchang': '난창', 'yinchuan': '인촨',
+  'lhasa': '라싸', 'zhuhai': '주하이', 'yantai': '옌타이',
+  'datong': '다퉁', 'baotou': '바오터우', 'weifang': '웨이팡',
+  'dezhou': '더저우', 'xuzhou': '쉬저우', 'zhenjiang': '전장',
+  'jiaxing': '자싱', 'lishui': '리수이', 'anqing': '안칭',
+  'ganzhou': '간저우', 'putian': '푸톈', 'mudanjiang': '무단장',
+  'changzhou': '창저우', 'shaoxing': '사오싱', 'bengbu': '벙부',
+  'jiujiang': '주장', 'quanzhou': '취안저우',
+};
+
 // Locale-aware display name — banners/captions show ONLY this (no hanzi).
 String cityDisplayName(City c, {required bool tr}) =>
     tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
+
+String cityNameFor(City c, String lang) => switch (lang) {
+      'tr' => kCityTrNames[c.slug] ?? c.pinyin,
+      'ko' => kCityKoNames[c.slug] ?? c.pinyin,
+      _ => c.pinyin,
+    };
 
 // A landmark of a city: a flat icon (phase circle + banner), a real photo and a
 // bilingual blurb (the info panel opened from the banner).

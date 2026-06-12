@@ -394,10 +394,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             const SizedBox(height: 14),
                             _DropdownField<String>(
                               label: l10n.languageLabel,
-                              value: _motherTongue == 'en' ? 'en' : 'tr',
+                              value: kSupportedUiLanguages.contains(_motherTongue)
+                                  ? _motherTongue
+                                  : 'tr',
                               items: const [
                                 DropdownMenuItem(value: 'tr', child: Text('Türkçe 🇹🇷')),
                                 DropdownMenuItem(value: 'en', child: Text('English 🇬🇧')),
+                                DropdownMenuItem(value: 'ko', child: Text('한국어 🇰🇷')),
                               ],
                               onChanged: (v) {
                                 final code = v ?? 'tr';

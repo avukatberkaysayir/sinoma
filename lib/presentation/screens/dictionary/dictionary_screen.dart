@@ -98,19 +98,19 @@ final _newestWordsProvider =
 });
 
 // Curated chengyu pool — rotates weekly (UTC), same idiom for everyone.
-const List<(String, String, String, String)> _kIdioms = [
-  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing'),
-  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless'),
-  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…'),
-  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect'),
-  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily'),
-  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears'),
-  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway'),
-  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well'),
-  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck'),
-  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never'),
-  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise'),
-  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins'),
+const List<(String, String, String, String, String)> _kIdioms = [
+  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing', '순풍에 돛 단 듯 순조롭게'),
+  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless', '그저 그렇다 / 대충대충'),
+  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…', '로마에 가면 로마법을 따르라'),
+  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect', '연습이 실력을 만든다'),
+  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily', '쓸데없이 사족을 붙이다'),
+  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears', '소귀에 경 읽기'),
+  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway', '중도에 포기하다'),
+  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well', '우물 안 개구리'),
+  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck', '요행만 바라며 기다리다'),
+  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never', '늦었다고 생각할 때가 가장 빠르다'),
+  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise', '새옹지마 — 화가 복이 되기도'),
+  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins', '낙숫물이 바위를 뚫는다'),
 ];
 
 class DictionaryScreen extends ConsumerStatefulWidget {
@@ -154,8 +154,8 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
       if (mounted) {
         setState(() => _suggesting = false);
         final msg = e.toString().contains('login_required')
-            ? 'Öneri yapmak için giriş yapınız'
-            : 'Bir hata oluştu';
+            ? AppL10n.of(context).suggestNeedLogin
+            : AppL10n.of(context).genericError;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     }
@@ -271,20 +271,21 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text(
-              'No results found',
-              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 15),
+            Text(
+              AppL10n.fromCode(lang).noResultsFound,
+              style: const TextStyle(
+                  color: AppColors.onSurfaceMuted, fontSize: 15),
             ),
             const SizedBox(height: 20),
             if (alreadySuggested)
-              const Row(
+              Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline,
+                  const Icon(Icons.check_circle_outline,
                       color: AppColors.correctAnswer, size: 20),
-                  SizedBox(width: 8),
-                  Text('Önerildi',
-                      style: TextStyle(
+                  const SizedBox(width: 8),
+                  Text(AppL10n.fromCode(lang).suggestedLbl,
+                      style: const TextStyle(
                           color: AppColors.correctAnswer, fontSize: 14)),
                 ],
               )
@@ -298,7 +299,7 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: AppColors.primary))
                     : const Icon(Icons.lightbulb_outline, size: 18),
-                label: const Text('Bu kelimeyi öner'),
+                label: Text(AppL10n.fromCode(lang).suggestThisWord),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.primary,
                   side: const BorderSide(color: AppColors.primary),
@@ -457,9 +458,7 @@ class DictionaryRightRail extends ConsumerWidget {
                                 fontWeight: FontWeight.w600)),
                         const SizedBox(height: 6),
                         Text(
-                          lang == 'tr'
-                              ? word.definitions.tr
-                              : word.definitions.en,
+                          word.definitions.forLang(lang),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
@@ -487,7 +486,10 @@ class DictionaryRightRail extends ConsumerWidget {
                           fontSize: 15,
                           fontWeight: FontWeight.w600)),
                   const SizedBox(height: 6),
-                  Text(lang == 'tr' ? idiom.$3 : idiom.$4,
+                  Text(
+                      lang == 'tr'
+                          ? idiom.$3
+                          : (lang == 'ko' ? idiom.$5 : idiom.$4),
                       style: const TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 14)),
                 ],
@@ -699,7 +701,7 @@ class _WordTile extends StatelessWidget {
                 ),
               ),
               child: Text(
-                word.hskLevel >= 7 ? 'Diğer' : 'HSK ${word.hskLevel}',
+                AppL10n.of(context).hskLabel(word.hskLevel),
                 style: TextStyle(
                   color: AppColors.forHskLevel(word.hskLevel),
                   fontSize: 11,

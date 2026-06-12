@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/cities.dart';
+import '../../../core/constants/ko_landmarks.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
@@ -165,17 +166,13 @@ class PathScreen extends ConsumerWidget {
       case _Section.leaderboard:
         return RightInfoCard(
             tr: tr,
-            title: tr ? 'Lig Nasıl Çalışır?' : 'How leagues work',
-            body: tr
-                ? 'Ders tamamladıkça puan kazanır, haftalık sıralamada yükselirsin.'
-                : 'Earn points by completing lessons and climb the weekly ranking.');
+            title: AppL10n.of(context).leagueHowTitle,
+            body: AppL10n.of(context).leagueHowBody);
       case _Section.quests:
         return RightInfoCard(
             tr: tr,
-            title: tr ? 'Aylık Rozetler' : 'Monthly badges',
-            body: tr
-                ? 'Görevleri tamamla, bu ayın rozetini kazan.'
-                : 'Complete quests to earn this month\'s badge.');
+            title: AppL10n.of(context).monthlyBadges,
+            body: AppL10n.of(context).monthlyBadgesBody);
       case _Section.shop:
         return _RightSidebar(tr: tr);
       case _Section.profile:
@@ -252,13 +249,13 @@ class _LeftNav extends StatelessWidget {
           // carries a vermilion "seal stamp" — our own nav language.
           _NavItem(
               icon: Icons.person_rounded,
-              label: tr ? 'Profil' : 'Profile',
+              label: AppL10n.of(context).navProfile,
               active: section == _Section.profile,
               compact: compact,
               onTap: () => onSelect(_Section.profile)),
           _NavItem(
               icon: Icons.temple_buddhist_rounded,
-              label: tr ? 'Öğren' : 'Learn',
+              label: AppL10n.of(context).navLearn,
               active: section == _Section.learn,
               compact: compact,
               // Tapping Öğren both goes to the path and toggles the L1-L6 list.
@@ -283,37 +280,37 @@ class _LeftNav extends StatelessWidget {
               ),
           _NavItem(
               icon: Icons.auto_stories_rounded,
-              label: tr ? 'Sözlük' : 'Dictionary',
+              label: AppL10n.of(context).navDictionary,
               active: section == _Section.dictionary,
               compact: compact,
               onTap: () => onSelect(_Section.dictionary)),
           _NavItem(
               icon: Icons.play_circle_outline_rounded,
-              label: tr ? 'Alıştırma' : 'Practice',
+              label: AppL10n.of(context).navPractice,
               active: section == _Section.video,
               compact: compact,
               onTap: () => onSelect(_Section.video)),
           _NavItem(
               icon: Icons.workspace_premium_rounded,
-              label: tr ? 'Rütbeler' : 'Ranks',
+              label: AppL10n.of(context).navRanks,
               active: section == _Section.leaderboard,
               compact: compact,
               onTap: () => onSelect(_Section.leaderboard)),
           _NavItem(
               icon: Icons.emoji_food_beverage_rounded,
-              label: tr ? 'Çayevi' : 'Tea House',
+              label: AppL10n.of(context).navTeaHouse,
               active: section == _Section.quests,
               compact: compact,
               onTap: () => onSelect(_Section.quests)),
           _NavItem(
               icon: Icons.storefront_rounded,
-              label: tr ? 'Çarşı' : 'Bazaar',
+              label: AppL10n.of(context).navBazaar,
               active: section == _Section.shop,
               compact: compact,
               onTap: () => onSelect(_Section.shop)),
           _NavItem(
               icon: Icons.settings_rounded,
-              label: tr ? 'Ayarlar' : 'Settings',
+              label: AppL10n.of(context).navSettings,
               active: section == _Section.more,
               compact: compact,
               onTap: () => onSelect(_Section.more)),
@@ -701,9 +698,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                         children: [
                           const SizedBox(height: 14),
                           Text(
-                            tr
-                                ? '${step.index + 1}. Ünite'
-                                : 'Unit ${step.index + 1}',
+                            AppL10n.of(context).unitTitle(step.index + 1),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: Colors.white,
@@ -813,7 +808,12 @@ class _UnitInfoPanel extends ConsumerWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: Text(cityDisplayName(city, tr: tr),
+                  child: Text(
+                      cityNameFor(
+                          city,
+                          Localizations.maybeLocaleOf(context)
+                                  ?.languageCode ??
+                              (tr ? 'tr' : 'en')),
                       style: const TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -835,7 +835,7 @@ class _UnitInfoPanel extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   for (var i = 0; i < landmarks.length; i++) ...[
-                    Builder(builder: (_) {
+                    Builder(builder: (context) {
                       final lm = landmarks[i];
                       final photo = assets.photo(i);
                       final descTr = photo.descTr?.isNotEmpty == true
@@ -844,6 +844,22 @@ class _UnitInfoPanel extends ConsumerWidget {
                       final descEn = photo.descEn?.isNotEmpty == true
                           ? photo.descEn!
                           : lm.descEn;
+                      final lang = Localizations.maybeLocaleOf(context)
+                              ?.languageCode ??
+                          (tr ? 'tr' : 'en');
+                      final koLm = kLandmarkKo['${city.slug}/${lm.icon}'];
+                      final name = lang == 'tr'
+                          ? lm.nameTr
+                          : (lang == 'ko' && koLm != null
+                              ? koLm.$1
+                              : lm.nameEn);
+                      final desc = lang == 'tr'
+                          ? descTr
+                          : (lang == 'ko' &&
+                                  koLm != null &&
+                                  koLm.$2.isNotEmpty
+                              ? koLm.$2
+                              : descEn);
                       return Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
@@ -878,13 +894,13 @@ class _UnitInfoPanel extends ConsumerWidget {
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
-                                    Text(tr ? lm.nameTr : lm.nameEn,
+                                    Text(name,
                                         style: const TextStyle(
                                             color: Colors.white,
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800)),
                                     const SizedBox(height: 4),
-                                    Text(tr ? descTr : descEn,
+                                    Text(desc,
                                         maxLines: 3,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -962,9 +978,7 @@ class _PhaseNode extends ConsumerWidget {
       if (!unlocked) return;
       if (phase.videos.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr
-              ? 'Bu bölümde henüz video yok.'
-              : 'No videos in this set yet.'),
+          content: Text(AppL10n.of(context).noVideosInSet),
         ));
         return;
       }
@@ -972,9 +986,7 @@ class _PhaseNode extends ConsumerWidget {
         final next = ref.read(pathMetaProvider).nextHeartAt;
         final mins = next?.difference(DateTime.now()).inMinutes.clamp(0, 9999);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr
-              ? 'Canın kalmadı. ${mins != null ? '~$mins dk sonra bir can dolacak.' : 'Yenilenmesini bekle.'}'
-              : 'Out of hearts. ${mins != null ? 'A heart refills in ~$mins min.' : 'Wait to refill.'}'),
+          content: Text(AppL10n.of(context).outOfHearts(mins)),
         ));
         return;
       }
@@ -982,7 +994,7 @@ class _PhaseNode extends ConsumerWidget {
         builder: (_) => PhaseRunnerScreen(
           phase: phase,
           title:
-              'L${phase.hsk} · ${tr ? 'Faz' : 'Phase'} ${phase.phaseIndex + 1}',
+              'L${phase.hsk} · ${AppL10n.of(context).phaseLbl} ${phase.phaseIndex + 1}',
         ),
       ));
       ref.invalidate(pathProgressProvider);
@@ -1303,7 +1315,7 @@ class _NodeFxState extends State<_NodeFx>
                                   fontSize: 15,
                                   height: 1.1,
                                   fontWeight: FontWeight.w800)),
-                          Text(widget.tr ? 'BAŞLA' : 'START',
+                          Text(AppL10n.of(context).startStamp,
                               style: const TextStyle(
                                   color: Color(0xFFF6E7D7),
                                   fontSize: 8,
@@ -1465,7 +1477,7 @@ class _SlotWordPanel extends ConsumerWidget {
                 children: [
                   Expanded(
                     child: Text(
-                        tr ? 'Bu bölümün kelimeleri' : 'Words in this set',
+                        AppL10n.of(context).wordsInSet,
                         style: const TextStyle(
                             color: Colors.white,
                             fontSize: 15,
@@ -1475,7 +1487,7 @@ class _SlotWordPanel extends ConsumerWidget {
                     icon: const Icon(Icons.close_rounded,
                         color: Colors.white60, size: 20),
                     onPressed: onClose,
-                    tooltip: tr ? 'Kapat' : 'Close',
+                    tooltip: AppL10n.of(context).closeLabel,
                   ),
                 ],
               ),
@@ -1494,7 +1506,7 @@ class _SlotWordPanel extends ConsumerWidget {
                   border: Border.all(color: _duoGreen.withValues(alpha: 0.5)),
                 ),
                 child: Text(
-                  '${tr ? 'Gramer' : 'Grammar'}: ${myG.map((g) => g.zh).join(' · ')}',
+                  '${AppL10n.of(context).grammarLbl}: ${myG.map((g) => g.zh).join(' · ')}',
                   style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -1506,11 +1518,11 @@ class _SlotWordPanel extends ConsumerWidget {
                 loading: () => const Center(
                     child: CircularProgressIndicator(color: _duoGreen)),
                 error: (e, _) => Center(
-                    child: Text(tr ? 'Yüklenemedi' : 'Failed',
+                    child: Text(AppL10n.of(context).failedLbl,
                         style: const TextStyle(color: Colors.white54))),
                 data: (words) => words.isEmpty
                     ? Center(
-                        child: Text(tr ? 'Kelime yok' : 'No words',
+                        child: Text(AppL10n.of(context).noWordsLbl,
                             style: const TextStyle(color: Colors.white54)))
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(
@@ -1520,7 +1532,10 @@ class _SlotWordPanel extends ConsumerWidget {
                             const Divider(color: Colors.white10, height: 14),
                         itemBuilder: (_, i) {
                           final w = words[i];
-                          final meaning = tr ? w.tr : w.en;
+                          final meaning = w.meaningFor(
+                              Localizations.maybeLocaleOf(context)
+                                      ?.languageCode ??
+                                  (tr ? 'tr' : 'en'));
                           return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1605,12 +1620,11 @@ class _RightSidebar extends ConsumerWidget {
           ),
           const SizedBox(height: 20),
           _Card(
-            title: tr ? 'İlerlemen' : 'Your progress',
+            title: AppL10n.of(context).yourProgress,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                    '$donePhases / $totalPhases ${tr ? 'faz tamamlandı' : 'phases done'}',
+                Text(AppL10n.of(context).phasesDone(donePhases, totalPhases),
                     style: const TextStyle(color: Colors.white70, fontSize: 14)),
                 const SizedBox(height: 10),
                 BrushBar(
@@ -1623,13 +1637,13 @@ class _RightSidebar extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           _Card(
-            title: tr ? 'Günlük Görev' : 'Daily quest',
+            title: AppL10n.of(context).dailyQuest,
             child: Row(
               children: [
                 const Icon(Icons.bolt_rounded, color: Color(0xFFFFC800), size: 28),
                 const SizedBox(width: 10),
                 Expanded(
-                  child: Text(tr ? 'Bir faz tamamla' : 'Complete one phase',
+                  child: Text(AppL10n.of(context).completeOnePhase,
                       style:
                           const TextStyle(color: Colors.white70, fontSize: 14)),
                 ),
