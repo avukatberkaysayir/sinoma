@@ -12,14 +12,24 @@ class City {
   String get slug => pinyin.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
 
-// Turkish exonyms for well-known cities; the rest read naturally in pinyin.
+// Turkish display names. ONLY Pekin and Şanghay are real exonyms; every other
+// city is the pinyin re-spelled with Turkish letters where the pinyin sound
+// has no Turkish letter (w→v, x→ş, q→ç, zh→c, ch→ç, sh→ş, j→c). Cities whose
+// pinyin already reads naturally in Turkish are omitted (fallback = pinyin).
 const Map<String, String> kCityTrNames = {
-  'beijing': 'Pekin', 'shanghai': 'Şanghay', 'nanjing': 'Nankin',
-  'guangzhou': 'Kanton', 'chongqing': 'Çunking', 'chengdu': 'Çengdu',
-  'xian': 'Şian', 'tianjin': 'Tiençin', 'hangzhou': 'Hangcou',
-  'wuhan': 'Vuhan', 'shenzhen': 'Şençen', 'suzhou': 'Sucou',
-  'qingdao': 'Çingdao', 'urumqi': 'Urumçi', 'kashgar': 'Kaşgar',
-  'hongkong': 'Hong Kong', 'macau': 'Makao',
+  'beijing': 'Pekin', 'shanghai': 'Şanghay',
+  'nanjing': 'Nancing', 'guangzhou': 'Guangcou', 'chongqing': 'Çungçing',
+  'chengdu': 'Çengdu', 'xian': 'Şian', 'tianjin': 'Tiencin',
+  'hangzhou': 'Hangcou', 'wuhan': 'Vuhan', 'shenzhen': 'Şencen',
+  'suzhou': 'Sucou', 'qingdao': 'Çingdao', 'urumqi': 'Urumçi',
+  'kashgar': 'Kaşgar', 'hongkong': 'Hong Kong', 'macau': 'Makao',
+  'changsha': 'Çangşa', 'zhengzhou': 'Cengcou', 'wuxi': 'Vuşi',
+  'nanchang': 'Nançang', 'yinchuan': 'Yinçuan', 'zhuhai': 'Cuhay',
+  'yantai': 'Yantay', 'weifang': 'Veyfang', 'dezhou': 'Decou',
+  'xuzhou': 'Şücou', 'zhenjiang': 'Cenciang', 'jiaxing': 'Ciaşing',
+  'lishui': 'Lişuey', 'anqing': 'Ançing', 'ganzhou': 'Gancou',
+  'putian': 'Putien', 'mudanjiang': 'Mudanciang', 'changzhou': 'Çangcou',
+  'shaoxing': 'Şaoşing', 'jiujiang': 'Ciuciang', 'quanzhou': 'Çüencou',
 };
 
 // Korean transcriptions (국립국어원 중국어 표기법) for every path city; the

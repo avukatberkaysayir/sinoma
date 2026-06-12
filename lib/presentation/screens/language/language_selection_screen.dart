@@ -9,19 +9,16 @@ const _bg = Color(0xFF0E1414);
 const _panel = Color(0xFF161E1D);
 const _accent = Color(0xFF2EC4B6);
 
-// Each language ONLY in its own tongue (no translated subtitle). The first
-// three are live; the rest are upcoming UI languages (tap → falls back to EN).
+// Each language ONLY in its own tongue (no translated subtitle). Live ones
+// first in launch order (TR → EN → KO; every new language is appended after
+// Korean). Upcoming next on the roadmap: Spanish, then French (no German
+// planned). Tapping an upcoming language falls back to EN.
 const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇹🇷', 'Türkçe', 'tr', true),
   ('🇬🇧', 'English', 'en', true),
   ('🇰🇷', '한국어', 'ko', true),
   ('🇪🇸', 'Español', 'es', false),
-  ('🇩🇪', 'Deutsch', 'de', false),
   ('🇫🇷', 'Français', 'fr', false),
-  ('🇷🇺', 'Русский', 'ru', false),
-  ('🇸🇦', 'العربية', 'ar', false),
-  ('🇯🇵', '日本語', 'ja', false),
-  ('🇵🇹', 'Português', 'pt', false),
 ];
 
 class LanguageSelectionScreen extends ConsumerStatefulWidget {

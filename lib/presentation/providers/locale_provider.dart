@@ -188,6 +188,22 @@ class AppL10n {
   String get myLeague       => _t('Ligim', 'My League', '내 랭크');
   String get friendsTab     => _t('Arkadaşlarım', 'Friends', '친구');
   String leagueOf(String n) => _t('$n Ligi', '$n League', '$n 리그');
+  // 12 zodiac (生肖) league tiers, bottom-up; the Dragon is the diamond top.
+  String leagueName(int tier) => switch (tier) {
+        1 => _t('Fare', 'Rat', '쥐'),
+        2 => _t('Öküz', 'Ox', '소'),
+        3 => _t('Kaplan', 'Tiger', '호랑이'),
+        4 => _t('Tavşan', 'Rabbit', '토끼'),
+        5 => _t('Yılan', 'Snake', '뱀'),
+        6 => _t('At', 'Horse', '말'),
+        7 => _t('Keçi', 'Goat', '양'),
+        8 => _t('Maymun', 'Monkey', '원숭이'),
+        9 => _t('Horoz', 'Rooster', '닭'),
+        10 => _t('Köpek', 'Dog', '개'),
+        11 => _t('Domuz', 'Pig', '돼지'),
+        _ => _t('Ejderha', 'Dragon', '용'),
+      };
+  String get dragonTab      => _t('Ejderha', 'Dragon', '용');
   String get leagueRules    => _t('Bu haftanın sıralaması — ilk 6 yükselir, son 6 düşer',
       "This week's ranking — top 6 promote, bottom 6 demote",
       '이번 주 순위 — 상위 6명 승급, 하위 6명 강등');
@@ -199,13 +215,13 @@ class AppL10n {
   String get addLbl         => _t('Ekle', 'Add', '추가');
   String get removeLbl      => _t('Çıkar', 'Remove', '삭제');
   String get noResultsLbl   => _t('Sonuç yok', 'No results', '결과 없음');
-  String get zhuangyuanTitle => _t('Zhuangyuan Sıralaması', 'Zhuangyuan Ranking', '장원(壯元) 랭킹');
-  String get zhuangyuanDesc => _t('Zhuangyuan rütbesinde geçirilen her hafta +1 elmas; dışında kalınan her hafta −1.',
-      'Each week at Zhuangyuan earns +1 diamond; each week outside costs −1.',
-      '장원 랭크에서 보낸 주마다 다이아 +1, 벗어난 주마다 −1이에요.');
-  String get noDiamondsYet  => _t('Henüz elmas kazanan yok — Zhuangyuan rütbesine ilk ulaşan sen ol!',
-      'No diamonds earned yet — be the first to reach Zhuangyuan!',
-      '아직 다이아를 얻은 사람이 없어요 — 첫 장원에 도전해 보세요!');
+  String get zhuangyuanTitle => _t('Ejderha Sıralaması', 'Dragon Ranking', '용 리그 랭킹');
+  String get zhuangyuanDesc => _t('Ejderha Ligi\'nde geçirilen her hafta +1 elmas; dışında kalınan her hafta −1.',
+      'Each week in the Dragon League earns +1 diamond; each week outside costs −1.',
+      '용 리그에서 보낸 주마다 다이아 +1, 벗어난 주마다 −1이에요.');
+  String get noDiamondsYet  => _t('Henüz elmas kazanan yok — Ejderha Ligi\'ne ilk ulaşan sen ol!',
+      'No diamonds earned yet — be the first to reach the Dragon League!',
+      '아직 다이아를 얻은 사람이 없어요 — 첫 용 리그에 도전해 보세요!');
   String get leagueHowTitle => _t('Lig Nasıl Çalışır?', 'How ranks work', '랭크 안내');
   String get leagueHowBody  => _t('Ders tamamladıkça puan kazanır, haftalık sıralamada yükselirsin.',
       'Earn points by completing lessons and climb the weekly ranking.',
@@ -446,6 +462,7 @@ class AppL10n {
   String get photoSelected  => _t('Fotoğraf seçildi ✓', 'Photo selected ✓', '사진 선택됨 ✓');
   String get profileSection => _t('Profil', 'Profile', '프로필');
   String get firstName      => _t('Ad', 'First Name', '이름');
+  String get usernameLabel  => _t('Kullanıcı adı', 'Username', '사용자 이름');
   String get lastName       => _t('Soyad', 'Last Name', '성');
   String get selectHint     => _t('Seçiniz', 'Select', '선택');
   String get dateOfBirth    => _t('Doğum Tarihi', 'Date of Birth', '생년월일');

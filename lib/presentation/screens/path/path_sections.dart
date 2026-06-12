@@ -12,6 +12,7 @@ import '../../../data/models/video_segment_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
+import '../../providers/sfx_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
@@ -510,7 +511,7 @@ class _LeaderboardCenterState extends ConsumerState<LeaderboardCenter> {
                   tabChip(1, AppL10n.of(context).friendsTab,
                       Icons.group_rounded),
                   const SizedBox(width: 8),
-                  tabChip(2, 'Zhuangyuan',
+                  tabChip(2, AppL10n.of(context).dragonTab,
                       Icons.diamond_rounded),
                 ]),
                 const SizedBox(height: 20),
@@ -551,15 +552,16 @@ class _LeagueTab extends ConsumerWidget {
                             orElse: () => rows.first)['league'] as num?)
                         ?.toInt() ??
                     1)
-                .clamp(1, 10);
+                .clamp(1, kLeagueCount);
         final color = kLeagueColors[lg - 1];
         final size = rows.length;
         return Column(
           children: [
-            Icon(Icons.shield_rounded, color: color, size: 44),
+            Text(kLeagueEmojis[lg - 1],
+                style: const TextStyle(fontSize: 44)),
             const SizedBox(height: 6),
             Text(
-                '${AppL10n.of(context).leagueOf(kLeagueNames[lg - 1])}  ·  $lg/10',
+                '${AppL10n.of(context).leagueOf(AppL10n.of(context).leagueName(lg))}  ·  $lg/$kLeagueCount',
                 style: TextStyle(
                     color: color,
                     fontSize: 24,
@@ -584,6 +586,19 @@ class _LeagueTab extends ConsumerWidget {
                     : (size > 12 && i >= size - 6)
                         ? _RankZone.down
                         : _RankZone.mid,
+                onTap: rows[i]['id'] == myUid
+                    ? null
+                    : () => showDialog(
+                          context: context,
+                          builder: (_) => _FriendProfileDialog(
+                            friend: {
+                              ...rows[i],
+                              'score': rows[i]['weekly'] ?? 0,
+                            },
+                            tr: tr,
+                            showFriendAction: true,
+                          ),
+                        ),
               ),
           ],
         );
@@ -740,6 +755,7 @@ class _RankRow extends StatelessWidget {
   final bool isMe;
   final _RankZone zone;
   final VoidCallback? onRemove;
+  final VoidCallback? onTap;
   const _RankRow({
     required this.rank,
     required this.name,
@@ -751,6 +767,7 @@ class _RankRow extends StatelessWidget {
     required this.isMe,
     required this.zone,
     this.onRemove,
+    this.onTap,
   });
 
   @override
@@ -760,7 +777,13 @@ class _RankRow extends StatelessWidget {
       _RankZone.down => const Color(0xFFFF4B4B),
       _RankZone.mid => Colors.white38,
     };
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: MouseRegion(
+        cursor: onTap != null
+            ? SystemMouseCursors.click
+            : SystemMouseCursors.basic,
+        child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
@@ -829,6 +852,8 @@ class _RankRow extends StatelessWidget {
               onPressed: onRemove,
             ),
         ],
+      ),
+        ),
       ),
     );
   }
@@ -1871,11 +1896,14 @@ class ProfileView extends ConsumerWidget {
     final name = [user.displayName, user.lastName]
         .where((s) => s.trim().isNotEmpty)
         .join(' ');
-    final username = user.email.contains('@')
-        ? user.email.split('@').first
-        : user.email;
+    final username = user.username.isNotEmpty
+        ? user.username
+        : (user.email.contains('@')
+            ? user.email.split('@').first
+            : user.email);
     final d = user.createdAt;
     final joined = AppL10n.of(context).joinedOn(d.month, d.year);
+    final sfxOn = ref.watch(sfxEnabledProvider);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 80),
@@ -1886,62 +1914,101 @@ class ProfileView extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Banner + photo
-                Container(
-                  height: 150,
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [Color(0xFF26314F), Color(0xFF101626)],
-                    ),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Stack(
-                    children: [
-                      Center(
-                        child: CircleAvatar(
-                          radius: 48,
-                          backgroundColor: _bg,
-                          backgroundImage: user.photoUrl.isNotEmpty
-                              ? NetworkImage(user.photoUrl)
-                              : null,
-                          child: user.photoUrl.isEmpty
-                              ? const Icon(Icons.person,
-                                  color: Colors.white38, size: 48)
-                              : null,
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: Material(
-                          color: Colors.black26,
-                          shape: const CircleBorder(),
-                          child: IconButton(
-                            icon: const Icon(Icons.edit,
-                                color: Colors.white, size: 18),
-                            tooltip: AppL10n.of(context).editTip,
-                            onPressed: onEdit,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
+                // Header: seal-ringed avatar beside the name block — no banner
+                // (the old navy gradient is gone); reads like a passport page.
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            // Vermilion seal ring with a thin gold inner line.
+                            Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: const Color(0xFFE0442C),
+                                    width: 3),
+                              ),
+                              child: Container(
+                                padding: const EdgeInsets.all(2),
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                      color: const Color(0xFFD4A33D),
+                                      width: 1),
+                                ),
+                                child: CircleAvatar(
+                                  radius: 44,
+                                  backgroundColor: _bg,
+                                  backgroundImage: user.photoUrl.isNotEmpty
+                                      ? NetworkImage(user.photoUrl)
+                                      : null,
+                                  child: user.photoUrl.isEmpty
+                                      ? const Icon(Icons.person,
+                                          color: Colors.white38, size: 44)
+                                      : null,
+                                ),
+                              ),
+                            ),
+                            Positioned(
+                              right: -6,
+                              bottom: -2,
+                              child: Material(
+                                color: const Color(0xFF161E1D),
+                                shape: const CircleBorder(
+                                    side: BorderSide(
+                                        color: Color(0xFF263230))),
+                                child: IconButton(
+                                  iconSize: 16,
+                                  padding: const EdgeInsets.all(6),
+                                  constraints: const BoxConstraints(),
+                                  icon: const Icon(Icons.edit,
+                                      color: Colors.white70),
+                                  tooltip: AppL10n.of(context).editTip,
+                                  onPressed: onEdit,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 18),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(name.isNotEmpty ? name : username,
-                              style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.w800)),
+                          Row(children: [
+                            Expanded(
+                              child: Text(name.isNotEmpty ? name : username,
+                                  style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.w800)),
+                            ),
+                            // Sound effects on/off — applies app-wide.
+                            IconButton(
+                              icon: Icon(
+                                  sfxOn
+                                      ? Icons.volume_up_rounded
+                                      : Icons.volume_off_rounded,
+                                  color: sfxOn
+                                      ? const Color(0xFF2EC4B6)
+                                      : Colors.white38,
+                                  size: 22),
+                              tooltip: sfxOn
+                                  ? AppL10n.of(context).soundOffTip
+                                  : AppL10n.of(context).soundOnTip,
+                              onPressed: () => ref
+                                  .read(sfxEnabledProvider.notifier)
+                                  .toggle(),
+                            ),
+                          ]),
                           const SizedBox(height: 2),
                           Text('@$username',
                               style: const TextStyle(
@@ -1969,6 +2036,21 @@ class ProfileView extends ConsumerWidget {
                                       fontWeight: FontWeight.bold)),
                             ),
                           ]),
+                          const SizedBox(height: 8),
+                          // Brush-stroke divider in gold, a quiet Chinese
+                          // accent under the identity block.
+                          Container(
+                            height: 2,
+                            width: 180,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(2),
+                              gradient: LinearGradient(colors: [
+                                const Color(0xFFD4A33D),
+                                const Color(0xFFD4A33D)
+                                    .withValues(alpha: 0),
+                              ]),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -2426,14 +2508,51 @@ class _ProfileFriends extends ConsumerWidget {
   }
 }
 
-class _FriendProfileDialog extends StatelessWidget {
+class _FriendProfileDialog extends ConsumerStatefulWidget {
   final Map<String, dynamic> friend;
   final bool tr;
-  const _FriendProfileDialog({required this.friend, required this.tr});
+  // League rows pass true: members can be added/removed as friends here.
+  final bool showFriendAction;
+  const _FriendProfileDialog(
+      {required this.friend, required this.tr, this.showFriendAction = false});
+
+  @override
+  ConsumerState<_FriendProfileDialog> createState() =>
+      _FriendProfileDialogState();
+}
+
+class _FriendProfileDialogState extends ConsumerState<_FriendProfileDialog> {
+  bool? _isFriend;
+  bool _busy = false;
+
+  Future<void> _toggle() async {
+    final uid = widget.friend['id'] as String?;
+    if (uid == null || _busy) return;
+    final repo = ref.read(userRepositoryProvider);
+    final was = _isFriend ?? false;
+    setState(() {
+      _busy = true;
+      _isFriend = !was;
+    });
+    try {
+      if (was) {
+        await repo.removeFriend(uid);
+      } else {
+        await repo.addFriend(uid);
+      }
+      ref.invalidate(friendsLeaderboardProvider);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final friend = widget.friend;
     final photo = friend['photo_url'] as String?;
+    _isFriend ??= (ref.watch(friendsLeaderboardProvider).valueOrNull ??
+            const [])
+        .any((f) => f['id'] == friend['id']);
     return AlertDialog(
       backgroundColor: _panel,
       content: SizedBox(
@@ -2476,6 +2595,22 @@ class _FriendProfileDialog extends StatelessWidget {
         ),
       ),
       actions: [
+        if (widget.showFriendAction)
+          TextButton.icon(
+            onPressed: _busy ? null : _toggle,
+            icon: Icon(
+                _isFriend == true
+                    ? Icons.person_remove_outlined
+                    : Icons.person_add_alt_1_rounded,
+                size: 18,
+                color: _isFriend == true ? Colors.white54 : _green),
+            label: Text(
+                _isFriend == true
+                    ? AppL10n.of(context).removeLbl
+                    : AppL10n.of(context).addLbl,
+                style: TextStyle(
+                    color: _isFriend == true ? Colors.white54 : _green)),
+          ),
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
           child: Text(AppL10n.of(context).closeLabel),

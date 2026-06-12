@@ -38,6 +38,9 @@ extension type _Param._(JSObject _) implements JSObject {
 class WebSfx {
   static _Ctx? _ctx;
 
+  /// Global mute, toggled from the profile; persisted by sfxEnabledProvider.
+  static bool enabled = true;
+
   static _Ctx? get _c {
     try {
       return _ctx ??= _Ctx();
@@ -48,6 +51,7 @@ class WebSfx {
 
   static void _tone(double freq, double dur,
       {String type = 'sine', double gain = 0.16, double when = 0}) {
+    if (!enabled) return;
     final c = _c;
     if (c == null) return;
     try {
@@ -71,9 +75,10 @@ class WebSfx {
     _tone(880.0, 0.30, when: 0.09);
   }
 
-  /// Soft low thud.
+  /// Clearly audible descending two-note "dun-dun" (G3 → D3).
   static void wrong() {
-    _tone(174.6, 0.28, type: 'triangle', gain: 0.18);
+    _tone(196.0, 0.18, type: 'triangle', gain: 0.32);
+    _tone(146.8, 0.34, type: 'triangle', gain: 0.32, when: 0.13);
   }
 
   /// Gong: low fundamental with a long tail + a faint octave shimmer.

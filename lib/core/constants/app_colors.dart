@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFFE63946);
-  static const Color primaryDark = Color(0xFFC1121F);
-  static const Color surface = Color(0xFF1A1A2E);
-  static const Color surfaceVariant = Color(0xFF16213E);
+  // Ink palette (design identity): deep ink background, panel, turquoise
+  // accent. The old navy/red duo palette must not come back.
+  static const Color primary = Color(0xFF2EC4B6);
+  static const Color primaryDark = Color(0xFF21968B);
+  static const Color surface = Color(0xFF0E1414);
+  static const Color surfaceVariant = Color(0xFF161E1D);
   static const Color onSurface = Color(0xFFEEEEEE);
   static const Color onSurfaceMuted = Color(0xFF9E9E9E);
 

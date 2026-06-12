@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/cities.dart';
-import '../../../core/constants/ko_landmarks.dart';
+import '../../../core/constants/landmarks/landmarks_ko.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/user_provider.dart';
@@ -433,7 +433,7 @@ class _LevelNavItem extends StatelessWidget {
 
 // Fixed height per unit section — taller than a typical viewport so the NEXT
 // unit's top line only appears after a scroll.
-const double _kUnitHeight = 980;
+const double _kUnitHeight = 1030;
 
 // An admin-uploaded image (network URL) when present, else the bundled asset.
 // A missing bundled asset (e.g. a landmark set added before its art) degrades
@@ -696,17 +696,20 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const SizedBox(height: 14),
+                          // Title hugs the divider line above and stays well
+                          // clear of the first circle: big display-size text.
+                          const SizedBox(height: 4),
                           Text(
                             AppL10n.of(context).unitTitle(step.index + 1),
                             textAlign: TextAlign.center,
                             style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 20,
+                                fontSize: 40,
+                                height: 1.1,
                                 fontWeight: FontWeight.w800),
                           ),
                           // Comfortable distance before the first circle.
-                          const SizedBox(height: 44),
+                          const SizedBox(height: 64),
                           ...nodes,
                         ],
                       ),
@@ -740,17 +743,23 @@ class _RoutePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final sgn = mirror ? -1.0 : 1.0;
+    // +30 matches the taller unit title block above the first circle.
     final pts = <Offset>[
-      Offset(cx, 125),
-      Offset(cx + sgn * 112, 255),
-      Offset(cx, 424),
-      Offset(cx - sgn * 112, 577),
-      Offset(cx, 707),
+      Offset(cx, 155),
+      Offset(cx + sgn * 112, 285),
+      Offset(cx, 454),
+      Offset(cx - sgn * 112, 607),
+      Offset(cx, 737),
     ];
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.14)
-      ..strokeWidth = 2.5
+    // Antique caravan route: inlaid stepping stones (gold lozenges alternating
+    // with round pebbles) along a brush curve, with a small auspicious-cloud
+    // curl (祥云) at each segment's midpoint.
+    final stone = Paint()..color = const Color(0xFFD4A33D).withValues(alpha: 0.30);
+    final pebble = Paint()..color = Colors.white.withValues(alpha: 0.16);
+    final cloud = Paint()
+      ..color = const Color(0xFFD4A33D).withValues(alpha: 0.28)
       ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.6
       ..strokeCap = StrokeCap.round;
     for (var i = 0; i < pts.length - 1; i++) {
       final a = pts[i], b = pts[i + 1];
@@ -759,12 +768,45 @@ class _RoutePainter extends CustomPainter {
       final path = Path()
         ..moveTo(a.dx, a.dy)
         ..quadraticBezierTo(mid.dx, mid.dy, b.dx, b.dy);
-      // Dash the curve by walking its metrics.
       for (final metric in path.computeMetrics()) {
-        var d = 0.0;
-        while (d < metric.length) {
-          canvas.drawPath(metric.extractPath(d, d + 7), paint);
-          d += 16;
+        var d = 12.0;
+        var n = 0;
+        while (d < metric.length - 12) {
+          final tan = metric.getTangentForOffset(d);
+          if (tan == null) break;
+          final p = tan.position;
+          if (n % 2 == 0) {
+            // Lozenge stone, rotated to follow the path.
+            canvas.save();
+            canvas.translate(p.dx, p.dy);
+            canvas.rotate(tan.angle);
+            canvas.drawRRect(
+                RRect.fromRectAndRadius(
+                    Rect.fromCenter(
+                        center: Offset.zero, width: 9, height: 5),
+                    const Radius.circular(2)),
+                stone);
+            canvas.restore();
+          } else {
+            canvas.drawCircle(p, 2.2, pebble);
+          }
+          d += 17;
+          n++;
+        }
+        // 祥云 curl at the midpoint of the walk, offset off the path.
+        final mTan = metric.getTangentForOffset(metric.length / 2);
+        if (mTan != null) {
+          final nrm = Offset(-sin(mTan.angle), cos(mTan.angle));
+          final c = mTan.position + nrm * 14 * (i.isEven ? 1.0 : -1.0);
+          const r = 5.0;
+          final curl = Path()
+            ..addArc(Rect.fromCircle(center: c, radius: r), pi * 0.2, pi * 1.4)
+            ..addArc(
+                Rect.fromCircle(
+                    center: c.translate(r * 1.5, r * 0.2), radius: r * 0.6),
+                pi * 0.4,
+                pi * 1.2);
+          canvas.drawPath(curl, cloud);
         }
       }
     }
@@ -1044,8 +1086,39 @@ class _PhaseNode extends ConsumerWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.center,
         children: [
-          available ? img : Opacity(opacity: 0.4, child: img),
-          if (badge != null) Positioned(right: 8, bottom: 8, child: badge),
+          if (available)
+            img
+          else ...[
+            // Matte locked look: a solid ink disc hides the route line behind
+            // the icon's transparent pixels, the icon itself goes flat grey.
+            Container(
+              width: sz * 0.96,
+              height: sz * 0.96,
+              decoration: BoxDecoration(
+                color: const Color(0xFF18211F),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFF263230), width: 2),
+              ),
+            ),
+            ColorFiltered(
+              colorFilter: const ColorFilter.matrix(<double>[
+                0.2126, 0.7152, 0.0722, 0, 28, //
+                0.2126, 0.7152, 0.0722, 0, 32, //
+                0.2126, 0.7152, 0.0722, 0, 30, //
+                0, 0, 0, 1, 0,
+              ]),
+              child: img,
+            ),
+            Positioned(
+              right: 0,
+              bottom: 0,
+              child: Text('🔒',
+                  style: TextStyle(
+                      fontSize: (sz * 0.24).clamp(13.0, 22.0))),
+            ),
+          ],
+          if (done && badge != null)
+            Positioned(right: 8, bottom: 8, child: badge),
         ],
       );
     } else {
@@ -1079,12 +1152,18 @@ class _PhaseNode extends ConsumerWidget {
               ),
             ),
             Opacity(
-              opacity: available ? 1 : 0.35,
+              opacity: available ? 1 : 0.55,
               child: Icon(ni.icon,
                   size: 34,
                   color: available ? Colors.white : Colors.white54),
             ),
-            if (badge != null)
+            if (!available)
+              const Positioned(
+                right: -4,
+                bottom: -4,
+                child: Text('🔒', style: TextStyle(fontSize: 16)),
+              )
+            else if (badge != null)
               Positioned(right: -3, bottom: -3, child: badge),
           ],
         ),
@@ -1242,13 +1321,14 @@ class _NodeFxState extends State<_NodeFx>
                   ),
                 ),
               ),
-              // Soft pulsing light behind unlocked nodes.
+              // Soft pulsing light behind unlocked nodes — a faint turquoise
+              // halo: visible as light, but well short of a spotlight.
               if (widget.available)
                 AnimatedBuilder(
                   animation: _c,
                   builder: (_, __) {
                     final a =
-                        0.10 + 0.10 * (0.5 + 0.5 * sin(_c.value * 2 * pi));
+                        0.04 + 0.05 * (0.5 + 0.5 * sin(_c.value * 2 * pi));
                     return Container(
                       width: 68,
                       height: 68,
@@ -1256,9 +1336,10 @@ class _NodeFxState extends State<_NodeFx>
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: _duoGreen.withValues(alpha: a),
-                            blurRadius: 28,
-                            spreadRadius: 8,
+                            color: const Color(0xFF2EC4B6)
+                                .withValues(alpha: a),
+                            blurRadius: 26,
+                            spreadRadius: 6,
                           ),
                         ],
                       ),

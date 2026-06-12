@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/user_model.dart';
@@ -199,6 +201,54 @@ class UserRepository {
 
   Future<void> createUser(UserModel user) async {
     await _db.from('users').upsert(user.toMap());
+    // Every account gets a public handle derived from the NAME (never the
+    // email): "ayse-yilmaz-382". Only filled when still empty.
+    final row = await _db
+        .from('users')
+        .select('username')
+        .eq('id', user.uid)
+        .maybeSingle();
+    if ((row?['username'] as String?)?.isNotEmpty != true) {
+      await assignGeneratedUsername(
+          user.uid, user.displayName, user.lastName);
+    }
+  }
+
+  // Slugified name + random digits, retried on the unique constraint.
+  Future<void> assignGeneratedUsername(
+      String uid, String displayName, String lastName) async {
+    final base = _usernameBase('$displayName $lastName');
+    final rng = Random();
+    for (var attempt = 0; attempt < 6; attempt++) {
+      final candidate = '$base-${100 + rng.nextInt(900)}';
+      try {
+        await _db
+            .from('users')
+            .update({'username': candidate}).eq('id', uid);
+        return;
+      } catch (_) {/* collision → retry with new digits */}
+    }
+  }
+
+  static String _usernameBase(String name) {
+    const trMap = {
+      'ç': 'c', 'ğ': 'g', 'ı': 'i', 'ö': 'o', 'ş': 's', 'ü': 'u',
+      'Ç': 'c', 'Ğ': 'g', 'İ': 'i', 'I': 'i', 'Ö': 'o', 'Ş': 's', 'Ü': 'u',
+    };
+    final mapped = name
+        .split('')
+        .map((ch) => trMap[ch] ?? ch)
+        .join()
+        .toLowerCase();
+    final slug = mapped
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-')
+        .replaceAll(RegExp(r'^-|-$'), '');
+    return slug.isEmpty ? 'ogrenci' : slug;
+  }
+
+  Future<void> updateUsername(String uid, String username) async {
+    await _db.from('users').update({'username': username}).eq('id', uid);
   }
 
   Future<void> updateUserStats(String uid, UserStats stats) async {

@@ -1,6 +1,7 @@
 class UserModel {
   final String uid;
   final String displayName;
+  final String username; // public handle, derived from the name at signup
   final String email;
   final String photoUrl;
   final int hskLevel;
@@ -21,6 +22,7 @@ class UserModel {
   const UserModel({
     required this.uid,
     required this.displayName,
+    this.username = '',
     this.lastName = '',
     required this.email,
     required this.photoUrl,
@@ -42,6 +44,7 @@ class UserModel {
   factory UserModel.fromMap(Map<String, dynamic> data) => UserModel(
         uid: data['id'] as String? ?? '',
         displayName: data['display_name'] as String? ?? '',
+        username: data['username'] as String? ?? '',
         email: data['email'] as String? ?? '',
         photoUrl: data['photo_url'] as String? ?? '',
         hskLevel: (data['hsk_level'] as num?)?.toInt() ?? 1,
@@ -67,6 +70,7 @@ class UserModel {
   Map<String, dynamic> toMap() => {
         'id': uid,
         'display_name': displayName,
+        if (username.isNotEmpty) 'username': username,
         'email': email,
         'photo_url': photoUrl,
         'hsk_level': hskLevel,
@@ -89,6 +93,7 @@ class UserModel {
 
   UserModel copyWith({
     String? displayName,
+    String? username,
     String? lastName,
     String? email,
     String? photoUrl,
@@ -108,6 +113,7 @@ class UserModel {
   }) => UserModel(
         uid: uid,
         displayName: displayName ?? this.displayName,
+        username: username ?? this.username,
         lastName: lastName ?? this.lastName,
         email: email ?? this.email,
         photoUrl: photoUrl ?? this.photoUrl,

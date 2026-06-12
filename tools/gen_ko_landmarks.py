@@ -13,7 +13,8 @@ PROJECT = "pqyceostpukueydwuiut"
 FN_URL = f"https://{PROJECT}.supabase.co/functions/v1/ko-batch"
 GUARD = "sinoma-ko-backfill-2026"
 SRC = os.path.join(ROOT, "lib", "core", "constants", "cities.dart")
-OUT = os.path.join(ROOT, "lib", "core", "constants", "ko_landmarks.dart")
+OUT = os.path.join(ROOT, "lib", "core", "constants", "landmarks",
+                   "landmarks_ko.dart")
 
 # Each model has its own free-tier quota bucket — rotate when one runs dry.
 MODELS = ["gemini-flash-lite-latest", "gemini-flash-latest",

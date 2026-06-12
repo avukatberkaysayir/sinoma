@@ -39,6 +39,7 @@ class ProfileScreen extends ConsumerStatefulWidget {
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   final _firstNameCtrl   = TextEditingController();
   final _lastNameCtrl    = TextEditingController();
+  final _usernameCtrl    = TextEditingController();
   final _emailCtrl       = TextEditingController();
   final _currPassCtrl    = TextEditingController();
   final _newPassCtrl     = TextEditingController();
@@ -57,6 +58,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   void dispose() {
     _firstNameCtrl.dispose();
     _lastNameCtrl.dispose();
+    _usernameCtrl.dispose();
     _emailCtrl.dispose();
     _currPassCtrl.dispose();
     _newPassCtrl.dispose();
@@ -68,6 +70,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     if (_initialized) return;
     _firstNameCtrl.text  = user.displayName;
     _lastNameCtrl.text   = user.lastName;
+    _usernameCtrl.text   = user.username;
     _emailCtrl.text      = user.email;
     _birthday            = user.birthday;
     _gender              = user.gender.isEmpty ? null : user.gender;
@@ -170,6 +173,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         motherTongue: _motherTongue,
         notificationsEnabled: _notificationsEnabled,
       );
+      // Public handle: lowercase slug, unique in DB (constraint errors snack).
+      final uname = _usernameCtrl.text.trim().toLowerCase();
+      if (uname.isNotEmpty) {
+        await ref.read(userRepositoryProvider).updateUsername(uid, uname);
+      }
+      ref.invalidate(currentUserProvider);
 
       if (mounted) _snack(l10n.profileSaved, success: true);
     } catch (e) {
@@ -362,6 +371,10 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 Expanded(child: _Field(label: l10n.lastName,  controller: _lastNameCtrl)),
                               ],
                             ),
+                            const SizedBox(height: 14),
+                            _Field(
+                                label: l10n.usernameLabel,
+                                controller: _usernameCtrl),
                             const SizedBox(height: 14),
                             _Field(label: 'Email', controller: _emailCtrl, readOnly: true),
                             const SizedBox(height: 14),
