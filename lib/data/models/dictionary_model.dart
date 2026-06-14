@@ -137,6 +137,7 @@ class WordDefinitions {
         'ko' => ko.isNotEmpty ? ko : en,
         'ja' => ja.isNotEmpty ? ja : en,
         'id' => id.isNotEmpty ? id : en,
+        'vi' => vi.isNotEmpty ? vi : en,
         _ => en,
       };
 

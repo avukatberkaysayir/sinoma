@@ -79,6 +79,26 @@ const Map<String, String> kCityIdNames = {
   'beijing': 'Beijing', 'hongkong': 'Hong Kong', 'macau': 'Makau',
 };
 
+// Sino-Vietnamese (Hán-Việt) readings — Vietnamese uses these established
+// exonyms for Chinese cities. The long tail falls back to pinyin.
+const Map<String, String> kCityViNames = {
+  'beijing': 'Bắc Kinh', 'shanghai': 'Thượng Hải', 'nanjing': 'Nam Kinh',
+  'guangzhou': 'Quảng Châu', 'chongqing': 'Trùng Khánh', 'chengdu': 'Thành Đô',
+  'xian': 'Tây An', 'tianjin': 'Thiên Tân', 'hangzhou': 'Hàng Châu',
+  'wuhan': 'Vũ Hán', 'shenzhen': 'Thâm Quyến', 'suzhou': 'Tô Châu',
+  'qingdao': 'Thanh Đảo', 'urumqi': 'Urumqi', 'kashgar': 'Kashgar',
+  'hongkong': 'Hồng Kông', 'macau': 'Ma Cao',
+  'changsha': 'Trường Sa', 'zhengzhou': 'Trịnh Châu', 'wuxi': 'Vô Tích',
+  'nanning': 'Nam Ninh', 'nanchang': 'Nam Xương', 'yinchuan': 'Ngân Xuyên',
+  'lhasa': 'Lhasa', 'zhuhai': 'Châu Hải', 'yantai': 'Yên Đài',
+  'datong': 'Đại Đồng', 'baotou': 'Bao Đầu', 'weifang': 'Duy Phường',
+  'dezhou': 'Đức Châu', 'xuzhou': 'Từ Châu', 'zhenjiang': 'Trấn Giang',
+  'jiaxing': 'Gia Hưng', 'lishui': 'Lệ Thủy', 'anqing': 'An Khánh',
+  'ganzhou': 'Cám Châu', 'putian': 'Bồ Điền', 'mudanjiang': 'Mẫu Đơn Giang',
+  'changzhou': 'Thường Châu', 'shaoxing': 'Thiệu Hưng', 'bengbu': 'Bạng Phụ',
+  'jiujiang': 'Cửu Giang', 'quanzhou': 'Tuyền Châu',
+};
+
 // Locale-aware display name — banners/captions show ONLY this (no hanzi).
 String cityDisplayName(City c, {required bool tr}) =>
     tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
@@ -88,6 +108,7 @@ String cityNameFor(City c, String lang) => switch (lang) {
       'ko' => kCityKoNames[c.slug] ?? c.pinyin,
       'ja' => kCityJaNames[c.slug] ?? c.pinyin,
       'id' => kCityIdNames[c.slug] ?? c.pinyin,
+      'vi' => kCityViNames[c.slug] ?? c.pinyin,
       _ => c.pinyin,
     };
 

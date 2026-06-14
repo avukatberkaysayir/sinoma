@@ -663,6 +663,8 @@ class QuizData {
   final String wrongAnswerJa;
   final String correctAnswerId;
   final String wrongAnswerId;
+  final String correctAnswerVi;
+  final String wrongAnswerVi;
 
   const QuizData({
     required this.question,
@@ -676,6 +678,8 @@ class QuizData {
     this.wrongAnswerJa = '',
     this.correctAnswerId = '',
     this.wrongAnswerId = '',
+    this.correctAnswerVi = '',
+    this.wrongAnswerVi = '',
   });
 
   factory QuizData.fromMap(Map<String, dynamic> map) {
@@ -683,6 +687,7 @@ class QuizData {
     final ko = (map['ko'] as Map<String, dynamic>?) ?? const {};
     final ja = (map['ja'] as Map<String, dynamic>?) ?? const {};
     final idn = (map['id'] as Map<String, dynamic>?) ?? const {};
+    final vi = (map['vi'] as Map<String, dynamic>?) ?? const {};
     return QuizData(
       question: map['question'] as String? ?? '',
       correctAnswer: map['correctAnswer'] as String? ?? '',
@@ -695,12 +700,14 @@ class QuizData {
       wrongAnswerJa: ja['wrongAnswer'] as String? ?? '',
       correctAnswerId: idn['correctAnswer'] as String? ?? '',
       wrongAnswerId: idn['wrongAnswer'] as String? ?? '',
+      correctAnswerVi: vi['correctAnswer'] as String? ?? '',
+      wrongAnswerVi: vi['wrongAnswer'] as String? ?? '',
     );
   }
 
-  // Resolve options for the UI language. Korean/Japanese/Indonesian fall back to
-  // English (closer for those readers than Turkish), everything else to Turkish
-  // (the always-saved top-level fields).
+  // Resolve options for the UI language. Non-Turkish langs fall back to English
+  // (closer for those readers than Turkish), everything else to Turkish (the
+  // always-saved top-level fields).
   String correctFor(String lang) => switch (lang) {
         'en' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         'ko' when correctAnswerKo.isNotEmpty => correctAnswerKo,
@@ -709,6 +716,8 @@ class QuizData {
         'ja' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         'id' when correctAnswerId.isNotEmpty => correctAnswerId,
         'id' when correctAnswerEn.isNotEmpty => correctAnswerEn,
+        'vi' when correctAnswerVi.isNotEmpty => correctAnswerVi,
+        'vi' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         _ => correctAnswer,
       };
   String wrongFor(String lang) => switch (lang) {
@@ -719,6 +728,8 @@ class QuizData {
         'ja' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
         'id' when wrongAnswerId.isNotEmpty => wrongAnswerId,
         'id' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
+        'vi' when wrongAnswerVi.isNotEmpty => wrongAnswerVi,
+        'vi' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
         _ => wrongAnswer,
       };
 
@@ -734,5 +745,7 @@ class QuizData {
           'ja': {'correctAnswer': correctAnswerJa, 'wrongAnswer': wrongAnswerJa},
         if (correctAnswerId.isNotEmpty || wrongAnswerId.isNotEmpty)
           'id': {'correctAnswer': correctAnswerId, 'wrongAnswer': wrongAnswerId},
+        if (correctAnswerVi.isNotEmpty || wrongAnswerVi.isNotEmpty)
+          'vi': {'correctAnswer': correctAnswerVi, 'wrongAnswer': wrongAnswerVi},
       };
 }

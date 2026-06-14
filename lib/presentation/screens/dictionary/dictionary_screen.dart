@@ -98,19 +98,19 @@ final _newestWordsProvider =
 });
 
 // Curated chengyu pool — rotates weekly (UTC), same idiom for everyone.
-const List<(String, String, String, String, String, String, String)> _kIdioms = [
-  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing', '순풍에 돛 단 듯 순조롭게', '順風満帆', 'Berjalan mulus tanpa hambatan'),
-  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless', '그저 그렇다 / 대충대충', 'まあまあ / いいかげん', 'Begitu-begitu saja / asal-asalan'),
-  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…', '로마에 가면 로마법을 따르라', '郷に入っては郷に従え', 'Di mana bumi dipijak, di situ langit dijunjung'),
-  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect', '연습이 실력을 만든다', '習うより慣れろ', 'Bisa karena biasa'),
-  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily', '쓸데없이 사족을 붙이다', '蛇足', 'Menambahkan yang tak perlu'),
-  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears', '소귀에 경 읽기', '馬の耳に念仏', 'Seperti menasihati orang yang tak mau dengar'),
-  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway', '중도에 포기하다', '中途半端でやめる', 'Berhenti di tengah jalan'),
-  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well', '우물 안 개구리', '井の中の蛙', 'Katak dalam tempurung'),
-  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck', '요행만 바라며 기다리다', '守株待兎 — 棚からぼた餅を待つ', 'Menanti rezeki tanpa berusaha'),
-  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never', '늦었다고 생각할 때가 가장 빠르다', '遅くてもやらないよりまし', 'Lebih baik terlambat daripada tidak sama sekali'),
-  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise', '새옹지마 — 화가 복이 되기도', '人間万事塞翁が馬', 'Ada hikmah di balik musibah'),
-  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins', '낙숫물이 바위를 뚫는다', '点滴石を穿つ', 'Sedikit demi sedikit lama-lama menjadi bukit'),
+const List<(String, String, String, String, String, String, String, String)> _kIdioms = [
+  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing', '순풍에 돛 단 듯 순조롭게', '順風満帆', 'Berjalan mulus tanpa hambatan', 'Thuận buồm xuôi gió'),
+  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless', '그저 그렇다 / 대충대충', 'まあまあ / いいかげん', 'Begitu-begitu saja / asal-asalan', 'Tàm tạm / qua loa'),
+  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…', '로마에 가면 로마법을 따르라', '郷に入っては郷に従え', 'Di mana bumi dipijak, di situ langit dijunjung', 'Nhập gia tùy tục'),
+  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect', '연습이 실력을 만든다', '習うより慣れろ', 'Bisa karena biasa', 'Trăm hay không bằng tay quen'),
+  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily', '쓸데없이 사족을 붙이다', '蛇足', 'Menambahkan yang tak perlu', 'Vẽ rắn thêm chân'),
+  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears', '소귀에 경 읽기', '馬の耳に念仏', 'Seperti menasihati orang yang tak mau dengar', 'Đàn gảy tai trâu'),
+  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway', '중도에 포기하다', '中途半端でやめる', 'Berhenti di tengah jalan', 'Bỏ dở giữa chừng'),
+  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well', '우물 안 개구리', '井の中の蛙', 'Katak dalam tempurung', 'Ếch ngồi đáy giếng'),
+  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck', '요행만 바라며 기다리다', '守株待兎 — 棚からぼた餅を待つ', 'Menanti rezeki tanpa berusaha', 'Ôm cây đợi thỏ'),
+  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never', '늦었다고 생각할 때가 가장 빠르다', '遅くてもやらないよりまし', 'Lebih baik terlambat daripada tidak sama sekali', 'Mất bò mới lo làm chuồng'),
+  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise', '새옹지마 — 화가 복이 되기도', '人間万事塞翁が馬', 'Ada hikmah di balik musibah', 'Tái ông mất ngựa'),
+  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins', '낙숫물이 바위를 뚫는다', '点滴石を穿つ', 'Sedikit demi sedikit lama-lama menjadi bukit', 'Nước chảy đá mòn'),
 ];
 
 class DictionaryScreen extends ConsumerStatefulWidget {
@@ -493,7 +493,9 @@ class DictionaryRightRail extends ConsumerWidget {
                               ? idiom.$5
                               : (lang == 'ja'
                                   ? idiom.$6
-                                  : (lang == 'id' ? idiom.$7 : idiom.$4))),
+                                  : (lang == 'id'
+                                      ? idiom.$7
+                                      : (lang == 'vi' ? idiom.$8 : idiom.$4)))),
                       style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 14)),
                 ],
