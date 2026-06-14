@@ -63,9 +63,15 @@ class LandingScreen extends ConsumerWidget {
                   _TopBar(
                     t: t,
                     signedIn: signedIn,
-                    onSetLang: (code) => ref
-                        .read(localeProvider.notifier)
-                        .setLocale(Locale(code)),
+                    // Defer setLocale to after this frame: changing the locale
+                    // rebuilds MaterialApp.router, and doing that synchronously
+                    // while the popup menu route is popping throws
+                    // "markNeedsBuild during build" (red screen, which also
+                    // blocks sign-in). Post-frame avoids it.
+                    onSetLang: (code) =>
+                        WidgetsBinding.instance.addPostFrameCallback((_) => ref
+                            .read(localeProvider.notifier)
+                            .setLocale(Locale(code))),
                   ),
                   // Promo film right under the header — same footprint as the
                   // Öğren player (16:9, centred). The hero text moved below.
