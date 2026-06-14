@@ -8,9 +8,11 @@ import pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MASTER = ROOT / 'web' / 'promo' / 'sinoma_promo.html'
 
-LANGS = ['tr', 'ko']
+LANGS = ['tr', 'ko', 'ja', 'id']
 
-# (en, tr, ko)
+# (en, tr, ko) — Japanese (JA) and Indonesian (ID) live in parallel lists below
+# (same order) so the existing en/tr/ko tuples stay byte-for-byte identical to
+# the master.
 STRINGS = [
     ('<html lang="en">', '<html lang="tr">', '<html lang="ko">'),
     ('Learning Chinese?', 'Çince mi öğreniyorsun?', '중국어 배우세요?'),
@@ -115,12 +117,119 @@ STRINGS = [
 ]
 
 
+# Japanese translations, in the SAME order as STRINGS (one per row).
+JA = [
+    '<html lang="ja">',
+    '中国語を学んでいますか？',
+    '漢字3,000字、声調4つ。<br>それでも実際の会話は教室で習ったのと全然違う。',
+    '単語を覚えても — ネイティブが話し始めた瞬間、<b class="bad">何も</b>聞き取れない。',
+    '📚 無味乾燥な教科書の会話',
+    '🃏 文脈ゼロの単語カード',
+    '🤖 本物の会話を流さないアプリ',
+    '教科書の録音ではなく、ネイティブ制作者の<br><b class="accent">本物の動画</b>で中国語を学ぼう。',
+    '理解可能なインプットを、一口サイズで',
+    '本物の動画を5〜10秒に区切って。<br>そのあと、理解できたか確かめます。',
+    'どの中国の飲み物がおいしい？',
+    'どの中国の飲み物がおいしくない？',
+    '字幕はオンでもオフでも自由。0.5×に落として、見直してから答えましょう。<br><b class="accent">どのクリップもクイズで終わります。</b>間違えるとハートを失います。',
+    'ワンタップで使えるAIチューター',
+    'どの単語でもタップ。<br>AIが<span class="accent">まさにその文の中で</span>説明します。',
+    '<div class="def">飲む</div>',
+    'ここでは<b>喝</b>が<b>好</b>と結びついて<b>好喝</b>になります — 「おいしい（飲んでおいしい）」という意味です。話し手は飲む行為ではなく、<i>どの飲み物がおいしいか</i>を述べています。好吃（食べておいしい）や好看（見た目がよい）と比べてみましょう。',
+    '自分の言語で、文法まで押さえた説明。<br>回答は<b class="warm">ずっとキャッシュ</b>されます — 誰かが一度たずねれば、みんなに即座に、無料で。',
+    '本当にやりたくなるゲーム',
+    '中国を横断する旅。<br><span class="accent">576フェーズ</span>、HSK 1 → 6。',
+    '🏮 <b>ランタン</b>&nbsp;と&nbsp;🪙 <b>コイン</b> — 集めて、マーケットで使おう',
+    '⚡ <b>デイリークエスト：</b>&nbsp;フェーズを1つ完了',
+    '<span>中国の英雄たちの位を駆け上がろう</span>',
+    '🍵 <b>茶館</b> — くつろいで、復習して、おしゃべりも',
+    'ストリーク、クエスト、ハート、解放される名所が、あなたを呼び戻します — <b class="accent">毎日</b>。',
+    '一緒に学び、一緒に競う',
+    '友だちに挑戦。リーダーボードを駆け上がろう。',
+    '問題10問、各10秒、ライフ3つ。カテゴリーホイールを回して、友だち — またはボットと対戦。',
+    '時間内に部首から漢字を組み立てよう。漢字が実際にどう作られているかを学べます。',
+    '<h3>リーダーボード</h3>',
+    'なぜSinomaなのか',
+    '言語アプリの壊れた部分を<br>直すために作りました。',
+    '<span class="from">台本どおりの教科書音声</span>',
+    '<span class="to">本物のネイティブYouTube会話</span>',
+    '<span class="from">受動的な動画視聴</span>',
+    '<span class="to">どのクリップの後にもクイズ</span>',
+    '<span class="from">文脈のない辞書の語義</span>',
+    '<span class="to">AIが<i>あなたの</i>文の中で単語を説明</span>',
+    '<span class="from">一週間で消えるモチベーション</span>',
+    '<span class="to">クエスト、ランク、対戦、そして中国横断の旅</span>',
+    '本物の中国語。本物の上達。',
+    '無料で開始 · 毎日AIクレジット5個 · HSK 1–6 レベルテスト付き',
+    'Sinoma — 75秒 製品プロモ',
+    'クリックで再生 · Space = 一時停止 · ←/→ = シーン移動 · 動画として書き出すには画面を録画してください',
+]
+
+assert len(JA) == len(STRINGS), f'JA {len(JA)} != STRINGS {len(STRINGS)}'
+
+# Indonesian translations, in the SAME order as STRINGS (one per row).
+ID = [
+    '<html lang="id">',
+    'Belajar bahasa Mandarin?',
+    '3.000 karakter. 4 nada.<br>Dan tetap saja tak terdengar seperti di kelas.',
+    'Kamu menghafal kata — lalu penutur asli membuka mulut dan kamu <b class="bad">tak paham apa-apa</b>.',
+    '📚 Dialog buku teks yang kaku',
+    '🃏 Kartu hafalan tanpa konteks',
+    '🤖 Aplikasi yang tak pernah memutar percakapan nyata',
+    'Belajar Mandarin dari <b class="accent">video nyata</b> oleh kreator asli —<br>bukan rekaman buku teks.',
+    'Masukan yang dapat dipahami, sepotong demi sepotong',
+    'Video nyata. Potongan 5–10 detik.<br>Lalu buktikan kamu paham.',
+    'Minuman Tiongkok mana yang enak?',
+    'Minuman Tiongkok mana yang TIDAK enak?',
+    'Subtitel nyala atau mati — terserah kamu. Perlambat ke 0,5×, putar ulang, lalu jawab.<br><b class="accent">Setiap klip diakhiri kuis.</b> Salah, kehilangan satu nyawa.',
+    'Tutor AI-mu, cukup satu ketukan',
+    'Ketuk kata mana pun.<br>AI menjelaskannya <span class="accent">tepat di dalam kalimat itu.</span>',
+    '<div class="def">minum</div>',
+    'Di sini <b>喝</b> bergabung dengan <b>好</b> menjadi <b>好喝</b> — "enak diminum". Penutur tidak membicarakan kegiatan minum; ia menilai <i>minuman mana yang enak</i>. Bandingkan 好吃 (enak dimakan) dan 好看 (enak dipandang).',
+    'Penjelasan yang paham tata bahasa dalam bahasamu sendiri.<br>Jawaban <b class="warm">disimpan selamanya</b> — sekali ada yang bertanya, langsung tersedia gratis untuk semua.',
+    'Permainan yang benar-benar ingin kamu mainkan',
+    'Perjalananmu melintasi Tiongkok.<br><span class="accent">576 fase</span>, HSK 1 → 6.',
+    '🏮 <b>Lampion</b>&nbsp;&&nbsp;🪙 <b>koin</b> — kumpulkan, belanjakan di Pasar',
+    '⚡ <b>Misi Harian:</b>&nbsp;selesaikan satu fase',
+    '<span>Naik pangkat para legenda Tiongkok</span>',
+    '🍵 <b>Kedai Teh</b> — bersantai, mengulang, dan mengobrol',
+    'Rentetan, misi, nyawa, dan landmark yang bisa dibuka membuatmu kembali — <b class="accent">setiap hari</b>.',
+    'Belajar bersama, bersaing bersama',
+    'Tantang teman. Naik di papan peringkat.',
+    '10 soal, masing-masing 10 detik, 3 nyawa. Putar roda kategori dan bertanding melawan teman — atau bot.',
+    'Susun karakter dari radikalnya melawan waktu. Pelajari bagaimana hanzi sebenarnya dibentuk.',
+    '<h3>Papan Peringkat</h3>',
+    'Mengapa Sinoma',
+    'Dibuat untuk memperbaiki yang rusak<br>pada aplikasi bahasa.',
+    '<span class="from">Audio buku teks bernaskah</span>',
+    '<span class="to">Percakapan YouTube asli dari penutur asli</span>',
+    '<span class="from">Menonton video secara pasif</span>',
+    '<span class="to">Kuis setelah setiap klip</span>',
+    '<span class="from">Definisi kamus tanpa konteks</span>',
+    '<span class="to">AI menjelaskan kata dalam kalimat <i>milikmu</i></span>',
+    '<span class="from">Motivasi yang padam dalam seminggu</span>',
+    '<span class="to">Misi, pangkat, duel & perjalanan melintasi Tiongkok</span>',
+    'Mandarin sungguhan. Kemajuan sungguhan.',
+    'Gratis untuk memulai · 5 kredit AI per hari · Termasuk tes penempatan HSK 1–6',
+    'Sinoma — Promo Produk 75 detik',
+    'Klik untuk memutar · Spasi = jeda · ←/→ = adegan · Rekam layar untuk mengekspor sebagai video',
+]
+
+assert len(ID) == len(STRINGS), f'ID {len(ID)} != STRINGS {len(STRINGS)}'
+
+
+def row_for(k):
+    # en/tr/ko from STRINGS, ja and id appended from the parallel lists.
+    return STRINGS[k] + (JA[k], ID[k])
+
+
 def main():
     master = MASTER.read_text(encoding='utf-8')
     errors = []
     for i, lang in enumerate(LANGS, start=1):
         out = master
-        for row in STRINGS:
+        for k in range(len(STRINGS)):
+            row = row_for(k)
             src, dst = row[0], row[i]
             n = out.count(src)
             if n != 1:
