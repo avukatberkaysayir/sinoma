@@ -38,6 +38,8 @@ class DictionaryRepository {
                 'en': w[3],
                 'tr': w[4],
                 'ko': w.length > 5 ? w[5] : '',
+                'ja': w.length > 6 ? w[6] : '',
+                'id': w.length > 7 ? w[7] : '',
                 'vi': '',
                 'pos': w[2],
               },
@@ -240,6 +242,8 @@ class DictionaryRepository {
     final langDef    = switch (lang) {
       'en' => w.definitions.en,
       'ko' => w.definitions.ko.isNotEmpty ? w.definitions.ko : w.definitions.en,
+      'ja' => w.definitions.ja.isNotEmpty ? w.definitions.ja : w.definitions.en,
+      'id' => w.definitions.id.isNotEmpty ? w.definitions.id : w.definitions.en,
       'vi' => w.definitions.vi,
       _    => w.definitions.tr,
     }.toLowerCase();

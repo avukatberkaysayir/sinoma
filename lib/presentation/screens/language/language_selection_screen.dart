@@ -17,6 +17,8 @@ const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇹🇷', 'Türkçe', 'tr', true),
   ('🇬🇧', 'English', 'en', true),
   ('🇰🇷', '한국어', 'ko', true),
+  ('🇯🇵', '日本語', 'ja', true),
+  ('🇮🇩', 'Bahasa Indonesia', 'id', true),
   ('🇪🇸', 'Español', 'es', false),
   ('🇫🇷', 'Français', 'fr', false),
 ];
@@ -151,7 +153,11 @@ class _LanguageSelectionScreenState
                       child: Text(
                         _selected == 'tr'
                             ? 'Devam Et'
-                            : (_selected == 'ko' ? '계속하기' : 'Continue'),
+                            : (_selected == 'ko'
+                                ? '계속하기'
+                                : (_selected == 'ja'
+                                    ? '次へ'
+                                    : (_selected == 'id' ? 'Lanjut' : 'Continue'))),
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800),
                       ),

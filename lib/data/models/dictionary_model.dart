@@ -106,6 +106,8 @@ class WordDefinitions {
   final String tr;
   final String en;
   final String ko;
+  final String ja;
+  final String id;
   final String vi;
   final String pos; // part of speech, stored in definitions JSONB as 'pos' key
 
@@ -113,6 +115,8 @@ class WordDefinitions {
     required this.tr,
     required this.en,
     this.ko = '',
+    this.ja = '',
+    this.id = '',
     this.vi = '',
     this.pos = '',
   });
@@ -121,6 +125,8 @@ class WordDefinitions {
         tr: map['tr'] as String? ?? '',
         en: map['en'] as String? ?? '',
         ko: map['ko'] as String? ?? '',
+        ja: map['ja'] as String? ?? '',
+        id: map['id'] as String? ?? '',
         vi: map['vi'] as String? ?? '',
         pos: map['pos'] as String? ?? '',
       );
@@ -129,11 +135,13 @@ class WordDefinitions {
   String forLang(String lang) => switch (lang) {
         'tr' => tr.isNotEmpty ? tr : en,
         'ko' => ko.isNotEmpty ? ko : en,
+        'ja' => ja.isNotEmpty ? ja : en,
+        'id' => id.isNotEmpty ? id : en,
         _ => en,
       };
 
   Map<String, dynamic> toMap() =>
-      {'tr': tr, 'en': en, 'ko': ko, 'vi': vi, 'pos': pos};
+      {'tr': tr, 'en': en, 'ko': ko, 'ja': ja, 'id': id, 'vi': vi, 'pos': pos};
 }
 
 class AiContextCache {

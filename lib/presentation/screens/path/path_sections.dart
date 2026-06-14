@@ -2207,6 +2207,10 @@ class _LangRow extends StatelessWidget {
         chip('en', 'EN'),
         const SizedBox(width: 8),
         chip('ko', '한국어'),
+        const SizedBox(width: 8),
+        chip('ja', '日本語'),
+        const SizedBox(width: 8),
+        chip('id', 'Indonesia'),
       ]),
     );
   }
@@ -2903,14 +2907,14 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
 // ── Bobo hero (post-login dashboard) ──────────────────────────────────────────
 // Our mascot has a name and a voice: a day-rotating greeting / chengyu.
 
-const List<(String zh, String tr, String en, String ko)> _kBoboLines = [
-  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?', '오늘도 같이 공부해 볼까요?'),
-  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?', '연습이 실력을 만들어요 — 한 클립 더 어때요?'),
-  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.', '다시 만나서 반가워요! 멈췄던 곳부터 이어가요.'),
-  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!', '낙숫물이 바위를 뚫어요. 하루 5분이면 충분해요!'),
-  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮', '스트릭을 지켜요, 제가 곁에 있을게요 🏮'),
-  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧', '오늘 찻집 주문은 확인했나요? 🧧'),
-  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.', '시작이 반이에요 — 일단 시작해 봐요.'),
+const List<(String zh, String tr, String en, String ko, String ja, String id)> _kBoboLines = [
+  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?', '오늘도 같이 공부해 볼까요?', '今日も一緒に勉強しましょうか？', 'Belajar bareng lagi hari ini, yuk?'),
+  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?', '연습이 실력을 만들어요 — 한 클립 더 어때요?', '習うより慣れろ — もう1本いかがですか？', 'Latihan membuat sempurna — satu klip lagi?'),
+  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.', '다시 만나서 반가워요! 멈췄던 곳부터 이어가요.', 'お久しぶりです！続きから始めましょう。', 'Senang bertemu lagi! Lanjut dari tempat terakhirmu.'),
+  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!', '낙숫물이 바위를 뚫어요. 하루 5분이면 충분해요!', '点滴石を穿つ。1日5分で十分です！', 'Sedikit demi sedikit lama-lama menjadi bukit. 5 menit sehari cukup!'),
+  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮', '스트릭을 지켜요, 제가 곁에 있을게요 🏮', '連続記録を守りましょう、私がついています 🏮', 'Jaga rentetanmu — aku di sini 🏮'),
+  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧', '오늘 찻집 주문은 확인했나요? 🧧', '今日の茶館の注文は確認しましたか？ 🧧', 'Sudah cek pesanan kedai teh hari ini? 🧧'),
+  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.', '시작이 반이에요 — 일단 시작해 봐요.', '何事も始めが難しい — まず始めましょう。', 'Setiap awal itu sulit — mulai saja dulu.'),
 ];
 
 class _BoboHero extends StatelessWidget {
@@ -2964,7 +2968,11 @@ class _BoboHero extends StatelessWidget {
                         'en';
                     final text = lang == 'tr'
                         ? line.$2
-                        : (lang == 'ko' ? line.$4 : line.$3);
+                        : (lang == 'ko'
+                            ? line.$4
+                            : (lang == 'ja'
+                                ? line.$5
+                                : (lang == 'id' ? line.$6 : line.$3)));
                     // Fixed white: the speech bubble stays dark ink in both
                     // themes.
                     return Text(text,

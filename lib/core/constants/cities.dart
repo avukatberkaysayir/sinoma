@@ -52,6 +52,33 @@ const Map<String, String> kCityKoNames = {
   'jiujiang': '주장', 'quanzhou': '취안저우',
 };
 
+// Japanese readings for every path city; well-known cities use their common
+// Japanese forms (often katakana approximating Mandarin), the rest the kanji
+// on'yomi reading. The long tail falls back to pinyin like the other languages.
+const Map<String, String> kCityJaNames = {
+  'beijing': 'ペキン', 'shanghai': 'シャンハイ', 'nanjing': 'ナンキン',
+  'guangzhou': 'コウシュウ', 'chongqing': 'じゅうけい', 'chengdu': 'せいと',
+  'xian': 'シーアン', 'tianjin': 'テンシン', 'hangzhou': 'こうしゅう',
+  'wuhan': 'ぶかん', 'shenzhen': 'シンセン', 'suzhou': 'そしゅう',
+  'qingdao': 'チンタオ', 'urumqi': 'ウルムチ', 'kashgar': 'カシュガル',
+  'hongkong': 'ホンコン', 'macau': 'マカオ',
+  'changsha': 'ちょうさ', 'zhengzhou': 'ていしゅう', 'wuxi': 'むしゃく',
+  'nanning': 'ナンネイ', 'nanchang': 'ナンショウ', 'yinchuan': 'ぎんせん',
+  'lhasa': 'ラサ', 'zhuhai': 'しゅかい', 'yantai': 'えんだい',
+  'datong': 'だいどう', 'baotou': 'パオトウ', 'weifang': 'いぼう',
+  'dezhou': 'とくしゅう', 'xuzhou': 'じょしゅう', 'zhenjiang': 'ちんこう',
+  'jiaxing': 'かこう', 'lishui': 'れいすい', 'anqing': 'あんけい',
+  'ganzhou': 'かんしゅう', 'putian': 'ほでん', 'mudanjiang': 'ぼたんこう',
+  'changzhou': 'じょうしゅう', 'shaoxing': 'しょうこう', 'bengbu': 'ホウフ',
+  'jiujiang': 'きゅうこう', 'quanzhou': 'せんしゅう',
+};
+
+// Indonesian uses pinyin spelling for almost all Chinese cities; only a few
+// have an established Indonesian exonym. The long tail falls back to pinyin.
+const Map<String, String> kCityIdNames = {
+  'beijing': 'Beijing', 'hongkong': 'Hong Kong', 'macau': 'Makau',
+};
+
 // Locale-aware display name — banners/captions show ONLY this (no hanzi).
 String cityDisplayName(City c, {required bool tr}) =>
     tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
@@ -59,6 +86,8 @@ String cityDisplayName(City c, {required bool tr}) =>
 String cityNameFor(City c, String lang) => switch (lang) {
       'tr' => kCityTrNames[c.slug] ?? c.pinyin,
       'ko' => kCityKoNames[c.slug] ?? c.pinyin,
+      'ja' => kCityJaNames[c.slug] ?? c.pinyin,
+      'id' => kCityIdNames[c.slug] ?? c.pinyin,
       _ => c.pinyin,
     };
 

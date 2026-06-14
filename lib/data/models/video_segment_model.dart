@@ -659,6 +659,10 @@ class QuizData {
   final String wrongAnswerEn;
   final String correctAnswerKo;
   final String wrongAnswerKo;
+  final String correctAnswerJa;
+  final String wrongAnswerJa;
+  final String correctAnswerId;
+  final String wrongAnswerId;
 
   const QuizData({
     required this.question,
@@ -668,11 +672,17 @@ class QuizData {
     this.wrongAnswerEn = '',
     this.correctAnswerKo = '',
     this.wrongAnswerKo = '',
+    this.correctAnswerJa = '',
+    this.wrongAnswerJa = '',
+    this.correctAnswerId = '',
+    this.wrongAnswerId = '',
   });
 
   factory QuizData.fromMap(Map<String, dynamic> map) {
     final en = (map['en'] as Map<String, dynamic>?) ?? const {};
     final ko = (map['ko'] as Map<String, dynamic>?) ?? const {};
+    final ja = (map['ja'] as Map<String, dynamic>?) ?? const {};
+    final idn = (map['id'] as Map<String, dynamic>?) ?? const {};
     return QuizData(
       question: map['question'] as String? ?? '',
       correctAnswer: map['correctAnswer'] as String? ?? '',
@@ -681,22 +691,34 @@ class QuizData {
       wrongAnswerEn: en['wrongAnswer'] as String? ?? '',
       correctAnswerKo: ko['correctAnswer'] as String? ?? '',
       wrongAnswerKo: ko['wrongAnswer'] as String? ?? '',
+      correctAnswerJa: ja['correctAnswer'] as String? ?? '',
+      wrongAnswerJa: ja['wrongAnswer'] as String? ?? '',
+      correctAnswerId: idn['correctAnswer'] as String? ?? '',
+      wrongAnswerId: idn['wrongAnswer'] as String? ?? '',
     );
   }
 
-  // Resolve options for the UI language. Korean falls back to English (closer
-  // for a Korean reader than Turkish), everything else to Turkish (the
-  // always-saved top-level fields).
+  // Resolve options for the UI language. Korean/Japanese/Indonesian fall back to
+  // English (closer for those readers than Turkish), everything else to Turkish
+  // (the always-saved top-level fields).
   String correctFor(String lang) => switch (lang) {
         'en' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         'ko' when correctAnswerKo.isNotEmpty => correctAnswerKo,
         'ko' when correctAnswerEn.isNotEmpty => correctAnswerEn,
+        'ja' when correctAnswerJa.isNotEmpty => correctAnswerJa,
+        'ja' when correctAnswerEn.isNotEmpty => correctAnswerEn,
+        'id' when correctAnswerId.isNotEmpty => correctAnswerId,
+        'id' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         _ => correctAnswer,
       };
   String wrongFor(String lang) => switch (lang) {
         'en' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
         'ko' when wrongAnswerKo.isNotEmpty => wrongAnswerKo,
         'ko' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
+        'ja' when wrongAnswerJa.isNotEmpty => wrongAnswerJa,
+        'ja' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
+        'id' when wrongAnswerId.isNotEmpty => wrongAnswerId,
+        'id' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
         _ => wrongAnswer,
       };
 
@@ -708,5 +730,9 @@ class QuizData {
           'en': {'correctAnswer': correctAnswerEn, 'wrongAnswer': wrongAnswerEn},
         if (correctAnswerKo.isNotEmpty || wrongAnswerKo.isNotEmpty)
           'ko': {'correctAnswer': correctAnswerKo, 'wrongAnswer': wrongAnswerKo},
+        if (correctAnswerJa.isNotEmpty || wrongAnswerJa.isNotEmpty)
+          'ja': {'correctAnswer': correctAnswerJa, 'wrongAnswer': wrongAnswerJa},
+        if (correctAnswerId.isNotEmpty || wrongAnswerId.isNotEmpty)
+          'id': {'correctAnswer': correctAnswerId, 'wrongAnswer': wrongAnswerId},
       };
 }
