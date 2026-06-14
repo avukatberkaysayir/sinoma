@@ -195,6 +195,36 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Produce natural, idiomatic standard Indonesian (bahasa baku) with correct affixation and prefix nasalisation — never a word-for-word calque from Chinese or English.",
     ],
   },
+  // ── Vietnamese grammar, integrated in parts. Reference: Emeneau, Studies in
+  // Vietnamese (Annamese) Grammar (UC Press); modern standard Vietnamese. ──────
+  Vietnamese: {
+    authority: "Standard Vietnamese (chữ Quốc ngữ) orthography & usage; reference: Emeneau, Studies in Vietnamese (Annamese) Grammar",
+    rules: [
+      // [P1] Isolating typology & word order
+      "Vietnamese is isolating/analytic: words NEVER inflect — no conjugation, no plural endings, no case, no gender, no articles. Grammatical relations come from word order and function words only.",
+      "SVO word order: Subject → Verb → Object (Tôi ăn cơm = I eat rice).",
+      "Noun phrase is HEAD-INITIAL: head noun first, then modifiers in order — (number) + classifier + NOUN + adjective + possessor + demonstrative. E.g. 'con mèo đen này' = 'this black cat' (lit. CL cat black this); possession = noun + của + owner (or noun + owner): 'nhà của tôi' / 'nhà tôi' = my house.",
+      "Diacritics and tone marks are MANDATORY and meaning-distinguishing (ma/má/mà/mả/mã/mạ). Always write full Vietnamese orthography with correct tones (à á ả ã ạ, â ê ô ơ ư, đ).",
+      // [P2] Classifiers, copula, plural, negation
+      "Classifiers are obligatory between a number/demonstrative and a noun: number + classifier + noun ('ba con chó' = three dogs; 'cái này' = this one). Common classifiers: cái (inanimate), con (animals & some objects), người (people), quyển/cuốn (books), chiếc (vehicles/single items), tờ (sheets), bài (lessons/songs). Pick the right classifier.",
+      "Copula là links two NOUNS ('to be'): 'Tôi là sinh viên'. NEVER use là before an adjective — adjectives are stative verbs: 'Tôi mệt' (I am tired), not 'Tôi là mệt'. Use là only noun↔noun (and với 'không phải (là)' to negate a noun).",
+      "Plurality is optional via những / các before the noun ('những cuốn sách', 'các bạn'); never add a plural marker after a number.",
+      "Negation: không (not — before verb/adjective), chưa (not yet), đừng (don't — negative imperative), chẳng (emphatic not), 'không phải (là)' (negates a noun). Choose by what is negated.",
+      // [P3] Tense/aspect, pronouns, questions
+      "Tense/aspect via preverbal markers only (no conjugation): đã (past/completed), đang (progressive '-ing'), sẽ (future), vừa/mới (just/recently), sắp (about to), từng (used to); sentence-final 'rồi' = already/done; chưa = not yet.",
+      "Pronouns are kinship/age/status based — choose by the relationship. Neutral: tôi (I), bạn (you). Age/gender terms double as I and you: anh (older male), chị (older female), em (younger), ông/bà (elder, respectful). Third person adds ấy: anh ấy/chị ấy/cô ấy (he/she), họ (they), nó (it / informal he-she). Do not use a single fixed 'you/he'.",
+      "Question words stay IN SITU (no fronting): ai (who), gì (what), đâu (where), nào (which), bao giờ/khi nào (when — before the verb = future, after = past), tại sao/sao (why), thế nào (how), bao nhiêu/mấy (how many). Yes/no questions: 'có … không?', '… phải không?', 'đã … chưa?'; confirmation particles à, hả, nhỉ.",
+      // [P4] Modification, comparison, serial verbs
+      "An adjective FOLLOWS its noun and is itself a stative verb in the predicate (no copula): 'áo đỏ' = a red shirt; 'Áo đỏ.' = The shirt is red. Degree words: rất (very, BEFORE the adjective: rất đẹp), lắm/quá (very, AFTER: đẹp lắm/đẹp quá), hơi (a bit), khá (fairly).",
+      "Comparison: 'A [adj] hơn B' = A is more … than B ('Tôi cao hơn anh ấy'); '[adj] nhất' = the most …; 'bằng'/'như' = as … as; 'càng … càng …' = the more … the more.",
+      "Relative/attributive clauses FOLLOW the noun, optionally introduced by 'mà': 'người (mà) tôi gặp' = the person (that) I met. Serial verb constructions share the subject ('đi mua' = go buy); directional/resultative complements follow the verb: ra (out), vào (in), lên (up), xuống (down), về (back), đi (away).",
+      // [P5] Function words, voice, particles, register
+      "Voice with bị / được: 'bị' = adverse passive ('bị phạt' = got punished); 'được' = favourable passive / 'get to' ('được khen' = be praised) and postverbal ability ('làm được' = can do). Modals: có thể (can/may), phải (must), nên (should), cần (need).",
+      "Existence/possession: 'có' = have / there is ('Tôi có sách'; 'Có người ở đây'). Connectives: vì/bởi vì (because), nên/cho nên (therefore), 'nếu … thì …' (if … then), 'tuy/mặc dù … nhưng …' (although … but), để (in order to), và (and), hoặc/hay (or), nhưng (but).",
+      "Sentence-final particles set politeness/mood: ạ (polite/respectful), nhé/nha (friendly suggestion), đi (urging: 'ăn đi' = eat!), thôi, mà, đấy/đó, vậy. Match register to context; for neutral subtitle/quiz sentences keep it polite-neutral.",
+      "Produce natural standard Vietnamese with correct diacritics/tones, correct classifiers and head-initial word order — never a word-for-word calque from Chinese or English.",
+    ],
+  },
 };
 
 function buildPrompt(
