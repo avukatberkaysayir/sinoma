@@ -41,6 +41,8 @@ const LANG_NAMES: Record<string, string> = {
   tr: "Turkish",
   en: "English",
   ko: "Korean",
+  ja: "Japanese",
+  id: "Indonesian",
 };
 
 // Faithful translation of a Chinese sentence — or, for a single word, a
@@ -116,11 +118,16 @@ serve(async (req) => {
       ? `You are a professional lexicographer. Give the dictionary gloss of ` +
         `the Chinese word "${text}" in each requested language — concise, ` +
         `1-3 senses comma-separated, natural wording a published dictionary ` +
-        `would use (Korean in natural dictionary register; verbs as -하다/-다 ` +
-        `base forms). Return ONLY JSON: {${langKeys}}`
+        `would use (Korean in natural dictionary register, verbs as -하다/-다 ` +
+        `base forms; Japanese in plain dictionary form 辞書形, verbs as -する/-る ` +
+        `base forms, nouns as plain nouns; Indonesian in base/root form with ` +
+        `standard meN-/ber- affixation as a published KBBI dictionary would print). ` +
+        `Return ONLY JSON: {${langKeys}}`
       : `You are a professional translator. Translate this Chinese sentence ` +
         `faithfully and naturally into each requested language (no pinyin, ` +
-        `no notes). Korean must be idiomatic 해요체.\n` +
+        `no notes). Korean must be idiomatic 해요체; Japanese must be idiomatic ` +
+        `polite 丁寧語 (です・ます体); Indonesian must be standard, natural bahasa ` +
+        `baku with correct affixation, grammatically perfect.\n` +
         `Chinese: "${text}"\nReturn ONLY JSON: {${langKeys}}`;
 
     const reqBody = JSON.stringify({

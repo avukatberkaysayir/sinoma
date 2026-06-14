@@ -73,15 +73,68 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Punctuation: sentences end with a period or question mark; yes/no questions use subject-auxiliary inversion.",
     ],
   },
+  // ── Japanese grammar, integrated in parts from Tae Kim's Japanese Grammar
+  // Guide. Part 1: Writing System + Basic Grammar (guide ch. 2-3). ──────────────
   Japanese: {
-    authority: "文化庁 国語施策 (Agency for Cultural Affairs, Language Policy) — bunka.go.jp",
+    authority: "文化庁 国語施策 (Agency for Cultural Affairs, Language Policy) — bunka.go.jp; reference: Tae Kim's Japanese Grammar Guide",
     rules: [
-      "SOV word order: topic は / subject が → object を → verb (verb always final).",
-      "Particles (助詞): は (topic), が (subject), を (direct object), に (indirect object / direction / time), で (location of action / means), の (possession / nominalization), か (question).",
-      "Verb must appear at the end of the clause/sentence.",
-      "Politeness level: use ます/です (丁寧語) form throughout.",
-      "No plurals; no articles.",
-      "Negative: verb stem + ません (polite) or ない (plain).",
+      // [P1] Writing system (ch. 2)
+      "Scripts: write native words and all grammatical parts (particles, okurigana, inflections) in hiragana; write foreign loanwords, foreign names and onomatopoeia in katakana; write content-word roots in kanji where standard. Never spell a native grammatical element in katakana.",
+      // [P1] Sentence order (ch. 3.1, 3.5, 3.10)
+      "Strict SOV / head-final order: topic は / subject が → indirect object に → direct object を → other complements → predicate. The verb or predicate (incl. state-of-being) MUST be the last element of its clause. A grammatically complete sentence needs only a predicate.",
+      "Relative and descriptive clauses come BEFORE the noun they modify, with no relative pronoun (e.g. 魚が好きな人 = 'a person who likes fish'). Build modifiers left of their head noun.",
+      // [P1] State-of-being (ch. 3.2)
+      "State-of-being for nouns / na-adjectives: non-past plain だ (polite です), negative じゃない／ではない (polite じゃありません／ではありません), past だった (polite でした), past-negative じゃなかった (polite じゃありませんでした). In this app use the polite 丁寧語 (です・ます) register consistently.",
+      // [P1] Core particles (ch. 3.3, 3.8, 3.11)
+      "Particle roles: は = topic ('as for…', pronounced 'wa'); が = identifier/subject (introduces or specifies new/unknown info, answers who/what); を = direct object; に = target/indirect object/destination/point in time/existence location; へ = direction; で = location of action or means/method; と = 'and'/'with'; の = possession/nominalization; か = question. Pick は vs が by information structure — they are NOT interchangeable.",
+      "も = inclusive 'also/too' and REPLACES は/が/を (write トムも, never トムはも). Keep polarity consistent with the clause.",
+      "Particles attach directly to the preceding word with no space.",
+      // [P1] Adjectives (ch. 3.4)
+      "na-adjectives act like nouns: insert な to directly modify a noun (静かな人) and conjugate like nouns (だ／じゃない／だった). i-adjectives end in い, modify a noun directly with NO な, and NEVER take だ. i-adjective negative = drop い + くない (高い→高くない); past = drop い + かった (高かった); past-negative = くなかった.",
+      "Irregular: いい and ～いい compounds (かっこいい) conjugate from よい — よくない／よかった／よくなかった. Never produce いくない.",
+      // [P1] Nouns & verbs basics (ch. 3.5, 3.6, 3.7)
+      "No articles, no grammatical plural, no gender. Verbs split into ru-verbs, u-verbs and the irregulars する/来る; negative plain = ない-form, polite = ません; past plain = た-form, polite = ました. Use counters with native/Sino readings for quantities.",
+      // [P2] Essential grammar — polite form, te-form, compounds, conditionals (guide ch. 4.1-4.8)
+      "Polite register: build から the ます-stem (買う→買い→買います／買いません／買いました／買いませんでした); use です for noun/adjective predicates. Keep です・ます consistently in this app's output.",
+      "te-form chains actions/states; its tense is fixed by the FINAL predicate only. Form it from the past form: verb た→て, だ→で (食べた→食べて, 飲んだ→飲んで, 行った→行って); i-adjective and negatives い→くて (狭い→狭くて, じゃない→じゃなくて, いい→よくて); chain nouns/na-adjectives with で (学生で、先生だ).",
+      "Reason/cause: [reason]から[result] — から needs だ after a noun/na-adjective (友達だから). ので is softer and more polite and needs な after a noun/na-adjective (学生なので). 〜のに = 'despite/although', clause + のに with な after noun/na-adjective (学生なのに).",
+      "Contrast: が and けど ('but/although') join two clauses as [clause1]が／けど、[clause2]. し lists multiple reasons/qualities ('and on top of that'); 〜たり〜たりする lists representative, non-exhaustive actions and must close with する/した.",
+      "Enduring states & te-helpers: 〜ている = ongoing action or a continuing resultant state; 〜てある = resultant state from a deliberate action; 〜ておく = do something in advance/as preparation; motion verbs attach as 〜ていく／〜てくる.",
+      "Potential (ability): ru-verb 〜られる, u-verb final -u→-eru (書く→書ける), する→できる, 来る→来られる. The object of a potential verb normally takes が, not を. 見える/聞こえる express spontaneous perception (can naturally see/hear).",
+      "なる/する with に: なる = 'become' (noun/na-adj + に + なる: 静かになる; i-adj drops い + く + なる: 高くなる). する = 'make/decide' (noun/na-adj + に + する). Use the correct linker (に vs く).",
+      "Conditionals — choose precisely: と = automatic/inevitable natural consequence ('whenever/when'); なら = contextual 'if (that is the case / speaking of)'; ば = general hypothetical 'if'; たら = most general 'when/if', also 'after'. Do not swap one conditional for another.",
+      "Questions: polite speech ends with か; casual speech usually drops か with rising intonation or の; embedded questions use 〜か(どうか).",
+      // [P3] Essential grammar II — obligation, desire, quotes, giving/receiving, requests (guide ch. 4.9-4.18)
+      "Obligation 'must/have to': 〜なければならない／〜なければいけない (formal), casual 〜なきゃ(いけない)／〜ないと(いけない). 'Must not' = 〜てはいけない／〜てはだめ／〜たらだめ.",
+      "Permission: 'may / it's OK to' = 〜てもいい(です); 'don't have to' = 〜なくてもいい(です).",
+      "Desire: the SPEAKER's want = verb-stem + たい (conjugates like an i-adjective: 食べたい／食べたくない); wanting a THING = 欲しい with the thing marked by が. Do not state a third person's desire with bare たい/欲しい — use 〜たがる／〜たがっている or 〜てほしい.",
+      "Volitional ('let's / I shall'): polite 〜ましょう; plain ru-verb 〜よう (食べよう), u-verb final -u→-ou (行こう), する→しよう, 来る→来よう. 〜ようと思う = 'intend to'.",
+      "Quoting & defining: direct quote 「…」と言う; reported/embedded thought or speech = plain form + と + 言う/思う; casual contraction って replaces と. AというB = 'B called A'; 〜という defines, quotes or draws a conclusion.",
+      "Trying: 〜てみる = 'try doing (to see how it goes)'; volitional + とする = 'attempt/be about to do' (食べようとする).",
+      "Giving/receiving — direction is mandatory: あげる = give outward (away from the speaker / in-group); くれる = give inward (toward the speaker / in-group); もらう = receive (subject gets it; the giver is marked に or から). For favours use 〜てあげる／〜てくれる, and ask with 〜てくれる？／〜てもらえる？.",
+      "Requests/commands by politeness: polite 〜てください; honorific 〜てくださる; firm-but-polite 〜なさい; plain command (rough: 行け／食べろ); prohibition = dictionary form + な (行くな).",
+      "Counters & casual speech: choose the correct counter (〜個／〜人／〜回／〜本／〜枚 …) and 〜目 for ordinals. Casual speech drops particles, contracts (〜ている→〜てる, 〜てしまう→〜ちゃう), and uses sentence-final particles: ね (seeking agreement), よ (informing), よね, な, さ, かい／だい (casual questions). Match register to context.",
+      // [P4] Special expressions — causative/passive, keigo, certainty, amounts, similarity (guide ch. 5)
+      "Causative & passive: causative ('make/let do') ru→させる, u-verb -u→-aseru (行かせる), する→させる, 来る→来させる; passive ru→られる, u-verb -u→-areru (読まれる); causative-passive ('be made to do') 〜させられる. Passive also conveys suffering or politeness. Mark the agent with に.",
+      "Keigo: elevate OTHERS' actions with honorific 尊敬語 (お〜になる or special verbs いらっしゃる／召し上がる／ご覧になる); lower YOUR OWN actions with humble 謙譲語 (お〜する or 致す／いただく／参る／申す). Never apply honorific forms to yourself or humble forms to others; use only when the register calls for it.",
+      "〜てしまう = completion/finality or regret ('ended up / unfortunately'); casual 〜ちゃう／〜じゃう.",
+      "Generic nouns: こと nominalizes an action/fact ('the act/fact of'), 〜ことがある = experience or occasional occurrence; ところ = moment/abstract place (〜るところ 'about to', 〜たところ 'just did'); もの for tangible things or emphatic/explanatory tone.",
+      "Certainty: 〜かもしれない = 'might' (uncertain); 〜でしょう (polite) / 〜だろう = 'probably / I'd say' (fairly certain). Do not overstate certainty beyond the source.",
+      "Amounts & limits: だけ = 'only/just'; のみ = formal 'only'; しか + NEGATIVE verb = 'only / nothing but'; 〜ばかり = 'nothing but / just (did)'; 〜すぎる = 'too much'; 〜ほど = extent ('to the point of'); adjective-stem + さ makes a measurable noun (高い→高さ).",
+      "Similarity & hearsay (keep distinct): よう(だ)／みたい(だ) = 'seems/looks like' (みたい is casual); stem + そう(だ) = looks/seems like it will happen (visual guess); plain form + そうだ = reported hearsay ('I hear that'); らしい = 'apparently / typical of'; 〜っぽい = casual '-ish'.",
+      "Comparison: AはBより〜 = 'A is more … than B'; AよりBのほうが〜 = 'B is more … than A'; use 〜方(ほう) for 'the … one/way'.",
+      "Ease/difficulty: verb-stem + やすい = easy to do; + にくい／づらい = hard to do; + がたい = next to impossible to do.",
+      "More negatives & states: 〜ずに／〜ないで = 'without doing'; 〜まま = 'leaving (it) as it is / in an unchanged state'; 〜っぱなし = 'left … (ongoing/undone)'; 〜ながら = doing two actions simultaneously.",
+      // [P5] Advanced topics — formal forms, expectation, tendencies, literary patterns (guide ch. 6)
+      "Formal/written register: である is the formal copula 'is/are' (replaces だ/です in essays/writing), negative ではない; use it only for clearly formal or written sentences.",
+      "Expectation/obligation: 〜はず = 'is supposed to / expected to be'; 〜べき(だ) = 'ought to / should do' (proper conduct); 〜べく = 'in order to'; 〜べからず = formal prohibition 'must not'.",
+      "Minimum / even: 〜さえ／〜すら = 'even'; 〜さえ〜ば = 'as long as / if only'; 〜はおろか = 'let alone'.",
+      "Outward signs & atmosphere: 〜がる = show outward signs of an emotion (use for a third person: 寒がる, 欲しがる); 〜めく = take on the air/signs of (春めく); 〜ばかり(に) = 'as if it might'.",
+      "Non-feasibility (formal): 〜ざるを得ない = 'cannot help but / have no choice but to'; やむを得ない = 'unavoidable'; 〜かねる = 'cannot (politely) / be unable to'; 〜かねない = 'might well (turn out badly)'.",
+      "Tendencies: 〜がち = 'tends to / prone to' (usually negative); 〜つつ(ある) = 'in the process of'; 〜きらいがある = 'has a (negative) tendency to'.",
+      "Covered/full of & literary proximity: 〜だらけ = 'covered/full of (a mess)'; 〜まみれ = 'smeared with'; 〜ずくめ = 'entirely/all'; 〜とたん(に) = 'the instant'; 〜が早いか／〜や否や = 'the moment that'; 〜そばから = 'no sooner … than (repeatedly)'; 〜がてら = 'while also'; 〜あげく(に) = 'after all … (bad outcome)'; 〜と思いきや = 'contrary to expectation'.",
+      "Register discipline: reserve these advanced/literary forms for genuinely formal or written contexts; for everyday subtitle/quiz sentences prefer the plain everyday equivalent, and always keep particles and conjugation flawless.",
+      "Produce idiomatic Japanese a native speaker would actually say — never a word-for-word calque from Chinese or English.",
     ],
   },
   Korean: {
@@ -97,6 +150,49 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Sino-Korean vs native vocabulary: pick the register a Korean would actually use in conversation (e.g. 'study' = 공부하다, not 학습하다 in casual speech).",
       "Spacing (띄어쓰기) follows 한글 맞춤법: particles attach to the preceding word; dependent nouns and auxiliary verbs are spaced (먹을 수 있다, 가고 싶다).",
       "Produce idiomatic Korean — what a native speaker would naturally say, NOT a literal word-for-word mapping from Chinese or English. Avoid translationese (번역투).",
+    ],
+  },
+  // ── Indonesian grammar, integrated in parts from Djenar, "A Student's Guide
+  // to Indonesian Grammar" (Oxford). Standard register (bahasa baku). ──────────
+  Indonesian: {
+    authority: "Ejaan yang Disempurnakan (EYD) & KBBI (Kamus Besar Bahasa Indonesia); reference: Djenar, A Student's Guide to Indonesian Grammar (Oxford)",
+    rules: [
+      // [P1] Basics & noun phrases
+      "Word order is SVO: Subject → Verb → Object/complement. Verbs do NOT conjugate for tense or person; time is shown by adverbs, not verb endings.",
+      "Noun phrases are head-initial: the head noun comes FIRST, then its modifiers — possessor (rumah saya = my house), classifying noun (guru bahasa), adjective (rumah besar = big house), demonstrative (buku ini = this book), or a yang-clause. Never put the adjective before the noun.",
+      "'To be': link two nouns with adalah/ialah (formal, often simply omitted: Dia guru = He is a teacher). NEVER use adalah before an adjective or verb (write 'Dia pintar', not 'Dia adalah pintar'). merupakan = 'constitutes/is'.",
+      "ada = 'there is/are', 'to be (located) at', and (with punya/mempunyai) 'to have'.",
+      "No articles, no grammatical gender. Plural is shown by context or full reduplication (buku-buku); after a number or quantifier do NOT reduplicate (tiga buku, never tiga buku-buku).",
+      "Counting: number + classifier + noun. Classifiers: orang (people), ekor (animals), buah (things), batang/helai/biji (long/flat/small). E.g. dua orang guru, tiga ekor kucing, lima buah buku.",
+      "Negation: tidak negates verbs/adjectives; bukan negates nouns/pronouns; belum = 'not yet'; jangan = 'don't' (negative imperative). Choose tidak vs bukan correctly by word class.",
+      "Question words: apa (what), siapa (who), (di) mana (where), kapan (when), bagaimana (how), mengapa/kenapa (why), berapa (how much/many). Yes/no questions use apakah or rising intonation / clitic -kah.",
+      "Pronouns: saya/aku (I), kamu/Anda/kau (you), dia/ia (he/she), kami (we, exclusive), kita (we, inclusive), mereka (they). Possessive enclitics: -ku, -mu, -nya (buku saya = bukuku).",
+      "Prepositions: di (at/in — static), ke (to), dari (from), pada/kepada (to a person or time), untuk (for), dengan (with/by means of), oleh (by — passive agent), tentang (about). Do not confuse di (preposition, written separately: di rumah) with the di- passive prefix (attached: dibaca).",
+      // [P2] Verb morphology core
+      "Most verbs take a prefix; a bare root is mainly imperative or colloquial. Intransitive/stative verbs usually take ber- or meN-; active transitive verbs take meN-, their passive counterpart takes di-.",
+      "ber-: forms intransitive/stative verbs — 'to have' (beristri = be married/have a wife), 'to wear/use' (berbaju), or 'to do' the base activity (bekerja, berlari, belajar). Allomorphs: bel- (belajar), be- before an r-initial root (bekerja).",
+      "meN- nasalisation by the root's first sound (drop the voiceless initial): me- before l,m,n,r,w,y,ng,ny (melihat); mem- before b,f and p→ (pukul→memukul); men- before d,c,j and t→ (tulis→menulis); meng- before g,h,vowels and k→ (kirim→mengirim, ambil→mengambil); meny- before s→ (sapu→menyapu); menge- before a one-syllable root (cat→mengecat). Apply this nasalisation exactly.",
+      "meN- makes active transitive verbs (membaca buku = reads a book) or intransitive activity verbs; the object follows the verb.",
+      "di- forms the passive / object-focus (Buku itu dibaca = the book is read); the agent follows as 'oleh + agent'. di- attaches to the verb (never spaced).",
+      // [P3] Affix suite
+      "-kan suffix makes a verb transitive: causative ('make/cause to be': panas→memanaskan = to heat) or benefactive ('do for someone': beli→membelikan = to buy for). The benefactive's beneficiary becomes the object.",
+      "-i suffix makes a transitive verb whose object is a location/goal, often locative or iterative: tanam→menanami (to plant on), pukul→memukuli (to hit repeatedly). Contrast with -kan (menanam jagung di kebun vs menanami kebun dengan jagung).",
+      "ter-: non-volitional/accidental (jatuh→terjatuh = fell by accident), resultant state (tertutup = (is) closed), ability, and the superlative on adjectives (besar→terbesar = biggest).",
+      "ke-…-an: circumfix for abstract nouns (bebas→kebebasan = freedom), adverse/excessive experiences (hujan→kehujanan = caught in the rain), or some adjectives.",
+      "Noun-deriving affixes: peN- = agent/instrument noun with meN- nasalisation (tulis→penulis = writer, bersih→pembersih = cleaner); -an = result/object noun (makan→makanan = food, tulis→tulisan = writing); peN-…-an / per-…-an = process/abstract nouns (didik→pendidikan = education, jalan→perjalanan = journey).",
+      // [P4] Voice/focus, yang, -nya, comparison, aspect, reduplication
+      "Subject-focus (active meN-) vs object-focus (passive). Object-focus has two patterns: (1) 3rd-person agent → di-verb (+ oleh agent): 'Buku itu dibaca olehnya'; (2) 1st/2nd-person agent → Object + agent-pronoun + BARE root, no di-: 'Buku itu saya baca' (= I read the book). Never use di- with a pronoun agent like saya/kamu.",
+      "yang = relative marker 'who/which/that' (orang yang datang = the person who came); also nominalises (yang merah = the red one) and asks 'which one?' (yang mana?).",
+      "-nya: 3rd-person possessive (rumahnya = his/her house), definiteness 'the' (bukunya = the book), nominaliser (datangnya), and a politeness/topic device.",
+      "Comparison: lebih … daripada (more … than), kurang … daripada (less … than), paling … or ter- (most/-est: paling besar = terbesar), sama … dengan or se- (as … as: setinggi = as tall as).",
+      "Tense/aspect via adverbs only (no conjugation): sudah/telah (already), sedang (in progress, '-ing'), akan (will/future), belum (not yet), masih (still), pernah (have ever). Place them before the verb.",
+      "Reduplication conveys plurality/variety (anak-anak = children), reciprocity (pukul-memukul), intensity, or a derived sense (jalan→jalan-jalan = to stroll). Do not reduplicate for plural after a numeral/quantifier.",
+      // [P5] Connectives, imperatives, reported speech, particles
+      "Imperatives: bare root or meN-verb minus prefix (Makan! / Baca buku ini!); soften with -lah (Duduklah), tolong/coba/silakan (please/go ahead), mari/ayo (let's). Negative command = jangan + verb. Polite request = tolong/minta + verb.",
+      "Connectives — reason: karena/sebab (because), gara-gara (because of, often negative), oleh karena itu/maka (therefore). Condition: kalau/jika/bila/apabila (if), seandainya/andai (if only); 'kalau … maka …' (if … then). Time: ketika/waktu/saat (when), sambil/sementara (while), setelah/sesudah (after), sebelum (before), selama (during), sejak (since).",
+      "Concession/contrast: meskipun/walaupun/biarpun (although), tetapi/tapi (but), namun (however), sedangkan (whereas), 'bukan … melainkan …' / 'tidak … tetapi …' (not … but). Coordination/focus particles: dan (and), atau (or), 'baik … maupun …' (both … and), juga (also), saja (just/only), pun (even), clitics -lah (emphasis) and -kah (question).",
+      "Reported speech: introduce indirect reports with bahwa (Dia berkata bahwa …); 'say' verbs = bilang (colloquial), berkata/mengatakan (formal), menurut (according to). There is NO tense backshift.",
+      "Produce natural, idiomatic standard Indonesian (bahasa baku) with correct affixation and prefix nasalisation — never a word-for-word calque from Chinese or English.",
     ],
   },
 };
@@ -168,14 +264,17 @@ function langCodeToName(code: string): string {
   return code === "en" ? "English"
     : code === "ja" ? "Japanese"
     : code === "ko" ? "Korean"
+    : code === "id" ? "Indonesian"
     : code === "vi" ? "Vietnamese"
     : "Turkish";
 }
 
 // Batch prompt: produce English + every requested target language in ONE Gemini
-// call (each target translated from the English meaning), so generating all the
-// admin's languages costs a single request instead of one per language — far
-// fewer hits against the free-tier daily quota.
+// call. The English correctAnswer + wrongAnswer are decided ONCE; every target
+// language is a FAITHFUL TRANSLATION of that same English pair (same meaning,
+// same distractor) — never an independently invented distractor. This keeps the
+// options identical in meaning/structure across all languages, differing only
+// in wording and grammar. One request also keeps free-tier quota usage low.
 function buildBatchPrompt(
   transcription: string,
   pinyin: string,
@@ -190,17 +289,17 @@ function buildBatchPrompt(
   let blocks = blockFor("English") + "\n";
   for (const t of targets) blocks += blockFor(t.name) + "\n";
   const targetKeys = targets
-    .map((t) => `"${t.code}": {"correctAnswer": "<${t.name}>", "wrongAnswer": "<${t.name} distractor>"}`)
+    .map((t) => `"${t.code}": {"correctAnswer": "<${t.name} translation of the English correctAnswer>", "wrongAnswer": "<${t.name} translation of the SAME English wrongAnswer>"}`)
     .join(", ");
   return (
     `You are a certified multilingual linguist and professional translator.\n\n` +
     `SOURCE Chinese: "${transcription}"\n` +
     (pinyin ? `Pinyin: "${pinyin}"\n` : "") +
     `\nTASK:\n` +
-    `1. Translate the Chinese into natural English — what a native speaker would actually say, NOT word-for-word.\n` +
-    `2. Translate THAT English meaning into each target language below (use the Chinese only to disambiguate nuance).\n` +
-    `3. For EVERY language produce a wrongAnswer: the same grammatically-perfect sentence with exactly ONE key semantic element changed (flip a negation, swap subject/object, or a meaning-shifting near-synonym); similar length/structure.\n` +
-    `4. Obey each language's numbered grammar rules.\n\n` +
+    `1. Translate the Chinese into a natural English correctAnswer — what a native speaker would actually say, NOT word-for-word.\n` +
+    `2. Build ONE English wrongAnswer from that correctAnswer by changing exactly ONE key semantic element (flip a negation, swap subject/object, or a meaning-shifting near-synonym); same length/structure, grammatically perfect. This single distractor is shared by ALL languages.\n` +
+    `3. For EACH target language, TRANSLATE the English correctAnswer and the English wrongAnswer faithfully and naturally (use the Chinese only to disambiguate nuance). Preserve EACH option's meaning EXACTLY: the target wrongAnswer must be a translation of the SAME English wrongAnswer — do NOT invent a different distractor, and do NOT change which element is altered. Across all languages the correctAnswer must mean the same thing, and the wrongAnswer must mean the same (wrong) thing; only wording and grammar adapt per language.\n` +
+    `4. Obey each language's numbered grammar rules while keeping the meaning identical to the English pair.\n\n` +
     `GRAMMAR RULES:\n${blocks}\n` +
     `OUTPUT — return ONLY valid JSON, no markdown:\n` +
     `{"en": {"correctAnswer": "<English>", "wrongAnswer": "<English distractor>"}, ${targetKeys}}`
@@ -342,6 +441,7 @@ serve(async (req) => {
       lang === "en" ? "English"
       : lang === "ja" ? "Japanese"
       : lang === "ko" ? "Korean"
+      : lang === "id" ? "Indonesian"
       : lang === "vi" ? "Vietnamese"
       : "Turkish";
 
