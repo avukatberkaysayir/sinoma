@@ -8,7 +8,7 @@ import pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MASTER = ROOT / 'web' / 'promo' / 'sinoma_promo.html'
 
-LANGS = ['tr', 'ko', 'ja', 'id']
+LANGS = ['tr', 'ko', 'ja', 'id', 'vi']
 
 # (en, tr, ko) — Japanese (JA) and Indonesian (ID) live in parallel lists below
 # (same order) so the existing en/tr/ko tuples stay byte-for-byte identical to
@@ -217,10 +217,60 @@ ID = [
 
 assert len(ID) == len(STRINGS), f'ID {len(ID)} != STRINGS {len(STRINGS)}'
 
+# Vietnamese translations, in the SAME order as STRINGS (one per row).
+VI = [
+    '<html lang="vi">',
+    'Đang học tiếng Trung?',
+    '3.000 chữ Hán. 4 thanh điệu.<br>Mà vẫn nghe chẳng giống như trong lớp học.',
+    'Bạn học thuộc từ — rồi người bản xứ vừa mở miệng là bạn <b class="bad">chẳng hiểu gì</b>.',
+    '📚 Hội thoại sách giáo khoa khô khan',
+    '🃏 Thẻ ghi nhớ không có ngữ cảnh',
+    '🤖 Ứng dụng chẳng bao giờ cho nghe hội thoại thật',
+    'Học tiếng Trung từ <b class="accent">video thật</b> của người bản xứ —<br>không phải bản thu sách giáo khoa.',
+    'Đầu vào dễ hiểu, từng phần nhỏ',
+    'Video thật. Cắt thành đoạn 5–10 giây.<br>Rồi chứng minh bạn đã hiểu.',
+    'Đồ uống Trung Quốc nào ngon?',
+    'Đồ uống Trung Quốc nào KHÔNG ngon?',
+    'Bật hay tắt phụ đề — tùy bạn. Làm chậm 0,5×, xem lại, rồi trả lời.<br><b class="accent">Mỗi clip kết thúc bằng một câu đố.</b> Sai là mất một tim.',
+    'Gia sư AI của bạn, chỉ một chạm',
+    'Chạm vào bất kỳ từ nào.<br>AI giải thích nó <span class="accent">ngay trong câu đó.</span>',
+    '<div class="def">uống</div>',
+    'Ở đây <b>喝</b> kết hợp với <b>好</b> thành <b>好喝</b> — "ngon (uống ngon)". Người nói không nói về hành động uống; mà đang đánh giá <i>đồ uống nào ngon</i>. So sánh với 好吃 (ăn ngon) và 好看 (đẹp mắt).',
+    'Giải thích am hiểu ngữ pháp bằng chính ngôn ngữ của bạn.<br>Câu trả lời được <b class="warm">lưu mãi mãi</b> — chỉ cần một người hỏi, mọi người đều có ngay, miễn phí.',
+    'Một trò chơi bạn thực sự muốn chơi',
+    'Hành trình của bạn xuyên Trung Quốc.<br><span class="accent">576 giai đoạn</span>, HSK 1 → 6.',
+    '🏮 <b>Đèn lồng</b>&nbsp;&&nbsp;🪙 <b>xu</b> — kiếm chúng, tiêu ở Chợ',
+    '⚡ <b>Nhiệm vụ hằng ngày:</b>&nbsp;hoàn thành một giai đoạn',
+    '<span>Thăng hạng cùng các huyền thoại Trung Hoa</span>',
+    '🍵 <b>Quán trà</b> — thư giãn, ôn tập và trò chuyện',
+    'Chuỗi ngày, nhiệm vụ, tim và các địa danh mở khóa giúp bạn quay lại — <b class="accent">mỗi ngày</b>.',
+    'Học cùng nhau, thi đua cùng nhau',
+    'Thách đấu bạn bè. Leo bảng xếp hạng.',
+    '10 câu hỏi, mỗi câu 10 giây, 3 mạng. Quay vòng quay chủ đề và đấu với bạn — hoặc với bot.',
+    'Ghép chữ Hán từ bộ thủ trong thời gian quy định. Học cách chữ Hán thực sự được tạo nên.',
+    '<h3>Bảng xếp hạng</h3>',
+    'Vì sao chọn Sinoma',
+    'Được tạo ra để sửa những gì còn hỏng<br>ở các ứng dụng học ngôn ngữ.',
+    '<span class="from">Âm thanh sách giáo khoa đọc theo kịch bản</span>',
+    '<span class="to">Hội thoại YouTube thật của người bản xứ</span>',
+    '<span class="from">Xem video thụ động</span>',
+    '<span class="to">Câu đố sau mỗi clip</span>',
+    '<span class="from">Định nghĩa từ điển không có ngữ cảnh</span>',
+    '<span class="to">AI giải thích từ trong câu của <i>bạn</i></span>',
+    '<span class="from">Động lực tắt ngấm sau một tuần</span>',
+    '<span class="to">Nhiệm vụ, cấp bậc, đấu trí & hành trình xuyên Trung Quốc</span>',
+    'Tiếng Trung thật. Tiến bộ thật.',
+    'Bắt đầu miễn phí · 5 tín dụng AI mỗi ngày · Bao gồm bài kiểm tra xếp cấp HSK 1–6',
+    'Sinoma — Video giới thiệu sản phẩm 75 giây',
+    'Nhấp để phát · Space = tạm dừng · ←/→ = cảnh · Quay màn hình để xuất video',
+]
+
+assert len(VI) == len(STRINGS), f'VI {len(VI)} != STRINGS {len(STRINGS)}'
+
 
 def row_for(k):
-    # en/tr/ko from STRINGS, ja and id appended from the parallel lists.
-    return STRINGS[k] + (JA[k], ID[k])
+    # en/tr/ko from STRINGS, ja/id/vi appended from the parallel lists.
+    return STRINGS[k] + (JA[k], ID[k], VI[k])
 
 
 def main():
