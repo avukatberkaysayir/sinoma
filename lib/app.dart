@@ -229,6 +229,15 @@ class SinomaApp extends ConsumerWidget {
         foregroundColor: AppColors.onSurface,
         elevation: 0,
       ),
+      // Brighter thumb so it reads against the dark ink background.
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(true),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          final hovered = states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.dragged);
+          return Colors.white.withValues(alpha: hovered ? 0.80 : 0.55);
+        }),
+      ),
     );
     return base.copyWith(textTheme: _appTextTheme(base.textTheme));
   }
@@ -252,6 +261,16 @@ class SinomaApp extends ConsumerWidget {
       ),
       cardColor: Colors.white,
       dividerColor: const Color(0xFFE3DDD0),
+      // Darker thumb so it stands out on the rice-paper background.
+      scrollbarTheme: ScrollbarThemeData(
+        thumbVisibility: const WidgetStatePropertyAll(true),
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          final hovered = states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.dragged);
+          return const Color(0xFF1A2422)
+              .withValues(alpha: hovered ? 0.70 : 0.45);
+        }),
+      ),
     );
     return base.copyWith(textTheme: _appTextTheme(base.textTheme));
   }
