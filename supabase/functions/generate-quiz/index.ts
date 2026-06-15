@@ -333,6 +333,38 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Produce natural, idiomatic standard Spanish with correct gender/number agreement, ser/estar, the right past aspect, mood (indicative vs subjunctive) and accents/¿¡ — never a word-for-word calque from Chinese or English.",
     ],
   },
+  // ── Portuguese grammar, integrated in parts. Reference: Celegatti Althoff,
+  // Portuguese Grammar; neutral modern Brazilian Portuguese. ──────────────────
+  Portuguese: {
+    authority: "Standard Brazilian Portuguese orthography & usage (Acordo Ortográfico); reference: Celegatti Althoff, Portuguese Grammar",
+    rules: [
+      // [P1] Orthography, gender, number, articles & contractions
+      "Use full Portuguese orthography: accents (á â ã, é ê, í, ó ô õ, ú), cedilha (ç) and the nasal vowels ã/õ and -ão. Lowercase nationalities, languages, months and days (português, segunda-feira, janeiro). Write neutral Brazilian Portuguese.",
+      "Every noun has GENDER: masculine (usually -o: o livro) or feminine (usually -a, -ção, -dade, -gem: a casa, a informação, a cidade, a viagem), with exceptions (o problema, o dia, o mapa). Articles and adjectives MUST agree.",
+      "Articles: definite o/a/os/as, indefinite um/uma/uns/umas. Portuguese uses the definite article a lot — often even before possessives and people's names (o meu carro, a Maria). Adjectives normally FOLLOW the noun (uma casa branca, os carros vermelhos) and agree in gender and number.",
+      "Prepositions CONTRACT with following articles/demonstratives (mandatory): de+o=do, de+a=da, em+o=no, em+a=na, a+o=ao, a+a=à, por+o=pelo, por+a=pela; de+este=deste, em+esse=nesse, de+isso=disso. Always use the contracted form.",
+      // [P2] ser / estar / ficar / ter; haver
+      "Multiple 'to be'. SER = identity, origin, profession, inherent traits, time/date (Eu sou professor; Ela é alta; É de São Paulo; São duas horas). ESTAR = location, temporary states, results, progressive (Estou cansado; Está em casa; Estou comendo). FICAR = become / be located / stay (Ela ficou feliz; A loja fica aqui). Choose correctly.",
+      "Possession is TER ('to have'): Eu tenho um livro. Existence = TER in colloquial Brazilian Portuguese (Tem um livro na mesa) or haver in formal register (Há um livro). Use ter for the spoken/neutral register.",
+      // [P3] Present, conjugation, pronouns, você/a gente
+      "Verbs conjugate by person/number in three classes (-ar, -er, -ir). Present: falar→falo, fala, falamos, falam; comer→como, come, comemos, comem; partir→parto, parte, partimos, partem. Subject pronouns are often kept in Brazilian Portuguese but can be dropped.",
+      "Subject pronouns: eu, você (you, sing. — takes 3rd-person verb), ele/ela, nós, vocês (you, pl.), eles/elas. 'a gente' = 'we' colloquially and takes a SINGULAR (3rd-person) verb: A gente vai (= we go). Avoid European 'tu' forms in neutral Brazilian text; use você.",
+      "Object pronouns: direct me/te/o/a/nos/os/as, indirect me/te/lhe/nos/lhes. In Brazilian Portuguese, proclisis (pronoun BEFORE the verb) is the natural default (Eu te amo; Ele me viu); colloquially a stressed pronoun often replaces 3rd-person o/a (Eu vi ele). gostar requires the preposition DE: Eu gosto de café; Ela gosta de você.",
+      // [P4] Past, future/conditional, compound, progressive, infinitive
+      "Two simple past tenses by aspect: PRETÉRITO PERFEITO = a completed past action (Ontem comi; Ele chegou; Eu fui ao cinema) — irregulars fui, fiz, tive, estive, disse. PRETÉRITO IMPERFEITO = ongoing/habitual/background, descriptions, time & age in the past (Eu comia todo dia; Ele era alto; Eram três horas). Choose by meaning.",
+      "Future commonly = ir (presente) + infinitive (Vou comer); simple future falarei/comerá is more formal. Conditional (futuro do pretérito) = falaria/comeria (would). Compound tenses use TER + past participle (-ado/-ido; irregulars feito, dito, visto, escrito, posto): pretérito perfeito composto 'tenho comido' (repeated/ongoing up to now, NOT a one-off), mais-que-perfeito 'tinha comido'. Progressive (Brazil) = estar + GERÚNDIO -ndo (Estou comendo); (Europe) estar a + infinitive.",
+      "Portuguese has a PERSONAL (inflected) INFINITIVE — the infinitive takes endings for its own subject: -/-es/-/-mos/-em (para eu falar, para eles falarem; É melhor vocês irem). Use it when the infinitive has its own subject, especially after prepositions (antes de saírem, para fazermos).",
+      // [P5] Subjunctive (incl. future subjunctive), commands, negation
+      "The SUBJUNCTIVE (subjuntivo) is required in dependent 'que' clauses after wish/influence, emotion, doubt/denial and impersonal value (Quero que você venha; Espero que esteja bem; Duvido que seja verdade; É importante que estude). Present subjunctive flips the vowel (falar→fale, comer→coma). Portuguese also has a FUTURE SUBJUNCTIVE used after quando/se/assim que for future events (Quando eu chegar…; Se você quiser…; Assim que ele puder…) and an imperfect subjunctive for contrary-to-fact (Se eu tivesse dinheiro, viajaria).",
+      "Commands: affirmative você uses the subjunctive form (Fale!, Coma!, Venha!); all negative commands use the subjunctive (Não fale, Não coma). For 'let's', use Vamos + infinitive (Vamos comer).",
+      "Negation: não before the verb (Não falo). Portuguese uses DOUBLE negation: não … nada/ninguém/nunca/nenhum (Não vejo nada; Não vem ninguém; Nunca fui) — if the negative word precedes the verb, drop the first não (Ninguém veio; Nunca vou).",
+      // [P6] Comparison, relatives, por/para, questions
+      "Comparison: mais/menos … (do) que (mais alto do que / mais alto que); equality tão + adj + quanto/como, tanto/-a/-os/-as + noun + quanto. Irregulars: melhor, pior, maior, menor. Superlative: o/a mais … (de) (o mais alto da turma); absolute -íssimo (caríssimo).",
+      "por vs para: para = purpose/goal, recipient, destination, deadline (É para você; Estudo para aprender; Vou para São Paulo; para segunda); por (and its contractions pelo/pela) = cause/reason, exchange, duration, 'through/along', means, agent (Obrigado por tudo; de manhã→pela manhã; paguei dez reais por isto; pelo parque). Choose correctly.",
+      "Relatives & connectors: que (that/which/who, most common), quem (who, after prepositions), o qual/a qual (clarity/after prepositions), o que (that which/what), cujo/-a (whose, agrees with the thing possessed), onde (where). Conjunctions: porque (because), embora/apesar de (although), mas (but), se (if), quando (when), enquanto (while). Question words: o que/que (what), quem (who), onde (where), quando (when), por que (why), como (how), qual/quais (which), quanto/-a (how much/many).",
+      "Produce natural, idiomatic Brazilian Portuguese with correct gender/number agreement, ser/estar/ter, preposition+article contractions, the right past aspect and mood (incl. the personal infinitive and future subjunctive) — never a word-for-word calque from Chinese or English.",
+    ],
+  },
 };
 
 function buildPrompt(
@@ -407,6 +439,7 @@ function langCodeToName(code: string): string {
     : code === "th" ? "Thai"
     : code === "ru" ? "Russian"
     : code === "es" ? "Spanish"
+    : code === "pt" ? "Portuguese"
     : "Turkish";
 }
 
@@ -587,6 +620,7 @@ serve(async (req) => {
       : lang === "th" ? "Thai"
       : lang === "ru" ? "Russian"
       : lang === "es" ? "Spanish"
+      : lang === "pt" ? "Portuguese"
       : "Turkish";
 
     // Cache first — same sentence+language+English source (correct+wrong) never

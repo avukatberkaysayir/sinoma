@@ -29,7 +29,8 @@ r = requests.post(
                    "coalesce(definitions->>'vi','') vi, "
                    "coalesce(definitions->>'th','') th, "
                    "coalesce(definitions->>'ru','') ru, "
-                   "coalesce(definitions->>'es','') es "
+                   "coalesce(definitions->>'es','') es, "
+                   "coalesce(definitions->>'pt','') pt "
                    "from dictionary where hsk_level = 7 order by simplified;"},
     timeout=30)
 rows = r.json()
@@ -48,7 +49,8 @@ for w in rows:
         f"  ['{esc(w['simplified'])}', '{esc(w['pinyin'])}', "
         f"'{esc(w['pos'])}', '{esc(w['en'])}', '{esc(w['tr'])}', "
         f"'{esc(w['ko'])}', '{esc(w['ja'])}', '{esc(w['id'])}', '{esc(w['vi'])}', "
-        f"'{esc(w['th'])}', '{esc(w['ru'])}', '{esc(w['es'])}'],")
+        f"'{esc(w['th'])}', '{esc(w['ru'])}', '{esc(w['es'])}', "
+        f"'{esc(w['pt'])}'],")
 body = ('const List<List<String>> kDigerWords = [\n'
         + '\n'.join(lines) + ('\n' if lines else '') + '];')
 

@@ -14,6 +14,7 @@ import '../../../core/constants/landmarks/landmarks_vi.dart';
 import '../../../core/constants/landmarks/landmarks_th.dart';
 import '../../../core/constants/landmarks/landmarks_ru.dart';
 import '../../../core/constants/landmarks/landmarks_es.dart';
+import '../../../core/constants/landmarks/landmarks_pt.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -936,6 +937,7 @@ class _UnitInfoPanel extends ConsumerWidget {
                       final thLm = kLandmarkTh['${city.slug}/${lm.icon}'];
                       final ruLm = kLandmarkRu['${city.slug}/${lm.icon}'];
                       final esLm = kLandmarkEs['${city.slug}/${lm.icon}'];
+                      final ptLm = kLandmarkPt['${city.slug}/${lm.icon}'];
                       final name = lang == 'tr'
                           ? lm.nameTr
                           : (lang == 'ko' && koLm != null
@@ -952,7 +954,9 @@ class _UnitInfoPanel extends ConsumerWidget {
                                                   ? ruLm.$1
                                                   : (lang == 'es' && esLm != null
                                                       ? esLm.$1
-                                                      : lm.nameEn)))))));
+                                                      : (lang == 'pt' && ptLm != null
+                                                          ? ptLm.$1
+                                                          : lm.nameEn))))))));
                       final desc = lang == 'tr'
                           ? descTr
                           : (lang == 'ko' &&
@@ -983,7 +987,11 @@ class _UnitInfoPanel extends ConsumerWidget {
                                                           esLm != null &&
                                                           esLm.$2.isNotEmpty
                                                       ? esLm.$2
-                                                      : descEn)))))));
+                                                      : (lang == 'pt' &&
+                                                              ptLm != null &&
+                                                              ptLm.$2.isNotEmpty
+                                                          ? ptLm.$2
+                                                          : descEn))))))));
                       return Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(

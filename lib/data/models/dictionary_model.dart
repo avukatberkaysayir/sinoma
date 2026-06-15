@@ -112,6 +112,7 @@ class WordDefinitions {
   final String th;
   final String ru;
   final String es;
+  final String pt;
   final String pos; // part of speech, stored in definitions JSONB as 'pos' key
 
   const WordDefinitions({
@@ -124,6 +125,7 @@ class WordDefinitions {
     this.th = '',
     this.ru = '',
     this.es = '',
+    this.pt = '',
     this.pos = '',
   });
 
@@ -137,6 +139,7 @@ class WordDefinitions {
         th: map['th'] as String? ?? '',
         ru: map['ru'] as String? ?? '',
         es: map['es'] as String? ?? '',
+        pt: map['pt'] as String? ?? '',
         pos: map['pos'] as String? ?? '',
       );
 
@@ -150,11 +153,12 @@ class WordDefinitions {
         'th' => th.isNotEmpty ? th : en,
         'ru' => ru.isNotEmpty ? ru : en,
         'es' => es.isNotEmpty ? es : en,
+        'pt' => pt.isNotEmpty ? pt : en,
         _ => en,
       };
 
   Map<String, dynamic> toMap() =>
-      {'tr': tr, 'en': en, 'ko': ko, 'ja': ja, 'id': id, 'vi': vi, 'th': th, 'ru': ru, 'es': es, 'pos': pos};
+      {'tr': tr, 'en': en, 'ko': ko, 'ja': ja, 'id': id, 'vi': vi, 'th': th, 'ru': ru, 'es': es, 'pt': pt, 'pos': pos};
 }
 
 class AiContextCache {

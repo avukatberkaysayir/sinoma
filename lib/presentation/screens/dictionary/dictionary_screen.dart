@@ -98,19 +98,19 @@ final _newestWordsProvider =
 });
 
 // Curated chengyu pool — rotates weekly (UTC), same idiom for everyone.
-const List<(String, String, String, String, String, String, String, String, String, String, String)> _kIdioms = [
-  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing', '순풍에 돛 단 듯 순조롭게', '順風満帆', 'Berjalan mulus tanpa hambatan', 'Thuận buồm xuôi gió', 'ราบรื่นทุกอย่าง', 'Всё идёт гладко', 'Todo viento en popa'),
-  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless', '그저 그렇다 / 대충대충', 'まあまあ / いいかげん', 'Begitu-begitu saja / asal-asalan', 'Tàm tạm / qua loa', 'งั้น ๆ / ขอไปที', 'Так себе / небрежно', 'Más o menos / a la ligera'),
-  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…', '로마에 가면 로마법을 따르라', '郷に入っては郷に従え', 'Di mana bumi dipijak, di situ langit dijunjung', 'Nhập gia tùy tục', 'เข้าเมืองตาหลิ่วต้องหลิ่วตาตาม', 'В чужой монастырь со своим уставом не ходят', 'Donde fueres, haz lo que vieres'),
-  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect', '연습이 실력을 만든다', '習うより慣れろ', 'Bisa karena biasa', 'Trăm hay không bằng tay quen', 'ฝึกฝนบ่อย ๆ ย่อมเชี่ยวชาญ', 'Повторение — мать учения', 'La práctica hace al maestro'),
-  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily', '쓸데없이 사족을 붙이다', '蛇足', 'Menambahkan yang tak perlu', 'Vẽ rắn thêm chân', 'วาดงูเติมขา (ทำเกินจำเป็น)', 'Делать лишнее (дорисовать змее ноги)', 'Lo que sobra estorba (poner patas a la serpiente)'),
-  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears', '소귀에 경 읽기', '馬の耳に念仏', 'Seperti menasihati orang yang tak mau dengar', 'Đàn gảy tai trâu', 'สีซอให้ควายฟัง', 'Метать бисер перед свиньями', 'Predicar en el desierto'),
-  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway', '중도에 포기하다', '中途半端でやめる', 'Berhenti di tengah jalan', 'Bỏ dở giữa chừng', 'ล้มเลิกกลางคัน', 'Бросить на полпути', 'Dejar las cosas a medias'),
-  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well', '우물 안 개구리', '井の中の蛙', 'Katak dalam tempurung', 'Ếch ngồi đáy giếng', 'กบในกะลาครอบ', 'Лягушка на дне колодца (узкий кругозор)', 'La rana del pozo (de miras estrechas)'),
-  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck', '요행만 바라며 기다리다', '守株待兎 — 棚からぼた餅を待つ', 'Menanti rezeki tanpa berusaha', 'Ôm cây đợi thỏ', 'เฝ้าตอไม้รอกระต่าย (รอโชคลอย ๆ)', 'Ждать у моря погоды', 'Esperar sentado a que llegue la suerte'),
-  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never', '늦었다고 생각할 때가 가장 빠르다', '遅くてもやらないよりまし', 'Lebih baik terlambat daripada tidak sama sekali', 'Mất bò mới lo làm chuồng', 'วัวหายล้อมคอก (สายดีกว่าไม่ทำ)', 'Лучше поздно, чем никогда', 'Más vale tarde que nunca'),
-  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise', '새옹지마 — 화가 복이 되기도', '人間万事塞翁が馬', 'Ada hikmah di balik musibah', 'Tái ông mất ngựa', 'โชคร้ายอาจกลายเป็นโชคดี', 'Нет худа без добра', 'No hay mal que por bien no venga'),
-  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins', '낙숫물이 바위를 뚫는다', '点滴石を穿つ', 'Sedikit demi sedikit lama-lama menjadi bukit', 'Nước chảy đá mòn', 'น้ำหยดลงหินทุกวันหินยังกร่อน', 'Капля камень точит', 'Gota a gota se perfora la piedra'),
+const List<(String, String, String, String, String, String, String, String, String, String, String, String)> _kIdioms = [
+  ('一帆风顺', 'yī fān fēng shùn', 'Her şey yolunda gitsin', 'Smooth sailing', '순풍에 돛 단 듯 순조롭게', '順風満帆', 'Berjalan mulus tanpa hambatan', 'Thuận buồm xuôi gió', 'ราบรื่นทุกอย่าง', 'Всё идёт гладко', 'Todo viento en popa', 'Tudo de vento em popa'),
+  ('马马虎虎', 'mǎ mǎ hū hū', 'Şöyle böyle', 'So-so / careless', '그저 그렇다 / 대충대충', 'まあまあ / いいかげん', 'Begitu-begitu saja / asal-asalan', 'Tàm tạm / qua loa', 'งั้น ๆ / ขอไปที', 'Так себе / небрежно', 'Más o menos / a la ligera', 'Mais ou menos / pela metade'),
+  ('入乡随俗', 'rù xiāng suí sú', "Bulunduğun yerin adetlerine uy", 'When in Rome…', '로마에 가면 로마법을 따르라', '郷に入っては郷に従え', 'Di mana bumi dipijak, di situ langit dijunjung', 'Nhập gia tùy tục', 'เข้าเมืองตาหลิ่วต้องหลิ่วตาตาม', 'В чужой монастырь со своим уставом не ходят', 'Donde fueres, haz lo que vieres', 'Em Roma, faça como os romanos'),
+  ('熟能生巧', 'shú néng shēng qiǎo', 'Pratik mükemmelleştirir', 'Practice makes perfect', '연습이 실력을 만든다', '習うより慣れろ', 'Bisa karena biasa', 'Trăm hay không bằng tay quen', 'ฝึกฝนบ่อย ๆ ย่อมเชี่ยวชาญ', 'Повторение — мать учения', 'La práctica hace al maestro', 'A prática leva à perfeição'),
+  ('画蛇添足', 'huà shé tiān zú', 'Gereksiz ekleme yapmak', 'Gilding the lily', '쓸데없이 사족을 붙이다', '蛇足', 'Menambahkan yang tak perlu', 'Vẽ rắn thêm chân', 'วาดงูเติมขา (ทำเกินจำเป็น)', 'Делать лишнее (дорисовать змее ноги)', 'Lo que sobra estorba (poner patas a la serpiente)', 'O que é demais sobra (pôr patas na cobra)'),
+  ('对牛弹琴', 'duì niú tán qín', 'Boşa nefes tüketmek', 'Preaching to deaf ears', '소귀에 경 읽기', '馬の耳に念仏', 'Seperti menasihati orang yang tak mau dengar', 'Đàn gảy tai trâu', 'สีซอให้ควายฟัง', 'Метать бисер перед свиньями', 'Predicar en el desierto', 'Dar pérolas aos porcos'),
+  ('半途而废', 'bàn tú ér fèi', 'Yarı yolda bırakmak', 'Giving up halfway', '중도에 포기하다', '中途半端でやめる', 'Berhenti di tengah jalan', 'Bỏ dở giữa chừng', 'ล้มเลิกกลางคัน', 'Бросить на полпути', 'Dejar las cosas a medias', 'Desistir no meio do caminho'),
+  ('井底之蛙', 'jǐng dǐ zhī wā', 'Dar görüşlü kimse', 'A frog in a well', '우물 안 개구리', '井の中の蛙', 'Katak dalam tempurung', 'Ếch ngồi đáy giếng', 'กบในกะลาครอบ', 'Лягушка на дне колодца (узкий кругозор)', 'La rana del pozo (de miras estrechas)', 'O sapo no poço (visão limitada)'),
+  ('守株待兔', 'shǒu zhū dài tù', 'Şansa güvenip beklemek', 'Waiting idly for luck', '요행만 바라며 기다리다', '守株待兎 — 棚からぼた餅を待つ', 'Menanti rezeki tanpa berusaha', 'Ôm cây đợi thỏ', 'เฝ้าตอไม้รอกระต่าย (รอโชคลอย ๆ)', 'Ждать у моря погоды', 'Esperar sentado a que llegue la suerte', 'Esperar a sorte de braços cruzados'),
+  ('亡羊补牢', 'wáng yáng bǔ láo', 'Geç olsun güç olmasın', 'Better late than never', '늦었다고 생각할 때가 가장 빠르다', '遅くてもやらないよりまし', 'Lebih baik terlambat daripada tidak sama sekali', 'Mất bò mới lo làm chuồng', 'วัวหายล้อมคอก (สายดีกว่าไม่ทำ)', 'Лучше поздно, чем никогда', 'Más vale tarde que nunca', 'Antes tarde do que nunca'),
+  ('塞翁失马', 'sài wēng shī mǎ', 'Her işte bir hayır vardır', 'A blessing in disguise', '새옹지마 — 화가 복이 되기도', '人間万事塞翁が馬', 'Ada hikmah di balik musibah', 'Tái ông mất ngựa', 'โชคร้ายอาจกลายเป็นโชคดี', 'Нет худа без добра', 'No hay mal que por bien no venga', 'Há males que vêm para bem'),
+  ('滴水穿石', 'dī shuǐ chuān shí', 'Damlaya damlaya göl olur', 'Constant effort wins', '낙숫물이 바위를 뚫는다', '点滴石を穿つ', 'Sedikit demi sedikit lama-lama menjadi bukit', 'Nước chảy đá mòn', 'น้ำหยดลงหินทุกวันหินยังกร่อน', 'Капля камень точит', 'Gota a gota se perfora la piedra', 'Água mole em pedra dura tanto bate até que fura'),
 ];
 
 class DictionaryScreen extends ConsumerStatefulWidget {
@@ -501,7 +501,9 @@ class DictionaryRightRail extends ConsumerWidget {
                                               ? idiom.$9
                                               : (lang == 'ru'
                                                   ? idiom.$10
-                                                  : (lang == 'es' ? idiom.$11 : idiom.$4))))))),
+                                                  : (lang == 'es'
+                                                      ? idiom.$11
+                                                      : (lang == 'pt' ? idiom.$12 : idiom.$4)))))))),
                       style: TextStyle(
                           color: AppColors.onSurfaceMuted, fontSize: 14)),
                 ],

@@ -47,6 +47,7 @@ const LANG_NAMES: Record<string, string> = {
   th: "Thai",
   ru: "Russian",
   es: "Spanish",
+  pt: "Portuguese",
 };
 
 // Faithful translation of a Chinese sentence — or, for a single word, a
@@ -134,7 +135,10 @@ serve(async (req) => {
         `singular, as a published Russian dictionary would print; Spanish in ` +
         `citation form — nouns with their definite article to show gender ` +
         `(el/la), verbs as the infinitive, adjectives in masculine singular, ` +
-        `as a published Spanish dictionary (RAE) would print). ` +
+        `as a published Spanish dictionary (RAE) would print; Portuguese ` +
+        `(Brazilian) in citation form — nouns with their definite article to ` +
+        `show gender (o/a), verbs as the infinitive, adjectives in masculine ` +
+        `singular, as a published Brazilian Portuguese dictionary would print). ` +
         `Return ONLY JSON: {${langKeys}}`
       : `You are a professional translator. Translate this Chinese sentence ` +
         `faithfully and naturally into each requested language (no pinyin, ` +
@@ -146,7 +150,9 @@ serve(async (req) => {
         `transliteration; Russian must be natural standard Russian in Cyrillic ` +
         `with correct case, gender, number and aspect, grammatically perfect; ` +
         `Spanish must be natural standard Spanish with correct gender/number ` +
-        `agreement, accents and ¿¡ punctuation, grammatically perfect.\n` +
+        `agreement, accents and ¿¡ punctuation, grammatically perfect; ` +
+        `Portuguese must be natural Brazilian Portuguese with correct ` +
+        `gender/number agreement and accents (ã, õ, ç), grammatically perfect.\n` +
         `Chinese: "${text}"\nReturn ONLY JSON: {${langKeys}}`;
 
     const reqBody = JSON.stringify({
