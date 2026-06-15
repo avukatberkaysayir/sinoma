@@ -2173,7 +2173,7 @@ const List<(String code, String label, String flag)> _kSettingsLangs = [
   ('id', 'Bahasa', '🇮🇩'),
   ('th', 'ภาษาไทย', '🇹🇭'),
   ('es', 'Español', '🇪🇸'),
-  ('pt', 'Português', '🇧🇷'),
+  ('pt', 'Português', '🇵🇹'),
 ];
 
 class _LangRow extends StatelessWidget {

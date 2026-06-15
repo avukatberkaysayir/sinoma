@@ -237,7 +237,7 @@ const List<(String code, String label, String flag)> _kLangChoices = [
   ('id', 'Bahasa', '🇮🇩'),
   ('th', 'ภาษาไทย', '🇹🇭'),
   ('es', 'Español', '🇪🇸'),
-  ('pt', 'Português', '🇧🇷'),
+  ('pt', 'Português', '🇵🇹'),
 ];
 
 // Five rows visible; the rest scroll. 44px per item + 16px menu padding.

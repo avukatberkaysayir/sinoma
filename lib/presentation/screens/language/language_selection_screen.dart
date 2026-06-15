@@ -23,7 +23,7 @@ const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇮🇩', 'Bahasa', 'id', true),
   ('🇹🇭', 'ภาษาไทย', 'th', true),
   ('🇪🇸', 'Español', 'es', true),
-  ('🇧🇷', 'Português', 'pt', true),
+  ('🇵🇹', 'Português', 'pt', true),
   ('🇫🇷', 'Français', 'fr', false),
 ];
 

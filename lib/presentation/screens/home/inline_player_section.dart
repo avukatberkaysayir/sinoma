@@ -1217,14 +1217,27 @@ class _ChineseSubtitleBar extends StatelessWidget {
   });
 
   static final _cjk = RegExp(r'[一-鿿]');
+  // One pinyin syllable: optional initial + tone-marked vowel nucleus + coda.
+  // Matching by syllable (not by whitespace) is robust to source pinyin that
+  // writes multi-syllable words with no internal space (e.g. "kāishǐ" → kāi shǐ).
+  static final _pySyl = RegExp(
+      r"(?:zh|ch|sh|[bpmfdtnlgkhjqxrzcsyw])?"
+      r"[aāáǎàeēéěèiīíǐìoōóǒòuūúǔùüǖǘǚǜv]+"
+      r"(?:ng|n|r)?",
+      caseSensitive: false);
 
   @override
   Widget build(BuildContext context) {
-    // Per-word pinyin: split the clip pinyin into syllables and hand each word
-    // as many syllables as it has hanzi (a CJK char == one syllable).
+    // Per-word pinyin: pull the clip pinyin apart into syllables and hand each
+    // word as many syllables as it has hanzi (a CJK char == one syllable).
     final sylls = pinyin.trim().isEmpty
         ? const <String>[]
-        : pinyin.trim().split(RegExp(r'\s+'));
+        : _pySyl.allMatches(pinyin).map((m) => m[0]!).toList();
+    // Only show pinyin when the syllable count EXACTLY matches the hanzi count —
+    // otherwise alignment would drift and mislabel words, so we show none.
+    final totalHanzi =
+        words.fold<int>(0, (n, w) => n + _cjk.allMatches(w).length);
+    final aligned = showPinyin && sylls.length == totalHanzi;
     var cursor = 0;
     final chips = <Widget>[];
     for (final w in words) {
@@ -1242,7 +1255,7 @@ class _ChineseSubtitleBar extends StatelessWidget {
       if (_cjk.hasMatch(w)) {
         final k = _cjk.allMatches(w).length;
         String? py;
-        if (showPinyin && cursor + k <= sylls.length) {
+        if (aligned && cursor + k <= sylls.length) {
           py = sylls.sublist(cursor, cursor + k).join(' ');
         }
         cursor += k; // advance to keep alignment regardless of the toggle
