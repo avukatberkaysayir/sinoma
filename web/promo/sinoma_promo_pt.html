@@ -386,7 +386,7 @@ function tick(now){
   if(playing){
     if(last!==null) elapsed += (now-last)/1000;
     last=now;
-    if(elapsed>=TOTAL){ elapsed=TOTAL; pause(); }
+    if(elapsed>=TOTAL){ elapsed=0; }   // loop: restart from the first scene
     let i=SCENES.length-1;
     for(let k=0;k<SCENES.length;k++){ if(elapsed < starts[k]+SCENES[k].dur){ i=k; break; } }
     setScene(i,false);

@@ -598,6 +598,17 @@ async function cacheSet(k: string, correct: string, wrong: string): Promise<void
   } catch { /* ignore */ }
 }
 
+// Languages whose sentences start with a capital letter. Capitalize the first
+// real letter of every quiz option (correct AND wrong) for these, skipping any
+// leading punctuation/quotes (e.g. Spanish ¿¡). Turkish locale keeps i→İ right.
+const CAP_LANGS = new Set(["tr", "en", "id", "vi", "es", "pt", "ru"]);
+function capFirst(s: string, code: string): string {
+  if (!s || !CAP_LANGS.has(code)) return s;
+  const m = s.match(/^([\s¿¡"'(\[«]*)([\s\S])([\s\S]*)$/);
+  if (!m) return s;
+  return m[1] + m[2].toLocaleUpperCase(code) + m[3];
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -662,13 +673,13 @@ serve(async (req) => {
         const m = btext.match(/\{[\s\S]*\}/);
         if (m) { try { bp = JSON.parse(m[0]); } catch { /* ignore */ } }
       }
-      const enCorrect = String(bp.en?.correctAnswer ?? "");
-      const enWrong = String(bp.en?.wrongAnswer ?? "");
+      const enCorrect = capFirst(String(bp.en?.correctAnswer ?? ""), "en");
+      const enWrong = capFirst(String(bp.en?.wrongAnswer ?? ""), "en");
       if (enCorrect) await cacheSet(cacheKey, enCorrect, enWrong); // cacheKey is the EN key
       const extra: Record<string, { correctAnswer: string; wrongAnswer: string }> = {};
       for (const t of targets) {
-        const c = String(bp[t.code]?.correctAnswer ?? "");
-        const w = String(bp[t.code]?.wrongAnswer ?? "");
+        const c = capFirst(String(bp[t.code]?.correctAnswer ?? ""), t.code);
+        const w = capFirst(String(bp[t.code]?.wrongAnswer ?? ""), t.code);
         extra[t.code] = { correctAnswer: c, wrongAnswer: w };
         if (c && enCorrect) {
           // Same key a later single-language call (sourceEn = approved EN) would use.
@@ -706,8 +717,8 @@ serve(async (req) => {
       }
     }
 
-    const correctAnswer = String(parsed.correctAnswer ?? "");
-    const wrongAnswer = String(parsed.wrongAnswer ?? "");
+    const correctAnswer = capFirst(String(parsed.correctAnswer ?? ""), lang);
+    const wrongAnswer = capFirst(String(parsed.wrongAnswer ?? ""), lang);
     if (correctAnswer) await cacheSet(cacheKey, correctAnswer, wrongAnswer);
     return json({ correctAnswer, wrongAnswer });
   } catch (e) {
