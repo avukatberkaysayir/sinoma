@@ -19,6 +19,10 @@ class TranslationHelper {
         return word.definitions.id.isNotEmpty
             ? word.definitions.id
             : word.definitions.en;
+      case 'th':
+        return word.definitions.th.isNotEmpty
+            ? word.definitions.th
+            : word.definitions.en;
       case 'vi':
         return word.definitions.vi.isNotEmpty
             ? word.definitions.vi

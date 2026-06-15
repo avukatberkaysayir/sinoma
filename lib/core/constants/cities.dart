@@ -99,6 +99,25 @@ const Map<String, String> kCityViNames = {
   'jiujiang': 'Cửu Giang', 'quanzhou': 'Tuyền Châu',
 };
 
+// Thai-script transcriptions of Chinese cities. The long tail falls back to pinyin.
+const Map<String, String> kCityThNames = {
+  'beijing': 'ปักกิ่ง', 'shanghai': 'เซี่ยงไฮ้', 'nanjing': 'หนานจิง',
+  'guangzhou': 'กว่างโจว', 'chongqing': 'ฉงชิ่ง', 'chengdu': 'เฉิงตู',
+  'xian': 'ซีอาน', 'tianjin': 'เทียนจิน', 'hangzhou': 'หางโจว',
+  'wuhan': 'อู่ฮั่น', 'shenzhen': 'เซินเจิ้น', 'suzhou': 'ซูโจว',
+  'qingdao': 'ชิงเต่า', 'urumqi': 'อุรุมชี', 'kashgar': 'คัชการ์',
+  'hongkong': 'ฮ่องกง', 'macau': 'มาเก๊า',
+  'changsha': 'ฉางซา', 'zhengzhou': 'เจิ้งโจว', 'wuxi': 'อู๋ซี',
+  'nanning': 'หนานหนิง', 'nanchang': 'หนานชาง', 'yinchuan': 'อิ๋นชวน',
+  'lhasa': 'ลาซา', 'zhuhai': 'จูไห่', 'yantai': 'เยียนไถ',
+  'datong': 'ต้าถง', 'baotou': 'เปาโถว', 'weifang': 'เหวยฟาง',
+  'dezhou': 'เต๋อโจว', 'xuzhou': 'สวีโจว', 'zhenjiang': 'เจิ้นเจียง',
+  'jiaxing': 'เจียซิง', 'lishui': 'ลี่สุ่ย', 'anqing': 'อันชิ่ง',
+  'ganzhou': 'ก้านโจว', 'putian': 'ผูเถียน', 'mudanjiang': 'มู่ตันเจียง',
+  'changzhou': 'ฉางโจว', 'shaoxing': 'เซ่าซิง', 'bengbu': 'ปังปู้',
+  'jiujiang': 'จิ่วเจียง', 'quanzhou': 'เฉวียนโจว',
+};
+
 // Locale-aware display name — banners/captions show ONLY this (no hanzi).
 String cityDisplayName(City c, {required bool tr}) =>
     tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
@@ -109,6 +128,7 @@ String cityNameFor(City c, String lang) => switch (lang) {
       'ja' => kCityJaNames[c.slug] ?? c.pinyin,
       'id' => kCityIdNames[c.slug] ?? c.pinyin,
       'vi' => kCityViNames[c.slug] ?? c.pinyin,
+      'th' => kCityThNames[c.slug] ?? c.pinyin,
       _ => c.pinyin,
     };
 

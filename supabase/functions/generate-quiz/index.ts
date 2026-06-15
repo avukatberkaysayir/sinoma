@@ -225,6 +225,37 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Produce natural standard Vietnamese with correct diacritics/tones, correct classifiers and head-initial word order — never a word-for-word calque from Chinese or English.",
     ],
   },
+  // ── Thai grammar, integrated in parts. Reference: Noss, Thai Reference
+  // Grammar (FSI, 1964); modern standard (Central) Thai. ──────────────────────
+  Thai: {
+    authority: "Standard (Central) Thai orthography & usage in Thai script (อักษรไทย); reference: Noss, Thai Reference Grammar (FSI)",
+    rules: [
+      // [P1] Script, isolating typology, word order
+      "Always write in Thai script (อักษรไทย) only — NEVER romanization/transliteration. Thai is normally written with NO spaces between words; use spaces only between clauses/phrases as a Thai writer would, and never insert a space inside a single word.",
+      "Thai is isolating/analytic: words NEVER inflect — no conjugation, no plural endings, no case, no gender, no articles, no agreement. Grammatical relations come from word order and function words only.",
+      "Basic word order is SVO: Subject → Verb → Object (ฉันกินข้าว = I eat rice). Topic-comment fronting is common in natural Thai.",
+      "Noun phrase is HEAD-INITIAL: head noun first, then modifiers — NOUN + adjective + demonstrative, and for counting NOUN + number + classifier. E.g. แมวดำตัวนี้ = this black cat (lit. cat black CL this).",
+      // [P2] Classifiers, copula, plural, adjectives
+      "Classifiers (ลักษณนาม) are obligatory when counting or specifying: NOUN + NUMBER + CLASSIFIER (หนังสือสามเล่ม = three books; คนสองคน = two people). With a demonstrative: NOUN + CLASSIFIER + นี้/นั้น (รถคันนี้ = this car). Common classifiers: คน (people), ตัว (animals/clothing/furniture), อัน (small things), เล่ม (books), คัน (vehicles), ใบ (containers/leaves/sheets), ลูก (round things/fruit), แผ่น (flat sheets), อย่าง (kinds). Pick the correct classifier.",
+      "Copula เป็น / คือ links NOUNS ('to be'): เขาเป็นครู = he is a teacher; คือ is identificational/definitional. NEVER use เป็น/คือ before an adjective — Thai adjectives are stative verbs used directly: เขาเหนื่อย = he is tired (NOT เขาเป็นเหนื่อย).",
+      "An adjective FOLLOWS its noun and acts as a stative verb in the predicate with no copula: เสื้อแดง = a red shirt; เสื้อแดง (as a sentence) = the shirt is red. Degree: มาก (very, AFTER the adjective: สวยมาก), ที่สุด (most: สวยที่สุด), ค่อนข้าง (rather), นิดหน่อย (a little), เกินไป (too…).",
+      "Plurality is unmarked; number/quantity is shown by context, numbers+classifiers, or words like หลาย (several), บาง (some), ทุก (every), พวก (group/plural marker for people: พวกเขา = they). Never add a plural ending to a noun.",
+      // [P3] Tense/aspect, negation, pronouns
+      "No tense conjugation — time is shown by context or aspect/time words: แล้ว (already/completed, sentence-final), กำลัง…(อยู่) (progressive '-ing'), จะ (future/irrealis, preverbal), เพิ่ง (just recently), กำลังจะ (about to), เคย (have ever / used to), ยัง (still / not yet with negation).",
+      "Negation: ไม่ (not — before verb/adjective: ไม่กิน, ไม่สวย), ยังไม่ (not yet), ไม่ได้ + verb (did not / negates past action), อย่า (don't — negative imperative), ไม่ใช่ (negates a noun: ไม่ใช่ครู = is not a teacher). Choose by what is negated.",
+      "Pronouns depend on politeness, gender and relationship — choose appropriately. Neutral/polite: ฉัน or ผม (I — ผม male, ดิฉัน formal female), คุณ (you, polite), เขา (he/she), เธอ (she / informal you), พวกเขา (they), มัน (it / informal), เรา (we / casual I). Avoid one fixed 'you/he' regardless of context.",
+      // [P4] Questions, comparison, modifiers
+      "Question words stay IN SITU (no fronting): ใคร (who), อะไร (what), ที่ไหน (where), อันไหน/ไหน (which), เมื่อไหร่ (when), ทำไม (why), อย่างไร/ยังไง (how), เท่าไหร่ (how much), กี่ + classifier (how many). Yes/no questions use sentence-final ไหม or …หรือเปล่า; confirmation with ใช่ไหม, นะ, หรือ.",
+      "Comparison: 'A + adj + กว่า + B' = A is more … than B (เขาสูงกว่าฉัน = he is taller than me); adj + ที่สุด = the most …; เท่ากับ/…เท่ากัน = as … as; ยิ่ง…ยิ่ง… = the more … the more.",
+      "Relative/attributive clauses FOLLOW the noun, introduced by ที่ / ซึ่ง / อัน: คนที่ฉันพบ = the person (that) I met. Possession = NOUN + ของ + owner (บ้านของฉัน) or simply NOUN + owner (บ้านฉัน) = my house.",
+      // [P5] Function words, voice, particles, register
+      "Voice/causation: ถูก marks the adverse passive (ถูกลงโทษ = got punished); ได้รับ marks a neutral/favourable passive (ได้รับคำชม = was praised); ทำให้ = cause to / make; ให้ = give / let / for. Postverbal ได้ = can / be able (ทำได้ = can do).",
+      "Modals/auxiliaries (preverbal unless noted): สามารถ…ได้ (can/be able), ต้อง (must), ควร (should), อยาก (want to), ชอบ (like to), คง/น่าจะ (probably). Existence/possession: มี = have / there is (ฉันมีหนังสือ; มีคนอยู่ที่นี่).",
+      "Connectives: เพราะ/เพราะว่า (because), เลย/ดังนั้น/จึง (therefore — จึง goes before the verb), ถ้า…ก็… (if … then), แม้ว่า/ถึงแม้ว่า…แต่… (although … but), เพื่อ (in order to), และ (and), หรือ (or), แต่ (but), เวลา/ตอน (when/while).",
+      "Polite particles are sentence-final and gender-based: ครับ (male speaker, polite/affirmative) and ค่ะ/คะ (female speaker — ค่ะ for statements, คะ for questions). Use them for polite register; other particles: นะ (softening), สิ (urging), หรอก, ล่ะ. For neutral quiz/subtitle sentences keep a polite-neutral tone consistently.",
+      "Produce natural standard Thai in Thai script with correct classifiers, head-initial word order and appropriate function words — never a word-for-word calque from Chinese or English, and never romanized.",
+    ],
+  },
 };
 
 function buildPrompt(
@@ -296,6 +327,7 @@ function langCodeToName(code: string): string {
     : code === "ko" ? "Korean"
     : code === "id" ? "Indonesian"
     : code === "vi" ? "Vietnamese"
+    : code === "th" ? "Thai"
     : "Turkish";
 }
 
@@ -473,6 +505,7 @@ serve(async (req) => {
       : lang === "ko" ? "Korean"
       : lang === "id" ? "Indonesian"
       : lang === "vi" ? "Vietnamese"
+      : lang === "th" ? "Thai"
       : "Turkish";
 
     // Cache first — same sentence+language+English source (correct+wrong) never

@@ -20,6 +20,7 @@ const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇯🇵', '日本語', 'ja', true),
   ('🇮🇩', 'Bahasa Indonesia', 'id', true),
   ('🇻🇳', 'Tiếng Việt', 'vi', true),
+  ('🇹🇭', 'ภาษาไทย', 'th', true),
   ('🇪🇸', 'Español', 'es', false),
   ('🇫🇷', 'Français', 'fr', false),
 ];
@@ -160,7 +161,7 @@ class _LanguageSelectionScreenState
                                     ? '次へ'
                                     : (_selected == 'id'
                                     ? 'Lanjut'
-                                    : (_selected == 'vi' ? 'Tiếp tục' : 'Continue')))),
+                                    : (_selected == 'vi' ? 'Tiếp tục' : (_selected == 'th' ? 'ต่อไป' : 'Continue'))))),
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800),
                       ),

@@ -665,6 +665,8 @@ class QuizData {
   final String wrongAnswerId;
   final String correctAnswerVi;
   final String wrongAnswerVi;
+  final String correctAnswerTh;
+  final String wrongAnswerTh;
 
   const QuizData({
     required this.question,
@@ -680,6 +682,8 @@ class QuizData {
     this.wrongAnswerId = '',
     this.correctAnswerVi = '',
     this.wrongAnswerVi = '',
+    this.correctAnswerTh = '',
+    this.wrongAnswerTh = '',
   });
 
   factory QuizData.fromMap(Map<String, dynamic> map) {
@@ -688,6 +692,7 @@ class QuizData {
     final ja = (map['ja'] as Map<String, dynamic>?) ?? const {};
     final idn = (map['id'] as Map<String, dynamic>?) ?? const {};
     final vi = (map['vi'] as Map<String, dynamic>?) ?? const {};
+    final th = (map['th'] as Map<String, dynamic>?) ?? const {};
     return QuizData(
       question: map['question'] as String? ?? '',
       correctAnswer: map['correctAnswer'] as String? ?? '',
@@ -702,6 +707,8 @@ class QuizData {
       wrongAnswerId: idn['wrongAnswer'] as String? ?? '',
       correctAnswerVi: vi['correctAnswer'] as String? ?? '',
       wrongAnswerVi: vi['wrongAnswer'] as String? ?? '',
+      correctAnswerTh: th['correctAnswer'] as String? ?? '',
+      wrongAnswerTh: th['wrongAnswer'] as String? ?? '',
     );
   }
 
@@ -718,6 +725,8 @@ class QuizData {
         'id' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         'vi' when correctAnswerVi.isNotEmpty => correctAnswerVi,
         'vi' when correctAnswerEn.isNotEmpty => correctAnswerEn,
+        'th' when correctAnswerTh.isNotEmpty => correctAnswerTh,
+        'th' when correctAnswerEn.isNotEmpty => correctAnswerEn,
         _ => correctAnswer,
       };
   String wrongFor(String lang) => switch (lang) {
@@ -730,6 +739,8 @@ class QuizData {
         'id' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
         'vi' when wrongAnswerVi.isNotEmpty => wrongAnswerVi,
         'vi' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
+        'th' when wrongAnswerTh.isNotEmpty => wrongAnswerTh,
+        'th' when wrongAnswerEn.isNotEmpty => wrongAnswerEn,
         _ => wrongAnswer,
       };
 
@@ -747,5 +758,7 @@ class QuizData {
           'id': {'correctAnswer': correctAnswerId, 'wrongAnswer': wrongAnswerId},
         if (correctAnswerVi.isNotEmpty || wrongAnswerVi.isNotEmpty)
           'vi': {'correctAnswer': correctAnswerVi, 'wrongAnswer': wrongAnswerVi},
+        if (correctAnswerTh.isNotEmpty || wrongAnswerTh.isNotEmpty)
+          'th': {'correctAnswer': correctAnswerTh, 'wrongAnswer': wrongAnswerTh},
       };
 }
