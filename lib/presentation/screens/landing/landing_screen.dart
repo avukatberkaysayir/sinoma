@@ -220,15 +220,18 @@ Future<void> _openAuth(WidgetRef ref, BuildContext context,
 }
 
 // Live UI languages shown in the landing language dropdown, in launch order.
-const List<(String code, String label)> _kLangChoices = [
-  ('tr', 'Türkçe'),
-  ('en', 'English'),
-  ('ko', '한국어'),
-  ('ja', '日本語'),
-  ('id', 'Bahasa Indonesia'),
-  ('vi', 'Tiếng Việt'),
-  ('th', 'ภาษาไทย'),
+const List<(String code, String label, String flag)> _kLangChoices = [
+  ('tr', 'Türkçe', '🇹🇷'),
+  ('en', 'English', '🇬🇧'),
+  ('ko', '한국어', '🇰🇷'),
+  ('ja', '日本語', '🇯🇵'),
+  ('id', 'Bahasa Indonesia', '🇮🇩'),
+  ('vi', 'Tiếng Việt', '🇻🇳'),
+  ('th', 'ภาษาไทย', '🇹🇭'),
 ];
+
+// Five rows visible; the rest scroll. 44px per item + 16px menu padding.
+const double _kLangMenuMaxHeight = 5 * 44 + 16;
 
 class _LangToggle extends ConsumerWidget {
   final void Function(String code) onSetLang;
@@ -253,6 +256,9 @@ class _LangToggle extends ConsumerWidget {
       },
       offset: const Offset(0, 40), // open downward, below the trigger
       color: AppColors.surface,
+      // Cap the menu at five rows; the remaining languages scroll into view.
+      constraints: const BoxConstraints(
+          minWidth: 180, maxWidth: 260, maxHeight: _kLangMenuMaxHeight),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       itemBuilder: (_) => [
         for (final c in _kLangChoices)
@@ -260,6 +266,8 @@ class _LangToggle extends ConsumerWidget {
             value: c.$1,
             height: 44,
             child: Row(children: [
+              Text(c.$3, style: const TextStyle(fontSize: 16)),
+              const SizedBox(width: 10),
               Expanded(
                 child: Text(c.$2,
                     style: TextStyle(
@@ -280,7 +288,7 @@ class _LangToggle extends ConsumerWidget {
           border: Border.all(color: AppColors.onSurfaceMuted.withValues(alpha: 0.4)),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          const Icon(Icons.language_rounded, size: 16, color: _lpGreen),
+          Text(current.$3, style: const TextStyle(fontSize: 15)),
           const SizedBox(width: 6),
           Text(current.$2,
               style: TextStyle(
