@@ -53,6 +53,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   bool? _subtitleChoice;
   String? _pickedAnswer; // option text the user picked — frozen, survives replay
   bool _optSwap = false; // stable left/right order for the two options
+  bool _showPinyin = false; // PY toggle: pinyin under the Chinese subtitle chips
   double _speed = 1.0;
   int _replayCount = 0;
   late final VideoRepository _videoRepo; // dispose-safe (see initState)
@@ -431,6 +432,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             onAddToPlaylist:
                 widget.phaseMode ? null : () => _openPlaylistDialog(l10n),
             playlistTooltip: l10n.addToPlaylist,
+            showPinyin: _showPinyin,
+            onTogglePinyin: () => setState(() => _showPinyin = !_showPinyin),
           ),
 
           // ── Post-clip area ────────────────────────────────────────────────
@@ -467,6 +470,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                                   words: seg.targetWords.isNotEmpty
                                       ? seg.targetWords
                                       : [seg.subtitleText],
+                                  pinyin: seg.pinyin,
+                                  showPinyin: _showPinyin,
                                   onWordTap: _showWordMeaning,
                                 )
                               : _SubtitleRevealBar(label: l10n.subtitleTitle),
@@ -582,6 +587,9 @@ class _ControlsBar extends StatelessWidget {
   final int? ticks;
   final VoidCallback? onAddToPlaylist;
   final String playlistTooltip;
+  // PY (pinyin) toggle — shows pinyin under the Chinese subtitle chips.
+  final bool showPinyin;
+  final VoidCallback onTogglePinyin;
 
   const _ControlsBar({
     required this.speed,
@@ -596,6 +604,8 @@ class _ControlsBar extends StatelessWidget {
     this.ticks,
     this.onAddToPlaylist,
     this.playlistTooltip = '',
+    required this.showPinyin,
+    required this.onTogglePinyin,
   });
 
   static const _speeds = [0.5, 0.75, 1.0, 1.25, 1.5];
@@ -644,6 +654,12 @@ class _ControlsBar extends StatelessWidget {
               tooltip: playlistTooltip,
             ),
 
+          // PY (pinyin) toggle — sits right of "add to playlist", left of the
+          // mastery ticks. A label + a sliding switch; when on, pinyin shows
+          // under the Chinese subtitle chips.
+          const SizedBox(width: 8),
+          _PinyinToggle(on: showPinyin, onTap: onTogglePinyin),
+
           // Mastery ticks sit left of centre; quality + speed share the right
           // side at even spacing.
           if (ticks != null) ...[
@@ -683,6 +699,61 @@ class _ControlsBar extends StatelessWidget {
               onTap: () => onSpeedChanged(s),
             ),
         ],
+      ),
+    );
+  }
+}
+
+// PY (pinyin) toggle: a "PY" label + a sliding switch (knob slides left when
+// off, right when on). When on, the Chinese subtitle chips show pinyin beneath.
+class _PinyinToggle extends StatelessWidget {
+  final bool on;
+  final VoidCallback onTap;
+  const _PinyinToggle({required this.on, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Pinyin',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('PY',
+                  style: TextStyle(
+                      color: on ? AppColors.primary : AppColors.text70,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800)),
+              const SizedBox(width: 5),
+              AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                width: 30,
+                height: 18,
+                decoration: BoxDecoration(
+                  color: on
+                      ? AppColors.primary
+                      : AppColors.onSurfaceMuted.withValues(alpha: 0.35),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: AnimatedAlign(
+                  duration: const Duration(milliseconds: 150),
+                  alignment: on ? Alignment.centerRight : Alignment.centerLeft,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    margin: const EdgeInsets.symmetric(horizontal: 2),
+                    decoration: const BoxDecoration(
+                        color: Colors.white, shape: BoxShape.circle),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -1134,12 +1205,106 @@ class _ChineseSubtitleBar extends StatelessWidget {
   // tapping a chip opens the instant dictionary popup.
   final List<String> words;
   final void Function(String word) onWordTap;
-  const _ChineseSubtitleBar({required this.words, required this.onWordTap});
+  // Whole-clip pinyin (space-separated syllables) and the PY toggle. Each hanzi
+  // is exactly one syllable, so syllables align to words by their char count.
+  final String pinyin;
+  final bool showPinyin;
+  const _ChineseSubtitleBar({
+    required this.words,
+    required this.onWordTap,
+    this.pinyin = '',
+    this.showPinyin = false,
+  });
 
   static final _cjk = RegExp(r'[一-鿿]');
 
   @override
   Widget build(BuildContext context) {
+    // Per-word pinyin: split the clip pinyin into syllables and hand each word
+    // as many syllables as it has hanzi (a CJK char == one syllable).
+    final sylls = pinyin.trim().isEmpty
+        ? const <String>[]
+        : pinyin.trim().split(RegExp(r'\s+'));
+    var cursor = 0;
+    final chips = <Widget>[];
+    for (final w in words) {
+      if (w == '\n') {
+        chips.add(const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4),
+          child: Text('丨',
+              style: TextStyle(
+                  color: Color(0xFF2EC4B6),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800)),
+        ));
+        continue;
+      }
+      if (_cjk.hasMatch(w)) {
+        final k = _cjk.allMatches(w).length;
+        String? py;
+        if (showPinyin && cursor + k <= sylls.length) {
+          py = sylls.sublist(cursor, cursor + k).join(' ');
+        }
+        cursor += k; // advance to keep alignment regardless of the toggle
+        final hanzi = Text(
+          w,
+          style: TextStyle(
+            color: AppColors.dark ? Colors.white : const Color(0xFF0E1414),
+            fontSize: 15,
+            fontWeight: FontWeight.w500,
+            fontFamily: _kComic,
+            height: 1.25,
+          ),
+        );
+        chips.add(Material(
+          color: AppColors.dark
+              ? Colors.white.withValues(alpha: 0.08)
+              : Colors.transparent,
+          borderRadius: BorderRadius.circular(6),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(6),
+            onTap: () => onWordTap(w),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(
+                    color: AppColors.dark
+                        ? Colors.white.withValues(alpha: 0.18)
+                        : AppColors.text12),
+              ),
+              child: py == null
+                  ? hanzi
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        hanzi,
+                        Text(
+                          py,
+                          style: const TextStyle(
+                            color: Color(0xFF2EC4B6),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            height: 1.1,
+                          ),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+        ));
+      } else {
+        chips.add(Text(
+          w,
+          style: TextStyle(
+            color: AppColors.dark ? Colors.white70 : AppColors.text70,
+            fontSize: 15,
+            fontFamily: _kComic,
+            height: 1.25,
+          ),
+        ));
+      }
+    }
     // Compact: small chips, and multi-sentence clips stay on the SAME line —
     // a visible "丨" divider separates the sentences instead of a new row, so
     // the answer options never get pushed down (no scrolling while watching).
@@ -1147,9 +1312,6 @@ class _ChineseSubtitleBar extends StatelessWidget {
       margin: const EdgeInsets.symmetric(horizontal: 12),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
       decoration: BoxDecoration(
-        // Light theme: translucent white bar so it sits on rice paper without
-        // a dark band — only the word CHIPS stay ink-dark (white hanzi on
-        // them). Dark theme keeps the ink-green panel.
         color: AppColors.dark
             ? const Color(0xFF1C2624)
             : Colors.white.withValues(alpha: 0.65),
@@ -1161,65 +1323,7 @@ class _ChineseSubtitleBar extends StatelessWidget {
         crossAxisAlignment: WrapCrossAlignment.center,
         spacing: 4,
         runSpacing: 4,
-        children: [
-          for (final w in words)
-            if (w == '\n')
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 4),
-                child: Text('丨',
-                    style: TextStyle(
-                        color: Color(0xFF2EC4B6),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800)),
-              )
-            else if (_cjk.hasMatch(w))
-              Material(
-                // Light theme: bare ink-black hanzi on the translucent bar —
-                // no fill, only a whisper of a border so taps read as taps.
-                // Dark theme keeps the frosted chips with white hanzi.
-                color: AppColors.dark
-                    ? Colors.white.withValues(alpha: 0.08)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(6),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(6),
-                  onTap: () => onWordTap(w),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                          color: AppColors.dark
-                              ? Colors.white.withValues(alpha: 0.18)
-                              : AppColors.text12),
-                    ),
-                    child: Text(
-                      w,
-                      style: TextStyle(
-                        color: AppColors.dark
-                            ? Colors.white
-                            : const Color(0xFF0E1414),
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        fontFamily: _kComic,
-                        height: 1.25,
-                      ),
-                    ),
-                  ),
-                ),
-              )
-            else
-              Text(
-                w,
-                style: TextStyle(
-                  color: AppColors.dark ? Colors.white70 : AppColors.text70,
-                  fontSize: 15,
-                  fontFamily: _kComic,
-                  height: 1.25,
-                ),
-              ),
-        ],
+        children: chips,
       ),
     );
   }
