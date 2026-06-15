@@ -2210,13 +2210,13 @@ class _LangRow extends StatelessWidget {
         const SizedBox(width: 8),
         chip('ja', '日本語'),
         const SizedBox(width: 8),
-        chip('id', 'Indonesia'),
-        const SizedBox(width: 8),
         chip('vi', 'Tiếng Việt'),
         const SizedBox(width: 8),
-        chip('th', 'ภาษาไทย'),
-        const SizedBox(width: 8),
         chip('ru', 'Русский'),
+        const SizedBox(width: 8),
+        chip('id', 'Bahasa'),
+        const SizedBox(width: 8),
+        chip('th', 'ภาษาไทย'),
       ]),
     );
   }

@@ -18,10 +18,10 @@ const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇬🇧', 'English', 'en', true),
   ('🇰🇷', '한국어', 'ko', true),
   ('🇯🇵', '日本語', 'ja', true),
-  ('🇮🇩', 'Bahasa Indonesia', 'id', true),
   ('🇻🇳', 'Tiếng Việt', 'vi', true),
-  ('🇹🇭', 'ภาษาไทย', 'th', true),
   ('🇷🇺', 'Русский', 'ru', true),
+  ('🇮🇩', 'Bahasa', 'id', true),
+  ('🇹🇭', 'ภาษาไทย', 'th', true),
   ('🇪🇸', 'Español', 'es', false),
   ('🇫🇷', 'Français', 'fr', false),
 ];
