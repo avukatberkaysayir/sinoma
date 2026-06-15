@@ -1,0 +1,435 @@
+﻿<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Sinoma — Promo</title>
+<style>
+:root{
+  --bg:#0c1413; --bg2:#101b19; --panel:#16221f; --line:#1f2e2b;
+  --teal:#5ecfc4; --teal-dim:#2e6b65; --red:#e8543f; --gold:#f4c84b;
+  --heart:#e74c3c; --text:#eef5f3; --dim:#8fa6a1; --green:#4caf7d;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:var(--bg);overflow:hidden}
+body{font-family:-apple-system,"Segoe UI","Noto Sans",Roboto,sans-serif;color:var(--text)}
+
+/* Fixed 1280x720 design canvas, scaled to fit whatever box embeds the iframe
+   (the landing page embeds it small) — keeps every scene's layout intact. */
+#stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;
+  transform:translate(-50%,-50%) scale(1);transform-origin:center center;
+  background:
+  radial-gradient(1200px 700px at 70% 20%, #12201d 0%, var(--bg) 60%);}
+
+/* ---------- chrome ---------- */
+/* Progress lives on the BOTTOM edge (player convention) — a top stripe read
+   as a rendering glitch against the page background. */
+#bar{position:absolute;bottom:0;left:0;height:4px;background:linear-gradient(90deg,var(--teal),var(--gold));width:0%;z-index:50;transition:width .2s linear}
+#ctrl{position:absolute;bottom:18px;left:50%;transform:translateX(-50%);display:flex;gap:14px;align-items:center;z-index:50;opacity:.25;transition:opacity .3s}
+#ctrl:hover{opacity:1}
+#ctrl button{background:var(--panel);border:1px solid var(--line);color:var(--text);width:38px;height:38px;border-radius:50%;cursor:pointer;font-size:15px}
+#dots{display:flex;gap:7px}
+#dots i{width:8px;height:8px;border-radius:50%;background:#2c3d39;cursor:pointer}
+#dots i.on{background:var(--teal)}
+#overlay{position:absolute;inset:0;z-index:100;background:rgba(5,10,9,.88);display:flex;flex-direction:column;gap:22px;align-items:center;justify-content:center;cursor:pointer}
+#overlay .big{font-size:26px;font-weight:700;letter-spacing:.5px}
+#overlay .play{width:84px;height:84px;border-radius:50%;background:var(--teal);display:flex;align-items:center;justify-content:center;font-size:30px;color:#06302b;box-shadow:0 0 60px rgba(94,207,196,.45)}
+#overlay .hint{color:var(--dim);font-size:13px}
+
+/* ---------- scenes ---------- */
+.scene{position:absolute;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;text-align:center;padding:40px}
+.scene.active{display:flex}
+body.paused .scene *{animation-play-state:paused!important}
+
+.kicker{color:var(--teal);font-size:14px;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:14px}
+h1{font-size:46px;font-weight:800;line-height:1.18;max-width:900px}
+h2{font-size:34px;font-weight:800;line-height:1.25;max-width:880px}
+.sub{color:var(--dim);font-size:19px;margin-top:14px;max-width:760px;line-height:1.5}
+.accent{color:var(--teal)} .warm{color:var(--gold)} .bad{color:var(--red)}
+
+@keyframes rise{from{opacity:0;transform:translateY(26px)}to{opacity:1;transform:none}}
+@keyframes pop{0%{opacity:0;transform:scale(.6)}70%{transform:scale(1.07)}100%{opacity:1;transform:scale(1)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes drift{from{transform:translateY(0) rotate(0)}to{transform:translateY(-800px) rotate(18deg)}}
+@keyframes floatUp{0%{opacity:0;transform:translateY(8px)}25%{opacity:1}100%{opacity:0;transform:translateY(-46px)}}
+@keyframes shake{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+@keyframes glowPulse{0%,100%{box-shadow:0 0 0 rgba(94,207,196,0)}50%{box-shadow:0 0 34px rgba(94,207,196,.5)}}
+@keyframes blink{50%{opacity:.2}}
+@keyframes typebar{from{width:0}to{width:100%}}
+
+/* S1 pain */
+#s1 .hanzi{position:absolute;color:#21413c;font-weight:700;user-select:none;animation:drift linear infinite;top:760px}
+#s1.active .l1{animation:rise .7s .2s both}
+#s1.active .l2{animation:rise .7s 1.5s both}
+#s1.active .pains{animation:rise .7s 3.2s both}
+.pains{display:flex;gap:18px;margin-top:38px;flex-wrap:wrap;justify-content:center}
+.pain{background:var(--panel);border:1px solid var(--line);padding:16px 22px;border-radius:14px;font-size:17px;color:var(--dim);position:relative}
+.pain::after{content:"";position:absolute;left:8%;top:50%;height:2px;width:0;background:var(--red)}
+#s1.active .pain:nth-child(1)::after{animation:strike .4s 4.6s both}
+#s1.active .pain:nth-child(2)::after{animation:strike .4s 5.4s both}
+#s1.active .pain:nth-child(3)::after{animation:strike .4s 6.2s both}
+@keyframes strike{to{width:84%}}
+
+/* S2 logo */
+#s2 img{width:170px;height:170px;object-fit:contain;filter:drop-shadow(0 12px 40px rgba(94,207,196,.35))}
+#s2.active img{animation:pop .8s .2s both}
+#s2.active .name{animation:rise .7s .8s both}
+#s2.active .tag{animation:rise .7s 1.6s both}
+#s2 .name{font-size:64px;font-weight:800;letter-spacing:1px;margin-top:10px}
+#s2 .name span{color:var(--teal)}
+
+/* mock player */
+.player{width:680px;background:var(--panel);border:1px solid var(--line);border-radius:18px;overflow:hidden;text-align:left}
+.player .vid{height:240px;background:linear-gradient(135deg,#1d3a36,#0e1b19);position:relative;display:flex;align-items:center;justify-content:center}
+.player .vid .pb{width:64px;height:64px;border-radius:50%;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;font-size:22px;color:#fff}
+.player .vt{position:absolute;top:12px;left:14px;font-size:13px;color:#cfe5e1}
+.player .timer{position:absolute;top:10px;right:12px;width:38px;height:38px;border-radius:50%;border:2.5px solid var(--red);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;background:rgba(0,0,0,.5)}
+.player .hearts{position:absolute;bottom:10px;right:12px;font-size:14px;color:var(--heart);font-weight:700}
+.tokens{display:flex;gap:8px;justify-content:center;padding:16px 12px;flex-wrap:wrap;background:#0d1716}
+.tok{background:#1b2a27;border:1px solid #27403b;border-radius:9px;padding:7px 11px;font-size:20px;opacity:0}
+#s3.active .tok{animation:pop .35s both}
+#s3.active .tok:nth-child(1){animation-delay:1.6s}#s3.active .tok:nth-child(2){animation-delay:1.75s}
+#s3.active .tok:nth-child(3){animation-delay:1.9s}#s3.active .tok:nth-child(4){animation-delay:2.05s}
+#s3.active .tok:nth-child(5){animation-delay:2.2s}#s3.active .tok:nth-child(6){animation-delay:2.35s}
+#s3.active .tok:nth-child(7){animation-delay:2.5s}#s3.active .tok:nth-child(8){animation-delay:2.65s}
+.quiz{display:flex;gap:12px;padding:0 14px 16px}
+.qb{flex:1;border-radius:12px;padding:14px 10px;font-size:15px;border:1.5px solid #3a2a28;background:#1c1514;color:#e9b9b1;opacity:0}
+.qb.good{border-color:#2c4a3a;background:#14201a;color:#bfe6cf}
+#s3.active .qb{animation:rise .5s 4.4s both}
+#s3.active .qb.good{animation:rise .5s 4.4s both,winflash .6s 6s both}
+#s3.active .qb.badone{animation:rise .5s 4.4s both,shake .4s 6s both}
+@keyframes winflash{to{background:#173527;border-color:var(--green);box-shadow:0 0 26px rgba(76,175,125,.4)}}
+.combo{position:absolute;font-weight:800;color:var(--gold);font-size:26px;opacity:0;right:18%;top:32%}
+#s3.active .combo{animation:floatUp 1.6s 6.4s both}
+#s3.active .cap1{animation:rise .6s .3s both}
+#s3.active .cap2{animation:rise .6s 7.4s both}
+#s3 .player{margin-top:26px}
+#s3.active .player{animation:rise .8s .8s both}
+
+/* S4 ai */
+#s4 .row{display:flex;gap:30px;align-items:stretch;margin-top:30px;flex-wrap:wrap;justify-content:center}
+.wcard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:26px 30px;width:300px;text-align:left}
+.wcard .zi{font-size:64px;font-weight:700}
+.wcard .py{color:var(--teal);font-size:20px;margin-top:2px}
+.wcard .def{color:var(--dim);margin-top:8px;font-size:16px}
+.wcard .hsk{display:inline-block;margin-top:12px;background:#173527;color:var(--green);border-radius:8px;padding:3px 10px;font-size:12px;font-weight:700}
+.ai{background:var(--panel);border:1px solid var(--teal-dim);border-radius:18px;padding:22px 24px;width:380px;text-align:left;position:relative}
+.ai .who{color:var(--teal);font-size:13px;font-weight:800;letter-spacing:2px;margin-bottom:10px}
+.ai .msg{font-size:15.5px;line-height:1.55;color:#d7e6e2;overflow:hidden;white-space:normal}
+.ai .dots{display:flex;gap:5px;margin:6px 0}
+.ai .dots b{width:8px;height:8px;border-radius:50%;background:var(--teal);animation:blink 1s infinite}
+.ai .dots b:nth-child(2){animation-delay:.2s}.ai .dots b:nth-child(3){animation-delay:.4s}
+#s4.active .wcard{animation:rise .7s .6s both}
+#s4.active .ai{animation:rise .7s 1.6s both,glowPulse 2.4s 2s 2}
+#s4.active .ai .msg{animation:fadeIn .4s 3.2s both}
+#s4.active .ai .dots{animation:fadeIn .2s 1.9s both,fadeOut .2s 3.2s both}
+@keyframes fadeOut{to{opacity:0;height:0;margin:0}}
+#s4.active .cap1{animation:rise .6s .2s both}
+#s4.active .cap2{animation:rise .6s 5.2s both}
+
+/* S5 journey */
+#s5 .wrap{display:flex;gap:60px;align-items:center;margin-top:18px;flex-wrap:wrap;justify-content:center}
+.path{position:relative;width:300px;height:380px}
+.node{position:absolute;width:84px;height:84px;border-radius:50%;background:var(--panel);border:2px solid var(--line);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.node img{width:62px;height:62px;object-fit:contain}
+.node.lock::after{content:"🔒";position:absolute;bottom:2px;right:4px;font-size:15px}
+.node.cur{border-color:var(--teal)}
+#s5.active .node{animation:pop .5s both}
+#s5.active .n1{animation-delay:.8s}#s5.active .n2{animation-delay:1.1s}
+#s5.active .n3{animation-delay:1.4s}#s5.active .n4{animation-delay:1.7s}
+#s5.active .n3{animation:pop .5s 1.4s both,glowPulse 2s 2.4s 2}
+.hud{display:flex;flex-direction:column;gap:14px;width:330px;text-align:left}
+.hudrow{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 18px;font-size:16px;display:flex;gap:12px;align-items:center}
+#s5.active .hudrow{animation:rise .55s both}
+#s5.active .hudrow:nth-child(1){animation-delay:1.2s}
+#s5.active .hudrow:nth-child(2){animation-delay:1.7s}
+#s5.active .hudrow:nth-child(3){animation-delay:2.2s}
+#s5.active .hudrow:nth-child(4){animation-delay:2.7s}
+.badges{display:flex;gap:10px;align-items:center}
+.badges img{width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid var(--gold)}
+#s5.active .cap1{animation:rise .6s .2s both}
+#s5.active .cap2{animation:rise .6s 4.6s both}
+
+/* S6 games */
+#s6 .cards{display:flex;gap:24px;margin-top:30px;flex-wrap:wrap;justify-content:center}
+.gcard{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:28px;width:280px}
+.gcard .ico{font-size:44px}
+.gcard h3{margin:10px 0 8px;font-size:21px}
+.gcard p{color:var(--dim);font-size:14.5px;line-height:1.5}
+#s6.active .gcard:nth-child(1){animation:rise .6s .5s both}
+#s6.active .gcard:nth-child(2){animation:rise .6s 1s both}
+#s6.active .gcard:nth-child(3){animation:rise .6s 1.5s both}
+.lb{width:280px;text-align:left}
+.lb .r{display:flex;justify-content:space-between;padding:9px 14px;border-radius:10px;background:#0f1a18;margin-top:8px;font-size:14.5px}
+.lb .r b{color:var(--gold)}
+#s6.active .cap1{animation:rise .6s .2s both}
+
+/* S7 solved */
+.fixes{margin-top:34px;display:flex;flex-direction:column;gap:14px;width:760px}
+.fix{display:flex;align-items:center;gap:16px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:15px 22px;text-align:left}
+.fix .from{color:var(--dim);text-decoration:line-through;font-size:16px;width:46%}
+.fix .arr{color:var(--teal);font-weight:800}
+.fix .to{font-size:16.5px;font-weight:600}
+.fix .chk{margin-left:auto;color:var(--green);font-weight:800;font-size:20px}
+#s7.active .fix{animation:rise .55s both}
+#s7.active .fix:nth-child(1){animation-delay:.7s}
+#s7.active .fix:nth-child(2){animation-delay:1.5s}
+#s7.active .fix:nth-child(3){animation-delay:2.3s}
+#s7.active .fix:nth-child(4){animation-delay:3.1s}
+#s7.active h2{animation:rise .6s .15s both}
+
+/* S8 cta */
+#s8 img{width:150px;height:150px;object-fit:contain;filter:drop-shadow(0 12px 40px rgba(94,207,196,.35))}
+#s8.active img{animation:pop .8s .2s both}
+#s8.active h1{animation:rise .7s .8s both}
+#s8.active .sub{animation:rise .7s 1.6s both}
+#s8.active .url{animation:rise .7s 2.4s both,glowPulse 2.4s 3s infinite}
+#s8 .url{margin-top:30px;background:var(--panel);border:1.5px solid var(--teal);border-radius:14px;padding:14px 34px;font-size:21px;font-weight:700;color:var(--teal)}
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="bar"></div>
+
+  <!-- 1 · PAIN -->
+  <section class="scene" id="s1">
+    <div class="hanzi" style="left:8%;font-size:90px;animation-duration:14s">汉</div>
+    <div class="hanzi" style="left:22%;font-size:54px;animation-duration:18s;animation-delay:2s">语</div>
+    <div class="hanzi" style="left:78%;font-size:110px;animation-duration:16s;animation-delay:1s">字</div>
+    <div class="hanzi" style="left:64%;font-size:60px;animation-duration:20s;animation-delay:4s">声</div>
+    <div class="hanzi" style="left:90%;font-size:70px;animation-duration:15s;animation-delay:3s">调</div>
+    <div class="kicker l1" style="opacity:0">Учите китайский?</div>
+    <h1 class="l1" style="opacity:0">3000 иероглифов. 4 тона.<br>А на слух всё равно совсем не как на занятиях.</h1>
+    <p class="sub l2" style="opacity:0">Вы зубрите слова — а носитель открывает рот, и вы <b class="bad">ничего не понимаете</b>.</p>
+    <div class="pains" style="opacity:0">
+      <div class="pain">📚 Сухие диалоги из учебника</div>
+      <div class="pain">🃏 Карточки без контекста</div>
+      <div class="pain">🤖 Приложения, где не услышишь живую речь</div>
+    </div>
+  </section>
+
+  <!-- 2 · LOGO -->
+  <section class="scene" id="s2">
+    <img src="../assets/assets/mascot/mascot.png" alt="Sinoma mascot" style="opacity:0">
+    <div class="name" style="opacity:0">Sin<span>oma</span></div>
+    <p class="sub tag" style="opacity:0">Учите китайский по <b class="accent">настоящим видео</b> от носителей —<br>а не по записям из учебника.</p>
+  </section>
+
+  <!-- 3 · VIDEO LEARNING -->
+  <section class="scene" id="s3">
+    <div class="kicker cap1" style="opacity:0">Понятный ввод, маленькими порциями</div>
+    <h2 class="cap1" style="opacity:0">Настоящие видео. Отрезки по 5–10 секунд.<br>А потом докажите, что поняли.</h2>
+    <div class="player" style="opacity:0">
+      <div class="vid">
+        <div class="vt">▶ Why I STOPPED drinking coffee — Xiaogua Chinese</div>
+        <div class="timer">16</div>
+        <div class="pb">▶</div>
+        <div class="hearts">❤ 5</div>
+      </div>
+      <div class="tokens">
+        <span class="tok">我</span><span class="tok">觉得</span><span class="tok">中国</span><span class="tok">的</span>
+        <span class="tok">什么</span><span class="tok">不</span><span class="tok">好</span><span class="tok">喝</span>
+      </div>
+      <div class="quiz">
+        <button class="qb badone">Какой китайский напиток вкусный?</button>
+        <button class="qb good">Какой китайский напиток НЕ вкусный?</button>
+      </div>
+    </div>
+    <div class="combo">+16 ⚡ combo ×2</div>
+    <p class="sub cap2" style="opacity:0">Субтитры включить или выключить — решать вам. Замедлите до 0,5×, пересмотрите и отвечайте.<br><b class="accent">Каждый клип кончается вопросом.</b> Ошибка — минус жизнь.</p>
+  </section>
+
+  <!-- 4 · AI DICTIONARY -->
+  <section class="scene" id="s4">
+    <div class="kicker cap1" style="opacity:0">Ваш ИИ-репетитор, в одно касание</div>
+    <h2 class="cap1" style="opacity:0">Коснитесь любого слова.<br>ИИ объяснит его <span class="accent">прямо в этом предложении.</span></h2>
+    <div class="row">
+      <div class="wcard" style="opacity:0">
+        <div class="zi">喝</div>
+        <div class="py">hē</div>
+        <div class="def">пить</div>
+        <span class="hsk">HSK 1</span>
+      </div>
+      <div class="ai" style="opacity:0">
+        <div class="who">SINOMA AI</div>
+        <div class="dots"><b></b><b></b><b></b></div>
+        <div class="msg" style="opacity:0">Здесь <b>喝</b> вместе с <b>好</b> даёт <b>好喝</b> — «вкусный (вкусно пить)». Говорящий не о процессе питья, а о том, <i>какой напиток вкусный</i>. Сравните: 好吃 (вкусно есть) и 好看 (приятно смотреть).</div>
+      </div>
+    </div>
+    <p class="sub cap2" style="opacity:0">Объяснения, понимающие грамматику, на вашем языке.<br>Ответы <b class="warm">хранятся навсегда</b> — стоит спросить одному, и они бесплатно доступны всем.</p>
+  </section>
+
+  <!-- 5 · JOURNEY -->
+  <section class="scene" id="s5">
+    <div class="kicker cap1" style="opacity:0">Игра, в которую вы правда хотите играть</div>
+    <h2 class="cap1" style="opacity:0">Ваше путешествие по Китаю.<br><span class="accent">576 этапов</span>, HSK 1 → 6.</h2>
+    <div class="wrap">
+      <div class="path">
+        <div class="node n1" style="left:110px;top:290px"><img src="../assets/assets/cities/beijing-opera.png" alt=""></div>
+        <div class="node n2 lock" style="left:30px;top:195px"><img src="../assets/assets/cities/beijing-pagoda.png" alt=""></div>
+        <div class="node n3 cur" style="left:120px;top:100px"><img src="../assets/assets/mascot/mascot.png" alt=""></div>
+        <div class="node n4 lock" style="left:210px;top:10px"><img src="../assets/assets/cities/beijing-great-wall.png" alt=""></div>
+      </div>
+      <div class="hud">
+        <div class="hudrow">🏮 <b>Фонарики</b>&nbsp;&&nbsp;🪙 <b>монеты</b> — зарабатывайте и тратьте на Рынке</div>
+        <div class="hudrow">⚡ <b>Ежедневное задание:</b>&nbsp;пройти один этап</div>
+        <div class="hudrow badges">
+          <img src="../assets/assets/badges/nezha.jpg" alt="Nezha">
+          <img src="../assets/assets/badges/guanyu.jpg" alt="Guan Yu">
+          <img src="../assets/assets/badges/zhugeliang.jpg" alt="Zhuge Liang">
+          <span>Поднимайтесь в рангах вместе с легендами Китая</span>
+        </div>
+        <div class="hudrow">🍵 <b>Чайная</b> — отдыхайте, повторяйте и общайтесь</div>
+      </div>
+    </div>
+    <p class="sub cap2" style="opacity:0">Серии, задания, жизни и открываемые достопримечательности возвращают вас — <b class="accent">каждый день</b>.</p>
+  </section>
+
+  <!-- 6 · GAMES & SOCIAL -->
+  <section class="scene" id="s6">
+    <div class="kicker cap1" style="opacity:0">Учитесь вместе, соревнуйтесь вместе</div>
+    <h2 class="cap1" style="opacity:0">Бросайте вызов друзьям. Поднимайтесь в таблице лидеров.</h2>
+    <div class="cards">
+      <div class="gcard" style="opacity:0">
+        <div class="ico">⚔️</div>
+        <h3>Mandarin Duel</h3>
+        <p>10 вопросов, по 10 секунд, 3 жизни. Крутите колесо тем и сразитесь с другом — или с ботом.</p>
+      </div>
+      <div class="gcard" style="opacity:0">
+        <div class="ico">🧩</div>
+        <h3>Hanzi Build</h3>
+        <p>Собирайте иероглифы из частей на время. Узнавайте, как иероглифы устроены на самом деле.</p>
+      </div>
+      <div class="gcard lb" style="opacity:0">
+        <div class="ico">🏆</div>
+        <h3>Таблица лидеров</h3>
+        <div class="r"><span><b>1</b> 🥇 Mei</span><span>12,480</span></div>
+        <div class="r"><span><b>2</b> 🥈 Murat</span><span>11,950</span></div>
+        <div class="r"><span><b>3</b> 🥉 Linh</span><span>11,720</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 · SOLVED -->
+  <section class="scene" id="s7">
+    <div class="kicker">Почему Sinoma</div>
+    <h2 style="opacity:0">Создано, чтобы исправить то, что не работает<br>в приложениях для изучения языков.</h2>
+    <div class="fixes">
+      <div class="fix" style="opacity:0"><span class="from">Постановочное аудио из учебника</span><span class="arr">→</span><span class="to">Живые диалоги с YouTube от носителей</span><span class="chk">✓</span></div>
+      <div class="fix" style="opacity:0"><span class="from">Пассивный просмотр видео</span><span class="arr">→</span><span class="to">Вопрос после каждого клипа</span><span class="chk">✓</span></div>
+      <div class="fix" style="opacity:0"><span class="from">Словарные определения без контекста</span><span class="arr">→</span><span class="to">ИИ объясняет слово в <i>вашем</i> предложении</span><span class="chk">✓</span></div>
+      <div class="fix" style="opacity:0"><span class="from">Мотивация гаснет через неделю</span><span class="arr">→</span><span class="to">Задания, ранги, дуэли и путешествие по Китаю</span><span class="chk">✓</span></div>
+    </div>
+  </section>
+
+  <!-- 8 · CTA -->
+  <section class="scene" id="s8">
+    <img src="../assets/assets/mascot/mascot.png" alt="Sinoma mascot" style="opacity:0">
+    <h1 style="opacity:0">Настоящий китайский. Настоящий прогресс.</h1>
+    <p class="sub" style="opacity:0">Начать бесплатно · 5 ИИ-кредитов в день · Тест на уровень HSK 1–6 включён</p>
+    <div class="url" style="opacity:0">sinoma-two.vercel.app</div>
+  </section>
+
+  <div id="ctrl">
+    <button id="prev">⏮</button>
+    <button id="pp">⏸</button>
+    <button id="next">⏭</button>
+    <div id="dots"></div>
+  </div>
+
+  <div id="overlay">
+    <div class="play">▶</div>
+    <div class="big">Sinoma — Промо-видео продукта, 75 секунд</div>
+    <div class="hint">Нажмите для воспроизведения · Пробел = пауза · ←/→ = сцены · Запишите экран, чтобы экспортировать в видео</div>
+  </div>
+</div>
+
+<script>
+const SCENES = [
+  {id:'s1', dur:11},
+  {id:'s2', dur:6},
+  {id:'s3', dur:13},
+  {id:'s4', dur:11},
+  {id:'s5', dur:12},
+  {id:'s6', dur:8},
+  {id:'s7', dur:9},
+  {id:'s8', dur:7},
+];
+const TOTAL = SCENES.reduce((a,s)=>a+s.dur,0);
+const starts = SCENES.map((s,i)=>SCENES.slice(0,i).reduce((a,x)=>a+x.dur,0));
+
+const bar = document.getElementById('bar');
+const dots = document.getElementById('dots');
+SCENES.forEach((s,i)=>{
+  const d=document.createElement('i');
+  d.onclick=()=>seek(i);
+  dots.appendChild(d);
+});
+
+let elapsed=0, playing=false, cur=-1, last=null;
+
+function setScene(i, restart){
+  if(i===cur && !restart) return;
+  document.querySelectorAll('.scene').forEach(el=>el.classList.remove('active'));
+  cur=i;
+  const el=document.getElementById(SCENES[i].id);
+  void el.offsetWidth;            // reflow so CSS animations restart
+  el.classList.add('active');
+  [...dots.children].forEach((d,k)=>d.classList.toggle('on',k===i));
+}
+
+function seek(i){
+  elapsed=starts[i];
+  setScene(i,true);
+}
+
+function tick(now){
+  if(playing){
+    if(last!==null) elapsed += (now-last)/1000;
+    last=now;
+    if(elapsed>=TOTAL){ elapsed=TOTAL; pause(); }
+    let i=SCENES.length-1;
+    for(let k=0;k<SCENES.length;k++){ if(elapsed < starts[k]+SCENES[k].dur){ i=k; break; } }
+    setScene(i,false);
+    bar.style.width=(elapsed/TOTAL*100)+'%';
+  } else { last=now; }
+  requestAnimationFrame(tick);
+}
+
+function play(){ playing=true; document.body.classList.remove('paused'); pp.textContent='⏸'; }
+function pause(){ playing=false; document.body.classList.add('paused'); pp.textContent='▶'; }
+
+const pp=document.getElementById('pp');
+pp.onclick=()=>playing?pause():play();
+document.getElementById('next').onclick=()=>seek(Math.min(cur+1,SCENES.length-1));
+document.getElementById('prev').onclick=()=>seek(Math.max(cur-1,0));
+
+document.getElementById('overlay').onclick=function(){
+  this.style.display='none';
+  seek(0); play();
+};
+
+// Autoplay: the promo is a silent CSS animation (no audio track), so the
+// browser autoplay policy doesn't apply — start as soon as the page loads.
+document.getElementById('overlay').style.display='none';
+seek(0); play();
+
+document.addEventListener('keydown',e=>{
+  if(e.code==='Space'){ e.preventDefault(); pp.onclick(); }
+  if(e.code==='ArrowRight') seek(Math.min(cur+1,SCENES.length-1));
+  if(e.code==='ArrowLeft') seek(Math.max(cur-1,0));
+  if(e.code==='KeyR'){ seek(0); play(); }
+});
+
+// Scale the fixed 1280x720 canvas to whatever box hosts the iframe.
+const stage=document.getElementById('stage');
+function fit(){
+  const s=Math.min(innerWidth/1280, innerHeight/720);
+  stage.style.transform=`translate(-50%,-50%) scale(${s})`;
+}
+addEventListener('resize',fit);
+fit();
+
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

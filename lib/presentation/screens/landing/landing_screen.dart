@@ -35,7 +35,8 @@ class LandingScreen extends ConsumerWidget {
     final wide = width >= 900;
 
     String t(String trText, String enText, String koText,
-            [String? jaText, String? idText, String? viText, String? thText]) =>
+            [String? jaText, String? idText, String? viText, String? thText,
+            String? ruText]) =>
         tr
             ? trText
             : (lang == 'ko'
@@ -46,7 +47,9 @@ class LandingScreen extends ConsumerWidget {
                         ? (idText ?? enText)
                         : (lang == 'vi'
                             ? (viText ?? enText)
-                            : (lang == 'th' ? (thText ?? enText) : enText)))));
+                            : (lang == 'th'
+                                ? (thText ?? enText)
+                                : (lang == 'ru' ? (ruText ?? enText) : enText))))));
 
     return Scaffold(
       body: Container(
@@ -114,7 +117,7 @@ class LandingScreen extends ConsumerWidget {
 // ── Top bar ───────────────────────────────────────────────────────────────────
 
 class _TopBar extends ConsumerWidget {
-  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th]) t;
+  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th, String? ru]) t;
   final bool signedIn;
   final void Function(String code) onSetLang;
   const _TopBar(
@@ -140,7 +143,7 @@ class _TopBar extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(t('Uygulamaya Git', 'Enter app', '앱으로 이동', 'アプリへ', 'Buka aplikasi', 'Vào ứng dụng', 'เข้าแอป'),
+              child: Text(t('Uygulamaya Git', 'Enter app', '앱으로 이동', 'アプリへ', 'Buka aplikasi', 'Vào ứng dụng', 'เข้าแอป', 'Войти в приложение'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             )
           else ...[
@@ -155,7 +158,7 @@ class _TopBar extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(t('Giriş Yap', 'Log in', '로그인', 'ログイン', 'Masuk', 'Đăng nhập', 'เข้าสู่ระบบ'),
+              child: Text(t('Giriş Yap', 'Log in', '로그인', 'ログイン', 'Masuk', 'Đăng nhập', 'เข้าสู่ระบบ', 'Войти'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
             const SizedBox(width: 10),
@@ -168,7 +171,7 @@ class _TopBar extends ConsumerWidget {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10)),
               ),
-              child: Text(t('Kayıt Ol', 'Sign up', '회원가입', '新規登録', 'Daftar', 'Đăng ký', 'สมัครสมาชิก'),
+              child: Text(t('Kayıt Ol', 'Sign up', '회원가입', '新規登録', 'Daftar', 'Đăng ký', 'สมัครสมาชิก', 'Зарегистрироваться'),
                   style: const TextStyle(fontWeight: FontWeight.w600)),
             ),
           ],
@@ -228,6 +231,7 @@ const List<(String code, String label, String flag)> _kLangChoices = [
   ('id', 'Bahasa Indonesia', '🇮🇩'),
   ('vi', 'Tiếng Việt', '🇻🇳'),
   ('th', 'ภาษาไทย', '🇹🇭'),
+  ('ru', 'Русский', '🇷🇺'),
 ];
 
 // Five rows visible; the rest scroll. 44px per item + 16px menu padding.
@@ -306,7 +310,7 @@ class _LangToggle extends ConsumerWidget {
 // ── Hero ──────────────────────────────────────────────────────────────────────
 
 class _Hero extends ConsumerWidget {
-  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th]) t;
+  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th, String? ru]) t;
   final bool signedIn;
   const _Hero({required this.t, required this.signedIn});
 
@@ -324,7 +328,7 @@ class _Hero extends ConsumerWidget {
           ),
           child: Text(
               t('🎬 Video ile Mandarin', '🎬 Mandarin through video',
-                  '🎬 영상으로 배우는 중국어', '🎬 動画で学ぶ中国語', '🎬 Mandarin lewat video', '🎬 Học tiếng Trung qua video', '🎬 เรียนภาษาจีนผ่านวิดีโอ'),
+                  '🎬 영상으로 배우는 중국어', '🎬 動画で学ぶ中国語', '🎬 Mandarin lewat video', '🎬 Học tiếng Trung qua video', '🎬 เรียนภาษาจีนผ่านวิดีโอ', '🎬 Китайский через видео'),
               style: const TextStyle(
                   color: _lpGreen,
                   fontSize: 13,
@@ -334,7 +338,7 @@ class _Hero extends ConsumerWidget {
         Text(
           t('Gerçek videolarla Mandarin öğren',
               'Learn Mandarin with real videos',
-              '진짜 영상으로 중국어를 배우세요', '本物の動画で中国語を学ぼう', 'Belajar Mandarin dengan video nyata', 'Học tiếng Trung bằng video thật', 'เรียนภาษาจีนด้วยวิดีโอจริง'),
+              '진짜 영상으로 중국어를 배우세요', '本物の動画で中国語を学ぼう', 'Belajar Mandarin dengan video nyata', 'Học tiếng Trung bằng video thật', 'เรียนภาษาจีนด้วยวิดีโอจริง', 'Учите китайский по настоящим видео'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.onSurface,
@@ -362,6 +366,8 @@ class _Hero extends ConsumerWidget {
                   'Với hội thoại thật, phụ đề tự động và cấp độ HSK 1-6.',
               'ดูคลิป เลือกประโยคที่ได้ยิน แล้วเรียนรู้ทันที '
                   'พร้อมบทสนทนาจริง คำบรรยายอัตโนมัติ และระดับ HSK 1-6',
+              'Смотрите, выбирайте услышанное предложение и учитесь сразу. '
+                  'Настоящие диалоги, автосубтитры и уровни HSK 1-6.',
             ),
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -385,8 +391,8 @@ class _Hero extends ConsumerWidget {
                   signedIn ? Icons.arrow_forward_rounded : Icons.rocket_launch,
                   size: 18),
               label: Text(signedIn
-                  ? t('Uygulamaya Devam Et', 'Continue to app', '앱으로 이동', 'アプリへ進む', 'Lanjut ke aplikasi', 'Tiếp tục vào ứng dụng', 'ไปยังแอปต่อ')
-                  : t('Ücretsiz Başla', 'Start free', '무료로 시작하기', '無料で始める', 'Mulai gratis', 'Bắt đầu miễn phí', 'เริ่มฟรี')),
+                  ? t('Uygulamaya Devam Et', 'Continue to app', '앱으로 이동', 'アプリへ進む', 'Lanjut ke aplikasi', 'Tiếp tục vào ứng dụng', 'ไปยังแอปต่อ', 'Перейти в приложение')
+                  : t('Ücretsiz Başla', 'Start free', '무료로 시작하기', '無料で始める', 'Mulai gratis', 'Bắt đầu miễn phí', 'เริ่มฟรี', 'Начать бесплатно')),
               style: FilledButton.styleFrom(
                 backgroundColor: _lpGreen,
                 padding:
@@ -402,7 +408,7 @@ class _Hero extends ConsumerWidget {
                 onPressed: () => context.go('/learn'),
                 icon: const Icon(Icons.play_arrow_rounded, size: 20),
                 label: Text(
-                    t('Videolara Göz At', 'Browse videos', '영상 둘러보기', '動画を見てみる', 'Lihat video', 'Xem video', 'ดูวิดีโอ')),
+                    t('Videolara Göz At', 'Browse videos', '영상 둘러보기', '動画を見てみる', 'Lihat video', 'Xem video', 'ดูวิดีโอ', 'Смотреть видео')),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: AppColors.onSurface,
                   side: BorderSide(
@@ -506,7 +512,7 @@ class _PromoPoster extends StatelessWidget {
 // ── Feature cards ─────────────────────────────────────────────────────────────
 
 class _Features extends StatelessWidget {
-  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th]) t;
+  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th, String? ru]) t;
   const _Features({required this.t});
 
   @override
@@ -514,47 +520,51 @@ class _Features extends StatelessWidget {
     final items = [
       (
         Icons.movie_filter_outlined,
-        t('Gerçek videolar', 'Authentic videos', '실제 영상', '本物の動画', 'Video asli', 'Video thật', 'วิดีโอจริง'),
+        t('Gerçek videolar', 'Authentic videos', '실제 영상', '本物の動画', 'Video asli', 'Video thật', 'วิดีโอจริง', 'Настоящие видео'),
         t('Ezber değil; gerçek diyalog ve içeriklerle öğren.',
             'No rote drills — learn from real dialogue and content.',
             '암기식 훈련이 아닌, 실제 대화와 콘텐츠로 배워요.',
             '丸暗記ではなく、本物の会話とコンテンツで学べます。',
             'Bukan hafalan — belajar dari dialog dan konten nyata.',
             'Không học vẹt — học từ hội thoại và nội dung thật.',
-            'ไม่ใช่การท่องจำ — เรียนจากบทสนทนาและเนื้อหาจริง'),
+            'ไม่ใช่การท่องจำ — เรียนจากบทสนทนาและเนื้อหาจริง',
+            'Никакой зубрёжки — учитесь по живым диалогам и контенту.'),
       ),
       (
         Icons.hearing_outlined,
-        t('Duy & Seç', 'Listen & choose', '듣고 고르기', '聞いて選ぶ', 'Dengar & pilih', 'Nghe & chọn', 'ฟัง & เลือก'),
+        t('Duy & Seç', 'Listen & choose', '듣고 고르기', '聞いて選ぶ', 'Dengar & pilih', 'Nghe & chọn', 'ฟัง & เลือก', 'Слушай и выбирай'),
         t('Klibi dinle, doğru cümleyi seç. Aktif dinleme.',
             'Hear the clip, pick the right sentence. Active listening.',
             '클립을 듣고 맞는 문장을 고르세요. 능동적인 듣기 연습이에요.',
             'クリップを聞いて正しい文を選ぶ。能動的なリスニングです。',
             'Dengar klipnya, pilih kalimat yang tepat. Menyimak aktif.',
             'Nghe clip, chọn câu đúng. Luyện nghe chủ động.',
-            'ฟังคลิป เลือกประโยคที่ถูกต้อง ฝึกการฟังเชิงรุก'),
+            'ฟังคลิป เลือกประโยคที่ถูกต้อง ฝึกการฟังเชิงรุก',
+            'Слушайте клип, выбирайте верное предложение. Активное аудирование.'),
       ),
       (
         Icons.school_outlined,
-        t('HSK 1-6 seviyeleri', 'HSK 1-6 levels', 'HSK 1-6 레벨', 'HSK1〜6レベル', 'Level HSK 1-6', 'Cấp độ HSK 1-6', 'ระดับ HSK 1-6'),
+        t('HSK 1-6 seviyeleri', 'HSK 1-6 levels', 'HSK 1-6 레벨', 'HSK1〜6レベル', 'Level HSK 1-6', 'Cấp độ HSK 1-6', 'ระดับ HSK 1-6', 'Уровни HSK 1-6'),
         t('Seviyene göre filtrele, adım adım ilerle.',
             'Filter by your level and progress step by step.',
             '내 레벨에 맞게 골라서 차근차근 나아가요.',
             '自分のレベルで絞り込み、一歩ずつ進めます。',
             'Saring sesuai levelmu, maju selangkah demi selangkah.',
             'Lọc theo cấp độ của bạn, tiến từng bước một.',
-            'กรองตามระดับของคุณ แล้วก้าวหน้าทีละขั้น'),
+            'กรองตามระดับของคุณ แล้วก้าวหน้าทีละขั้น',
+            'Фильтруйте по своему уровню и продвигайтесь шаг за шагом.'),
       ),
       (
         Icons.translate_outlined,
-        t('Kelime sözlüğü', 'Word dictionary', '단어 사전', '単語辞書', 'Kamus kata', 'Từ điển từ', 'พจนานุกรมคำศัพท์'),
+        t('Kelime sözlüğü', 'Word dictionary', '단어 사전', '単語辞書', 'Kamus kata', 'Từ điển từ', 'พจนานุกรมคำศัพท์', 'Словарь слов'),
         t('Her kelimeye dokun; anlam ve pinyin anında.',
             'Tap any word for meaning and pinyin instantly.',
             '아무 단어나 탭하면 뜻과 병음이 바로 나와요.',
             'どの単語もタップで意味とピンインがすぐに表示。',
             'Ketuk kata mana pun; arti dan pinyin langsung muncul.',
             'Chạm vào từ bất kỳ; nghĩa và pinyin hiện ra ngay.',
-            'แตะคำใดก็ได้ ดูความหมายและพินอินทันที'),
+            'แตะคำใดก็ได้ ดูความหมายและพินอินทันที',
+            'Коснитесь любого слова — значение и пиньинь сразу.'),
       ),
     ];
 
@@ -601,24 +611,24 @@ class _Features extends StatelessWidget {
 // ── How it works ──────────────────────────────────────────────────────────────
 
 class _HowItWorks extends StatelessWidget {
-  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th]) t;
+  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th, String? ru]) t;
   const _HowItWorks({required this.t});
 
   @override
   Widget build(BuildContext context) {
     final steps = [
-      ('1', t('İzle', 'Watch', '보기', '見る', 'Tonton', 'Xem', 'ดู'),
-          t('Kısa bir klip oynat.', 'Play a short clip.', '짧은 클립을 재생해요.', '短いクリップを再生します。', 'Putar klip pendek.', 'Phát một clip ngắn.', 'เล่นคลิปสั้น ๆ')),
-      ('2', t('Seç', 'Choose', '고르기', '選ぶ', 'Pilih', 'Chọn', 'เลือก'),
+      ('1', t('İzle', 'Watch', '보기', '見る', 'Tonton', 'Xem', 'ดู', 'Смотри'),
+          t('Kısa bir klip oynat.', 'Play a short clip.', '짧은 클립을 재생해요.', '短いクリップを再生します。', 'Putar klip pendek.', 'Phát một clip ngắn.', 'เล่นคลิปสั้น ๆ', 'Включи короткий клип.')),
+      ('2', t('Seç', 'Choose', '고르기', '選ぶ', 'Pilih', 'Chọn', 'เลือก', 'Выбирай'),
           t('Duyduğun cümleyi seç.', 'Pick the sentence you heard.',
-              '들은 문장을 골라요.', '聞こえた文を選びます。', 'Pilih kalimat yang kamu dengar.', 'Chọn câu bạn nghe được.', 'เลือกประโยคที่ได้ยิน')),
-      ('3', t('Öğren', 'Learn', '배우기', '学ぶ', 'Belajar', 'Học', 'เรียน'),
+              '들은 문장을 골라요.', '聞こえた文を選びます。', 'Pilih kalimat yang kamu dengar.', 'Chọn câu bạn nghe được.', 'เลือกประโยคที่ได้ยิน', 'Выбери услышанное предложение.')),
+      ('3', t('Öğren', 'Learn', '배우기', '学ぶ', 'Belajar', 'Học', 'เรียน', 'Учись'),
           t('Puan kazan, kelimeleri kaydet.', 'Earn points, save words.',
-              '점수를 얻고 단어를 저장해요.', 'ポイントを獲得し、単語を保存します。', 'Dapatkan poin, simpan kata.', 'Nhận điểm, lưu từ vựng.', 'รับคะแนน บันทึกคำศัพท์')),
+              '점수를 얻고 단어를 저장해요.', 'ポイントを獲得し、単語を保存します。', 'Dapatkan poin, simpan kata.', 'Nhận điểm, lưu từ vựng.', 'รับคะแนน บันทึกคำศัพท์', 'Зарабатывай очки, сохраняй слова.')),
     ];
     return Column(
       children: [
-        Text(t('Nasıl çalışır?', 'How it works', '어떻게 진행되나요?', '使い方', 'Cara kerjanya', 'Cách hoạt động', 'วิธีการทำงาน'),
+        Text(t('Nasıl çalışır?', 'How it works', '어떻게 진행되나요?', '使い方', 'Cara kerjanya', 'Cách hoạt động', 'วิธีการทำงาน', 'Как это работает'),
             style: TextStyle(
                 color: AppColors.text,
                 fontSize: 26,
@@ -672,7 +682,7 @@ class _HowItWorks extends StatelessWidget {
 // ── Footer ────────────────────────────────────────────────────────────────────
 
 class _Footer extends StatelessWidget {
-  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th]) t;
+  final String Function(String tr, String en, String ko, [String? ja, String? id, String? vi, String? th, String? ru]) t;
   const _Footer({required this.t});
 
   @override
@@ -695,13 +705,13 @@ class _Footer extends StatelessWidget {
             spacing: 20,
             children: [
               _FooterLink(
-                  label: t('Gizlilik', 'Privacy', '개인정보처리방침', 'プライバシー', 'Privasi', 'Quyền riêng tư', 'ความเป็นส่วนตัว'),
+                  label: t('Gizlilik', 'Privacy', '개인정보처리방침', 'プライバシー', 'Privasi', 'Quyền riêng tư', 'ความเป็นส่วนตัว', 'Конфиденциальность'),
                   onTap: () => context.go('/legal/privacy')),
               _FooterLink(
-                  label: t('Şartlar', 'Terms', '이용약관', '利用規約', 'Ketentuan', 'Điều khoản', 'ข้อกำหนด'),
+                  label: t('Şartlar', 'Terms', '이용약관', '利用規約', 'Ketentuan', 'Điều khoản', 'ข้อกำหนด', 'Условия'),
                   onTap: () => context.go('/legal/terms')),
               _FooterLink(
-                  label: t('Giriş Yap', 'Log in', '로그인', 'ログイン', 'Masuk', 'Đăng nhập', 'เข้าสู่ระบบ'),
+                  label: t('Giriş Yap', 'Log in', '로그인', 'ログイン', 'Masuk', 'Đăng nhập', 'เข้าสู่ระบบ', 'Войти'),
                   onTap: () => showAuthDialog(context)),
             ],
           ),

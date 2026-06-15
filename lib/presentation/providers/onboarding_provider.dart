@@ -22,6 +22,7 @@ class PlacementQuestion {
   final List<String> choicesId;
   final List<String> choicesVi;
   final List<String> choicesTh;
+  final List<String> choicesRu;
   final int correctIndex;
   final int hskLevel;
 
@@ -34,6 +35,7 @@ class PlacementQuestion {
     this.choicesId = const [],
     this.choicesVi = const [],
     this.choicesTh = const [],
+    this.choicesRu = const [],
     required this.correctIndex,
     required this.hskLevel,
   });
@@ -46,6 +48,7 @@ class PlacementQuestion {
         'id' when choicesId.length == choices.length => choicesId,
         'vi' when choicesVi.length == choices.length => choicesVi,
         'th' when choicesTh.length == choices.length => choicesTh,
+        'ru' when choicesRu.length == choices.length => choicesRu,
         _ => choices,
       };
 }
@@ -60,6 +63,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Halo', 'Selamat tinggal', 'Terima kasih', 'Maaf'],
       choicesVi: ['Xin chào', 'Tạm biệt', 'Cảm ơn', 'Xin lỗi'],
       choicesTh: ['สวัสดี', 'ลาก่อน', 'ขอบคุณ', 'ขอโทษ'],
+      choicesRu: ['Привет', 'Пока', 'Спасибо', 'Извините'],
       correctIndex: 0, hskLevel: 1),
   PlacementQuestion(text: '水',
       choices: ['Fire', 'Earth', 'Water', 'Wind'],
@@ -69,6 +73,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Api', 'Tanah', 'Air', 'Angin'],
       choicesVi: ['Lửa', 'Đất', 'Nước', 'Gió'],
       choicesTh: ['ไฟ', 'ดิน', 'น้ำ', 'ลม'],
+      choicesRu: ['Огонь', 'Земля', 'Вода', 'Ветер'],
       correctIndex: 2, hskLevel: 1),
   PlacementQuestion(text: '今天',
       choices: ['Yesterday', 'Tomorrow', 'Now', 'Today'],
@@ -78,6 +83,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Kemarin', 'Besok', 'Sekarang', 'Hari ini'],
       choicesVi: ['Hôm qua', 'Ngày mai', 'Bây giờ', 'Hôm nay'],
       choicesTh: ['เมื่อวาน', 'พรุ่งนี้', 'ตอนนี้', 'วันนี้'],
+      choicesRu: ['Вчера', 'Завтра', 'Сейчас', 'Сегодня'],
       correctIndex: 3, hskLevel: 1),
   PlacementQuestion(text: '我',
       choices: ['He', 'She', 'They', 'I / Me'],
@@ -87,6 +93,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Dia (lk)', 'Dia (pr)', 'Mereka', 'Saya'],
       choicesVi: ['Anh ấy', 'Cô ấy', 'Họ', 'Tôi'],
       choicesTh: ['เขา (ชาย)', 'เธอ (หญิง)', 'พวกเขา', 'ฉัน'],
+      choicesRu: ['Он', 'Она', 'Они', 'Я'],
       correctIndex: 3, hskLevel: 1),
   // HSK 2
   PlacementQuestion(text: '高兴',
@@ -97,6 +104,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Sedih', 'Senang', 'Lelah', 'Marah'],
       choicesVi: ['Buồn', 'Vui', 'Mệt', 'Giận'],
       choicesTh: ['เศร้า', 'มีความสุข', 'เหนื่อย', 'โกรธ'],
+      choicesRu: ['Грустный', 'Счастливый', 'Усталый', 'Сердитый'],
       correctIndex: 1, hskLevel: 2),
   PlacementQuestion(text: '明白',
       choices: ['Forget', 'Explain', 'Understand', 'Remember'],
@@ -106,6 +114,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Lupa', 'Menjelaskan', 'Mengerti', 'Mengingat'],
       choicesVi: ['Quên', 'Giải thích', 'Hiểu', 'Nhớ'],
       choicesTh: ['ลืม', 'อธิบาย', 'เข้าใจ', 'จำ'],
+      choicesRu: ['Забыть', 'Объяснить', 'Понимать', 'Помнить'],
       correctIndex: 2, hskLevel: 2),
   PlacementQuestion(text: '已经',
       choices: ['Still', 'Never', 'Often', 'Already'],
@@ -115,6 +124,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Masih', 'Tidak pernah', 'Sering', 'Sudah'],
       choicesVi: ['Vẫn còn', 'Không bao giờ', 'Thường xuyên', 'Đã rồi'],
       choicesTh: ['ยัง', 'ไม่เคย', 'บ่อย ๆ', 'แล้ว'],
+      choicesRu: ['Ещё нет', 'Никогда', 'Часто', 'Уже'],
       correctIndex: 3, hskLevel: 2),
   // HSK 3
   PlacementQuestion(text: '环境',
@@ -125,6 +135,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Cuaca', 'Lingkungan', 'Masyarakat', 'Antariksa'],
       choicesVi: ['Thời tiết', 'Môi trường', 'Xã hội', 'Vũ trụ'],
       choicesTh: ['อากาศ', 'สิ่งแวดล้อม', 'สังคม', 'อวกาศ'],
+      choicesRu: ['Погода', 'Окружающая среда', 'Общество', 'Космос'],
       correctIndex: 1, hskLevel: 3),
   PlacementQuestion(text: '参加',
       choices: ['Leave', 'Refuse', 'Arrive', 'Participate'],
@@ -134,6 +145,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Pergi', 'Menolak', 'Tiba', 'Ikut serta'],
       choicesVi: ['Rời đi', 'Từ chối', 'Đến nơi', 'Tham gia'],
       choicesTh: ['จากไป', 'ปฏิเสธ', 'มาถึง', 'เข้าร่วม'],
+      choicesRu: ['Уходить', 'Отказываться', 'Прибывать', 'Участвовать'],
       correctIndex: 3, hskLevel: 3),
   PlacementQuestion(text: '变化',
       choices: ['Repeat', 'Progress', 'Change', 'Difference'],
@@ -143,6 +155,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Pengulangan', 'Kemajuan', 'Perubahan', 'Perbedaan'],
       choicesVi: ['Lặp lại', 'Tiến bộ', 'Thay đổi', 'Khác biệt'],
       choicesTh: ['การทำซ้ำ', 'ความก้าวหน้า', 'การเปลี่ยนแปลง', 'ความแตกต่าง'],
+      choicesRu: ['Повторение', 'Прогресс', 'Изменение', 'Различие'],
       correctIndex: 2, hskLevel: 3),
   // HSK 4
   PlacementQuestion(text: '批评',
@@ -153,6 +166,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Memuji', 'Mengkritik', 'Belajar', 'Menerima'],
       choicesVi: ['Khen ngợi', 'Phê bình', 'Học tập', 'Chấp nhận'],
       choicesTh: ['ชมเชย', 'วิจารณ์', 'เรียน', 'ยอมรับ'],
+      choicesRu: ['Хвалить', 'Критиковать', 'Учиться', 'Принимать'],
       correctIndex: 1, hskLevel: 4),
   PlacementQuestion(text: '不得不',
       choices: ['Want to', 'Prefer to', 'Have no choice but to', 'Refuse to'],
@@ -162,6 +176,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Ingin', 'Lebih suka', 'Terpaksa', 'Menolak'],
       choicesVi: ['Muốn', 'Thích hơn', 'Buộc phải', 'Từ chối'],
       choicesTh: ['อยาก', 'ชอบมากกว่า', 'จำใจต้อง', 'ปฏิเสธ'],
+      choicesRu: ['Хотеть', 'Предпочитать', 'Быть вынужденным', 'Отказываться'],
       correctIndex: 2, hskLevel: 4),
   PlacementQuestion(text: '尽管',
       choices: ['Because', 'Unless', 'Despite', 'Without'],
@@ -171,6 +186,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Karena', 'Kecuali', 'Meskipun', 'Tanpa'],
       choicesVi: ['Bởi vì', 'Trừ khi', 'Mặc dù', 'Không có'],
       choicesTh: ['เพราะว่า', 'เว้นแต่', 'ถึงแม้ว่า', 'โดยไม่มี'],
+      choicesRu: ['Потому что', 'Если не', 'Несмотря на', 'Без'],
       correctIndex: 2, hskLevel: 4),
   // HSK 5
   PlacementQuestion(text: '辩论',
@@ -181,6 +197,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Setuju', 'Memastikan', 'Memberi kuliah', 'Berdebat'],
       choicesVi: ['Đồng ý', 'Xác nhận', 'Giảng bài', 'Tranh luận'],
       choicesTh: ['เห็นด้วย', 'ยืนยัน', 'บรรยาย', 'โต้วาที'],
+      choicesRu: ['Соглашаться', 'Подтверждать', 'Читать лекцию', 'Спорить'],
       correctIndex: 3, hskLevel: 5),
   PlacementQuestion(text: '顽固',
       choices: ['Gentle', 'Cautious', 'Brave', 'Stubborn'],
@@ -190,6 +207,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Lembut', 'Hati-hati', 'Berani', 'Keras kepala'],
       choicesVi: ['Hiền hòa', 'Thận trọng', 'Dũng cảm', 'Bướng bỉnh'],
       choicesTh: ['อ่อนโยน', 'ระมัดระวัง', 'กล้าหาญ', 'ดื้อรั้น'],
+      choicesRu: ['Мягкий', 'Осторожный', 'Смелый', 'Упрямый'],
       correctIndex: 3, hskLevel: 5),
   PlacementQuestion(text: '迫不及待',
       choices: ['Reluctant', 'Eager / Can\'t wait', 'Hesitant', 'Indifferent'],
@@ -199,6 +217,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Enggan', 'Tak sabar', 'Ragu-ragu', 'Acuh tak acuh'],
       choicesVi: ['Miễn cưỡng', 'Nóng lòng', 'Do dự', 'Thờ ơ'],
       choicesTh: ['ไม่เต็มใจ', 'รอแทบไม่ไหว', 'ลังเล', 'เฉยเมย'],
+      choicesRu: ['Неохотный', 'Сгорать от нетерпения', 'Колеблющийся', 'Равнодушный'],
       correctIndex: 1, hskLevel: 5),
   PlacementQuestion(text: '模糊',
       choices: ['Clear', 'Accurate', 'Vague', 'Specific'],
@@ -208,6 +227,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Jelas', 'Akurat', 'Samar', 'Spesifik'],
       choicesVi: ['Rõ ràng', 'Chính xác', 'Mơ hồ', 'Cụ thể'],
       choicesTh: ['ชัดเจน', 'แม่นยำ', 'คลุมเครือ', 'เฉพาะเจาะจง'],
+      choicesRu: ['Чёткий', 'Точный', 'Расплывчатый', 'Конкретный'],
       correctIndex: 2, hskLevel: 5),
   // HSK 6
   PlacementQuestion(text: '冠冕堂皇',
@@ -218,6 +238,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Rendah hati', 'Tulus', 'Megah di luarnya saja', 'Pandai bicara'],
       choicesVi: ['Khiêm tốn', 'Chân thành', 'Hào nhoáng bề ngoài', 'Khéo ăn nói'],
       choicesTh: ['ถ่อมตัว', 'จริงใจ', 'ดีแต่เปลือกนอก', 'พูดเก่ง'],
+      choicesRu: ['Скромный', 'Искренний', 'Напыщенный', 'Красноречивый'],
       correctIndex: 2, hskLevel: 6),
   PlacementQuestion(text: '出乎意料',
       choices: ['As planned', 'Disappointing', 'Intentional', 'Unexpected'],
@@ -227,6 +248,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Sesuai rencana', 'Mengecewakan', 'Disengaja', 'Tak terduga'],
       choicesVi: ['Đúng kế hoạch', 'Đáng thất vọng', 'Cố ý', 'Bất ngờ'],
       choicesTh: ['ตามแผน', 'น่าผิดหวัง', 'ตั้งใจ', 'ไม่คาดคิด'],
+      choicesRu: ['Как запланировано', 'Разочаровывающий', 'Намеренный', 'Неожиданный'],
       correctIndex: 3, hskLevel: 6),
   PlacementQuestion(text: '望而生畏',
       choices: ['Feel inspired', 'Feel attracted', 'Feel bored', 'Feel intimidated'],
@@ -236,6 +258,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesId: ['Terinspirasi', 'Tertarik', 'Merasa bosan', 'Merasa gentar saat melihatnya'],
       choicesVi: ['Được truyền cảm hứng', 'Bị thu hút', 'Thấy chán', 'Thấy e sợ khi nhìn'],
       choicesTh: ['ได้รับแรงบันดาลใจ', 'รู้สึกถูกดึงดูด', 'รู้สึกเบื่อ', 'รู้สึกหวั่นเกรง'],
+      choicesRu: ['Вдохновлённый', 'Привлечённый', 'Скучающий', 'Оробевший'],
       correctIndex: 3, hskLevel: 6),
 ];
 

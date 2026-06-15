@@ -45,6 +45,7 @@ const LANG_NAMES: Record<string, string> = {
   id: "Indonesian",
   vi: "Vietnamese",
   th: "Thai",
+  ru: "Russian",
 };
 
 // Faithful translation of a Chinese sentence — or, for a single word, a
@@ -127,7 +128,10 @@ serve(async (req) => {
         `Vietnamese with full diacritics/tone marks as a standard Vietnamese ` +
         `dictionary would print; Thai in standard Thai script (อักษรไทย), natural ` +
         `wording a published Thai dictionary (ราชบัณฑิตยสภา) would use, no ` +
-        `transliteration). Return ONLY JSON: {${langKeys}}`
+        `transliteration; Russian in Cyrillic citation form — nouns in nominative ` +
+        `singular, verbs as the infinitive, adjectives in masculine nominative ` +
+        `singular, as a published Russian dictionary would print). ` +
+        `Return ONLY JSON: {${langKeys}}`
       : `You are a professional translator. Translate this Chinese sentence ` +
         `faithfully and naturally into each requested language (no pinyin, ` +
         `no notes). Korean must be idiomatic 해요체; Japanese must be idiomatic ` +
@@ -135,7 +139,8 @@ serve(async (req) => {
         `baku with correct affixation; Vietnamese must be natural standard ` +
         `Vietnamese with correct diacritics/tone marks, grammatically perfect; ` +
         `Thai must be natural standard Thai in Thai script (อักษรไทย), no ` +
-        `transliteration, grammatically correct.\n` +
+        `transliteration; Russian must be natural standard Russian in Cyrillic ` +
+        `with correct case, gender, number and aspect, grammatically perfect.\n` +
         `Chinese: "${text}"\nReturn ONLY JSON: {${langKeys}}`;
 
     const reqBody = JSON.stringify({

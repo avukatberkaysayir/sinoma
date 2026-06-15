@@ -27,6 +27,10 @@ class TranslationHelper {
         return word.definitions.vi.isNotEmpty
             ? word.definitions.vi
             : word.definitions.en;
+      case 'ru':
+        return word.definitions.ru.isNotEmpty
+            ? word.definitions.ru
+            : word.definitions.en;
       case 'en':
       default:
         return word.definitions.en;

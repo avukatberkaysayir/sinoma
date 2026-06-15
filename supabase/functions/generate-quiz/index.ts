@@ -192,6 +192,8 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Connectives — reason: karena/sebab (because), gara-gara (because of, often negative), oleh karena itu/maka (therefore). Condition: kalau/jika/bila/apabila (if), seandainya/andai (if only); 'kalau … maka …' (if … then). Time: ketika/waktu/saat (when), sambil/sementara (while), setelah/sesudah (after), sebelum (before), selama (during), sejak (since).",
       "Concession/contrast: meskipun/walaupun/biarpun (although), tetapi/tapi (but), namun (however), sedangkan (whereas), 'bukan … melainkan …' / 'tidak … tetapi …' (not … but). Coordination/focus particles: dan (and), atau (or), 'baik … maupun …' (both … and), juga (also), saja (just/only), pun (even), clitics -lah (emphasis) and -kah (question).",
       "Reported speech: introduce indirect reports with bahwa (Dia berkata bahwa …); 'say' verbs = bilang (colloquial), berkata/mengatakan (formal), menurut (according to). There is NO tense backshift.",
+      "Indefinites combine a question word with -pun/saja or reduplication: apa-apa / apa pun (anything), siapa-siapa / siapa pun (anyone), di mana-mana (everywhere), ke mana-mana (anywhere); with negation = 'not anything/anyone' (tidak apa-apa = it's nothing / never mind).",
+      "Colloquial causatives bikin/buat ('make/cause') are common alongside -kan (bikin marah = make angry); colloquial registers drop meN- and use -in for -kan/-i (bikinin, beliin) — but for neutral subtitle/quiz sentences keep standard baku affixation.",
       "Produce natural, idiomatic standard Indonesian (bahasa baku) with correct affixation and prefix nasalisation — never a word-for-word calque from Chinese or English.",
     ],
   },
@@ -222,6 +224,11 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Voice with bị / được: 'bị' = adverse passive ('bị phạt' = got punished); 'được' = favourable passive / 'get to' ('được khen' = be praised) and postverbal ability ('làm được' = can do). Modals: có thể (can/may), phải (must), nên (should), cần (need).",
       "Existence/possession: 'có' = have / there is ('Tôi có sách'; 'Có người ở đây'). Connectives: vì/bởi vì (because), nên/cho nên (therefore), 'nếu … thì …' (if … then), 'tuy/mặc dù … nhưng …' (although … but), để (in order to), và (and), hoặc/hay (or), nhưng (but).",
       "Sentence-final particles set politeness/mood: ạ (polite/respectful), nhé/nha (friendly suggestion), đi (urging: 'ăn đi' = eat!), thôi, mà, đấy/đó, vậy. Match register to context; for neutral subtitle/quiz sentences keep it polite-neutral.",
+      // [P6] Finer points
+      "Topic-comment fronting is idiomatic: a topic may be set off with thì or là ('Cái này thì đắt' = 'As for this, it's expensive'; 'Tôi thì không biết'). 'mà' links a surprising/contrastive comment or a relative clause.",
+      "Result/direction complements after the verb carry aspect/outcome: được (manage to / favourable), mất (lose/cost), phải (end up with something adverse), xong (finish), ra/thấy (figure out/perceive): làm xong (finish doing), tìm được (manage to find), nhìn thấy (catch sight of).",
+      "Reduplication (từ láy) softens or intensifies and is very common: đẹp→đẹp đẽ, vui→vui vẻ, nhỏ→nho nhỏ (a bit small), đỏ→đo đỏ (reddish). Use established reduplicated forms rather than inventing them.",
+      "Numbers have special sandhi forms: 'một' after a ten becomes mốt (hai mươi mốt = 21), 'bốn' often → tư (mười tư = 14; thứ tư = fourth), 'năm' after a ten → lăm (hai mươi lăm = 25); 'mười' (10) → mươi after a multiplier (ba mươi = 30). Ordinals = thứ + number (thứ nhất, thứ hai, thứ ba).",
       "Produce natural standard Vietnamese with correct diacritics/tones, correct classifiers and head-initial word order — never a word-for-word calque from Chinese or English.",
     ],
   },
@@ -253,7 +260,43 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Modals/auxiliaries (preverbal unless noted): สามารถ…ได้ (can/be able), ต้อง (must), ควร (should), อยาก (want to), ชอบ (like to), คง/น่าจะ (probably). Existence/possession: มี = have / there is (ฉันมีหนังสือ; มีคนอยู่ที่นี่).",
       "Connectives: เพราะ/เพราะว่า (because), เลย/ดังนั้น/จึง (therefore — จึง goes before the verb), ถ้า…ก็… (if … then), แม้ว่า/ถึงแม้ว่า…แต่… (although … but), เพื่อ (in order to), และ (and), หรือ (or), แต่ (but), เวลา/ตอน (when/while).",
       "Polite particles are sentence-final and gender-based: ครับ (male speaker, polite/affirmative) and ค่ะ/คะ (female speaker — ค่ะ for statements, คะ for questions). Use them for polite register; other particles: นะ (softening), สิ (urging), หรอก, ล่ะ. For neutral quiz/subtitle sentences keep a polite-neutral tone consistently.",
+      // [P6] Finer points
+      "Serial verbs and directionals are pervasive: stack verbs in sequence (ไปซื้อ = go buy, เดินเข้าไป = walk in). Directional/result complements follow the verb: ไป (away), มา (toward speaker), ขึ้น (up), ลง (down), เข้า (in), ออก (out), ได้ (can/manage), เสร็จ (finish): ทำเสร็จ (finish doing), หาเจอ (manage to find).",
+      "ก็ resumes the topic / links 'then/also/so' (ถ้าฝนตก ฉันก็จะอยู่บ้าน = if it rains, then I'll stay home). Topic-comment fronting is idiomatic; เรื่อง…/สำหรับ… sets a topic.",
+      "อยู่ after a verb marks ongoing action (กำลัง…อยู่), while อยู่ alone = 'to be located'. ไว้ marks doing something in advance/for later (เก็บไว้ = keep it); เลย = 'right away / as a result'.",
+      "Reduplication with the ๆ mark pluralizes/intensifies or softens (เด็ก ๆ = children, ช้า ๆ = slowly, ใหญ่ ๆ = quite big); some pairs change tone for emphasis. Use established forms.",
+      "Pronouns are often dropped when clear from context, and people commonly use their own name, kinship terms (พี่ older sibling, น้อง younger, ผม/หนู) or titles instead of 'I/you' — choose by age/status/politeness rather than a fixed pronoun.",
       "Produce natural standard Thai in Thai script with correct classifiers, head-initial word order and appropriate function words — never a word-for-word calque from Chinese or English, and never romanized.",
+    ],
+  },
+  // ── Russian grammar, integrated in parts. Reference: Wade, A Comprehensive
+  // Russian Grammar (Wiley-Blackwell, 3rd ed.); modern standard Russian. ───────
+  Russian: {
+    authority: "Standard Russian orthography & usage in Cyrillic; reference: Terence Wade, A Comprehensive Russian Grammar (Wiley-Blackwell)",
+    rules: [
+      // [P1] Script, typology, gender, number
+      "Write ONLY in Cyrillic (русский алфавит) — NEVER romanization/transliteration. Use ё where it is pronounced (ёлка, всё) only when needed for clarity; otherwise standard orthography. Capitalize only the first word of a sentence and proper nouns — NOT nationalities/languages/months/days (русский, январь, понедельник are lowercase).",
+      "Russian is a fusional, heavily INFLECTED language: every noun, pronoun, adjective, numeral and past-tense verb changes its ending for grammatical role. Get the ENDINGS right — a wrong ending is a grammatical error even if the stem is correct.",
+      "Every noun has a GENDER — masculine (consonant or -й: стол, музей), feminine (-а/-я: книга, неделя), or neuter (-о/-е: окно, море); most -ь nouns are feminine (ночь) but some are masculine (день, словарь). Gender drives ALL agreement (adjectives, past-tense verbs, pronouns).",
+      "NUMBER: singular vs plural; plural nominative is typically -ы/-и (столы, книги) or -а/-я for many neuters/some masculines (окна, города). After numbers, use the special quantitative forms (see numerals).",
+      // [P2] The six cases — the core of Russian
+      "Russian has SIX CASES; choose the case by the word's role and any governing preposition/verb. NOMINATIVE = subject and predicate noun (Студент читает). ACCUSATIVE = direct object (Я читаю книгу); for masculine animate & all animate plurals, accusative = genitive (Я вижу студента/студентов). GENITIVE = possession/'of', after negation of existence (нет времени), after quantity words and 2-4/5+ numerals, after many prepositions (без, для, до, из, от, с 'from', у, около, после). DATIVE = indirect object 'to/for' (Я дал другу книгу), with к, по, and impersonal subjects (мне нравится, ему холодно, нужно/надо). INSTRUMENTAL = 'by/with' a means (писать ручкой), with с 'together with', after быть/стать in the past/future (был врачом), and prepositions с, над, под, перед, между, за. PREPOSITIONAL (locative) = ONLY after о/об (about), в/на (location 'in/at'), при (Я думаю о тебе; в Москве; на работе).",
+      "Adjectives AGREE with their noun in gender, number AND case. Hard endings: m -ый/-ой, f -ая, n -ое, pl -ые (новый дом, новая книга, новое окно, новые дома); they decline through all six cases (нового, новому, новым, о новом…). Spelling rules: after г/к/х/ж/ч/ш/щ write -ий not -ый, и not ы (русский, хорошие); after sibilants unstressed о→е (хорошее).",
+      "The past tense agrees in GENDER and NUMBER with the subject (not person): он читал, она читала, оно читало, они читали. The verb 'to be' (быть) is normally OMITTED in the present (Он студент = He is a student), but appears as был/была/было/были (past) and буду/будешь… (future).",
+      // [P3] Verb conjugation, aspect
+      "Present/future-tense verbs conjugate for PERSON and NUMBER in two patterns. 1st conjugation (-е-): я читаю, ты читаешь, он читает, мы читаем, вы читаете, они читают. 2nd conjugation (-и-): я говорю, ты говоришь, он говорит, мы говорим, вы говорите, они говорят. Watch consonant mutations (любить→люблю, видеть→вижу).",
+      "ASPECT is obligatory and central. Every action is either IMPERFECTIVE (process, repetition, general fact: читать, писать, делать) or PERFECTIVE (a single completed whole/result: прочитать, написать, сделать). Imperfective has present (читаю), past (читал) and compound future (буду читать). Perfective has NO present — its present-form endings express the FUTURE (прочитаю = I will read [and finish]); plus past (прочитал). Pick the aspect the meaning requires; do not default to one.",
+      "Negation: не before the negated word (Я не знаю; не сегодня). Genitive of negation for non-existence: нет/не было/не будет + GENITIVE (Здесь нет воды; У меня нет времени). Double negation is REQUIRED: никто не знает, ничего не вижу, никогда не был (the ни-word AND не together).",
+      // [P4] Pronouns, prepositions+case, comparison
+      "Personal pronouns decline: я/меня/мне/мной, ты/тебя/тебе/тобой, он/его/ему/им, она/её/ей, мы/нас/нам/нами, вы/вас/вам/вами, они/их/им/ими; after a preposition 3rd-person adds н- (у него, с ней, о них). Possessives мой/твой/наш/ваш agree like adjectives; его/её/их are invariable. Use вы for polite/plural 'you', ты for informal singular.",
+      "Each preposition GOVERNS a fixed case (and в/на/за/под govern accusative for motion-into, prepositional/instrumental for static location): в/на + prepositional = location (в городе), + accusative = direction (в город); у/без/для/до/от/из/с('from')/около/после + genitive; к/по + dative; с('with')/над/под/перед/между + instrumental; о/при + prepositional. Choosing the wrong case after a preposition is an error.",
+      "Comparatives: simple form usually -ее/-ей (быстрее, новее), some irregular (лучше, хуже, больше, меньше, старше, моложе); 'than' = чем + nominative OR the genitive without чем (Он старше меня = Он старше, чем я). Superlative = самый + adjective (самый большой) or -ейший/-айший.",
+      // [P5] Verbs of motion, reflexives, word order, numerals
+      "VERBS OF MOTION come in pairs: unidirectional (one trip/in progress: идти, ехать, бежать, лететь) vs multidirectional (habitual/round trips/general ability: ходить, ездить, бегать, летать). 'Go' on foot = идти/ходить, by vehicle = ехать/ездить. Prefixes add direction and perfectivize: при- (arrive), у- (leave), в-/во- (enter), вы- (exit), по- (set off).",
+      "Reflexive verbs end in -ся/-сь (учиться, находиться, нравиться, заниматься); -ся after a consonant, -сь after a vowel (я учусь, он учится). They cover true reflexive, reciprocal, passive and many intransitives. Note the dative construction нравиться: Мне нравится книга (lit. 'to me is-pleasing the book').",
+      "Word order is relatively FREE (information structure: given→new, the new/focused element tends to come last) but the неутральный default is SVO (Студент читает книгу). Because case marking shows roles, order can shift for emphasis without ambiguity; keep adjectives BEFORE their noun and keep prepositions with their governed noun.",
+      "Numerals govern case: один/одна/одно agrees like an adjective (одна книга); 2/3/4 (and compounds ending in them) take GENITIVE SINGULAR (два студента, три книги, двадцать два года); 5 and above (and 0, много, несколько) take GENITIVE PLURAL (пять студентов, много книг, шесть лет). The whole numeral phrase itself declines in oblique cases.",
+      "Produce natural standard Russian in Cyrillic with correct case, gender/number agreement, aspect and verb government — never a word-for-word calque from Chinese or English, and never romanized.",
     ],
   },
 };
@@ -328,6 +371,7 @@ function langCodeToName(code: string): string {
     : code === "id" ? "Indonesian"
     : code === "vi" ? "Vietnamese"
     : code === "th" ? "Thai"
+    : code === "ru" ? "Russian"
     : "Turkish";
 }
 
@@ -506,6 +550,7 @@ serve(async (req) => {
       : lang === "id" ? "Indonesian"
       : lang === "vi" ? "Vietnamese"
       : lang === "th" ? "Thai"
+      : lang === "ru" ? "Russian"
       : "Turkish";
 
     // Cache first — same sentence+language+English source (correct+wrong) never
