@@ -22,7 +22,7 @@ const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇷🇺', 'Русский', 'ru', true),
   ('🇮🇩', 'Bahasa', 'id', true),
   ('🇹🇭', 'ภาษาไทย', 'th', true),
-  ('🇪🇸', 'Español', 'es', false),
+  ('🇪🇸', 'Español', 'es', true),
   ('🇫🇷', 'Français', 'fr', false),
 ];
 
@@ -162,7 +162,7 @@ class _LanguageSelectionScreenState
                                     ? '次へ'
                                     : (_selected == 'id'
                                     ? 'Lanjut'
-                                    : (_selected == 'vi' ? 'Tiếp tục' : (_selected == 'th' ? 'ต่อไป' : (_selected == 'ru' ? 'Продолжить' : 'Continue')))))),
+                                    : (_selected == 'vi' ? 'Tiếp tục' : (_selected == 'th' ? 'ต่อไป' : (_selected == 'ru' ? 'Продолжить' : (_selected == 'es' ? 'Continuar' : 'Continue'))))))),
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800),
                       ),

@@ -8,7 +8,7 @@ import pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MASTER = ROOT / 'web' / 'promo' / 'sinoma_promo.html'
 
-LANGS = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru']
+LANGS = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es']
 
 # (en, tr, ko) — Japanese (JA) and Indonesian (ID) live in parallel lists below
 # (same order) so the existing en/tr/ko tuples stay byte-for-byte identical to
@@ -367,10 +367,60 @@ RU = [
 
 assert len(RU) == len(STRINGS), f'RU {len(RU)} != STRINGS {len(STRINGS)}'
 
+# Spanish translations, in the SAME order as STRINGS (one per row).
+ES = [
+    '<html lang="es">',
+    '¿Aprendiendo chino?',
+    '3000 caracteres. 4 tonos.<br>Y aun así no suena como en clase.',
+    'Memorizas palabras — y cuando un nativo abre la boca, <b class="bad">no entiendes nada</b>.',
+    '📚 Diálogos de libro de texto, aburridos',
+    '🃏 Tarjetas sin contexto',
+    '🤖 Apps que nunca te dejan oír conversación real',
+    'Aprende chino con <b class="accent">vídeos reales</b> de creadores nativos —<br>no grabaciones de libro de texto.',
+    'Input comprensible, en pequeñas dosis',
+    'Vídeos reales. Cortados en fragmentos de 5–10 segundos.<br>Luego demuestra que entendiste.',
+    '¿Qué bebida china está buena?',
+    '¿Qué bebida china NO está buena?',
+    'Subtítulos activados o no — tú decides. Baja la velocidad a 0,5×, repite y responde.<br><b class="accent">Cada clip termina con una pregunta.</b> Si fallas, pierdes una vida.',
+    'Tu tutor de IA, con un toque',
+    'Toca cualquier palabra.<br>La IA te la explica <span class="accent">dentro de esa misma frase.</span>',
+    '<div class="def">beber</div>',
+    'Aquí <b>喝</b> se combina con <b>好</b> para formar <b>好喝</b> — "rico (rico de beber)". No se habla del acto de beber, sino de <i>qué bebida está buena</i>. Compáralo con 好吃 (rico de comer) y 好看 (bonito de ver).',
+    'Explicaciones que entienden la gramática, en tu propio idioma.<br>Las respuestas se <b class="warm">guardan para siempre</b>: basta con que alguien pregunte y todos las tienen gratis.',
+    'Un juego al que de verdad quieres jugar',
+    'Tu viaje por China.<br><span class="accent">576 etapas</span>, del HSK 1 al 6.',
+    '🏮 <b>Farolillos</b>&nbsp;&&nbsp;🪙 <b>monedas</b> — gánalos y gástalos en el Mercado',
+    '⚡ <b>Misión diaria:</b>&nbsp;completa una etapa',
+    '<span>Asciende de rango junto a las leyendas de China</span>',
+    '🍵 <b>Casa de té</b> — relájate, repasa y charla',
+    'Rachas, misiones, vidas y lugares por desbloquear te hacen volver — <b class="accent">cada día</b>.',
+    'Aprended juntos, competid juntos',
+    'Reta a tus amigos. Sube en la tabla de clasificación.',
+    '10 preguntas, 10 segundos cada una, 3 vidas. Gira la ruleta de temas y compite con un amigo — o con un bot.',
+    'Arma caracteres chinos a partir de sus componentes a contrarreloj. Aprende cómo se construyen de verdad.',
+    '<h3>Clasificación</h3>',
+    'Por qué Sinoma',
+    'Creado para arreglar lo que no funciona<br>en las apps de aprender idiomas.',
+    '<span class="from">Audio de libro de texto, guionizado</span>',
+    '<span class="to">Conversaciones reales de YouTube de nativos</span>',
+    '<span class="from">Ver vídeos de forma pasiva</span>',
+    '<span class="to">Una pregunta tras cada clip</span>',
+    '<span class="from">Definiciones de diccionario sin contexto</span>',
+    '<span class="to">La IA explica la palabra en <i>tu</i> frase</span>',
+    '<span class="from">La motivación se apaga en una semana</span>',
+    '<span class="to">Misiones, rangos, duelos y un viaje por China</span>',
+    'Chino de verdad. Progreso de verdad.',
+    'Empieza gratis · 5 créditos de IA al día · Incluye prueba de nivel HSK 1-6',
+    'Sinoma — Vídeo promocional del producto de 75 segundos',
+    'Haz clic para reproducir · Espacio = pausa · ←/→ = escenas · Graba la pantalla para exportar como vídeo',
+]
+
+assert len(ES) == len(STRINGS), f'ES {len(ES)} != STRINGS {len(STRINGS)}'
+
 
 def row_for(k):
-    # en/tr/ko from STRINGS, ja/id/vi/th/ru appended from the parallel lists.
-    return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k])
+    # en/tr/ko from STRINGS, ja/id/vi/th/ru/es appended from the parallel lists.
+    return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k], ES[k])
 
 
 def main():

@@ -2162,6 +2162,19 @@ class _ToggleRow extends StatelessWidget {
   }
 }
 
+// Live UI languages for the settings picker, in launch order (flag + label).
+const List<(String code, String label, String flag)> _kSettingsLangs = [
+  ('tr', 'Türkçe', '🇹🇷'),
+  ('en', 'English', '🇬🇧'),
+  ('ko', '한국어', '🇰🇷'),
+  ('ja', '日本語', '🇯🇵'),
+  ('vi', 'Tiếng Việt', '🇻🇳'),
+  ('ru', 'Русский', '🇷🇺'),
+  ('id', 'Bahasa', '🇮🇩'),
+  ('th', 'ภาษาไทย', '🇹🇭'),
+  ('es', 'Español', '🇪🇸'),
+];
+
 class _LangRow extends StatelessWidget {
   final bool tr;
   final String lang;
@@ -2170,25 +2183,8 @@ class _LangRow extends StatelessWidget {
       {required this.tr, required this.lang, required this.onSelect});
   @override
   Widget build(BuildContext context) {
-    Widget chip(String code, String label) {
-      final on = lang == code;
-      return GestureDetector(
-        onTap: () => onSelect(code),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-          decoration: BoxDecoration(
-            color: on ? _green : _bg,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Text(label,
-              style: TextStyle(
-                  color: on ? Colors.white : AppColors.text60,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 13)),
-        ),
-      );
-    }
-
+    final current = _kSettingsLangs.firstWhere((c) => c.$1 == lang,
+        orElse: () => _kSettingsLangs[1]);
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -2202,21 +2198,57 @@ class _LangRow extends StatelessWidget {
           child: Text(AppL10n.fromCode(lang).appLanguage,
               style: TextStyle(color: AppColors.text, fontSize: 15)),
         ),
-        chip('tr', 'TR'),
-        const SizedBox(width: 8),
-        chip('en', 'EN'),
-        const SizedBox(width: 8),
-        chip('ko', '한국어'),
-        const SizedBox(width: 8),
-        chip('ja', '日本語'),
-        const SizedBox(width: 8),
-        chip('vi', 'Tiếng Việt'),
-        const SizedBox(width: 8),
-        chip('ru', 'Русский'),
-        const SizedBox(width: 8),
-        chip('id', 'Bahasa'),
-        const SizedBox(width: 8),
-        chip('th', 'ภาษาไทย'),
+        PopupMenuButton<String>(
+          tooltip: '',
+          onSelected: onSelect,
+          offset: const Offset(0, 44),
+          color: AppColors.surface,
+          // Five rows visible; the rest scroll. 44px per item + 16px padding.
+          constraints:
+              const BoxConstraints(minWidth: 180, maxWidth: 260, maxHeight: 236),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          itemBuilder: (_) => [
+            for (final c in _kSettingsLangs)
+              PopupMenuItem<String>(
+                value: c.$1,
+                height: 44,
+                child: Row(children: [
+                  Text(c.$3, style: const TextStyle(fontSize: 16)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(c.$2,
+                        style: TextStyle(
+                            color: c.$1 == lang ? _green : AppColors.onSurface,
+                            fontSize: 14,
+                            fontWeight: c.$1 == lang
+                                ? FontWeight.w700
+                                : FontWeight.w500)),
+                  ),
+                  if (c.$1 == lang)
+                    const Icon(Icons.check_rounded, size: 16, color: _green),
+                ]),
+              ),
+          ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(current.$3, style: const TextStyle(fontSize: 15)),
+              const SizedBox(width: 6),
+              Text(current.$2,
+                  style: TextStyle(
+                      color: AppColors.text,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600)),
+              Icon(Icons.arrow_drop_down_rounded,
+                  size: 20, color: AppColors.onSurfaceMuted),
+            ]),
+          ),
+        ),
       ]),
     );
   }
@@ -2913,14 +2945,14 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
 // ── Bobo hero (post-login dashboard) ──────────────────────────────────────────
 // Our mascot has a name and a voice: a day-rotating greeting / chengyu.
 
-const List<(String zh, String tr, String en, String ko, String ja, String id, String vi, String th, String ru)> _kBoboLines = [
-  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?', '오늘도 같이 공부해 볼까요?', '今日も一緒に勉強しましょうか？', 'Belajar bareng lagi hari ini, yuk?', 'Hôm nay cùng học nữa nhé?', 'วันนี้เรามาเรียนด้วยกันไหม?', 'Позанимаемся сегодня вместе?'),
-  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?', '연습이 실력을 만들어요 — 한 클립 더 어때요?', '習うより慣れろ — もう1本いかがですか？', 'Latihan membuat sempurna — satu klip lagi?', 'Có công mài sắt có ngày nên kim — thêm một clip nhé?', 'ฝึกฝนบ่อย ๆ ย่อมเชี่ยวชาญ — ดูอีกคลิปไหม?', 'Практика — путь к мастерству. Ещё один клип?'),
-  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.', '다시 만나서 반가워요! 멈췄던 곳부터 이어가요.', 'お久しぶりです！続きから始めましょう。', 'Senang bertemu lagi! Lanjut dari tempat terakhirmu.', 'Rất vui được gặp lại! Tiếp tục từ chỗ bạn dừng nhé.', 'ดีใจที่ได้เจอกันอีก! มาต่อจากที่ค้างไว้กันเถอะ', 'Рад тебя видеть! Продолжим с того места, где остановились.'),
-  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!', '낙숫물이 바위를 뚫어요. 하루 5분이면 충분해요!', '点滴石を穿つ。1日5分で十分です！', 'Sedikit demi sedikit lama-lama menjadi bukit. 5 menit sehari cukup!', 'Nước chảy đá mòn. Mỗi ngày 5 phút là đủ!', 'น้ำหยดลงหินทุกวันหินยังกร่อน วันละ 5 นาทีก็พอ!', 'Капля камень точит. Всего 5 минут в день!'),
-  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮', '스트릭을 지켜요, 제가 곁에 있을게요 🏮', '連続記録を守りましょう、私がついています 🏮', 'Jaga rentetanmu — aku di sini 🏮', 'Giữ chuỗi của bạn nhé, mình luôn ở đây 🏮', 'รักษาสถิติต่อเนื่องไว้นะ ฉันอยู่ตรงนี้ 🏮', 'Не теряй свою серию — я рядом 🏮'),
-  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧', '오늘 찻집 주문은 확인했나요? 🧧', '今日の茶館の注文は確認しましたか？ 🧧', 'Sudah cek pesanan kedai teh hari ini? 🧧', 'Đã xem đơn hàng quán trà hôm nay chưa? 🧧', 'ดูออร์เดอร์ร้านน้ำชาวันนี้หรือยัง? 🧧', 'Заглянул в сегодняшние заказы чайной? 🧧'),
-  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.', '시작이 반이에요 — 일단 시작해 봐요.', '何事も始めが難しい — まず始めましょう。', 'Setiap awal itu sulit — mulai saja dulu.', 'Vạn sự khởi đầu nan — cứ bắt đầu thôi.', 'การเริ่มต้นทุกอย่างนั้นยาก — แค่เริ่มก็พอ', 'Любое начало трудно — просто начни.'),
+const List<(String zh, String tr, String en, String ko, String ja, String id, String vi, String th, String ru, String es)> _kBoboLines = [
+  ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?', '오늘도 같이 공부해 볼까요?', '今日も一緒に勉強しましょうか？', 'Belajar bareng lagi hari ini, yuk?', 'Hôm nay cùng học nữa nhé?', 'วันนี้เรามาเรียนด้วยกันไหม?', 'Позанимаемся сегодня вместе?', '¿Practicamos juntos hoy también?'),
+  ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?', '연습이 실력을 만들어요 — 한 클립 더 어때요?', '習うより慣れろ — もう1本いかがですか？', 'Latihan membuat sempurna — satu klip lagi?', 'Có công mài sắt có ngày nên kim — thêm một clip nhé?', 'ฝึกฝนบ่อย ๆ ย่อมเชี่ยวชาญ — ดูอีกคลิปไหม?', 'Практика — путь к мастерству. Ещё один клип?', 'La práctica hace al maestro. ¿Otro clip?'),
+  ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.', '다시 만나서 반가워요! 멈췄던 곳부터 이어가요.', 'お久しぶりです！続きから始めましょう。', 'Senang bertemu lagi! Lanjut dari tempat terakhirmu.', 'Rất vui được gặp lại! Tiếp tục từ chỗ bạn dừng nhé.', 'ดีใจที่ได้เจอกันอีก! มาต่อจากที่ค้างไว้กันเถอะ', 'Рад тебя видеть! Продолжим с того места, где остановились.', '¡Qué bueno verte! Sigamos donde lo dejaste.'),
+  ('滴水穿石', 'Damlaya damlaya göl olur. Günde 5 dakika yeter!', 'Drop by drop fills the lake. 5 minutes a day!', '낙숫물이 바위를 뚫어요. 하루 5분이면 충분해요!', '点滴石を穿つ。1日5分で十分です！', 'Sedikit demi sedikit lama-lama menjadi bukit. 5 menit sehari cukup!', 'Nước chảy đá mòn. Mỗi ngày 5 phút là đủ!', 'น้ำหยดลงหินทุกวันหินยังกร่อน วันละ 5 นาทีก็พอ!', 'Капля камень точит. Всего 5 минут в день!', 'Gota a gota se llena el lago. ¡5 minutos al día!'),
+  ('你最棒!', 'Serini koru, ben buradayım 🏮', 'Keep your streak — I\'m right here 🏮', '스트릭을 지켜요, 제가 곁에 있을게요 🏮', '連続記録を守りましょう、私がついています 🏮', 'Jaga rentetanmu — aku di sini 🏮', 'Giữ chuỗi của bạn nhé, mình luôn ở đây 🏮', 'รักษาสถิติต่อเนื่องไว้นะ ฉันอยู่ตรงนี้ 🏮', 'Не теряй свою серию — я рядом 🏮', 'Mantén tu racha — aquí estoy 🏮'),
+  ('一起学吧!', 'Bugünkü çayevi siparişlerine baktın mı? 🧧', 'Checked today\'s tea house orders? 🧧', '오늘 찻집 주문은 확인했나요? 🧧', '今日の茶館の注文は確認しましたか？ 🧧', 'Sudah cek pesanan kedai teh hari ini? 🧧', 'Đã xem đơn hàng quán trà hôm nay chưa? 🧧', 'ดูออร์เดอร์ร้านน้ำชาวันนี้หรือยัง? 🧧', 'Заглянул в сегодняшние заказы чайной? 🧧', '¿Viste los pedidos de la casa de té de hoy? 🧧'),
+  ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.', '시작이 반이에요 — 일단 시작해 봐요.', '何事も始めが難しい — まず始めましょう。', 'Setiap awal itu sulit — mulai saja dulu.', 'Vạn sự khởi đầu nan — cứ bắt đầu thôi.', 'การเริ่มต้นทุกอย่างนั้นยาก — แค่เริ่มก็พอ', 'Любое начало трудно — просто начни.', 'Todo comienzo es difícil — solo empieza.'),
 ];
 
 class _BoboHero extends StatelessWidget {
@@ -2984,7 +3016,9 @@ class _BoboHero extends StatelessWidget {
                                         ? line.$7
                                         : (lang == 'th'
                                             ? line.$8
-                                            : (lang == 'ru' ? line.$9 : line.$3))))));
+                                            : (lang == 'ru'
+                                                ? line.$9
+                                                : (lang == 'es' ? line.$10 : line.$3)))))));
                     // Fixed white: the speech bubble stays dark ink in both
                     // themes.
                     return Text(text,

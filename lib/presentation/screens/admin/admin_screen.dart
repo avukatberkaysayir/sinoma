@@ -560,6 +560,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   final _viCtrl = TextEditingController();
   final _thCtrl = TextEditingController();
   final _ruCtrl = TextEditingController();
+  final _esCtrl = TextEditingController();
   bool _enConfirmed = false;
   bool _translating = false;
   bool _saving = false;
@@ -577,6 +578,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
     _viCtrl.dispose();
     _thCtrl.dispose();
     _ruCtrl.dispose();
+    _esCtrl.dispose();
     super.dispose();
   }
 
@@ -589,7 +591,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   Future<void> _fillOtherLangs() async {
     setState(() => _translating = true);
     try {
-      final t = await widget.service.translateMulti(_word, ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru']);
+      final t = await widget.service.translateMulti(_word, ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es']);
       if (mounted) {
         if ((t['tr'] ?? '').isNotEmpty) _trCtrl.text = t['tr']!;
         if ((t['ko'] ?? '').isNotEmpty) _koCtrl.text = t['ko']!;
@@ -598,6 +600,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
         if ((t['vi'] ?? '').isNotEmpty) _viCtrl.text = t['vi']!;
         if ((t['th'] ?? '').isNotEmpty) _thCtrl.text = t['th']!;
         if ((t['ru'] ?? '').isNotEmpty) _ruCtrl.text = t['ru']!;
+        if ((t['es'] ?? '').isNotEmpty) _esCtrl.text = t['es']!;
       }
     } catch (e) {
       _snack('Çeviri hatası: $e');
@@ -621,6 +624,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
         vi: _viCtrl.text,
         th: _thCtrl.text,
         ru: _ruCtrl.text,
+        es: _esCtrl.text,
       );
       await widget.service
           .deleteWordSuggestion(widget.suggestion['id'] as String);
@@ -793,6 +797,15 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
                   style: TextStyle(
                       color: AppColors.onSurface, fontSize: 13),
                   decoration: _dec('Rusça anlam'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _esCtrl,
+                  style: TextStyle(
+                      color: AppColors.onSurface, fontSize: 13),
+                  decoration: _dec('İspanyolca anlam'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -2910,6 +2923,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   late final TextEditingController _wrongCtrlTh;
   late final TextEditingController _correctCtrlRu;
   late final TextEditingController _wrongCtrlRu;
+  late final TextEditingController _correctCtrlEs;
+  late final TextEditingController _wrongCtrlEs;
   String _selectedQuizLang = 'en'; // EN first (reference for the other langs)
   bool _enApproved = false; // English options approved as the pivot source
   bool _saving = false;
@@ -3008,6 +3023,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         text: quizRu['correctAnswer'] as String? ?? '');
     _wrongCtrlRu = TextEditingController(
         text: quizRu['wrongAnswer'] as String? ?? '');
+    final quizEs = (quiz['es'] as Map<String, dynamic>?) ?? {};
+    _correctCtrlEs = TextEditingController(
+        text: quizEs['correctAnswer'] as String? ?? '');
+    _wrongCtrlEs = TextEditingController(
+        text: quizEs['wrongAnswer'] as String? ?? '');
     // Previously-saved English counts as already approved.
     _enApproved = (quizEn['correctAnswer'] as String? ?? '').trim().isNotEmpty;
   }
@@ -3097,6 +3117,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     _wrongCtrlTh.dispose();
     _correctCtrlRu.dispose();
     _wrongCtrlRu.dispose();
+    _correctCtrlEs.dispose();
+    _wrongCtrlEs.dispose();
     super.dispose();
   }
 
@@ -3160,6 +3182,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         } else if (_selectedQuizLang == 'ru') {
           _correctCtrlRu.text = (q['correctAnswer'] as String?) ?? '';
           _wrongCtrlRu.text = (q['wrongAnswer'] as String?) ?? '';
+        } else if (_selectedQuizLang == 'es') {
+          _correctCtrlEs.text = (q['correctAnswer'] as String?) ?? '';
+          _wrongCtrlEs.text = (q['wrongAnswer'] as String?) ?? '';
         } else {
           _correctCtrlEn.text = (q['correctAnswer'] as String?) ?? '';
           _wrongCtrlEn.text = (q['wrongAnswer'] as String?) ?? '';
@@ -3364,6 +3389,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           'ru': {
             'correctAnswer': _correctCtrlRu.text.trim(),
             'wrongAnswer': _wrongCtrlRu.text.trim(),
+          },
+          'es': {
+            'correctAnswer': _correctCtrlEs.text.trim(),
+            'wrongAnswer': _wrongCtrlEs.text.trim(),
           },
         },
       });
@@ -4213,6 +4242,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       const SizedBox(width: 6),
                       _quizLangTab('TH', 'th'),
                       _quizLangTab('RU', 'ru'),
+                      _quizLangTab('ES', 'es'),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -4274,6 +4304,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   ] else if (_selectedQuizLang == 'ru') ...[
                     _editField(_correctCtrlRu, 'Doğru cevap (RU)'),
                     _editField(_wrongCtrlRu, 'Yanlış cevap — tuzak (RU)'),
+                  ] else if (_selectedQuizLang == 'es') ...[
+                    _editField(_correctCtrlEs, 'Doğru cevap (ES)'),
+                    _editField(_wrongCtrlEs, 'Yanlış cevap — tuzak (ES)'),
                   ] else ...[
                     // Editing the English pair revokes approval, so target
                     // languages are always translated from a freshly-approved

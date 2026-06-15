@@ -299,6 +299,40 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Produce natural standard Russian in Cyrillic with correct case, gender/number agreement, aspect and verb government — never a word-for-word calque from Chinese or English, and never romanized.",
     ],
   },
+  // ── Spanish grammar, integrated in parts. Reference: Nissenberg, Practice
+  // Makes Perfect: Complete Spanish Grammar (McGraw-Hill); neutral modern
+  // standard Spanish. ─────────────────────────────────────────────────────────
+  Spanish: {
+    authority: "Standard (neutral) Spanish orthography & usage; reference: Nissenberg, Complete Spanish Grammar (McGraw-Hill)",
+    rules: [
+      // [P1] Orthography, gender, number, articles
+      "Use full Spanish orthography: written accents (á é í ó ú), ñ, ü, and BOTH question/exclamation marks ¿…? ¡…! Lowercase nationalities, languages, months and days (español, lunes, enero).",
+      "Every noun has GENDER: masculine (usually -o: el libro) or feminine (usually -a/-ción/-dad: la casa, la canción, la ciudad), with exceptions (el día, el problema, el mapa; la mano, la foto). Articles and adjectives MUST agree.",
+      "Articles: definite el/la/los/las, indefinite un/una/unos/unas; a+el→al, de+el→del. Spanish uses the definite article more than English (with abstractions, generic plurals, languages, body parts, titles, days, telling time: los gatos, el español, los lunes, las ocho).",
+      "Number/agreement: plural -s after a vowel (libros), -es after a consonant (ciudades); adjectives agree in gender AND number (la casa blanca, los coches rojos). Descriptive adjectives normally FOLLOW the noun; a few (bueno→buen, grande→gran, primero→primer) shorten before a masculine singular noun.",
+      // [P2] ser vs estar, the two 'to be'
+      "TWO verbs 'to be'. SER = identity, origin, profession, inherent/defining traits, possession, time/date, what something is made of (Soy profesor; Ella es alta; Es de Madrid; Son las dos). ESTAR = location, temporary states/conditions, results, and the progressive (Estoy cansado; Está en casa; Estamos comiendo). Some adjectives change meaning: ser aburrido (boring) vs estar aburrido (bored); ser listo (clever) vs estar listo (ready). Choose ser/estar correctly — it is a core distinction.",
+      "hay (from haber) = 'there is/there are' for existence (Hay un libro; Hay dos gatos) — invariable, NOT estar.",
+      // [P3] Present & verb conjugation, stem changes, reflexives
+      "Verbs conjugate by person/number in three classes (-ar, -er, -ir). Present: hablar→hablo, hablas, habla, hablamos, habláis, hablan; comer→como, comes, come, comemos, coméis, comen; vivir→vivo, vives, vive, vivimos, vivís, viven. The ending already shows the subject, so SUBJECT PRONOUNS are usually OMITTED (use them only for contrast/emphasis).",
+      "Stem-changing verbs in the present: e→ie (pensar→pienso, querer→quiero), o→ue (poder→puedo, dormir→duermo), e→i (pedir→pido) in all forms except nosotros/vosotros. Many verbs are irregular in 'yo' (tener→tengo, hacer→hago, salir→salgo, conocer→conozco).",
+      "Reflexive verbs use pronouns me/te/se/nos/os/se (levantarse→me levanto, se llama). They cover true reflexives, reciprocals (se quieren), and 'become' (ponerse, volverse, hacerse). 'gustar'-type verbs invert: the thing liked is the subject and the experiencer is an indirect object — Me gusta el café; Me gustan los libros; A ella le gusta (also: encantar, faltar, doler, parecer).",
+      // [P4] Past, future/conditional, compound, progressive
+      "Two simple past tenses, chosen by aspect: PRETERITE = a completed, bounded action/event (Ayer comí; Llegó a las dos; Fui al cine) — irregulars: fui, hice, tuve, estuve, dije. IMPERFECT = ongoing/habitual/background, descriptions, time & age in the past (Comía todos los días; Era alto; Eran las tres; De niño jugaba). Pick preterite vs imperfect by meaning — this is a key contrast.",
+      "Future and conditional add endings to the WHOLE infinitive: future -é/-ás/-á/-emos/-éis/-án (hablaré), conditional -ía/-ías/-ía/-íamos/-íais/-ían (hablaría); shared irregular stems (tendr-, har-, dir-, podr-, saldr-). Common alternative future: ir a + infinitive (Voy a comer). The future/conditional can also express probability (Serán las cinco = It must be five).",
+      "Compound tenses = haber (he/has/ha/hemos/habéis/han; past había…) + past participle (-ado/-ido; irregulars hecho, dicho, visto, escrito, puesto, vuelto): present perfect (He comido), pluperfect (Había comido). The participle here is INVARIABLE. Progressive = estar + gerund (-ando/-iendo): Estoy comiendo.",
+      // [P5] Subjunctive, commands, negation
+      "The SUBJUNCTIVE is required in dependent clauses after expressions of wish/influence, emotion, doubt/denial, and impersonal value, with a different subject and 'que': Quiero que vengas; Espero que estés bien; Dudo que sea verdad; Es importante que estudies. Present subjunctive flips the vowel (hablar→hable, comer→coma). Also after certain conjunctions (para que, antes de que, cuando + future event, aunque) and contrary-to-fact 'si' clauses (Si tuviera dinero, viajaría — imperfect subjunctive + conditional).",
+      "Commands (imperative): affirmative tú = 3rd-person present (¡Habla! ¡Come!) with irregulars (di, haz, ve, pon, sal, sé, ten, ven); usted/ustedes and ALL negative commands use the subjunctive (hable, no hables, coman, no coman). Object/reflexive pronouns ATTACH to affirmative commands (dímelo, levántate) but go BEFORE negative ones (no me lo digas).",
+      "Negation: place no before the verb (No hablo). Spanish uses DOUBLE negation: no … nada/nadie/nunca/ninguno/tampoco (No veo nada; No viene nadie; No voy nunca) — unless the negative word precedes the verb (Nadie viene; Nunca voy).",
+      // [P6] Pronouns, por/para, comparison, relatives
+      "Object pronouns precede the conjugated verb but may attach to an infinitive/gerund/affirmative command: direct me/te/lo/la/nos/os/los/las, indirect me/te/le/nos/os/les. With two pronouns the order is INDIRECT then DIRECT, and le/les→se before lo/la/los/las (Se lo di, not 'le lo di'). The 'personal a' marks a specific human direct object (Veo a María).",
+      "por vs para: para = purpose/goal, recipient, destination, deadline (Es para ti; Estudio para aprender; Salgo para Madrid; para el lunes); por = cause/reason, exchange, duration, 'through/along', means, 'by' in the passive (Gracias por todo; por la mañana; pagué diez euros por esto; por el parque). Choose correctly.",
+      "Comparison: más/menos … que (más alto que), de instead of que before a number (más de diez); equality tan + adj + como, tanto/-a/-os/-as + noun + como. Irregulars: mejor, peor, mayor, menor. Superlative: el/la más … (de) (el más alto de la clase); absolute -ísimo (carísimo).",
+      "Relatives & connectors: que (that/which/who, most common), quien/quienes (who, after prepositions/with commas), el que/el cual (clarity/after prepositions), lo que (that which/what), cuyo/-a (whose, agrees with the thing possessed). Common conjunctions: porque (because), aunque (although), pero/sino (but — sino after a negative), si (if), cuando (when), mientras (while).",
+      "Produce natural, idiomatic standard Spanish with correct gender/number agreement, ser/estar, the right past aspect, mood (indicative vs subjunctive) and accents/¿¡ — never a word-for-word calque from Chinese or English.",
+    ],
+  },
 };
 
 function buildPrompt(
@@ -372,6 +406,7 @@ function langCodeToName(code: string): string {
     : code === "vi" ? "Vietnamese"
     : code === "th" ? "Thai"
     : code === "ru" ? "Russian"
+    : code === "es" ? "Spanish"
     : "Turkish";
 }
 
@@ -551,6 +586,7 @@ serve(async (req) => {
       : lang === "vi" ? "Vietnamese"
       : lang === "th" ? "Thai"
       : lang === "ru" ? "Russian"
+      : lang === "es" ? "Spanish"
       : "Turkish";
 
     // Cache first — same sentence+language+English source (correct+wrong) never
