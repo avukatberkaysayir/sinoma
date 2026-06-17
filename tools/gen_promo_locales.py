@@ -576,6 +576,21 @@ def row_for(k):
     return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k], ES[k], PT[k], FR[k], AR[k])
 
 
+# Arabic only: the page LAYOUT stays LTR (control bar, players, cards, the
+# from→to rows keep their positions like every other language), but the TEXT
+# sentences must read right-to-left so leading numbers/Latin sit on the right
+# (e.g. "3000 حرف. 4 نغمات." — 3000 belongs on the RIGHT, not the left). We set
+# direction:rtl ONLY on text leaf elements, never on flex layout containers, so
+# nothing is mirrored. .badges is reset to ltr to keep the avatar row in order.
+AR_RTL_STYLE = (
+    '<style>\n'
+    '  .kicker,h1,h2,h3,.sub,.pain,.qb,.def,.ai .msg,.gcard p,.hudrow'
+    '{direction:rtl}\n'
+    '  .badges{direction:ltr}\n'
+    '</style>\n'
+)
+
+
 def main():
     master = MASTER.read_text(encoding='utf-8')
     errors = []
@@ -589,6 +604,9 @@ def main():
                 errors.append(f'[{lang}] "{src[:60]}..." matched {n} times')
                 continue
             out = out.replace(src, dst)
+        if lang == 'ar':
+            assert out.count('</head>') == 1, 'ar: </head> anchor not unique'
+            out = out.replace('</head>', AR_RTL_STYLE + '</head>')
         path = MASTER.with_name(f'sinoma_promo_{lang}.html')
         path.write_text(out, encoding='utf-8', newline='\n')
         print(f'wrote {path.name} ({len(out)} bytes)')
