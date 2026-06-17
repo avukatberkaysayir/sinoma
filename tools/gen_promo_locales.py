@@ -518,9 +518,11 @@ FR = [
 assert len(FR) == len(STRINGS), f'FR {len(FR)} != STRINGS {len(STRINGS)}'
 
 # Arabic (Modern Standard Arabic) translations, in the SAME order as STRINGS.
-# RTL: the <html> tag carries dir="rtl" so the whole page lays out right-to-left.
+# NOTE: no dir="rtl" — the promo keeps the SAME LTR layout as every other
+# language (centered scenes, control bar position identical); Arabic text still
+# shapes right-to-left within its runs via the Unicode bidi algorithm.
 AR = [
-    '<html lang="ar" dir="rtl">',
+    '<html lang="ar">',
     'تتعلّم الصينية؟',
     '3000 حرف. 4 نغمات.<br>ومع ذلك لا يشبه ما تسمعه شيئاً مما في الصف.',
     'تحفظ الكلمات — ثم يفتح ناطق أصلي فمه فلا تفهم <b class="bad">شيئاً</b>.',
