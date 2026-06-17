@@ -195,6 +195,17 @@ class SinomaApp extends ConsumerWidget {
       darkTheme: _buildDarkTheme(),
       themeMode: themeMode,
       routerConfig: _router,
+      // Keep the page LAYOUT identical for every language. Arabic ('ar') is an
+      // RTL locale, which would otherwise mirror the whole UI (nav rail, cards,
+      // rows flip sides). Pin the app to LTR; Arabic glyph runs still shape
+      // right-to-left on their own via the Unicode bidi algorithm.
+      builder: (context, child) => Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [child!, const _FontWarmer()],
+        ),
+      ),
     );
   }
 
@@ -273,5 +284,41 @@ class SinomaApp extends ConsumerWidget {
       ),
     );
     return base.copyWith(textTheme: _appTextTheme(base.textTheme));
+  }
+}
+
+// Offscreen "font warmer". On the very first frame it lays out one short run of
+// every script the UI uses, which forces CanvasKit to download ALL Noto
+// fallback fonts in parallel right away. Without it, CanvasKit fetches each
+// script's font lazily — only when a screen first shows that script — so Latin
+// renders immediately and CJK/Arabic/Thai/Cyrillic visibly pop in afterwards.
+// The Chinese run is styled with ZCOOL XiaoWei so the display face preloads too.
+class _FontWarmer extends StatelessWidget {
+  const _FontWarmer();
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      left: -10000,
+      top: -10000,
+      width: 2000,
+      child: IgnorePointer(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '中文 日本語 ひらがな カタカナ 한국어 ไทย Русский العربية Tiếng Việt',
+              textDirection: TextDirection.ltr,
+              style: TextStyle(fontSize: 8),
+            ),
+            Text(
+              '万事开头难',
+              textDirection: TextDirection.ltr,
+              style: GoogleFonts.zcoolXiaoWei(fontSize: 8),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
