@@ -443,6 +443,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                                 DropdownMenuItem(value: 'th', child: Text('ภาษาไทย 🇹🇭')),
                                 DropdownMenuItem(value: 'es', child: Text('Español 🇪🇸')),
                                 DropdownMenuItem(value: 'pt', child: Text('Português 🇵🇹')),
+                                DropdownMenuItem(value: 'fr', child: Text('Français 🇫🇷')),
                               ],
                               // Applied with "Değişiklikleri Kaydet" — nothing
                               // changes app-wide until the save button confirms.

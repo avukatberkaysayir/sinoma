@@ -25,6 +25,7 @@ class PlacementQuestion {
   final List<String> choicesRu;
   final List<String> choicesEs;
   final List<String> choicesPt;
+  final List<String> choicesFr;
   final int correctIndex;
   final int hskLevel;
 
@@ -40,6 +41,7 @@ class PlacementQuestion {
     this.choicesRu = const [],
     this.choicesEs = const [],
     this.choicesPt = const [],
+    this.choicesFr = const [],
     required this.correctIndex,
     required this.hskLevel,
   });
@@ -55,6 +57,7 @@ class PlacementQuestion {
         'ru' when choicesRu.length == choices.length => choicesRu,
         'es' when choicesEs.length == choices.length => choicesEs,
         'pt' when choicesPt.length == choices.length => choicesPt,
+        'fr' when choicesFr.length == choices.length => choicesFr,
         _ => choices,
       };
 }
@@ -72,6 +75,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Привет', 'Пока', 'Спасибо', 'Извините'],
       choicesEs: ['Hola', 'Adiós', 'Gracias', 'Perdón'],
       choicesPt: ['Olá', 'Tchau', 'Obrigado', 'Desculpe'],
+      choicesFr: ['Bonjour', 'Au revoir', 'Merci', 'Pardon'],
       correctIndex: 0, hskLevel: 1),
   PlacementQuestion(text: '水',
       choices: ['Fire', 'Earth', 'Water', 'Wind'],
@@ -84,6 +88,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Огонь', 'Земля', 'Вода', 'Ветер'],
       choicesEs: ['Fuego', 'Tierra', 'Agua', 'Viento'],
       choicesPt: ['Fogo', 'Terra', 'Água', 'Vento'],
+      choicesFr: ['Feu', 'Terre', 'Eau', 'Vent'],
       correctIndex: 2, hskLevel: 1),
   PlacementQuestion(text: '今天',
       choices: ['Yesterday', 'Tomorrow', 'Now', 'Today'],
@@ -96,6 +101,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Вчера', 'Завтра', 'Сейчас', 'Сегодня'],
       choicesEs: ['Ayer', 'Mañana', 'Ahora', 'Hoy'],
       choicesPt: ['Ontem', 'Amanhã', 'Agora', 'Hoje'],
+      choicesFr: ['Hier', 'Demain', 'Maintenant', 'Aujourd\'hui'],
       correctIndex: 3, hskLevel: 1),
   PlacementQuestion(text: '我',
       choices: ['He', 'She', 'They', 'I / Me'],
@@ -108,6 +114,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Он', 'Она', 'Они', 'Я'],
       choicesEs: ['Él', 'Ella', 'Ellos', 'Yo'],
       choicesPt: ['Ele', 'Ela', 'Eles', 'Eu'],
+      choicesFr: ['Il', 'Elle', 'Ils', 'Je'],
       correctIndex: 3, hskLevel: 1),
   // HSK 2
   PlacementQuestion(text: '高兴',
@@ -121,6 +128,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Грустный', 'Счастливый', 'Усталый', 'Сердитый'],
       choicesEs: ['Triste', 'Feliz', 'Cansado', 'Enfadado'],
       choicesPt: ['Triste', 'Feliz', 'Cansado', 'Bravo'],
+      choicesFr: ['Triste', 'Heureux', 'Fatigué', 'En colère'],
       correctIndex: 1, hskLevel: 2),
   PlacementQuestion(text: '明白',
       choices: ['Forget', 'Explain', 'Understand', 'Remember'],
@@ -133,6 +141,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Забыть', 'Объяснить', 'Понимать', 'Помнить'],
       choicesEs: ['Olvidar', 'Explicar', 'Entender', 'Recordar'],
       choicesPt: ['Esquecer', 'Explicar', 'Entender', 'Lembrar'],
+      choicesFr: ['Oublier', 'Expliquer', 'Comprendre', 'Se souvenir'],
       correctIndex: 2, hskLevel: 2),
   PlacementQuestion(text: '已经',
       choices: ['Still', 'Never', 'Often', 'Already'],
@@ -145,6 +154,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Ещё нет', 'Никогда', 'Часто', 'Уже'],
       choicesEs: ['Todavía no', 'Nunca', 'A menudo', 'Ya'],
       choicesPt: ['Ainda não', 'Nunca', 'Frequentemente', 'Já'],
+      choicesFr: ['Pas encore', 'Jamais', 'Souvent', 'Déjà'],
       correctIndex: 3, hskLevel: 2),
   // HSK 3
   PlacementQuestion(text: '环境',
@@ -158,6 +168,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Погода', 'Окружающая среда', 'Общество', 'Космос'],
       choicesEs: ['Clima', 'Medio ambiente', 'Sociedad', 'Espacio'],
       choicesPt: ['Clima', 'Meio ambiente', 'Sociedade', 'Espaço'],
+      choicesFr: ['Climat', 'Environnement', 'Société', 'Espace'],
       correctIndex: 1, hskLevel: 3),
   PlacementQuestion(text: '参加',
       choices: ['Leave', 'Refuse', 'Arrive', 'Participate'],
@@ -170,6 +181,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Уходить', 'Отказываться', 'Прибывать', 'Участвовать'],
       choicesEs: ['Irse', 'Rechazar', 'Llegar', 'Participar'],
       choicesPt: ['Ir embora', 'Recusar', 'Chegar', 'Participar'],
+      choicesFr: ['Partir', 'Refuser', 'Arriver', 'Participer'],
       correctIndex: 3, hskLevel: 3),
   PlacementQuestion(text: '变化',
       choices: ['Repeat', 'Progress', 'Change', 'Difference'],
@@ -182,6 +194,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Повторение', 'Прогресс', 'Изменение', 'Различие'],
       choicesEs: ['Repetición', 'Progreso', 'Cambio', 'Diferencia'],
       choicesPt: ['Repetição', 'Progresso', 'Mudança', 'Diferença'],
+      choicesFr: ['Répétition', 'Progrès', 'Changement', 'Différence'],
       correctIndex: 2, hskLevel: 3),
   // HSK 4
   PlacementQuestion(text: '批评',
@@ -195,6 +208,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Хвалить', 'Критиковать', 'Учиться', 'Принимать'],
       choicesEs: ['Elogiar', 'Criticar', 'Estudiar', 'Aceptar'],
       choicesPt: ['Elogiar', 'Criticar', 'Estudar', 'Aceitar'],
+      choicesFr: ['Louer', 'Critiquer', 'Étudier', 'Accepter'],
       correctIndex: 1, hskLevel: 4),
   PlacementQuestion(text: '不得不',
       choices: ['Want to', 'Prefer to', 'Have no choice but to', 'Refuse to'],
@@ -207,6 +221,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Хотеть', 'Предпочитать', 'Быть вынужденным', 'Отказываться'],
       choicesEs: ['Querer', 'Preferir', 'Verse obligado a', 'Negarse a'],
       choicesPt: ['Querer', 'Preferir', 'Ser obrigado a', 'Recusar-se a'],
+      choicesFr: ['Vouloir', 'Préférer', 'Être obligé de', 'Refuser de'],
       correctIndex: 2, hskLevel: 4),
   PlacementQuestion(text: '尽管',
       choices: ['Because', 'Unless', 'Despite', 'Without'],
@@ -219,6 +234,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Потому что', 'Если не', 'Несмотря на', 'Без'],
       choicesEs: ['Porque', 'A menos que', 'A pesar de', 'Sin'],
       choicesPt: ['Porque', 'A menos que', 'Apesar de', 'Sem'],
+      choicesFr: ['Parce que', 'À moins que', 'Malgré', 'Sans'],
       correctIndex: 2, hskLevel: 4),
   // HSK 5
   PlacementQuestion(text: '辩论',
@@ -232,6 +248,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Соглашаться', 'Подтверждать', 'Читать лекцию', 'Спорить'],
       choicesEs: ['Estar de acuerdo', 'Confirmar', 'Dar una conferencia', 'Debatir'],
       choicesPt: ['Concordar', 'Confirmar', 'Dar uma palestra', 'Debater'],
+      choicesFr: ['Être d\'accord', 'Confirmer', 'Donner une conférence', 'Débattre'],
       correctIndex: 3, hskLevel: 5),
   PlacementQuestion(text: '顽固',
       choices: ['Gentle', 'Cautious', 'Brave', 'Stubborn'],
@@ -244,6 +261,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Мягкий', 'Осторожный', 'Смелый', 'Упрямый'],
       choicesEs: ['Amable', 'Cauteloso', 'Valiente', 'Terco'],
       choicesPt: ['Gentil', 'Cauteloso', 'Corajoso', 'Teimoso'],
+      choicesFr: ['Doux', 'Prudent', 'Courageux', 'Têtu'],
       correctIndex: 3, hskLevel: 5),
   PlacementQuestion(text: '迫不及待',
       choices: ['Reluctant', 'Eager / Can\'t wait', 'Hesitant', 'Indifferent'],
@@ -256,6 +274,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Неохотный', 'Сгорать от нетерпения', 'Колеблющийся', 'Равнодушный'],
       choicesEs: ['Reacio', 'Impaciente', 'Indeciso', 'Indiferente'],
       choicesPt: ['Relutante', 'Impaciente', 'Indeciso', 'Indiferente'],
+      choicesFr: ['Réticent', 'Impatient', 'Hésitant', 'Indifférent'],
       correctIndex: 1, hskLevel: 5),
   PlacementQuestion(text: '模糊',
       choices: ['Clear', 'Accurate', 'Vague', 'Specific'],
@@ -268,6 +287,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Чёткий', 'Точный', 'Расплывчатый', 'Конкретный'],
       choicesEs: ['Claro', 'Preciso', 'Vago', 'Específico'],
       choicesPt: ['Claro', 'Preciso', 'Vago', 'Específico'],
+      choicesFr: ['Clair', 'Précis', 'Vague', 'Spécifique'],
       correctIndex: 2, hskLevel: 5),
   // HSK 6
   PlacementQuestion(text: '冠冕堂皇',
@@ -281,6 +301,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Скромный', 'Искренний', 'Напыщенный', 'Красноречивый'],
       choicesEs: ['Humilde', 'Sincero', 'Pomposo', 'Elocuente'],
       choicesPt: ['Humilde', 'Sincero', 'Pomposo', 'Eloquente'],
+      choicesFr: ['Humble', 'Sincère', 'Pompeux', 'Éloquent'],
       correctIndex: 2, hskLevel: 6),
   PlacementQuestion(text: '出乎意料',
       choices: ['As planned', 'Disappointing', 'Intentional', 'Unexpected'],
@@ -293,6 +314,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Как запланировано', 'Разочаровывающий', 'Намеренный', 'Неожиданный'],
       choicesEs: ['Según lo planeado', 'Decepcionante', 'Intencional', 'Inesperado'],
       choicesPt: ['Conforme planejado', 'Decepcionante', 'Intencional', 'Inesperado'],
+      choicesFr: ['Comme prévu', 'Décevant', 'Intentionnel', 'Inattendu'],
       correctIndex: 3, hskLevel: 6),
   PlacementQuestion(text: '望而生畏',
       choices: ['Feel inspired', 'Feel attracted', 'Feel bored', 'Feel intimidated'],
@@ -305,6 +327,7 @@ const kPlacementQuestions = <PlacementQuestion>[
       choicesRu: ['Вдохновлённый', 'Привлечённый', 'Скучающий', 'Оробевший'],
       choicesEs: ['Inspirado', 'Atraído', 'Aburrido', 'Intimidado'],
       choicesPt: ['Inspirado', 'Atraído', 'Entediado', 'Intimidado'],
+      choicesFr: ['Inspiré', 'Attiré', 'Ennuyé', 'Intimidé'],
       correctIndex: 3, hskLevel: 6),
 ];
 

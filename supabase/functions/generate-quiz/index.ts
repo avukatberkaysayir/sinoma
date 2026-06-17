@@ -365,6 +365,36 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Produce natural, idiomatic Brazilian Portuguese with correct gender/number agreement, ser/estar/ter, preposition+article contractions, the right past aspect and mood (incl. the personal infinitive and future subjunctive) — never a word-for-word calque from Chinese or English.",
     ],
   },
+  // ── French grammar, integrated in parts. Reference: Heminway, Complete
+  // French Grammar (McGraw-Hill); standard modern French. ──────────────────────
+  French: {
+    authority: "Standard French orthography & usage; reference: Heminway, Complete French Grammar (McGraw-Hill)",
+    rules: [
+      // [P1] Orthography, gender, number, articles
+      "Use full French orthography: accents (é è ê ë, à â, î ï, ô, ù û ü, ç) and elision before a vowel/mute h (le+ami→l'ami, je+ai→j'ai, de+eau→d'eau, que+il→qu'il, ne+a→n'a). Lowercase nationalities, languages, months and days (français, lundi, janvier).",
+      "Every noun has GENDER: masculine or feminine — it is largely unpredictable, so treat gender as part of the word. Articles and adjectives MUST agree in gender and number.",
+      "Articles: definite le/la/l'/les, indefinite un/une/des, partitive du/de la/de l'/des ('some'). Contractions are mandatory: à+le→au, à+les→aux, de+le→du, de+les→des. After a negation the partitive/indefinite becomes de/d' (Je n'ai pas de pain). French uses articles far more than English (with general nouns: J'aime le café).",
+      "Number/agreement: plural usually adds -s (silent) — chats, maisons; -x for -eau/-eu (gâteaux). Adjectives agree in gender AND number (une voiture bleue, des livres verts). Most adjectives FOLLOW the noun; a few common ones precede (beau, bon, grand, petit, jeune, vieux, joli, nouveau): une grande maison.",
+      // [P2] être / avoir, c'est, il y a
+      "Two core verbs: ÊTRE (to be: je suis, tu es, il est, nous sommes, vous êtes, ils sont) and AVOIR (to have: j'ai, tu as, il a, nous avons, vous avez, ils ont). Many states use AVOIR where English uses 'be': avoir faim/soif/froid/chaud/peur/raison/20 ans (be hungry/thirsty/cold/hot/afraid/right/20 years old). 'There is/are' = il y a. 'It is / this is' = c'est (+ noun) vs il/elle est (+ adjective/profession).",
+      // [P3] Present, pronominal verbs, negation, questions
+      "Present tense conjugates by group: -er (parler→parle, parles, parle, parlons, parlez, parlent), -ir (finir→finis, finis, finit, finissons, finissez, finissent), -re (vendre→vends, vends, vend, vendons, vendez, vendent). Many irregular verbs (aller, faire, prendre, venir, pouvoir, vouloir, devoir) — use their correct forms. SUBJECT PRONOUNS are obligatory (unlike Spanish): on = informal 'we' / impersonal 'one', takes 3rd-singular.",
+      "Pronominal (reflexive) verbs take se: se lever (je me lève), s'appeler (il s'appelle), se souvenir. They also express reciprocal ('each other') and some passives.",
+      "Negation wraps the verb: ne … pas (Je ne sais pas), ne … jamais (never), ne … plus (no longer), ne … rien (nothing), ne … personne (nobody), ne … que (only). In casual speech 'ne' may drop, but for neutral quiz/subtitle text keep BOTH ne and the second element.",
+      "Questions: rising intonation (Tu viens ?), est-ce que (Est-ce que tu viens ?), or inversion (Viens-tu ? Parlez-vous français ?). Question words: qui (who), que/quoi (what), où (where), quand (when), pourquoi (why), comment (how), combien (how much/many), quel/quelle (which). Always put a space before ? ! : ; in French typography.",
+      // [P4] Past, future, conditional, compound, object pronouns
+      "Two main past tenses by aspect: PASSÉ COMPOSÉ = a completed past action (J'ai mangé; Il est parti) — formed with avoir or être + past participle. IMPARFAIT = ongoing/habitual/background, descriptions, time & age in the past (Je mangeais tous les jours; Il était grand; Il faisait beau). Choose by meaning — this is a key contrast.",
+      "Passé composé auxiliary: most verbs take AVOIR; a set of intransitive 'movement/state-change' verbs and ALL pronominal verbs take ÊTRE (aller, venir, arriver, partir, entrer, sortir, monter, descendre, rester, tomber, naître, mourir, devenir + se laver…). With être the participle AGREES with the subject (Elle est allée; Ils sont venus; Elles se sont levées); with avoir it agrees only with a PRECEDING direct object (les livres que j'ai lus).",
+      "Future: futur proche = aller + infinitive (Je vais manger); futur simple adds endings to the infinitive (je parlerai, il finira) with irregular stems (ser-, aur-, ir-, fer-, viendr-, pourr-). Conditional = same stems + imparfait endings (je voudrais, j'aimerais — polite). Compound past tenses use avoir/être in those tenses (plus-que-parfait: j'avais mangé).",
+      "Object pronouns go BEFORE the verb in this order: me/te/se/nous/vous → le/la/les → lui/leur → y → en (Je le lui donne; Il y va; J'en veux). y replaces à+thing/place; en replaces de+thing or a quantity. Stressed/disjunctive pronouns (moi, toi, lui, elle, nous, vous, eux, elles) follow prepositions (avec moi) and stand alone.",
+      // [P5] Subjunctive, imperative, comparison, relatives, prepositions
+      "The SUBJONCTIF is required after expressions of will, emotion, doubt and necessity + que with a different subject (Je veux que tu viennes; Il faut que tu partes; Je suis content que tu sois là; bien que, pour que, avant que). Present subjunctive: que je parle, que tu finisses, que nous fassions (irregular: sois/aies, fasse, aille, puisse).",
+      "Imperative drops the subject pronoun (Parle ! Parlons ! Parlez ! Finis ! Va !). In affirmative commands object pronouns FOLLOW and link with hyphens, with me→moi (Donne-le-moi ; Lève-toi) ; in negative commands they precede (Ne me le donne pas).",
+      "Comparison: plus/moins/aussi + adjective + que (plus grand que, aussi vite que); de before a number (plus de dix). Irregular: meilleur (better, adj.), mieux (better, adv.), pire/plus mauvais. Superlative: le/la/les plus … (de) (le plus grand de la classe) — the adjective keeps its normal position and repeats the article.",
+      "Relative pronouns: qui (subject: l'homme qui parle), que/qu' (direct object: le livre que je lis), où (where/when: la ville où j'habite), dont (of which/whose: le livre dont je parle), and ce qui/ce que ('what'). Key prepositions: à (to/at), de (of/from), en/dans (in), chez (at someone's), pour (for), avec, sans, par. Countries: en + feminine country (en France), au + masculine (au Japon), aux + plural (aux États-Unis).",
+      "Produce natural, idiomatic standard French with correct gender/number agreement, articles/contractions, elision, the right past aspect (passé composé vs imparfait), participle agreement, mood (indicatif vs subjonctif) and accents — never a word-for-word calque from Chinese or English.",
+    ],
+  },
 };
 
 function buildPrompt(
@@ -440,6 +470,7 @@ function langCodeToName(code: string): string {
     : code === "ru" ? "Russian"
     : code === "es" ? "Spanish"
     : code === "pt" ? "Portuguese"
+    : code === "fr" ? "French"
     : "Turkish";
 }
 
@@ -601,7 +632,7 @@ async function cacheSet(k: string, correct: string, wrong: string): Promise<void
 // Languages whose sentences start with a capital letter. Capitalize the first
 // real letter of every quiz option (correct AND wrong) for these, skipping any
 // leading punctuation/quotes (e.g. Spanish ¿¡). Turkish locale keeps i→İ right.
-const CAP_LANGS = new Set(["tr", "en", "id", "vi", "es", "pt", "ru"]);
+const CAP_LANGS = new Set(["tr", "en", "id", "vi", "es", "pt", "ru", "fr"]);
 function capFirst(s: string, code: string): string {
   if (!s || !CAP_LANGS.has(code)) return s;
   const m = s.match(/^([\s¿¡"'(\[«]*)([\s\S])([\s\S]*)$/);
@@ -632,6 +663,7 @@ serve(async (req) => {
       : lang === "ru" ? "Russian"
       : lang === "es" ? "Spanish"
       : lang === "pt" ? "Portuguese"
+      : lang === "fr" ? "French"
       : "Turkish";
 
     // Cache first — same sentence+language+English source (correct+wrong) never

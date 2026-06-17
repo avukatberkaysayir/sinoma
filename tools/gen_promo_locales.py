@@ -8,7 +8,7 @@ import pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MASTER = ROOT / 'web' / 'promo' / 'sinoma_promo.html'
 
-LANGS = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt']
+LANGS = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr']
 
 # (en, tr, ko) — Japanese (JA) and Indonesian (ID) live in parallel lists below
 # (same order) so the existing en/tr/ko tuples stay byte-for-byte identical to
@@ -467,10 +467,60 @@ PT = [
 
 assert len(PT) == len(STRINGS), f'PT {len(PT)} != STRINGS {len(STRINGS)}'
 
+# French translations, in the SAME order as STRINGS (one per row).
+FR = [
+    '<html lang="fr">',
+    'Vous apprenez le chinois ?',
+    '3000 caractères. 4 tons.<br>Et pourtant, à l\'oreille, rien à voir avec les cours.',
+    'Vous mémorisez des mots — puis un natif ouvre la bouche et vous <b class="bad">ne comprenez rien</b>.',
+    '📚 Des dialogues de manuel sans saveur',
+    '🃏 Des cartes mémo sans contexte',
+    '🤖 Des applis qui ne font jamais entendre de vraies conversations',
+    'Apprends le chinois avec de <b class="accent">vraies vidéos</b> de créateurs natifs —<br>pas des enregistrements de manuel.',
+    'Un input compréhensible, par petites bouchées',
+    'De vraies vidéos. Découpées en extraits de 5 à 10 secondes.<br>Puis prouve que tu as compris.',
+    'Quelle boisson chinoise est bonne ?',
+    'Quelle boisson chinoise n\'est PAS bonne ?',
+    'Sous-titres activés ou non — à toi de choisir. Ralentis à 0,5×, revois, puis réponds.<br><b class="accent">Chaque extrait se termine par une question.</b> Une erreur, un cœur en moins.',
+    'Ton tuteur IA, en un toucher',
+    'Touche n\'importe quel mot.<br>L\'IA te l\'explique <span class="accent">dans cette phrase même.</span>',
+    '<div class="def">boire</div>',
+    'Ici, <b>喝</b> se combine avec <b>好</b> pour former <b>好喝</b> — « bon (bon à boire) ». On ne parle pas de l\'acte de boire, mais de <i>quelle boisson est bonne</i>. Compare avec 好吃 (bon à manger) et 好看 (beau à voir).',
+    'Des explications qui comprennent la grammaire, dans ta propre langue.<br>Les réponses sont <b class="warm">gardées pour toujours</b> — il suffit qu\'une personne demande et tout le monde y a accès gratuitement.',
+    'Un jeu auquel tu as vraiment envie de jouer',
+    'Ton voyage à travers la Chine.<br><span class="accent">576 étapes</span>, du HSK 1 au 6.',
+    '🏮 <b>Lanternes</b>&nbsp;&&nbsp;🪙 <b>pièces</b> — gagne-les et dépense-les au Marché',
+    '⚡ <b>Mission quotidienne :</b>&nbsp;termine une étape',
+    '<span>Monte en grade aux côtés des légendes de la Chine</span>',
+    '🍵 <b>Maison de thé</b> — détends-toi, révise et discute',
+    'Séries, missions, cœurs et lieux à débloquer te font revenir — <b class="accent">chaque jour</b>.',
+    'Apprenez ensemble, rivalisez ensemble',
+    'Défie tes amis. Grimpe au classement.',
+    '10 questions, 10 secondes chacune, 3 vies. Fais tourner la roue des thèmes et affronte un ami — ou un bot.',
+    'Assemble des caractères chinois à partir de leurs composants, contre la montre. Découvre comment ils sont vraiment construits.',
+    '<h3>Classement</h3>',
+    'Pourquoi Sinoma',
+    'Conçu pour réparer ce qui ne va pas<br>dans les applis d\'apprentissage des langues.',
+    '<span class="from">Audio de manuel, scénarisé</span>',
+    '<span class="to">De vraies conversations YouTube de natifs</span>',
+    '<span class="from">Regarder des vidéos de façon passive</span>',
+    '<span class="to">Une question après chaque extrait</span>',
+    '<span class="from">Des définitions de dictionnaire sans contexte</span>',
+    '<span class="to">L\'IA explique le mot dans <i>ta</i> phrase</span>',
+    '<span class="from">La motivation s\'éteint au bout d\'une semaine</span>',
+    '<span class="to">Missions, grades, duels et un voyage à travers la Chine</span>',
+    'Du vrai chinois. De vrais progrès.',
+    'Commence gratuitement · 5 crédits IA par jour · Test de niveau HSK 1-6 inclus',
+    'Sinoma — Vidéo promo du produit de 75 secondes',
+    'Clique pour lire · Espace = pause · ←/→ = scènes · Enregistre l\'écran pour exporter en vidéo',
+]
+
+assert len(FR) == len(STRINGS), f'FR {len(FR)} != STRINGS {len(STRINGS)}'
+
 
 def row_for(k):
-    # en/tr/ko from STRINGS, ja/id/vi/th/ru/es/pt appended from the parallel lists.
-    return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k], ES[k], PT[k])
+    # en/tr/ko from STRINGS, ja/id/vi/th/ru/es/pt/fr appended from the parallel lists.
+    return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k], ES[k], PT[k], FR[k])
 
 
 def main():
