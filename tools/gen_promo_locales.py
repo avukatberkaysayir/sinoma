@@ -584,8 +584,8 @@ def row_for(k):
 # nothing is mirrored. .badges is reset to ltr to keep the avatar row in order.
 AR_RTL_STYLE = (
     '<style>\n'
-    '  .kicker,h1,h2,h3,.sub,.pain,.qb,.def,.ai .msg,.gcard p,.hudrow'
-    '{direction:rtl}\n'
+    '  .kicker,h1,h2,h3,.sub,.pain,.qb,.def,.ai .msg,.gcard p,.hudrow,'
+    '.fix .from,.fix .to{direction:rtl}\n'
     '  .badges{direction:ltr}\n'
     '</style>\n'
 )

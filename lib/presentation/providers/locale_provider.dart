@@ -62,6 +62,15 @@ class AppL10n {
   bool get _isFr => languageCode == 'fr';
   bool get _isAr => languageCode == 'ar';
 
+  // Wrap an Arabic label in a Unicode RTL isolate (U+2067 … U+2069) so it reads
+  // right-to-left with numbers/Latin in the correct place, WITHOUT flipping any
+  // layout: the app stays LTR (nav, cards, rows keep their positions) and only
+  // the text run itself is bidi-isolated as RTL. No-op for empty strings.
+  // 0x2067 = RIGHT-TO-LEFT ISOLATE, 0x2069 = POP DIRECTIONAL ISOLATE.
+  static final String _rli = String.fromCharCode(0x2067);
+  static final String _pdi = String.fromCharCode(0x2069);
+  static String _rtl(String s) => s.isEmpty ? s : '$_rli$s$_pdi';
+
   String _t(String tr, String en, String ko, String ja, String id, String vi,
           String th, String ru, String es, String pt, String fr, String ar) =>
       _isTr
@@ -82,7 +91,7 @@ class AppL10n {
                                       ? es
                                       : (_isPt
                                           ? pt
-                                          : (_isFr ? fr : (_isAr ? ar : en))))))))));
+                                          : (_isFr ? fr : (_isAr ? _rtl(ar) : en))))))))));
 
   // ── Language screen ─────────────────────────────────────────────────────────
   String get chooseLanguage   => _t('Dil Seçin', 'Choose Language', '언어 선택', '言語を選択', 'Pilih Bahasa', 'Chọn ngôn ngữ', 'เลือกภาษา', 'Выберите язык', 'Elegir idioma', 'Escolher idioma', 'Choisir la langue', 'اختر اللغة');
