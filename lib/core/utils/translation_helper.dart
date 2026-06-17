@@ -43,6 +43,10 @@ class TranslationHelper {
         return word.definitions.fr.isNotEmpty
             ? word.definitions.fr
             : word.definitions.en;
+      case 'ar':
+        return word.definitions.ar.isNotEmpty
+            ? word.definitions.ar
+            : word.definitions.en;
       case 'en':
       default:
         return word.definitions.en;

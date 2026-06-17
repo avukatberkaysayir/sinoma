@@ -86,6 +86,7 @@ class WordSlot {
   final String es;
   final String pt;
   final String fr;
+  final String ar;
   const WordSlot({
     required this.word,
     required this.level,
@@ -103,6 +104,7 @@ class WordSlot {
     this.es = '',
     this.pt = '',
     this.fr = '',
+    this.ar = '',
   });
 
   String get slotKey => 'L$level.u$unit.p$phase';
@@ -119,6 +121,7 @@ class WordSlot {
         'es' => es.isNotEmpty ? es : en,
         'pt' => pt.isNotEmpty ? pt : en,
         'fr' => fr.isNotEmpty ? fr : en,
+        'ar' => ar.isNotEmpty ? ar : en,
         _ => en,
       };
 
@@ -139,6 +142,7 @@ class WordSlot {
         es: m['es'] as String? ?? '',
         pt: m['pt'] as String? ?? '',
         fr: m['fr'] as String? ?? '',
+        ar: m['ar'] as String? ?? '',
       );
 }
 

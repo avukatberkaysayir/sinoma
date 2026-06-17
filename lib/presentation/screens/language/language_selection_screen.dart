@@ -25,6 +25,7 @@ const List<(String flag, String name, String code, bool live)> _kLanguages = [
   ('🇪🇸', 'Español', 'es', true),
   ('🇵🇹', 'Português', 'pt', true),
   ('🇫🇷', 'Français', 'fr', true),
+  ('🇸🇦', 'العربية', 'ar', true),
 ];
 
 class LanguageSelectionScreen extends ConsumerStatefulWidget {
@@ -163,7 +164,7 @@ class _LanguageSelectionScreenState
                                     ? '次へ'
                                     : (_selected == 'id'
                                     ? 'Lanjut'
-                                    : (_selected == 'vi' ? 'Tiếp tục' : (_selected == 'th' ? 'ต่อไป' : (_selected == 'ru' ? 'Продолжить' : (_selected == 'es' ? 'Continuar' : (_selected == 'pt' ? 'Continuar' : (_selected == 'fr' ? 'Continuer' : 'Continue'))))))))),
+                                    : (_selected == 'vi' ? 'Tiếp tục' : (_selected == 'th' ? 'ต่อไป' : (_selected == 'ru' ? 'Продолжить' : (_selected == 'es' ? 'Continuar' : (_selected == 'pt' ? 'Continuar' : (_selected == 'fr' ? 'Continuer' : (_selected == 'ar' ? 'متابعة' : 'Continue')))))))))),
                         style: const TextStyle(
                             fontSize: 16, fontWeight: FontWeight.w800),
                       ),

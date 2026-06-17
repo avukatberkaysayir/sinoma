@@ -190,6 +190,24 @@ const Map<String, String> kCityFrNames = {
   'jiujiang': 'Jiujiang', 'quanzhou': 'Quanzhou',
 };
 
+const Map<String, String> kCityArNames = {
+  'beijing': 'بكين', 'shanghai': 'شنغهاي', 'nanjing': 'نانجينغ',
+  'guangzhou': 'قوانغجو', 'chongqing': 'تشونغتشينغ', 'chengdu': 'تشنغدو',
+  'xian': 'شيان', 'tianjin': 'تيانجين', 'hangzhou': 'هانغجو',
+  'wuhan': 'ووهان', 'shenzhen': 'شنجن', 'suzhou': 'سوجو',
+  'qingdao': 'تشينغداو', 'urumqi': 'أورومتشي', 'kashgar': 'كاشغر',
+  'hongkong': 'هونغ كونغ', 'macau': 'ماكاو',
+  'changsha': 'تشانغشا', 'zhengzhou': 'تشنغجو', 'wuxi': 'ووشي',
+  'nanning': 'نانينغ', 'nanchang': 'نانتشانغ', 'yinchuan': 'ينتشوان',
+  'lhasa': 'لاسا', 'zhuhai': 'تشوهاي', 'yantai': 'يانتاي',
+  'datong': 'داتونغ', 'baotou': 'باوتو', 'weifang': 'ويفانغ',
+  'dezhou': 'دجو', 'xuzhou': 'شوجو', 'zhenjiang': 'تشنجيانغ',
+  'jiaxing': 'جياشينغ', 'lishui': 'ليشوي', 'anqing': 'آنتشينغ',
+  'ganzhou': 'قانجو', 'putian': 'بوتيان', 'mudanjiang': 'مودانجيانغ',
+  'changzhou': 'تشانغجو', 'shaoxing': 'شاوشينغ', 'bengbu': 'بنغبو',
+  'jiujiang': 'جيوجيانغ', 'quanzhou': 'تشيوانجو',
+};
+
 // Locale-aware display name — banners/captions show ONLY this (no hanzi).
 String cityDisplayName(City c, {required bool tr}) =>
     tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
@@ -205,6 +223,7 @@ String cityNameFor(City c, String lang) => switch (lang) {
       'es' => kCityEsNames[c.slug] ?? c.pinyin,
       'pt' => kCityPtNames[c.slug] ?? c.pinyin,
       'fr' => kCityFrNames[c.slug] ?? c.pinyin,
+      'ar' => kCityArNames[c.slug] ?? c.pinyin,
       _ => c.pinyin,
     };
 

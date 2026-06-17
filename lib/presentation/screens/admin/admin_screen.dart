@@ -563,6 +563,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   final _esCtrl = TextEditingController();
   final _ptCtrl = TextEditingController();
   final _frCtrl = TextEditingController();
+  final _arCtrl = TextEditingController();
   bool _enConfirmed = false;
   bool _translating = false;
   bool _saving = false;
@@ -583,6 +584,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
     _esCtrl.dispose();
     _ptCtrl.dispose();
     _frCtrl.dispose();
+    _arCtrl.dispose();
     super.dispose();
   }
 
@@ -595,7 +597,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
   Future<void> _fillOtherLangs() async {
     setState(() => _translating = true);
     try {
-      final t = await widget.service.translateMulti(_word, ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr']);
+      final t = await widget.service.translateMulti(_word, ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr', 'ar']);
       if (mounted) {
         if ((t['tr'] ?? '').isNotEmpty) _trCtrl.text = t['tr']!;
         if ((t['ko'] ?? '').isNotEmpty) _koCtrl.text = t['ko']!;
@@ -607,6 +609,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
         if ((t['es'] ?? '').isNotEmpty) _esCtrl.text = t['es']!;
         if ((t['pt'] ?? '').isNotEmpty) _ptCtrl.text = t['pt']!;
         if ((t['fr'] ?? '').isNotEmpty) _frCtrl.text = t['fr']!;
+        if ((t['ar'] ?? '').isNotEmpty) _arCtrl.text = t['ar']!;
       }
     } catch (e) {
       _snack('Çeviri hatası: $e');
@@ -633,6 +636,7 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
         es: _esCtrl.text,
         pt: _ptCtrl.text,
         fr: _frCtrl.text,
+        ar: _arCtrl.text,
       );
       await widget.service
           .deleteWordSuggestion(widget.suggestion['id'] as String);
@@ -832,6 +836,15 @@ class _SuggestionEditorState extends State<_SuggestionEditor> {
                   style: TextStyle(
                       color: AppColors.onSurface, fontSize: 13),
                   decoration: _dec('Fransızca anlam'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: TextField(
+                  controller: _arCtrl,
+                  style: TextStyle(
+                      color: AppColors.onSurface, fontSize: 13),
+                  decoration: _dec('Arapça anlam'),
                 ),
               ),
               const SizedBox(width: 8),

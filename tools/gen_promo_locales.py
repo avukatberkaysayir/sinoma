@@ -8,7 +8,7 @@ import pathlib, sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 MASTER = ROOT / 'web' / 'promo' / 'sinoma_promo.html'
 
-LANGS = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr']
+LANGS = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr', 'ar']
 
 # (en, tr, ko) — Japanese (JA) and Indonesian (ID) live in parallel lists below
 # (same order) so the existing en/tr/ko tuples stay byte-for-byte identical to
@@ -517,10 +517,61 @@ FR = [
 
 assert len(FR) == len(STRINGS), f'FR {len(FR)} != STRINGS {len(STRINGS)}'
 
+# Arabic (Modern Standard Arabic) translations, in the SAME order as STRINGS.
+# RTL: the <html> tag carries dir="rtl" so the whole page lays out right-to-left.
+AR = [
+    '<html lang="ar" dir="rtl">',
+    'تتعلّم الصينية؟',
+    '3000 حرف. 4 نغمات.<br>ومع ذلك لا يشبه ما تسمعه شيئاً مما في الصف.',
+    'تحفظ الكلمات — ثم يفتح ناطق أصلي فمه فلا تفهم <b class="bad">شيئاً</b>.',
+    '📚 حوارات كتب مدرسية جافة',
+    '🃏 بطاقات حفظ بلا أي سياق',
+    '🤖 تطبيقات لا تُسمعك كلاماً حقيقياً أبداً',
+    'تعلّم الصينية من <b class="accent">مقاطع حقيقية</b> لصُنّاع محتوى ناطقين بها —<br>لا من تسجيلات الكتب المدرسية.',
+    'مُدخَلات مفهومة، على دفعات صغيرة',
+    'مقاطع حقيقية. قطع من 5 إلى 10 ثوانٍ.<br>ثم أثبت أنك فهمت.',
+    'أي المشروبات الصينية لذيذة؟',
+    'أي المشروبات الصينية ليست لذيذة؟',
+    'الترجمة مشغّلة أو متوقّفة — الخيار لك. أبطئه إلى 0.5×، أعد المشاهدة، ثم أجب.<br><b class="accent">كل مقطع ينتهي باختبار.</b> إن أخطأت، تخسر قلباً.',
+    'معلّمك بالذكاء الاصطناعي، على بُعد لمسة',
+    'المس أي كلمة.<br>يشرحها لك الذكاء الاصطناعي <span class="accent">داخل تلك الجملة نفسها.</span>',
+    '<div class="def">يشرب</div>',
+    'هنا يتّصل <b>喝</b> بـ<b>好</b> ليكوّن <b>好喝</b> — «لذيذ (لذيذ الشرب)». المتحدثة لا تتكلم عن فعل الشرب، بل تحكم على <i>أي المشروبات لذيذة</i>. قارن بـ 好吃 (لذيذ الأكل) و好看 (جميل المنظر).',
+    'شروح تفهم القواعد، بلغتك أنت.<br>تُحفظ الإجابات <b class="warm">إلى الأبد</b> — ما إن يسأل أحدهم حتى تصبح فورية ومجانية للجميع.',
+    'لعبة ترغب فعلاً في لعبها',
+    'رحلتك عبر الصين.<br><span class="accent">576 مرحلة</span>، من HSK 1 إلى 6.',
+    '🏮 <b>فوانيس</b>&nbsp;و&nbsp;🪙 <b>عملات</b> — اكسبها وأنفقها في السوق',
+    '⚡ <b>مهمة يومية:</b>&nbsp;أكمل مرحلة واحدة',
+    '<span>اصعد في رتب أساطير الصين</span>',
+    '🍵 <b>بيت الشاي</b> — استرخِ وراجِع وتحدّث',
+    'السلاسل والمهام والقلوب والمعالم التي تُفتح تعيدك دائماً — <b class="accent">كل يوم</b>.',
+    'تعلّموا معاً، تنافسوا معاً',
+    'تحدَّ أصدقاءك. اصعد في لوحة المتصدّرين.',
+    '10 أسئلة، 10 ثوانٍ لكل سؤال، 3 أرواح. أدِر عجلة الفئات ونازِل صديقاً — أو روبوتاً.',
+    'ركّب الحروف الصينية من جذورها في سباق مع الوقت. تعلّم كيف تُبنى الحروف فعلاً.',
+    '<h3>لوحة المتصدّرين</h3>',
+    'لماذا Sinoma',
+    'صُمِّم لإصلاح ما هو معطَّل<br>في تطبيقات تعلّم اللغات.',
+    '<span class="from">صوت كتب مدرسية مكتوب سلفاً</span>',
+    '<span class="to">كلام يوتيوب حقيقي لناطقين أصليين</span>',
+    '<span class="from">مشاهدة فيديو سلبية</span>',
+    '<span class="to">اختبار بعد كل مقطع</span>',
+    '<span class="from">تعريفات قاموس بلا سياق</span>',
+    '<span class="to">الذكاء الاصطناعي يشرح الكلمة في جملتك <i>أنت</i></span>',
+    '<span class="from">حماس يخبو خلال أسبوع</span>',
+    '<span class="to">مهام ورتب ومبارزات ورحلة عبر الصين</span>',
+    'صينية حقيقية. تقدّم حقيقي.',
+    'البدء مجاني · 5 أرصدة ذكاء اصطناعي يومياً · يشمل اختبار تحديد المستوى HSK 1–6',
+    'Sinoma — فيديو ترويجي للمنتج 75 ثانية',
+    'انقر للتشغيل · المسافة = إيقاف مؤقت · ←/→ = المشاهد · سجّل الشاشة لتصديره كفيديو',
+]
+
+assert len(AR) == len(STRINGS), f'AR {len(AR)} != STRINGS {len(STRINGS)}'
+
 
 def row_for(k):
-    # en/tr/ko from STRINGS, ja/id/vi/th/ru/es/pt/fr appended from the parallel lists.
-    return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k], ES[k], PT[k], FR[k])
+    # en/tr/ko from STRINGS, ja/id/vi/th/ru/es/pt/fr/ar appended from the parallel lists.
+    return STRINGS[k] + (JA[k], ID[k], VI[k], TH[k], RU[k], ES[k], PT[k], FR[k], AR[k])
 
 
 def main():

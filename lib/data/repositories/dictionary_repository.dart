@@ -46,6 +46,7 @@ class DictionaryRepository {
                 'es': w.length > 11 ? w[11] : '',
                 'pt': w.length > 12 ? w[12] : '',
                 'fr': w.length > 13 ? w[13] : '',
+                'ar': w.length > 14 ? w[14] : '',
                 'pos': w[2],
               },
               'ai_context_cache': <String, dynamic>{},
@@ -255,6 +256,7 @@ class DictionaryRepository {
       'es' => w.definitions.es.isNotEmpty ? w.definitions.es : w.definitions.en,
       'pt' => w.definitions.pt.isNotEmpty ? w.definitions.pt : w.definitions.en,
       'fr' => w.definitions.fr.isNotEmpty ? w.definitions.fr : w.definitions.en,
+      'ar' => w.definitions.ar.isNotEmpty ? w.definitions.ar : w.definitions.en,
       _    => w.definitions.tr,
     }.toLowerCase();
 

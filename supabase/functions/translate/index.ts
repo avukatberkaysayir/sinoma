@@ -49,6 +49,7 @@ const LANG_NAMES: Record<string, string> = {
   es: "Spanish",
   pt: "Portuguese",
   fr: "French",
+  ar: "Arabic",
 };
 
 // Faithful translation of a Chinese sentence — or, for a single word, a
@@ -143,7 +144,11 @@ serve(async (req) => {
         `French in citation form — nouns with their definite/indefinite article ` +
         `to show gender (le/la/un/une), verbs as the infinitive, adjectives in ` +
         `masculine singular, with correct accents, as a published French ` +
-        `dictionary (Larousse/Le Robert) would print). ` +
+        `dictionary (Larousse/Le Robert) would print; Arabic (Modern Standard ` +
+        `Arabic, fuṣḥā) in citation form — nouns as the bare indefinite ` +
+        `singular, verbs as the 3rd-person masculine singular perfect (الماضي), ` +
+        `in Arabic script with no full vowel diacritics, as a published Arabic ` +
+        `dictionary would print). ` +
         `Return ONLY JSON: {${langKeys}}`
       : `You are a professional translator. Translate this Chinese sentence ` +
         `faithfully and naturally into each requested language (no pinyin, ` +
@@ -160,7 +165,10 @@ serve(async (req) => {
         `gender/number agreement and accents (ã, õ, ç), grammatically perfect; ` +
         `French must be natural standard French with correct gender/number ` +
         `agreement, accents (é, è, ê, à, ç) and elision (l', d', j'), ` +
-        `grammatically perfect.\n` +
+        `grammatically perfect; Arabic must be natural Modern Standard Arabic ` +
+        `(fuṣḥā) in Arabic script with correct definiteness (الـ/tanwin), ` +
+        `gender/number agreement, non-human-plural feminine-singular agreement ` +
+        `and iḍāfa, grammatically perfect.\n` +
         `Chinese: "${text}"\nReturn ONLY JSON: {${langKeys}}`;
 
     const reqBody = JSON.stringify({

@@ -395,6 +395,33 @@ const LANG_PROFILES: Record<string, { authority: string; rules: string[] }> = {
       "Produce natural, idiomatic standard French with correct gender/number agreement, articles/contractions, elision, the right past aspect (passé composé vs imparfait), participle agreement, mood (indicatif vs subjonctif) and accents — never a word-for-word calque from Chinese or English.",
     ],
   },
+  // ── Arabic grammar, integrated in parts. Reference: Ryding, A Reference
+  // Grammar of Modern Standard Arabic (Cambridge); fuṣḥā. ────────────────────────
+  Arabic: {
+    authority: "Modern Standard Arabic (fuṣḥā) orthography & usage; reference: Ryding, A Reference Grammar of Modern Standard Arabic (Cambridge)",
+    rules: [
+      // [P1] Script & orthography
+      "Write right-to-left Modern Standard Arabic (fuṣḥā) in connected script. Use hamza on its correct seat (أ إ ؤ ئ or ء), shadda (ّ) for doubled consonants, and ta marbuta (ة) for the feminine ending. Short vowels are normally left unwritten; do NOT add full vowel diacritics to quiz options. Keep the lam of الـ written even before sun letters (الشمس, not اششمس).",
+      // [P2] Definiteness, gender, the nominal sentence
+      "Definiteness: a definite noun takes the prefix الـ (الكتاب 'the book'); indefiniteness is shown by nunation/tanwin, not a separate word (كتاب 'a book'). There is no verb 'to be' in the present: a nominal sentence is subject + predicate (البيت كبير 'the house is big'; هو طالب 'he is a student'). Use كان for the past (كان البيت كبيراً) and ليس to negate it (ليس كبيراً 'is not big').",
+      "Gender: every noun is masculine or feminine; the feminine is usually marked with ة (طالب m → طالبة f). Some nouns are feminine without ة (شمس, أرض, يد, مدينة + country/city names). Adjectives FOLLOW the noun and agree in gender, number, definiteness and case (الكتاب الكبير 'the big book'; مدينة كبيرة 'a big city').",
+      // [P3] Number, case
+      "Three numbers: singular, DUAL and plural. Dual adds ـان/ـين (كتابان/كتابين 'two books'). Sound masc. plural ـون/ـين (مدرّسون/مدرّسين), sound fem. plural ـات (مدرّسات). Many nouns take a BROKEN plural with an internal pattern change that must be learned: كتاب→كتب, ولد→أولاد, رجل→رجال, بيت→بيوت, مدينة→مدن.",
+      "Case (iʿrāb): nominative (مرفوع, -u) for subject/predicate; accusative (منصوب, -a) for the object, the predicate of كان, and the noun of إنّ; genitive (مجرور, -i) after a preposition and as the second term of an iḍāfa. In unvowelled quiz text these endings are usually invisible, but choose forms that are grammatically consistent.",
+      // [P4] Iḍāfa, agreement
+      "Iḍāfa (possessive/of construction): the FIRST noun takes NO article and NO tanwin and the SECOND noun is genitive and definite (باب البيت 'the door of the house'; كتاب الطالب 'the student's book'; غرفة نوم 'a bedroom'). Never put الـ on the first term of an iḍāfa.",
+      "Non-human plural agreement (key Arabic rule): plural nouns referring to NON-humans agree as FEMININE SINGULAR with their adjective and verb (الكتب الجديدة 'the new books'; السيارات كبيرة 'the cars are big'; هذه الكتب 'these books'). Human plurals take full plural agreement (المدرّسون الجدد 'the new teachers').",
+      // [P5] Verb system
+      "Two aspects: PERFECT (الماضي, past) with suffix conjugation (كتب 'he wrote', كتبتُ 'I wrote', كتبوا 'they wrote') and IMPERFECT (المضارع, present/non-past) with prefix conjugation (يكتب 'he writes/is writing', أكتب, يكتبون). The subject is built into the verb; a separate pronoun is for emphasis. Future = سـ/سوف + imperfect (سيكتب 'he will write').",
+      "Verb-initial sentences keep the verb SINGULAR with a plural subject (كتب الطلاب 'the students wrote'), but a subject-initial sentence shows full agreement (الطلاب كتبوا). Negation: past → ما or لم + jussive imperfect (لم يذهب 'he did not go'); present → لا (لا يعرف 'he doesn't know'); future → لن + subjunctive (لن أذهب 'I won't go'); nominal → ليس.",
+      "Roots are triliteral and meaning shifts by FORM (wazn): I فعل, II فعّل (intensive/causative درّس 'taught'), III فاعل (reciprocal), IV أفعل (causative أرسل 'sent'), V تفعّل, VI تفاعل, VII انفعل, VIII افتعل, X استفعل (استخدم 'used'). Use the active participle (كاتب 'writer'), passive participle (مكتوب 'written') and verbal noun/maṣdar (كتابة 'writing', دراسة 'studying') where natural.",
+      // [P6] Pronouns, prepositions, questions, numbers
+      "Attached pronouns express possession on nouns (كتابي 'my book', كتابه 'his book', بيتنا 'our house'), object on verbs (رآني 'he saw me') and complement on prepositions (له, معي, عنده). There is no verb 'to have': use عند or لـ (عندي كتاب 'I have a book'; لي أخ 'I have a brother').",
+      "Prepositions take the genitive: في (in), على (on), من (from), إلى (to), بـ (with/by), لـ (for), عن (about), مع (with), عند (at/by). Question words: هل/أ (yes-no), ما/ماذا (what), من (who), أين (where), متى (when), لماذا (why), كيف (how), كم (how many — followed by a SINGULAR accusative: كم كتاباً؟).",
+      "Numbers: 3–10 show REVERSE gender agreement and are followed by a genitive plural (ثلاثة كتب 'three books' — masc. counted noun → feminine-form number; ثلاث بنات 'three girls'); 11–99 are followed by a SINGULAR accusative (عشرون كتاباً 'twenty books'). The conjunction وَ ('and') is written attached to the next word (الكتاب والقلم). إنّ and its sisters put their noun in the accusative.",
+      "Produce natural, idiomatic Modern Standard Arabic with correct definiteness (الـ / tanwin), gender and number agreement, NON-HUMAN-PLURAL feminine-singular agreement, article-less first term in iḍāfa, correct iʿrāb, the right negation (لم/لن/لا/ليس) and verb form — never a word-for-word calque from Chinese or English.",
+    ],
+  },
 };
 
 function buildPrompt(
@@ -471,6 +498,7 @@ function langCodeToName(code: string): string {
     : code === "es" ? "Spanish"
     : code === "pt" ? "Portuguese"
     : code === "fr" ? "French"
+    : code === "ar" ? "Arabic"
     : "Turkish";
 }
 
@@ -664,6 +692,7 @@ serve(async (req) => {
       : lang === "es" ? "Spanish"
       : lang === "pt" ? "Portuguese"
       : lang === "fr" ? "French"
+      : lang === "ar" ? "Arabic"
       : "Turkish";
 
     // Cache first — same sentence+language+English source (correct+wrong) never
