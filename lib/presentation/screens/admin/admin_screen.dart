@@ -8089,8 +8089,8 @@ class _DictionaryDesignPanel extends StatelessWidget {
   }
 }
 
-// Öğren design: pick a Level → Ünite, then manage the banner image, the 4
-// landmark photos (+ descriptions) and the 4 phase icons (upload/delete/size).
+// Öğren design: pick a Level → Ünite, then manage the 4 landmark photos
+// (+ descriptions) and the 4 phase icons (upload/delete/size).
 class _LearnDesignTab extends ConsumerStatefulWidget {
   const _LearnDesignTab();
   @override
@@ -8169,19 +8169,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
                         fontSize: 14,
                         fontWeight: FontWeight.w700)),
                 const SizedBox(height: 12),
-                _sectionLabel('Banner'),
-                _assetTile(
-                  kind: 'banner',
-                  slot: 0,
-                  url: assets.banner?.url,
-                  fallbackAsset: null,
-                  scale: assets.banner?.scale ?? 1.0,
-                  bigPreview: true,
-                  // With no uploaded banner, preview the live composed banner.
-                  composedFallback: _composedBanner(city, landmarks, assets),
-                ),
-                const SizedBox(height: 16),
-                _sectionLabel('Fotoğraflar (banner açılınca)'),
+                _sectionLabel('Fotoğraflar (şehir bilgisi açılınca)'),
                 for (var i = 0; i < 4; i++) ...[
                   _photoBlock(i, landmarks, assets),
                   const SizedBox(height: 12),
@@ -8265,65 +8253,17 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
     );
   }
 
-  // A mini copy of the live home banner (gradient + the 4 landmark icons), shown
-  // in the admin preview when no custom banner image has been uploaded.
-  Widget _composedBanner(
-      City city, List<Landmark>? landmarks, UnitAssets assets) {
-    if (landmarks == null) {
-      return Center(
-          child: Text('yok',
-              style: TextStyle(color: AppColors.onSurfaceMuted, fontSize: 12)));
-    }
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF283A60), Color(0xFFF0A878)],
-        ),
-      ),
-      child: Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: const EdgeInsets.only(right: 6, bottom: 4),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              for (var i = 0; i < landmarks.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(left: 5),
-                  child: SizedBox(
-                    width: 27,
-                    height: 27,
-                    child: assets.icon(i).url != null
-                        ? Image.network(assets.icon(i).url!,
-                            fit: BoxFit.contain)
-                        : Image.asset(cityIconAsset(city.slug, landmarks[i].icon),
-                            fit: BoxFit.contain),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // Banner / icon tile: preview + upload/delete + size slider.
+  // Icon tile: preview + upload/delete + size slider.
   Widget _assetTile({
     required String kind,
     required int slot,
     required String? url,
     required String? fallbackAsset,
     required double scale,
-    bool bigPreview = false,
-    Widget? composedFallback,
   }) {
     final hasUploaded = url != null && url.isNotEmpty;
     return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      _preview(url, fallbackAsset,
-          h: bigPreview ? 90 : 70, composed: composedFallback),
+      _preview(url, fallbackAsset, h: 70),
       const SizedBox(width: 12),
       Expanded(
         child: Column(
