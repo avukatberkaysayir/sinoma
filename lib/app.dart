@@ -199,13 +199,24 @@ class SinomaApp extends ConsumerWidget {
       // RTL locale, which would otherwise mirror the whole UI (nav rail, cards,
       // rows flip sides). Pin the app to LTR; Arabic glyph runs still shape
       // right-to-left on their own via the Unicode bidi algorithm.
-      builder: (context, child) => Directionality(
-        textDirection: TextDirection.ltr,
-        child: Stack(
+      builder: (context, child) {
+        Widget content = Stack(
           fit: StackFit.expand,
           children: [child!, const _FontWarmer()],
-        ),
-      ),
+        );
+        // Arabic: right-align text (proper Arabic look) WITHOUT moving any box.
+        // The app stays LTR so the nav rail, cards and rows keep the exact
+        // positions they have in every other language; only the text alignment
+        // flips to the right. Combined with the RTL isolate in AppL10n._t, each
+        // label reads right-to-left, right-aligned, with numbers in place.
+        if (locale.languageCode == 'ar') {
+          content = DefaultTextStyle.merge(
+            textAlign: TextAlign.right,
+            child: content,
+          );
+        }
+        return Directionality(textDirection: TextDirection.ltr, child: content);
+      },
     );
   }
 
