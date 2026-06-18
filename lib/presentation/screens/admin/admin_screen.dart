@@ -2975,6 +2975,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   bool _enApproved = false; // English options approved as the pivot source
   bool _saving = false;
   bool _generating = false;
+  bool _genAllRunning = false; // "Hepsini Üret" batch in progress
+  int _genAllDone = 0; // languages translated so far in the batch
   bool _segmenting = false;
   bool _whisperRunning = false;
   List<String>? _confirmedWords;
@@ -3217,8 +3219,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     setState(() => _generating = true);
     try {
       // Each language is generated on its own: English alone first, then every
-      // other language from the approved English (sourceEn). No batch — pressing
-      // "generate English" must NOT also overwrite the Turkish options.
+      // other language from the approved English (sourceEn).
       final q = await widget.service.generateQuiz(
         transcription: transcription,
         pinyin: _pinyinCtrl.text.trim(),
@@ -3228,44 +3229,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       );
       if (!mounted) return;
       setState(() {
-        if (_selectedQuizLang == 'tr') {
-          _correctCtrl.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrl.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'ko') {
-          _correctCtrlKo.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlKo.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'ja') {
-          _correctCtrlJa.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlJa.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'id') {
-          _correctCtrlId.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlId.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'vi') {
-          _correctCtrlVi.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlVi.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'th') {
-          _correctCtrlTh.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlTh.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'ru') {
-          _correctCtrlRu.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlRu.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'es') {
-          _correctCtrlEs.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlEs.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'pt') {
-          _correctCtrlPt.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlPt.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'fr') {
-          _correctCtrlFr.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlFr.text = (q['wrongAnswer'] as String?) ?? '';
-        } else if (_selectedQuizLang == 'ar') {
-          _correctCtrlAr.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlAr.text = (q['wrongAnswer'] as String?) ?? '';
-        } else {
-          _correctCtrlEn.text = (q['correctAnswer'] as String?) ?? '';
-          _wrongCtrlEn.text = (q['wrongAnswer'] as String?) ?? '';
-          _enApproved = false; // fresh English needs re-approval
-        }
+        _applyQuizFields(_selectedQuizLang,
+            (q['correctAnswer'] as String?) ?? '',
+            (q['wrongAnswer'] as String?) ?? '');
         _generating = false;
       });
     } catch (e) {
@@ -3273,6 +3239,104 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       setState(() => _generating = false);
       ScaffoldMessenger.of(context)
           .showSnackBar(SnackBar(content: Text('Üretim hatası: $e')));
+    }
+  }
+
+  // Write a generated (correct, wrong) pair into the controllers for `lang`.
+  void _applyQuizFields(String lang, String correct, String wrong) {
+    switch (lang) {
+      case 'tr':
+        _correctCtrl.text = correct;
+        _wrongCtrl.text = wrong;
+      case 'ko':
+        _correctCtrlKo.text = correct;
+        _wrongCtrlKo.text = wrong;
+      case 'ja':
+        _correctCtrlJa.text = correct;
+        _wrongCtrlJa.text = wrong;
+      case 'id':
+        _correctCtrlId.text = correct;
+        _wrongCtrlId.text = wrong;
+      case 'vi':
+        _correctCtrlVi.text = correct;
+        _wrongCtrlVi.text = wrong;
+      case 'th':
+        _correctCtrlTh.text = correct;
+        _wrongCtrlTh.text = wrong;
+      case 'ru':
+        _correctCtrlRu.text = correct;
+        _wrongCtrlRu.text = wrong;
+      case 'es':
+        _correctCtrlEs.text = correct;
+        _wrongCtrlEs.text = wrong;
+      case 'pt':
+        _correctCtrlPt.text = correct;
+        _wrongCtrlPt.text = wrong;
+      case 'fr':
+        _correctCtrlFr.text = correct;
+        _wrongCtrlFr.text = wrong;
+      case 'ar':
+        _correctCtrlAr.text = correct;
+        _wrongCtrlAr.text = wrong;
+      default:
+        _correctCtrlEn.text = correct;
+        _wrongCtrlEn.text = wrong;
+        _enApproved = false; // fresh English needs re-approval
+    }
+  }
+
+  // "Gemini ile Hepsini Üret": translate the approved English options into ALL
+  // other UI languages one by one (each pivots off the approved English). The
+  // per-language buttons stay available for fixing a single language.
+  Future<void> _generateAllLangs() async {
+    if (_confirmedWords == null) return;
+    final transcription = _confirmedWords!.join('');
+    final srcC = _correctCtrlEn.text.trim();
+    final srcW = _wrongCtrlEn.text.trim();
+    if (!_enApproved || srcC.isEmpty || srcW.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text(
+              'Önce İngilizce şıkları üretip "İngilizce’yi Onayla"ya bas.')));
+      return;
+    }
+    const langs = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr', 'ar'];
+    setState(() {
+      _generating = true;
+      _genAllRunning = true;
+      _genAllDone = 0;
+    });
+    try {
+      for (final lang in langs) {
+        final q = await widget.service.generateQuiz(
+          transcription: transcription,
+          pinyin: _pinyinCtrl.text.trim(),
+          lang: lang,
+          sourceEn: srcC,
+          sourceEnWrong: srcW,
+        );
+        if (!mounted) return;
+        setState(() {
+          _applyQuizFields(lang, (q['correctAnswer'] as String?) ?? '',
+              (q['wrongAnswer'] as String?) ?? '');
+          _genAllDone++;
+        });
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Tüm diller üretildi ✓')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Üretim hatası: $e')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _generating = false;
+          _genAllRunning = false;
+        });
+      }
     }
   }
 
@@ -4339,32 +4403,45 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   const SizedBox(height: 8),
                   // English-first pivot: generate + approve English, then other
                   // languages translate from the approved English (Chinese→EN→X
-                  // reads far better than Chinese→X direct).
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: (_generating ||
-                              (_selectedQuizLang != 'en' && !_enApproved))
-                          ? null
-                          : _generateQuiz,
-                      icon: _generating
-                          ? const SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.auto_awesome, size: 18),
-                      label: Text(_generating
-                          ? 'Üretiliyor…'
-                          : _selectedQuizLang == 'en'
-                              ? 'Gemini ile İngilizce üret'
-                              : 'Gemini ile ${_selectedQuizLang.toUpperCase()} üret (onaylı İngilizce’den)'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.primary,
-                        side: const BorderSide(color: AppColors.primary),
-                        padding: const EdgeInsets.symmetric(vertical: 10),
+                  // reads far better than Chinese→X direct). On the EN tab a
+                  // second button translates the approved English into ALL
+                  // languages at once (enabled only after EN is approved); the
+                  // per-language buttons stay for fixing one language.
+                  if (_selectedQuizLang == 'en')
+                    Row(children: [
+                      Expanded(
+                        child: _genBtn(
+                          _generating && !_genAllRunning
+                              ? 'Üretiliyor…'
+                              : 'Gemini ile İngilizce üret',
+                          _generating ? null : _generateQuiz,
+                          _generating && !_genAllRunning,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _genBtn(
+                          _genAllRunning
+                              ? 'Çevriliyor… ($_genAllDone/11)'
+                              : 'Gemini ile Hepsini Üret',
+                          (_generating || !_enApproved)
+                              ? null
+                              : _generateAllLangs,
+                          _genAllRunning,
+                        ),
+                      ),
+                    ])
+                  else
+                    SizedBox(
+                      width: double.infinity,
+                      child: _genBtn(
+                        _generating
+                            ? 'Üretiliyor…'
+                            : 'Gemini ile ${_selectedQuizLang.toUpperCase()} üret (onaylı İngilizce’den)',
+                        (_generating || !_enApproved) ? null : _generateQuiz,
+                        _generating,
                       ),
                     ),
-                  ),
                   if (_selectedQuizLang != 'en' && !_enApproved)
                     Padding(
                       padding: const EdgeInsets.only(top: 4),
@@ -4815,6 +4892,24 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       ),
     );
   }
+
+  // Outlined "generate with Gemini" button (shared by the EN / all / per-lang
+  // variants); shows a spinner when its own action is running.
+  Widget _genBtn(String label, VoidCallback? onPressed, bool busy) =>
+      OutlinedButton.icon(
+        onPressed: onPressed,
+        icon: busy
+            ? const SizedBox(
+                width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2))
+            : const Icon(Icons.auto_awesome, size: 18),
+        label: Text(label, textAlign: TextAlign.center),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.primary,
+          side: const BorderSide(color: AppColors.primary),
+          padding: const EdgeInsets.symmetric(vertical: 10),
+        ),
+      );
 
   Widget _quizLangTab(String label, String lang) {
     final selected = _selectedQuizLang == lang;
