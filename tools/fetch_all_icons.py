@@ -386,6 +386,84 @@ ICONS = {
  ('nanping', 'rocktea'): 'tea-cup',                # Da Hong Pao rock tea
  ('nanping', 'bambooraft'): 'rafting-skin-type-2', # Nine-Bend raft
  ('nanping', 'scholar'): 'teacher',                # Zhu Xi
+
+ # ---- L4 cities ----
+ ('shenzhen', 'skyscraper'): 'taipei-towers',      # skyscrapers
+ ('shenzhen', 'chip'): 'processor',                # tech city
+ ('shenzhen', 'miniature'): 'globe',               # Window of the World
+ ('shenzhen', 'mangrove'): 'low-tide',             # Shenzhen Bay (tidal mangrove)
+ ('xian', 'terracotta'): 'iron-age-warrior',       # Terracotta Army
+ ('xian', 'citywall'): 'big-ben',                  # City Wall gate tower
+ ('xian', 'drumtower'): 'bass-drum',               # Bell/Drum Tower
+ ('xian', 'roujiamo'): 'hamburger',                # roujiamo
+ ('suzhou', 'garden'): 'orchid',                   # classical gardens
+ ('suzhou', 'watertown'): 'sail-boat',             # water town
+ ('suzhou', 'embroidery'): 'embroidery',           # Su embroidery
+ ('suzhou', 'kunqu'): 'fan',                       # Kunqu opera fan
+ ('kunming', 'stoneforest'): 'rock',               # Stone Forest
+ ('kunming', 'springcity'): 'greenhouse',          # Spring City flowers
+ ('kunming', 'seagull'): 'seagull',                # Dian Lake gulls
+ ('kunming', 'ricenoodle'): 'bento',               # crossing-bridge noodles
+ ('jinan', 'spring'): 'drilled-well',              # Baotu Spring
+ ('jinan', 'daminglake'): 'willow',                # Daming Lake
+ ('jinan', 'buddhamountain'): 'guru',              # Thousand-Buddha Mountain
+ ('jinan', 'poet'): 'student-female',              # poet Li Qingzhao
+ ('ningbo', 'library'): 'books',                   # Tianyi Pavilion library
+ ('ningbo', 'port'): 'dock',                       # cargo port
+ ('ningbo', 'tangyuan'): 'korean-rice-cake',       # tangyuan
+ ('ningbo', 'seafood'): 'salmon',                  # seafood
+ ('shijiazhuang', 'bridge'): 'triumphal-arch',     # Zhaozhou stone arch bridge
+ ('shijiazhuang', 'clifftemple'): 'sagrada-familia',  # Mount Cangyan cliff temple
+ ('shijiazhuang', 'redbase'): 'reichstag',         # Xibaipo revolutionary HQ
+ ('shijiazhuang', 'pharma'): 'pills',              # pharma city
+ ('taiyuan', 'jincitemple'): 'cathedral',          # Jinci Temple
+ ('taiyuan', 'coalcart'): 'mine-cart',             # coal land
+ ('taiyuan', 'vinegar'): 'glass-jar',              # Shanxi vinegar
+ ('taiyuan', 'twinpagoda'): 'rheinturm',           # Twin Pagodas
+ ('hohhot', 'lamatemple'): 'incense',              # Dazhao lamasery
+ ('hohhot', 'dairy'): 'milk',                      # dairy capital
+ ('hohhot', 'wrestling'): 'wrestling',             # Mongolian wrestling
+ ('hohhot', 'prairie'): 'spring-landscape',        # grassland
+ ('sanya', 'resortbeach'): 'beach-umbrella',       # tropical beach
+ ('sanya', 'guanyin'): 'statue-of-liberty',        # Nanshan Guanyin statue
+ ('sanya', 'diving'): 'scuba-diving',              # diving
+ ('sanya', 'coconutdrink'): 'coconut-cocktail',    # coconut
+ ('yangzhou', 'slenderlake'): 'pussy-willow',      # Slender West Lake willows
+ ('yangzhou', 'friedrice'): 'wok',                 # Yangzhou fried rice
+ ('yangzhou', 'morningtea'): 'breakfast',          # morning tea
+ ('yangzhou', 'gegarden'): 'potted-plant',         # Ge Garden bamboo
+ ('weihai', 'navalisland'): 'battleship',          # Liugong Island
+ ('weihai', 'swan'): 'goose',                      # Swan Lake
+ ('weihai', 'seacucumber'): 'cucumber',            # sea cucumber
+ ('weihai', 'cape'): 'high-tide',                  # easternmost cape
+ ('handan', 'taichi'): 'yin-yang',                 # Tai Chi birthplace
+ ('handan', 'congtai'): 'tower-of-pisa',           # Congtai ancient terrace
+ ('handan', 'idiom'): 'dictionary',                # city of idioms
+ ('handan', 'ciporcelain'): 'saucer',              # Cizhou ware
+ ('daqing', 'oilpump'): 'oil-rig',                 # oilfield
+ ('daqing', 'oilworker'): 'construction-worker',   # Iron Man oil worker
+ ('daqing', 'reedlake'): 'frog',                   # wetlands
+ ('daqing', 'hotspring'): 'shower-and-tub',        # hot spring
+ ('zibo', 'bbq'): 'grill',                         # Zibo barbecue
+ ('zibo', 'cuju'): 'football-team',                # cuju ancient football
+ ('zibo', 'ceramic'): 'archeology',                # Zibo ceramics
+ ('zibo', 'glass'): 'wine-glass',                  # liuli colored glass
+ ('taian', 'mounttai'): 'yellowstone',             # Mount Tai
+ ('taian', 'sunrise'): 'nautical-twilight',        # summit sunrise
+ ('taian', 'stonesteps'): 'stairs',                # stone stairway
+ ('taian', 'daitemple'): 'city-church',            # Dai Temple
+ ('lianyungang', 'monkey'): 'monkey-with-a-banana',  # Monkey King's Mountain
+ ('lianyungang', 'seaport'): 'wharf',              # seaport
+ ('lianyungang', 'mountain'): 'bay',               # Mount Yuntai (coastal)
+ ('lianyungang', 'crystal'): 'crystal',            # crystal land
+ ('maanshan', 'libai'): 'writing-skills',          # poet Li Bai
+ ('maanshan', 'steel'): 'foundry',                 # steel city
+ ('maanshan', 'rivercliff'): 'landscape',          # Caishiji cliff
+ ('maanshan', 'moonwine'): 'champagne',            # moon & wine
+ ('longyan', 'tulou'): 'stadium',                  # Yongding round earth houses
+ ('longyan', 'redmeeting'): 'meeting',             # Gutian Meeting
+ ('longyan', 'hakka'): 'cottage',                  # Hakka culture
+ ('longyan', 'mountain'): 'summer-landscape',      # Mount Guanzhi
 }
 
 
