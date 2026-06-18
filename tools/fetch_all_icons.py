@@ -288,6 +288,104 @@ ICONS = {
  ('zhangzhou', 'tulou'): 'coliseum',
  ('zhangzhou', 'banana'): 'banana',
  ('zhangzhou', 'coast'): 'island',
+
+ # ---- L3 cities ----
+ ('guangzhou', 'tower'): 'tower',                  # Canton Tower
+ ('guangzhou', 'dimsum'): 'gyoza',                 # morning tea / dim sum
+ ('guangzhou', 'academy'): 'courthouse',           # Chen Clan Academy
+ ('guangzhou', 'flower'): 'rose',                  # Flower City
+ ('wuhan', 'crane'): 'stork',                      # Yellow Crane Tower
+ ('wuhan', 'noodle'): 'ladle',                     # hot-dry noodles
+ ('wuhan', 'duckneck'): 'flying-duck',             # spicy duck neck
+ ('wuhan', 'university'): 'university',             # campus cherry blossoms
+ ('tianjin', 'eye'): 'ferris-wheel',               # Tianjin Eye
+ ('tianjin', 'baozi'): 'bao-bun',                  # Goubuli buns
+ ('tianjin', 'crosstalk'): 'stand-up',             # xiangsheng comedy
+ ('tianjin', 'architecture'): 'house-with-a-garden',  # European quarter
+ ('xiamen', 'island'): 'paradise',                 # Gulangyu Island
+ ('xiamen', 'piano'): 'piano',                     # Piano Island
+ ('xiamen', 'egret'): 'pelican',                   # white egret
+ ('xiamen', 'oyster'): 'sunny-side-up-eggs',       # oyster omelette
+ ('harbin', 'ice'): 'iceberg',                     # Ice Festival
+ ('harbin', 'cathedral'): 'orthodox-church',       # St Sophia Cathedral
+ ('harbin', 'sausage'): 'salami',                  # red sausage
+ ('harbin', 'accordion'): 'accordion',             # Music City
+ ('fuzhou', 'alley'): 'curvy-street',              # Three Lanes Seven Alleys
+ ('fuzhou', 'banyan'): 'growing-tree',             # Banyan City
+ ('fuzhou', 'hotspring'): 'jacuzzi',               # hot springs
+ ('fuzhou', 'soup'): 'stir',                       # Buddha Jumps Over the Wall
+ ('dongguan', 'robot'): 'delivery-robot',          # world's factory
+ ('dongguan', 'basketball'): 'basketball',         # basketball city
+ ('dongguan', 'keyuan'): 'bonsai',                 # Keyuan Garden
+ ('dongguan', 'cannon'): 'cannon',                 # Humen forts
+ ('lanzhou', 'beefnoodle'): 'bowl',                # Lanzhou beef noodles
+ ('lanzhou', 'waterwheel'): 'windmill',            # Yellow River waterwheels
+ ('lanzhou', 'statue'): 'modern-statue',           # Mother Yellow River
+ ('lanzhou', 'raft'): 'rafting-skin-type-4',       # sheepskin raft
+ ('urumqi', 'bazaar'): 'market-square',            # Grand Bazaar
+ ('urumqi', 'tianshan'): 'winter-landscape',       # Heavenly Lake
+ ('urumqi', 'kebab'): 'kebab',                     # lamb kebab
+ ('urumqi', 'dance'): 'dancing',                   # Uyghur dance
+ ('haikou', 'coconut'): 'coconut',                 # Coconut City
+ ('haikou', 'arcade'): 'arch',                     # Qilou arcades
+ ('haikou', 'crater'): 'fuji-volcano',             # volcanic craters
+ ('haikou', 'turtle'): 'turtle',                   # tropical sea
+ ('luoyang', 'grotto'): 'dharmacakra',             # Longmen Grottoes
+ ('luoyang', 'peony'): 'violet-flower',            # Peony Capital
+ ('luoyang', 'whitehorse'): 'pony',                # White Horse Temple
+ ('luoyang', 'capital'): 'ruins',                  # ancient capital
+ ('shantou', 'gongfutea'): 'tea-tin',             # gongfu tea
+ ('shantou', 'beefpot'): 'steak-medium',           # beef hotpot
+ ('shantou', 'opera'): 'comedy',                   # Teochew opera
+ ('shantou', 'harbor'): 'port',                    # port city
+ ('baoding', 'mansion'): 'mansion',                # Governor's Mansion
+ ('baoding', 'donkeyburger'): 'sandwich',          # donkey burger
+ ('baoding', 'balls'): 'sphere',                   # health balls
+ ('baoding', 'reeds'): 'dragonfly',                # Baiyangdian marsh
+ ('jilin', 'rime'): 'light-snow',                  # rime ice
+ ('jilin', 'snowboard'): 'snowboarding',           # ski resort
+ ('jilin', 'meteorite'): 'asteroid',               # meteorite museum
+ ('jilin', 'skate'): 'ice-skate',                  # frozen Songhua
+ ('ordos', 'khan'): 'knight',                      # Genghis Khan Mausoleum
+ ('ordos', 'cashmere'): 'goat',                    # cashmere
+ ('ordos', 'sanddune'): 'cactus',                  # singing sands
+ ('ordos', 'yurt'): 'tent',                        # Mongolian yurt
+ ('jining', 'confucius'): 'wise-old-man',          # Confucius Temple
+ ('jining', 'barge'): 'ferry',                     # Grand Canal
+ ('jining', 'sword'): 'sword',                     # Liangshan heroes
+ ('jining', 'fishnet'): 'fishing-hook',            # Weishan Lake
+ ('langfang', 'culture'): 'concert',               # Silk Road Culture Center
+ ('langfang', 'furniture'): 'sofa',                # furniture city
+ ('langfang', 'tunnel'): 'tunnel',                 # ancient war tunnels
+ ('langfang', 'themepark'): 'theme-park',          # No.1 City park
+ ('yancheng', 'salt'): 'salt',                     # City of Salt
+ ('yancheng', 'crane'): 'flamingo',                # red-crowned crane
+ ('yancheng', 'elk'): 'reindeer',                  # Père David's deer
+ ('yancheng', 'wetland'): 'swamp',                 # coastal wetland
+ ('huzhou', 'brush'): 'paint-palette-with-brush',  # Hu writing brush
+ ('huzhou', 'bamboo'): 'bamboo',                   # Anji bamboo sea
+ ('huzhou', 'silkworm'): 'caterpillar',            # silk worm
+ ('huzhou', 'whitetea'): 'tea-pair',               # Anji white tea
+ ('quzhou', 'go'): 'board-game',                   # Go (weiqi)
+ ('quzhou', 'peaks'): 'obelisk',                   # Mount Jianglang pillars
+ ('quzhou', 'ponkan'): 'clementine',               # ponkan tangerine
+ ('quzhou', 'cake'): 'naan',                       # baked flatbread
+ ('huainan', 'tofu'): 'silken-tofu',               # birthplace of tofu
+ ('huainan', 'coalmine'): 'mine',                  # coal city
+ ('huainan', 'oldtown'): 'brandenburg-gate',       # Shou County old town gate
+ ('huainan', 'classic'): 'book',                   # the Huainanzi
+ ('jingdezhen', 'porcelain'): 'potters-wheel',     # porcelain capital
+ ('jingdezhen', 'kiln'): 'pottery-workshop',       # ancient kiln
+ ('jingdezhen', 'bluewhite'): 'cookie-jar',        # blue & white porcelain
+ ('jingdezhen', 'painting'): 'easel',              # porcelain painting
+ ('jian', 'jinggang'): 'forest',                   # Jinggang Mountains
+ ('jian', 'torch'): 'olympic-torch',               # revolutionary spark
+ ('jian', 'academy'): 'library',                   # Bailuzhou Academy
+ ('jian', 'pine'): 'coniferous-tree',              # Jinggang pines
+ ('nanping', 'wuyi'): 'grand-canyon',              # Wuyi Mountains
+ ('nanping', 'rocktea'): 'tea-cup',                # Da Hong Pao rock tea
+ ('nanping', 'bambooraft'): 'rafting-skin-type-2', # Nine-Bend raft
+ ('nanping', 'scholar'): 'teacher',                # Zhu Xi
 }
 
 
