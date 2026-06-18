@@ -2968,6 +2968,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   late final TextEditingController _wrongCtrlPt;
   late final TextEditingController _correctCtrlFr;
   late final TextEditingController _wrongCtrlFr;
+  late final TextEditingController _correctCtrlAr;
+  late final TextEditingController _wrongCtrlAr;
   String _selectedQuizLang = 'en'; // EN first (reference for the other langs)
   bool _enApproved = false; // English options approved as the pivot source
   bool _saving = false;
@@ -3081,6 +3083,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         text: quizFr['correctAnswer'] as String? ?? '');
     _wrongCtrlFr = TextEditingController(
         text: quizFr['wrongAnswer'] as String? ?? '');
+    final quizAr = (quiz['ar'] as Map<String, dynamic>?) ?? {};
+    _correctCtrlAr = TextEditingController(
+        text: quizAr['correctAnswer'] as String? ?? '');
+    _wrongCtrlAr = TextEditingController(
+        text: quizAr['wrongAnswer'] as String? ?? '');
     // Previously-saved English counts as already approved.
     _enApproved = (quizEn['correctAnswer'] as String? ?? '').trim().isNotEmpty;
   }
@@ -3176,6 +3183,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     _wrongCtrlPt.dispose();
     _correctCtrlFr.dispose();
     _wrongCtrlFr.dispose();
+    _correctCtrlAr.dispose();
+    _wrongCtrlAr.dispose();
     super.dispose();
   }
 
@@ -3248,6 +3257,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
         } else if (_selectedQuizLang == 'fr') {
           _correctCtrlFr.text = (q['correctAnswer'] as String?) ?? '';
           _wrongCtrlFr.text = (q['wrongAnswer'] as String?) ?? '';
+        } else if (_selectedQuizLang == 'ar') {
+          _correctCtrlAr.text = (q['correctAnswer'] as String?) ?? '';
+          _wrongCtrlAr.text = (q['wrongAnswer'] as String?) ?? '';
         } else {
           _correctCtrlEn.text = (q['correctAnswer'] as String?) ?? '';
           _wrongCtrlEn.text = (q['wrongAnswer'] as String?) ?? '';
@@ -3464,6 +3476,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
           'fr': {
             'correctAnswer': _correctCtrlFr.text.trim(),
             'wrongAnswer': _wrongCtrlFr.text.trim(),
+          },
+          'ar': {
+            'correctAnswer': _correctCtrlAr.text.trim(),
+            'wrongAnswer': _wrongCtrlAr.text.trim(),
           },
         },
       });
@@ -4316,6 +4332,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       _quizLangTab('ES', 'es'),
                       _quizLangTab('PT', 'pt'),
                       _quizLangTab('FR', 'fr'),
+                      _quizLangTab('AR', 'ar'),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -4386,6 +4403,9 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   ] else if (_selectedQuizLang == 'fr') ...[
                     _editField(_correctCtrlFr, 'Doğru cevap (FR)'),
                     _editField(_wrongCtrlFr, 'Yanlış cevap — tuzak (FR)'),
+                  ] else if (_selectedQuizLang == 'ar') ...[
+                    _editField(_correctCtrlAr, 'Doğru cevap (AR)'),
+                    _editField(_wrongCtrlAr, 'Yanlış cevap — tuzak (AR)'),
                   ] else ...[
                     // Editing the English pair revokes approval, so target
                     // languages are always translated from a freshly-approved
