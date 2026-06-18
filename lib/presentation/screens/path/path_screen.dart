@@ -7,16 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/cities.dart';
-import '../../../core/constants/landmarks/landmarks_ko.dart';
-import '../../../core/constants/landmarks/landmarks_ja.dart';
-import '../../../core/constants/landmarks/landmarks_id.dart';
-import '../../../core/constants/landmarks/landmarks_vi.dart';
-import '../../../core/constants/landmarks/landmarks_th.dart';
-import '../../../core/constants/landmarks/landmarks_ru.dart';
-import '../../../core/constants/landmarks/landmarks_es.dart';
-import '../../../core/constants/landmarks/landmarks_pt.dart';
-import '../../../core/constants/landmarks/landmarks_fr.dart';
-import '../../../core/constants/landmarks/landmarks_ar.dart';
+import '../../../core/constants/landmarks/landmark_packs.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -923,91 +914,16 @@ class _UnitInfoPanel extends ConsumerWidget {
                     Builder(builder: (context) {
                       final lm = landmarks[i];
                       final photo = assets.photo(i);
-                      final descTr = photo.descTr?.isNotEmpty == true
-                          ? photo.descTr!
-                          : lm.descTr;
-                      final descEn = photo.descEn?.isNotEmpty == true
-                          ? photo.descEn!
-                          : lm.descEn;
                       final lang = Localizations.maybeLocaleOf(context)
                               ?.languageCode ??
                           (tr ? 'tr' : 'en');
-                      final koLm = kLandmarkKo['${city.slug}/${lm.icon}'];
-                      final jaLm = kLandmarkJa['${city.slug}/${lm.icon}'];
-                      final idLm = kLandmarkId['${city.slug}/${lm.icon}'];
-                      final viLm = kLandmarkVi['${city.slug}/${lm.icon}'];
-                      final thLm = kLandmarkTh['${city.slug}/${lm.icon}'];
-                      final ruLm = kLandmarkRu['${city.slug}/${lm.icon}'];
-                      final esLm = kLandmarkEs['${city.slug}/${lm.icon}'];
-                      final ptLm = kLandmarkPt['${city.slug}/${lm.icon}'];
-                      final frLm = kLandmarkFr['${city.slug}/${lm.icon}'];
-                      final arLm = kLandmarkAr['${city.slug}/${lm.icon}'];
-                      final name = lang == 'tr'
-                          ? lm.nameTr
-                          : (lang == 'ko' && koLm != null
-                              ? koLm.$1
-                              : (lang == 'ja' && jaLm != null
-                                  ? jaLm.$1
-                                  : (lang == 'id' && idLm != null
-                                      ? idLm.$1
-                                      : (lang == 'vi' && viLm != null
-                                          ? viLm.$1
-                                          : (lang == 'th' && thLm != null
-                                              ? thLm.$1
-                                              : (lang == 'ru' && ruLm != null
-                                                  ? ruLm.$1
-                                                  : (lang == 'es' && esLm != null
-                                                      ? esLm.$1
-                                                      : (lang == 'pt' && ptLm != null
-                                                          ? ptLm.$1
-                                                          : (lang == 'fr' && frLm != null
-                                                              ? frLm.$1
-                                                              : (lang == 'ar' && arLm != null
-                                                                  ? arLm.$1
-                                                                  : lm.nameEn))))))))));
-                      final desc = lang == 'tr'
-                          ? descTr
-                          : (lang == 'ko' &&
-                                  koLm != null &&
-                                  koLm.$2.isNotEmpty
-                              ? koLm.$2
-                              : (lang == 'ja' &&
-                                      jaLm != null &&
-                                      jaLm.$2.isNotEmpty
-                                  ? jaLm.$2
-                                  : (lang == 'id' &&
-                                          idLm != null &&
-                                          idLm.$2.isNotEmpty
-                                      ? idLm.$2
-                                      : (lang == 'vi' &&
-                                              viLm != null &&
-                                              viLm.$2.isNotEmpty
-                                          ? viLm.$2
-                                          : (lang == 'th' &&
-                                                  thLm != null &&
-                                                  thLm.$2.isNotEmpty
-                                              ? thLm.$2
-                                              : (lang == 'ru' &&
-                                                      ruLm != null &&
-                                                      ruLm.$2.isNotEmpty
-                                                  ? ruLm.$2
-                                                  : (lang == 'es' &&
-                                                          esLm != null &&
-                                                          esLm.$2.isNotEmpty
-                                                      ? esLm.$2
-                                                      : (lang == 'pt' &&
-                                                              ptLm != null &&
-                                                              ptLm.$2.isNotEmpty
-                                                          ? ptLm.$2
-                                                          : (lang == 'fr' &&
-                                                                  frLm != null &&
-                                                                  frLm.$2.isNotEmpty
-                                                              ? frLm.$2
-                                                              : (lang == 'ar' &&
-                                                                      arLm != null &&
-                                                                      arLm.$2.isNotEmpty
-                                                                  ? arLm.$2
-                                                                  : descEn))))))))));
+                      final name = landmarkName(city.slug, lm.icon, lang, lm);
+                      // Admin per-language override wins; otherwise the bundled
+                      // translation pack (English as the final fallback).
+                      final ovr = photo.descFor(lang);
+                      final desc = ovr.isNotEmpty
+                          ? ovr
+                          : landmarkDesc(city.slug, lm.icon, lang, lm);
                       return Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(

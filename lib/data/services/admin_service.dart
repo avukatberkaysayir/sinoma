@@ -190,15 +190,22 @@ class AdminService {
     }, onConflict: 'level,unit,kind,slot');
   }
 
+  // Per-language description overrides for one landmark photo. Stores the full
+  // {lang: text} map in desc_i18n and mirrors TR/EN into the legacy columns.
   Future<void> savePathPhotoDesc(
-      int level, int unit, int slot, String descTr, String descEn) async {
+      int level, int unit, int slot, Map<String, String> desc) async {
+    final clean = <String, String>{
+      for (final e in desc.entries)
+        if (e.value.trim().isNotEmpty) e.key: e.value.trim(),
+    };
     await _db.from('path_assets').upsert({
       'level': level,
       'unit': unit,
       'kind': 'photo',
       'slot': slot,
-      'desc_tr': descTr,
-      'desc_en': descEn,
+      'desc_tr': clean['tr'] ?? '',
+      'desc_en': clean['en'] ?? '',
+      'desc_i18n': clean,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     }, onConflict: 'level,unit,kind,slot');
   }

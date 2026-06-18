@@ -9,6 +9,7 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/cities.dart';
+import '../../../core/constants/landmarks/landmark_packs.dart';
 import '../../../data/models/video_segment_model.dart';
 import '../../../data/services/admin_service.dart';
 import '../../providers/video_provider.dart';
@@ -8340,10 +8341,9 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
 
   Widget _photoBlock(int i, List<Landmark>? landmarks, UnitAssets assets) {
     final p = assets.photo(i);
-    final fallback = landmarks != null
-        ? cityPhotoAsset(
-            cityForUnit(_level, _unit - 1).slug, landmarks[i].photo)
-        : null;
+    final slug = cityForUnit(_level, _unit - 1).slug;
+    final fallback =
+        landmarks != null ? cityPhotoAsset(slug, landmarks[i].photo) : null;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -8387,16 +8387,18 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
         const SizedBox(height: 8),
         _DescEditor(
           key: ValueKey('desc-$_level-$_unit-$i'),
-          initialTr: p.descTr?.isNotEmpty == true
-              ? p.descTr!
-              : (landmarks != null ? landmarks[i].descTr : ''),
-          initialEn: p.descEn?.isNotEmpty == true
-              ? p.descEn!
-              : (landmarks != null ? landmarks[i].descEn : ''),
-          onSave: (tr, en) async {
-            await _service.savePathPhotoDesc(_level, _unit, i, tr, en);
+          initial: {
+            for (final l in kLandmarkLangs)
+              l: p.descFor(l).isNotEmpty
+                  ? p.descFor(l)
+                  : (landmarks != null
+                      ? landmarkDesc(slug, landmarks[i].icon, l, landmarks[i])
+                      : ''),
+          },
+          onSave: (desc) async {
+            await _service.savePathPhotoDesc(_level, _unit, i, desc);
             ref.invalidate(pathAssetsProvider(_key));
-            _snack('Açıklama kaydedildi');
+            _snack('Açıklamalar kaydedildi');
           },
         ),
       ],
@@ -8459,15 +8461,15 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
       );
 }
 
-// TR/EN description editor for one landmark photo (resets per unit via its key).
+// Per-language description editor for one landmark photo: one box per UI
+// language (TR/EN + the 10 translated packs), pre-filled with the current text.
+// Resets per unit via its key.
 class _DescEditor extends StatefulWidget {
-  final String initialTr;
-  final String initialEn;
-  final Future<void> Function(String tr, String en) onSave;
+  final Map<String, String> initial; // {lang: text}
+  final Future<void> Function(Map<String, String> desc) onSave;
   const _DescEditor({
     super.key,
-    required this.initialTr,
-    required this.initialEn,
+    required this.initial,
     required this.onSave,
   });
   @override
@@ -8475,15 +8477,17 @@ class _DescEditor extends StatefulWidget {
 }
 
 class _DescEditorState extends State<_DescEditor> {
-  late final TextEditingController _tr =
-      TextEditingController(text: widget.initialTr);
-  late final TextEditingController _en =
-      TextEditingController(text: widget.initialEn);
+  late final Map<String, TextEditingController> _c = {
+    for (final l in kLandmarkLangs)
+      l: TextEditingController(text: widget.initial[l] ?? ''),
+  };
+  bool _saving = false;
 
   @override
   void dispose() {
-    _tr.dispose();
-    _en.dispose();
+    for (final c in _c.values) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -8500,32 +8504,46 @@ class _DescEditorState extends State<_DescEditor> {
             borderRadius: BorderRadius.circular(8), borderSide: BorderSide.none),
       );
 
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    try {
+      await widget.onSave(
+          {for (final e in _c.entries) e.key: e.value.text.trim()});
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      TextField(
-        controller: _tr,
-        maxLines: 2,
-        style: TextStyle(color: AppColors.onSurface, fontSize: 12),
-        decoration: _dec('TR açıklama'),
-      ),
-      const SizedBox(height: 6),
-      TextField(
-        controller: _en,
-        maxLines: 2,
-        style: TextStyle(color: AppColors.onSurface, fontSize: 12),
-        decoration: _dec('EN açıklama'),
-      ),
-      const SizedBox(height: 6),
+      for (final lang in kLandmarkLangs) ...[
+        Padding(
+          padding: const EdgeInsets.only(bottom: 3),
+          child: Text('${lang.toUpperCase()} açıklama',
+              style: TextStyle(
+                  color: AppColors.onSurfaceMuted,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700)),
+        ),
+        TextField(
+          controller: _c[lang],
+          maxLines: 2,
+          textDirection: lang == 'ar' ? TextDirection.rtl : null,
+          style: TextStyle(color: AppColors.onSurface, fontSize: 12),
+          decoration: _dec('$lang…'),
+        ),
+        const SizedBox(height: 8),
+      ],
       Align(
         alignment: Alignment.centerRight,
         child: FilledButton.icon(
-          onPressed: () => widget.onSave(_tr.text.trim(), _en.text.trim()),
+          onPressed: _saving ? null : _save,
           icon: const Icon(Icons.save, size: 15),
           style: FilledButton.styleFrom(
               backgroundColor: AppColors.correctAnswer,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-          label: const Text('Açıklamayı kaydet'),
+          label: Text(_saving ? 'Kaydediliyor…' : 'Açıklamaları kaydet'),
         ),
       ),
     ]);

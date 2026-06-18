@@ -379,7 +379,25 @@ class PathAsset {
   final double scale;
   final String? descTr;
   final String? descEn;
-  const PathAsset({this.url, this.scale = 1.0, this.descTr, this.descEn});
+  // Per-language description overrides {lang: text}; admin-editable, falls back
+  // to the bundled landmark text when a language is absent.
+  final Map<String, String> descI18n;
+  const PathAsset(
+      {this.url,
+      this.scale = 1.0,
+      this.descTr,
+      this.descEn,
+      this.descI18n = const {}});
+
+  // The admin override for one language ('' when none). TR/EN also honour the
+  // legacy desc_tr/desc_en columns so old rows keep working.
+  String descFor(String lang) {
+    final v = descI18n[lang];
+    if (v != null && v.isNotEmpty) return v;
+    if (lang == 'tr') return descTr ?? '';
+    if (lang == 'en') return descEn ?? '';
+    return '';
+  }
 }
 
 class UnitAssets {
@@ -400,11 +418,19 @@ final pathAssetsProvider =
   final icons = <int, PathAsset>{};
   final photos = <int, PathAsset>{};
   for (final r in rows) {
+    final di = r['desc_i18n'];
+    final descI18n = <String, String>{};
+    if (di is Map) {
+      di.forEach((key, v) {
+        if (v is String && v.isNotEmpty) descI18n[key.toString()] = v;
+      });
+    }
     final a = PathAsset(
       url: r['url'] as String?,
       scale: (r['scale'] as num?)?.toDouble() ?? 1.0,
       descTr: r['desc_tr'] as String?,
       descEn: r['desc_en'] as String?,
+      descI18n: descI18n,
     );
     final kind = r['kind'] as String?;
     final slot = (r['slot'] as num?)?.toInt() ?? 0;
