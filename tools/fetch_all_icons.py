@@ -464,6 +464,105 @@ ICONS = {
  ('longyan', 'redmeeting'): 'meeting',             # Gutian Meeting
  ('longyan', 'hakka'): 'cottage',                  # Hakka culture
  ('longyan', 'mountain'): 'summer-landscape',      # Mount Guanzhi
+
+ # ---- L5 cities (icons8 is depleted at this depth; many are the closest
+ # distinct icon, all still globally unique) ----
+ ('sanming', 'danxia'): 'lime-stone',              # Taining Danxia red cliffs
+ ('sanming', 'shaxian'): 'paella',                 # Sha County snacks
+ ('sanming', 'forest'): 'jungle',                  # green capital
+ ('sanming', 'goldenlake'): 'rowing-2',            # Golden Lake boat
+ ('ningde', 'mudflat'): 'tidal',                   # Xiapu mudflats
+ ('ningde', 'whitetea'): 'leaf',                   # Fuding white tea
+ ('ningde', 'taimu'): 'top-of-a-hill',             # Mount Taimu
+ ('ningde', 'croaker'): 'filleted-fish',           # yellow croaker
+ ('shaoguan', 'redcliff'): 'kosciuszko-mound',     # Mount Danxia
+ ('shaoguan', 'chantemple'): 'zen-symbol',         # Nanhua Chan temple
+ ('shaoguan', 'ancestor'): 'genealogy',            # Zhuji Lane roots
+ ('shaoguan', 'yaodance'): 'greek_folk_dance',     # Yao folk dance
+ ('zhanjiang', 'oyster'): 'shellfish',             # Zhanjiang oyster
+ ('zhanjiang', 'navy'): 'submarine',               # naval port
+ ('zhanjiang', 'mangrove'): 'starfish',            # mangrove tidal life
+ ('zhanjiang', 'donghai'): 'surfing',              # Donghai Island
+ ('maoming', 'lychee'): 'mangosteen',              # lychee capital
+ ('maoming', 'refinery'): 'oil-transportation',    # petrochemical base
+ ('maoming', 'ladyxian'): 'queen',                 # Lady Xian
+ ('maoming', 'seaside'): 'coastal',                # seaside
+ ('zhaoqing', 'sevenstar'): 'constellation',       # Seven Star Crags
+ ('zhaoqing', 'inkstone'): 'tablets-of-stone',     # Duan inkstone
+ ('zhaoqing', 'dinghu'): 'rainforest',             # Mount Dinghu reserve
+ ('zhaoqing', 'songwall'): 'leaning-against-wall', # Song city wall
+ ('huizhou', 'westlake'): 'wakeboarding',          # Huizhou West Lake
+ ('huizhou', 'luofu'): 'cliff-jumping',            # Mount Luofu
+ ('huizhou', 'alchemy'): 'potion',                 # Ge Hong alchemy
+ ('huizhou', 'xunliao'): 'jellyfish',              # Xunliao Bay
+ ('meizhou', 'weilongwu'): 'courtyard-doors',      # Hakka roundhouse
+ ('meizhou', 'saltchicken'): 'chicken-and-waffle',  # salt-baked chicken
+ ('meizhou', 'football'): 'football2',             # home of football
+ ('meizhou', 'plum'): 'sunflower',                 # plum blossom city
+ ('jiangmen', 'diaolou'): 'apartment',             # Kaiping diaolou
+ ('jiangmen', 'qiaoxiang'): 'suitcase',            # overseas Chinese
+ ('jiangmen', 'chenpi'): 'tangerine-1',            # dried tangerine peel
+ ('jiangmen', 'birds'): 'quail',                   # Birds Paradise
+ ('yangjiang', 'knife'): 'cutting-board2',         # knife capital
+ ('yangjiang', 'shipwreck'): 'shipwreck',          # Nanhai No.1
+ ('yangjiang', 'hailing'): 'beach-ball',           # Hailing Island
+ ('yangjiang', 'kite'): 'kite-shape--v2',          # kite city
+ ('qingyuan', 'rafting'): 'bumper-boat',           # rafting capital
+ ('qingyuan', 'chicken'): 'henhouse',              # Qingyuan chicken
+ ('qingyuan', 'hotspring'): 'bath',                # hot springs
+ ('qingyuan', 'yaoterrace'): 'balcony',            # Yao rice terraces
+ ('chaozhou', 'guangjibridge'): 'old-door',        # Guangji Bridge
+ ('chaozhou', 'woodcarving'): 'wood-chisel',       # gilded woodcarving
+ ('chaozhou', 'chaoxiu'): 'hand-holding-needle',   # Chaozhou embroidery
+ ('chaozhou', 'kaiyuan'): 'building',              # Kaiyuan Temple
+ ('jieyang', 'citygate'): 'front-gate-closed',     # Jinxian Gate
+ ('jieyang', 'jade'): 'jewelry',                   # jade capital
+ ('jieyang', 'jieyanglou'): 'skyscrapers',         # Jieyang Tower
+ ('jieyang', 'beefbroth'): 'cuts-of-beef',         # Chaoshan beef broth
+ ('yunfu', 'marble'): 'bust',                      # stone kingdom
+ ('yunfu', 'patriarch'): 'saint',                  # Sixth Patriarch
+ ('yunfu', 'tianlu'): 'climber',                   # Mount Tianlu
+ ('yunfu', 'xijiang'): 'fisherman-in-a-boat',      # West River
+ ('liuzhou', 'luosifen'): 'snail',                 # snail rice noodles
+ ('liuzhou', 'autocity'): 'car',                   # auto city
+ ('liuzhou', 'karst'): 'hills',                    # Liu River karst
+ ('liuzhou', 'liuhou'): 'student-male',            # poet Liu Zongyuan
+ ('wuzhou', 'gemstone'): 'ruby',                   # gemstone capital
+ ('wuzhou', 'liubaotea'): 'block',                 # Liubao tea brick
+ ('wuzhou', 'turtlejelly'): 'jelly',               # turtle jelly
+ ('wuzhou', 'dragonmother'): 'european-dragon',    # Dragon Mother temple
+ ('beihai', 'silverbeach'): 'beach-volleyball',    # Silver Beach
+ ('beihai', 'pearl'): 'necklace',                  # pearl city
+ ('beihai', 'weizhou'): 'coral',                   # Weizhou volcanic island
+ ('beihai', 'oldstreet'): 'nautilus',              # colonial old street port
+ ('qinzhou', 'nixingpottery'): 'exhibit',          # Nixing pottery
+ ('qinzhou', 'dolphin'): 'dolphin',                # white dolphin
+ ('qinzhou', 'oysterfarm'): 'farm',                # oyster capital
+ ('qinzhou', 'general'): 'major-general',          # General Feng Zicai
+ ('guigang', 'lotus'): 'spa-flower',               # Lotus City
+ ('guigang', 'uprising'): 'rebellion',             # Jintian Uprising
+ ('guigang', 'nanshan'): 'caveman',                # Nanshan cave temple
+ ('guigang', 'sugarcane'): 'sugarcane',            # sugar
+ ('yulin', 'medicine'): 'bay-leaf',                # herbal medicine market
+ ('yulin', 'goldenpalace'): 'sapphire',            # Yuntian Palace
+ ('yulin', 'lychee'): 'papaya',                    # lychee groves
+ ('yulin', 'beef'): 'steak',                       # Yulin beef
+ ('baise', 'redbase'): 'city-hall',                # Baise Uprising
+ ('baise', 'sinkhole'): 'ditch',                   # Leye sinkholes
+ ('baise', 'mango'): 'pineapple',                  # mango capital
+ ('baise', 'aluminum'): 'metal-ingot',             # aluminium city
+ ('hechi', 'longevity'): 'old-man-smiling',        # Bama longevity
+ ('hechi', 'folksong'): 'folk-music',              # Liu Sanjie
+ ('hechi', 'bronzedrum'): 'snare-drum',            # bronze drum
+ ('hechi', 'geopark'): 'maple-leaf',               # karst geopark
+ ('laibin', 'sugarcity'): 'sugar-cube',            # sugar capital
+ ('laibin', 'yao'): 'tribal-symbols',              # Dayao Yao people
+ ('laibin', 'hongshui'): 'dam',                    # Hongshui River
+ ('laibin', 'shengtang'): 'cloud',                 # Mount Shengtang
+ ('chongzuo', 'waterfall'): 'tsunami',             # Detian Falls
+ ('chongzuo', 'langur'): 'gorilla',                # white-headed langur
+ ('chongzuo', 'rockart'): 'cave-painting',         # Huashan rock art
+ ('chongzuo', 'borderpass'): 'customs',            # Friendship Pass
 }
 
 
