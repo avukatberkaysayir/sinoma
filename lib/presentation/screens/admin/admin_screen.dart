@@ -3242,52 +3242,51 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     }
   }
 
+  // The correct/wrong controllers for a language code.
+  TextEditingController _correctCtrlFor(String l) => switch (l) {
+        'tr' => _correctCtrl,
+        'ko' => _correctCtrlKo,
+        'ja' => _correctCtrlJa,
+        'id' => _correctCtrlId,
+        'vi' => _correctCtrlVi,
+        'th' => _correctCtrlTh,
+        'ru' => _correctCtrlRu,
+        'es' => _correctCtrlEs,
+        'pt' => _correctCtrlPt,
+        'fr' => _correctCtrlFr,
+        'ar' => _correctCtrlAr,
+        _ => _correctCtrlEn,
+      };
+  TextEditingController _wrongCtrlFor(String l) => switch (l) {
+        'tr' => _wrongCtrl,
+        'ko' => _wrongCtrlKo,
+        'ja' => _wrongCtrlJa,
+        'id' => _wrongCtrlId,
+        'vi' => _wrongCtrlVi,
+        'th' => _wrongCtrlTh,
+        'ru' => _wrongCtrlRu,
+        'es' => _wrongCtrlEs,
+        'pt' => _wrongCtrlPt,
+        'fr' => _wrongCtrlFr,
+        'ar' => _wrongCtrlAr,
+        _ => _wrongCtrlEn,
+      };
+  String _correctTextFor(String l) => _correctCtrlFor(l).text.trim();
+  String _wrongTextFor(String l) => _wrongCtrlFor(l).text.trim();
+  bool _quizComplete(String l) =>
+      _correctTextFor(l).isNotEmpty && _wrongTextFor(l).isNotEmpty;
+
   // Write a generated (correct, wrong) pair into the controllers for `lang`.
   void _applyQuizFields(String lang, String correct, String wrong) {
-    switch (lang) {
-      case 'tr':
-        _correctCtrl.text = correct;
-        _wrongCtrl.text = wrong;
-      case 'ko':
-        _correctCtrlKo.text = correct;
-        _wrongCtrlKo.text = wrong;
-      case 'ja':
-        _correctCtrlJa.text = correct;
-        _wrongCtrlJa.text = wrong;
-      case 'id':
-        _correctCtrlId.text = correct;
-        _wrongCtrlId.text = wrong;
-      case 'vi':
-        _correctCtrlVi.text = correct;
-        _wrongCtrlVi.text = wrong;
-      case 'th':
-        _correctCtrlTh.text = correct;
-        _wrongCtrlTh.text = wrong;
-      case 'ru':
-        _correctCtrlRu.text = correct;
-        _wrongCtrlRu.text = wrong;
-      case 'es':
-        _correctCtrlEs.text = correct;
-        _wrongCtrlEs.text = wrong;
-      case 'pt':
-        _correctCtrlPt.text = correct;
-        _wrongCtrlPt.text = wrong;
-      case 'fr':
-        _correctCtrlFr.text = correct;
-        _wrongCtrlFr.text = wrong;
-      case 'ar':
-        _correctCtrlAr.text = correct;
-        _wrongCtrlAr.text = wrong;
-      default:
-        _correctCtrlEn.text = correct;
-        _wrongCtrlEn.text = wrong;
-        _enApproved = false; // fresh English needs re-approval
-    }
+    _correctCtrlFor(lang).text = correct;
+    _wrongCtrlFor(lang).text = wrong;
+    if (lang == 'en') _enApproved = false; // fresh English needs re-approval
   }
 
-  // "Gemini ile Hepsini Üret": translate the approved English options into ALL
-  // other UI languages one by one (each pivots off the approved English). The
-  // per-language buttons stay available for fixing a single language.
+  // "Gemini ile Hepsini Üret": translate the APPROVED English into every other
+  // UI language in ONE batch call (fast + consistent), then audit each result
+  // and auto-repair any the batch left empty with parallel single calls. The
+  // per-language buttons stay available for fixing one language manually.
   Future<void> _generateAllLangs() async {
     if (_confirmedWords == null) return;
     final transcription = _confirmedWords!.join('');
@@ -3300,31 +3299,74 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       return;
     }
     const langs = ['tr', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr', 'ar'];
+    final pinyin = _pinyinCtrl.text.trim();
     setState(() {
       _generating = true;
       _genAllRunning = true;
       _genAllDone = 0;
     });
     try {
-      for (final lang in langs) {
-        final q = await widget.service.generateQuiz(
-          transcription: transcription,
-          pinyin: _pinyinCtrl.text.trim(),
-          lang: lang,
-          sourceEn: srcC,
-          sourceEnWrong: srcW,
-        );
-        if (!mounted) return;
-        setState(() {
-          _applyQuizFields(lang, (q['correctAnswer'] as String?) ?? '',
-              (q['wrongAnswer'] as String?) ?? '');
-          _genAllDone++;
-        });
+      // 1) One batch call translates the approved English into all languages.
+      final q = await widget.service.generateQuiz(
+        transcription: transcription,
+        pinyin: pinyin,
+        lang: 'en',
+        sourceEn: srcC,
+        sourceEnWrong: srcW,
+        targetLangs: langs,
+      );
+      if (!mounted) return;
+      final extra = (q['extra'] as Map?) ?? const {};
+      setState(() {
+        for (final l in langs) {
+          final e = extra[l];
+          if (e is Map) {
+            _applyQuizFields(l, (e['correctAnswer'] as String?)?.trim() ?? '',
+                (e['wrongAnswer'] as String?)?.trim() ?? '');
+          }
+        }
+        _genAllDone = langs.where(_quizComplete).length;
+      });
+      // 2) Audit + auto-repair: re-fetch any empty language individually, in
+      //    parallel, from the same approved English.
+      final missing = langs.where((l) => !_quizComplete(l)).toList();
+      if (missing.isNotEmpty) {
+        await Future.wait(missing.map((l) async {
+          try {
+            final r = await widget.service.generateQuiz(
+              transcription: transcription,
+              pinyin: pinyin,
+              lang: l,
+              sourceEn: srcC,
+              sourceEnWrong: srcW,
+            );
+            if (!mounted) return;
+            setState(() {
+              _applyQuizFields(l, (r['correctAnswer'] as String?)?.trim() ?? '',
+                  (r['wrongAnswer'] as String?)?.trim() ?? '');
+              if (_quizComplete(l)) _genAllDone++;
+            });
+          } catch (_) {/* still empty → reported below */}
+        }));
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Tüm diller üretildi ✓')));
-      }
+      if (!mounted) return;
+      // 3) Report: empties + any field left verbatim-English (suspicious).
+      final failed = langs.where((l) => !_quizComplete(l)).toList();
+      final suspicious = langs
+          .where((l) =>
+              _quizComplete(l) &&
+              (_correctTextFor(l) == srcC || _wrongTextFor(l) == srcW))
+          .toList();
+      String up(List<String> xs) => xs.map((e) => e.toUpperCase()).join(', ');
+      final msg = failed.isEmpty && suspicious.isEmpty
+          ? 'Tüm diller üretildi ✓ (${langs.length}/${langs.length})'
+          : [
+              if (failed.isNotEmpty) '⚠ eksik: ${up(failed)} (tekrar üretin)',
+              if (suspicious.isNotEmpty)
+                '⚠ İngilizce ile aynı, kontrol et: ${up(suspicious)}',
+            ].join('   ·   ');
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          duration: const Duration(seconds: 6), content: Text(msg)));
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
@@ -4913,6 +4955,18 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
 
   Widget _quizLangTab(String label, String lang) {
     final selected = _selectedQuizLang == lang;
+    // Audit dot: green = both fields filled; amber = filled but verbatim-English
+    // (suspicious, review); none = empty. EN has no dot.
+    final filled = _quizComplete(lang);
+    final suspicious = lang != 'en' &&
+        filled &&
+        (_correctTextFor(lang) == _correctCtrlEn.text.trim() ||
+            _wrongTextFor(lang) == _wrongCtrlEn.text.trim());
+    final Color? dot = lang == 'en'
+        ? null
+        : (!filled
+            ? null
+            : (suspicious ? const Color(0xFFFF9600) : AppColors.correctAnswer));
     return GestureDetector(
       onTap: () => setState(() => _selectedQuizLang = lang),
       child: Container(
@@ -4926,14 +4980,23 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
             color: selected ? AppColors.primary : AppColors.onSurfaceMuted.withValues(alpha: 0.3),
           ),
         ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: selected ? AppColors.primary : AppColors.onSurfaceMuted,
-            fontSize: 12,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            label,
+            style: TextStyle(
+              color: selected ? AppColors.primary : AppColors.onSurfaceMuted,
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+            ),
           ),
-        ),
+          if (dot != null) ...[
+            const SizedBox(width: 5),
+            Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(color: dot, shape: BoxShape.circle)),
+          ],
+        ]),
       ),
     );
   }

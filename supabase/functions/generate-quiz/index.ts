@@ -508,19 +508,50 @@ function langCodeToName(code: string): string {
 // same distractor) — never an independently invented distractor. This keeps the
 // options identical in meaning/structure across all languages, differing only
 // in wording and grammar. One request also keeps free-tier quota usage low.
+function langBlock(name: string): string {
+  const p = LANG_PROFILES[name];
+  const rules = (p?.rules ?? [`Follow all ${name} grammar rules and be idiomatic.`])
+    .map((r, i) => `  ${i + 1}. ${r}`).join("\n");
+  return `${name.toUpperCase()} — authority ${p?.authority ?? name}:\n${rules}\n`;
+}
+
+// Batch TRANSLATE: the admin already approved an English correct/wrong pair;
+// translate THAT exact pair into every target language in ONE Gemini call. All
+// languages share the same vetted meaning, so they stay consistent with the
+// English (and with each other) — and it is one request instead of N.
+function buildBatchTranslatePrompt(
+  transcription: string,
+  pinyin: string,
+  sourceEn: string,
+  sourceEnWrong: string,
+  targets: { code: string; name: string }[],
+): string {
+  let blocks = "";
+  for (const t of targets) blocks += langBlock(t.name) + "\n";
+  const targetKeys = targets
+    .map((t) => `"${t.code}": {"correctAnswer": "<${t.name} translation of the English correctAnswer>", "wrongAnswer": "<${t.name} translation of the SAME English wrongAnswer>"}`)
+    .join(", ");
+  return (
+    `You are a certified multilingual linguist and professional translator.\n\n` +
+    `APPROVED English options (already vetted — translate THESE faithfully; do NOT change their meaning, do NOT invent a different distractor):\n` +
+    `  correctAnswer (English): "${sourceEn}"\n` +
+    `  wrongAnswer (English):   "${sourceEnWrong}"\n` +
+    `  Chinese (reference only): "${transcription}"\n` +
+    (pinyin ? `  Pinyin (reference only):  "${pinyin}"\n` : "") +
+    `\nFor EACH target language: translate the English correctAnswer and the English wrongAnswer faithfully and naturally (NOT word-for-word; use the Chinese only to disambiguate nuance). Preserve EACH option's meaning EXACTLY — the target wrongAnswer must be a translation of the SAME English wrongAnswer. Obey every language's numbered grammar rules. NEVER leave a field as the untranslated English.\n\n` +
+    `GRAMMAR RULES:\n${blocks}\n` +
+    `OUTPUT — return ONLY valid JSON, no markdown:\n` +
+    `{${targetKeys}}`
+  );
+}
+
 function buildBatchPrompt(
   transcription: string,
   pinyin: string,
   targets: { code: string; name: string }[],
 ): string {
-  const blockFor = (name: string): string => {
-    const p = LANG_PROFILES[name];
-    const rules = (p?.rules ?? [`Follow all ${name} grammar rules and be idiomatic.`])
-      .map((r, i) => `  ${i + 1}. ${r}`).join("\n");
-    return `${name.toUpperCase()} — authority ${p?.authority ?? name}:\n${rules}\n`;
-  };
-  let blocks = blockFor("English") + "\n";
-  for (const t of targets) blocks += blockFor(t.name) + "\n";
+  let blocks = langBlock("English") + "\n";
+  for (const t of targets) blocks += langBlock(t.name) + "\n";
   const targetKeys = targets
     .map((t) => `"${t.code}": {"correctAnswer": "<${t.name} translation of the English correctAnswer>", "wrongAnswer": "<${t.name} translation of the SAME English wrongAnswer>"}`)
     .join(", ");
@@ -715,6 +746,49 @@ serve(async (req) => {
       ? [...new Set(body.targetLangs.map((x: unknown) => String(x)))]
           .filter((c) => c && c !== "en")
       : [];
+    // Batch TRANSLATE mode: an approved English pair + targetLangs → translate
+    // that exact pair into every language in ONE call (fast + consistent). Used
+    // by the admin's "Gemini ile Hepsini Üret".
+    if (sourceEn && targetLangs.length) {
+      const targets = targetLangs.map((code) => ({ code, name: langCodeToName(code) }));
+      const tBody = JSON.stringify({
+        contents: [{
+          parts: [{
+            text: buildBatchTranslatePrompt(
+                transcription, pinyin, sourceEn, sourceEnWrong, targets),
+          }],
+        }],
+        generationConfig: { response_mime_type: "application/json", temperature: 0.3 },
+      });
+      let ttext: string;
+      try {
+        ttext = await callGeminiRotating(tBody, keys);
+      } catch (e) {
+        return json({ error: String(e) }, 502);
+      }
+      let tp: Record<string, { correctAnswer?: string; wrongAnswer?: string }> = {};
+      try {
+        tp = JSON.parse(ttext);
+      } catch {
+        const m = ttext.match(/\{[\s\S]*\}/);
+        if (m) { try { tp = JSON.parse(m[0]); } catch { /* ignore */ } }
+      }
+      const extra: Record<string, { correctAnswer: string; wrongAnswer: string }> = {};
+      for (const t of targets) {
+        const c = capFirst(String(tp[t.code]?.correctAnswer ?? ""), t.code);
+        const w = capFirst(String(tp[t.code]?.wrongAnswer ?? ""), t.code);
+        extra[t.code] = { correctAnswer: c, wrongAnswer: w };
+        if (c) {
+          // Same key a single-language pivot call (sourceEn + sourceEnWrong) uses,
+          // so re-generating one language later is an instant cache hit.
+          await cacheSet(
+            await sha256(`${MODEL}|${t.name}|${sourceEn}|${sourceEnWrong}|${transcription}`),
+            c, w);
+        }
+      }
+      return json({ extra, batched: true });
+    }
+
     if (lang === "en" && targetLangs.length) {
       const targets = targetLangs.map((code) => ({ code, name: langCodeToName(code) }));
       const batchBody = JSON.stringify({
