@@ -3100,12 +3100,16 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final ytId = v['youtube_id'] as String?;
     if (ytId == null || ytId.isEmpty) return;
     final start = (v['start_time'] as num?)?.toDouble() ?? 0.0;
+    final end = (v['end_time'] as num?)?.toDouble() ?? 0.0;
     _segEnded = false;
     setState(() {
       _ytController?.close();
       _ytController = YoutubePlayerController.fromVideoId(
         videoId: ytId,
         startSeconds: start,
+        // Native hard stop at the segment end; the polling monitor below is the
+        // backup (and re-enforces after a manual seek, which clears endSeconds).
+        endSeconds: end > start ? end : null,
         autoPlay: true,
         params: const YoutubePlayerParams(
           showControls: true,

@@ -51,6 +51,7 @@ extension type _PlayerVars._(JSObject _) implements JSObject {
     int playsinline,
     int mute,
     int start,
+    int end,
     int cc_load_policy,
     int iv_load_policy,
     String origin,
@@ -308,6 +309,12 @@ class _DirectYouTubePlayerState extends State<DirectYouTubePlayer> {
             playsinline: 1,
             mute: muted ? 1 : 0,
             start: widget.startTime.toInt(),
+            // Native hard stop at the segment end — YouTube stops on its own
+            // even if the JS ticker/fallback ever miss. (seekTo cancels it, so
+            // the ticker still enforces end after a replay.)
+            end: widget.endTime > widget.startTime
+                ? widget.endTime.ceil()
+                : widget.startTime.toInt() + 1,
             cc_load_policy: 0,
             iv_load_policy: 3,
             origin: origin,
