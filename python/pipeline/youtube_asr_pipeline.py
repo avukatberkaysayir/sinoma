@@ -293,12 +293,22 @@ def run(
     url: str,
     active: bool = False,
     hsk_filter: list[int] | None = None,
+    word_filter: list[str] | None = None,
+    grammar_filter: list[str] | None = None,
     on_progress: Callable[..., None] | None = None,
 ) -> dict[str, Any]:
     """Full pipeline: YouTube URL → audio → Whisper → Supabase.
 
     Returns {"segmentsWritten": N, "method": "subtitles"|"whisper"}.
     hsk_filter: if set, only segments whose hsk_level is in this list are inserted.
+    word_filter / grammar_filter: criterion pre-filter. After the path trigger
+    assigns each clip a CRITERION (slot_word / slot_grammar, or its backup_*
+    equivalent), clips whose criterion is not in the selected words/grammars are
+    dropped. So selecting only some HSK-1 words yields ONLY clips whose teaching
+    item is one of those words — clips whose highest-level criterion sits at
+    another level are never kept. Applied server-side (robust regardless of
+    whether the admin tab stays open) right before the per-clip whisper fill, so
+    no whisper work is spent on clips that will be dropped.
     """
     if not SUPABASE_SERVICE_KEY:
         raise RuntimeError(
@@ -451,7 +461,11 @@ def run(
     dropped_ns = 0
     dropped_dup = 0
     dropped_unplaced = 0
+    dropped_crit = 0
     try:
+        # Criterion filter first (before the costly per-clip whisper): keep only
+        # clips whose assigned teaching item is one of the selected words/grammars.
+        dropped_crit = _drop_non_criteria_pending(youtube_id, word_filter, grammar_filter)
         fill_whisper_text(youtube_id, url)
         dropped_ns = _drop_no_speech_pending(youtube_id)
         # Every import: drop clips that already exist as an ACTIVE video.
@@ -460,9 +474,11 @@ def run(
         dropped_unplaced = _drop_unplaced_pending(youtube_id)
     except Exception as exc:
         print(f"  [WHISPER-FILL] atlandı: {exc}")
-    return {"segmentsWritten": inserted - dropped_ns - dropped_dup - dropped_unplaced,
+    return {"segmentsWritten":
+                inserted - dropped_ns - dropped_dup - dropped_unplaced - dropped_crit,
             "method": method, "gatedOut": gated, "droppedNoSpeech": dropped_ns,
-            "droppedDuplicates": dropped_dup, "droppedUnplaced": dropped_unplaced}
+            "droppedDuplicates": dropped_dup, "droppedUnplaced": dropped_unplaced,
+            "droppedCriterion": dropped_crit}
 
 
 def _audio_cache_path(youtube_id: str) -> Path:
@@ -572,6 +588,46 @@ def fill_whisper_text(
             on_progress(filled)
     print(f"  [WHISPER-FILL] ✓ {filled} whisper_text yazıldı ({youtube_id})")
     return filled
+
+
+def _drop_non_criteria_pending(
+    youtube_id: str,
+    word_filter: list[str] | None,
+    grammar_filter: list[str] | None,
+) -> int:
+    """Criterion filter. When word_filter and/or grammar_filter is set, delete this
+    video's PENDING clips whose ASSIGNED criterion is none of the selected items.
+    The criterion is what the path trigger pinned the clip through: slot_word /
+    slot_grammar (placed) or backup_word / backup_grammar (backup). A clip is kept
+    iff its slot/backup word is in word_filter OR its slot/backup grammar is in
+    grammar_filter. This is stricter than "contains the word": a sentence merely
+    mentioning a selected word but taught through a different (higher-level)
+    criterion is dropped — so picking HSK-1 words never yields other-level clips."""
+    wf = set(word_filter or ())
+    gf = set(grammar_filter or ())
+    if not wf and not gf:
+        return 0
+    resp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
+                "select": "id,slot_word,slot_grammar,backup_word,backup_grammar"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    rows = resp.json() if resp.status_code < 300 else []
+    ids = []
+    for r in rows:
+        word = r.get("slot_word") or r.get("backup_word")
+        gram = r.get("slot_grammar") or r.get("backup_grammar")
+        keep = (word is not None and word in wf) or (gram is not None and gram in gf)
+        if not keep:
+            ids.append(r["id"])
+    for cid in ids:
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
+    if ids:
+        print(f"  [CRITERION] {len(ids)} klip kriter-dışı silindi ({youtube_id})")
+    return len(ids)
 
 
 def _drop_unplaced_pending(youtube_id: str) -> int:

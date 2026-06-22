@@ -142,6 +142,8 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                 url = payload.get("url", "")
                 active = payload.get("active", False)
                 hsk_filter = payload.get("hsk_filter") or None
+                word_filter = payload.get("word_filter") or None
+                grammar_filter = payload.get("grammar_filter") or None
                 job_type = job.get("job_type") or "youtube_asr"
                 print(f"\n  [poller] İş alındı {job_id[:8]}… type={job_type} url={url}")
                 try:
@@ -171,7 +173,10 @@ def _poll_loop(base_url: str, service_key: str) -> None:
                         result.setdefault("segmentsWritten",
                                           result.get("clipsWritten", 0))
                     else:
-                        result = asr_run(url, active=active, hsk_filter=hsk_filter, on_progress=_progress)
+                        result = asr_run(url, active=active, hsk_filter=hsk_filter,
+                                         word_filter=word_filter,
+                                         grammar_filter=grammar_filter,
+                                         on_progress=_progress)
                     _finish_job(base_url, service_key, job_id, "done", result=result)
                     print(f"  [poller] ✅ {result}")
                 except Exception as exc:

@@ -5749,6 +5749,8 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
         url,
         active: false,
         hskFilter: filter,
+        wordFilter: wordFilter,
+        grammarFilter: grammarFilter,
       );
       if (!mounted) return;
       setState(() {

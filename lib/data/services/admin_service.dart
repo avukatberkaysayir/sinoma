@@ -75,6 +75,8 @@ class AdminService {
     String url, {
     bool active = false,
     List<int>? hskFilter,
+    List<String>? wordFilter,
+    List<String>? grammarFilter,
   }) async {
     final res = await _db
         .from('pipeline_jobs')
@@ -85,6 +87,10 @@ class AdminService {
             'active': active,
             if (hskFilter != null && hskFilter.isNotEmpty)
               'hsk_filter': hskFilter,
+            if (wordFilter != null && wordFilter.isNotEmpty)
+              'word_filter': wordFilter,
+            if (grammarFilter != null && grammarFilter.isNotEmpty)
+              'grammar_filter': grammarFilter,
           },
         })
         .select('id')
@@ -692,11 +698,14 @@ class AdminService {
 
   /// After an auto-import, deletes pending segments for [youtubeId] that either
   /// have no dictionary match (hsk_level = 0), fall outside [hskFilter], or — when
-  /// [grammarFilter] is set — don't carry any of the selected grammar rules.
-  /// quiz_categories is rebuilt authoritatively by the assign_video_path trigger
-  /// (target words ∩ grammar_levels.symbol + patterns), so matching it against the
-  /// admin's grammar_levels names is exact. Safe to call regardless of whether the
-  /// edge function already filtered.
+  /// [grammarFilter]/[wordFilter] is set — aren't taught THROUGH one of the
+  /// selected items. The criterion is what the assign_video_path trigger pinned
+  /// the clip on: slot_word/slot_grammar (placed) or backup_word/backup_grammar
+  /// (backup). Matching the criterion (not mere target-word containment) means
+  /// picking some HSK-1 words keeps only clips whose teaching item is one of those
+  /// words — a clip that merely mentions the word but teaches a higher-level
+  /// criterion is dropped. Safe to call regardless of whether the edge function /
+  /// pipeline already filtered.
   Future<int> deleteNonMatchingPendingVideos(
     String youtubeId,
     List<int>? hskFilter, {
@@ -705,7 +714,8 @@ class AdminService {
   }) async {
     final data = await _db
         .from('videos')
-        .select('id, hsk_level, quiz_categories, target_words')
+        .select('id, hsk_level, slot_word, slot_grammar, '
+            'backup_word, backup_grammar')
         .eq('youtube_id', youtubeId)
         .eq('status', 'pending');
 
@@ -725,16 +735,16 @@ class AdminService {
               !hskFilter.contains(level)) {
             return true;
           }
-          // Content filter: grammar OR word match (either selected dimension
-          // keeps the clip). Only applied when at least one is set.
+          // Criterion filter: keep only clips whose assigned teaching item (slot
+          // or backup word/grammar) is one of the selected words/grammars.
           if (gf != null || wf != null) {
-            final cats =
-                (r['quiz_categories'] as List?)?.cast<String>() ?? const [];
-            final words =
-                (r['target_words'] as List?)?.cast<String>() ?? const [];
-            final grammarOk = gf != null && cats.any(gf.contains);
-            final wordOk = wf != null && words.any(wf.contains);
-            if (!grammarOk && !wordOk) return true;
+            final word =
+                (r['slot_word'] ?? r['backup_word']) as String?;
+            final gram =
+                (r['slot_grammar'] ?? r['backup_grammar']) as String?;
+            final wordOk = wf != null && word != null && wf.contains(word);
+            final grammarOk = gf != null && gram != null && gf.contains(gram);
+            if (!wordOk && !grammarOk) return true;
           }
           return false;
         })
