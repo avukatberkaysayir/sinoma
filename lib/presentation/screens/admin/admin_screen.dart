@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+import '../../widgets/video/admin_segment_player.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/cities.dart';
@@ -2993,9 +2993,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   bool _trWhisperBusy = false;
   bool _pinyinBusy = false;
 
-  YoutubePlayerController? _ytController;
-  Timer? _segmentTimer; // restricts playback to start..end
-  bool _segEnded = false;
+  bool _playerOpen = false;
+  final GlobalKey<AdminSegmentPlayerState> _playerKey = GlobalKey();
 
   @override
   void initState() {
@@ -3097,75 +3096,25 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   }
 
   void _openInlinePlayer() {
-    final v = widget.data;
-    final ytId = v['youtube_id'] as String?;
+    final ytId = widget.data['youtube_id'] as String?;
     if (ytId == null || ytId.isEmpty) return;
-    final start = (v['start_time'] as num?)?.toDouble() ?? 0.0;
-    final end = (v['end_time'] as num?)?.toDouble() ?? 0.0;
-    _segEnded = false;
     setState(() {
-      _ytController?.close();
-      _ytController = YoutubePlayerController.fromVideoId(
-        videoId: ytId,
-        startSeconds: start,
-        // Native hard stop at the segment end; the polling monitor below is the
-        // backup (and re-enforces after a manual seek, which clears endSeconds).
-        endSeconds: end > start ? end : null,
-        autoPlay: true,
-        params: const YoutubePlayerParams(
-          showControls: true,
-          showFullscreenButton: true,
-          mute: false,
-          loop: false,
-          playsInline: true,
-        ),
-      );
+      _playerOpen = true;
       if (!_expanded) _expanded = true;
     });
-    _startSegmentMonitor();
   }
 
-  // Keep the preview inside [start, end] — same as the home player.
-  void _startSegmentMonitor() {
-    _segmentTimer?.cancel();
-    final v = widget.data;
-    final start = (v['start_time'] as num?)?.toDouble() ?? 0.0;
-    final end = (v['end_time'] as num?)?.toDouble() ?? 0.0;
-    if (end <= start) return;
-    _segmentTimer =
-        Timer.periodic(const Duration(milliseconds: 400), (_) async {
-      final c = _ytController;
-      if (c == null) return;
-      final t = await c.currentTime;
-      if (!_segEnded && t >= end) {
-        _segEnded = true;
-        await c.pauseVideo();
-      } else if (t < start - 1) {
-        await c.seekTo(seconds: start, allowSeekAhead: true);
-      }
-    });
-  }
-
-  Future<void> _replaySegment() async {
-    final c = _ytController;
-    if (c == null) return;
-    final start = (widget.data['start_time'] as num?)?.toDouble() ?? 0.0;
-    _segEnded = false;
-    await c.seekTo(seconds: start, allowSeekAhead: true);
-    await c.playVideo();
-  }
+  // Native YouTube start/end (in AdminSegmentPlayer) enforce the segment, so the
+  // replay just re-cues the embed from its start.
+  void _replaySegment() => _playerKey.currentState?.replay();
 
   void _closeInlinePlayer() {
-    _segmentTimer?.cancel();
-    _ytController?.close();
-    setState(() => _ytController = null);
+    setState(() => _playerOpen = false);
   }
 
   @override
   void dispose() {
-    _segmentTimer?.cancel();
     _whisperTimer?.cancel();
-    _ytController?.close();
     _transcriptionCtrl.dispose();
     _pinyinCtrl.dispose();
     _questionCtrl.dispose();
@@ -4019,7 +3968,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                   ),
                   onPressed: () {
                     setState(() => _expanded = !_expanded);
-                    if (_expanded && _ytController == null) _openInlinePlayer();
+                    if (_expanded && !_playerOpen) _openInlinePlayer();
                   },
                 ),
               ],
@@ -4040,17 +3989,18 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                       children: [
                   if (ytId != null && ytId.isNotEmpty) ...[
                     // Inline player or clickable thumbnail
-                    if (_ytController != null) ...[
+                    if (_playerOpen) ...[
                       // Fixed 400×225 box — same proportions as home-screen cards
-                      SizedBox(
-                        width: 400,
-                        height: 225,
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: YoutubePlayerScaffold(
-                            controller: _ytController!,
-                            builder: (_, player) => player,
-                          ),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: AdminSegmentPlayer(
+                          key: _playerKey,
+                          youtubeId: ytId,
+                          startTime:
+                              (widget.data['start_time'] as num?)?.toDouble() ??
+                                  0,
+                          endTime:
+                              (widget.data['end_time'] as num?)?.toDouble() ?? 0,
                         ),
                       ),
                       const SizedBox(height: 6),
