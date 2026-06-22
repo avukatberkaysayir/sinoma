@@ -5837,12 +5837,41 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
           final vids = await _service.listVideosByYoutubeId(_asrJobYoutubeId);
           _jobPollTimer?.cancel();
           _stopTimers();
+
+          // Transparent breakdown: the worker streams clips into "pending", then
+          // prunes the ones that don't fit (criterion / no path slot / silent /
+          // duplicate); the client criterion pass deletes a few more. Without
+          // this the user just sees "0 imported" and can't tell why it's empty.
+          final r = (job['result'] as Map?) ?? const {};
+          int ri(String k) => (r[k] as num?)?.toInt() ?? 0;
+          final dCrit = ri('droppedCriterion') + deleted; // worker + client
+          final dUnpl = ri('droppedUnplaced');
+          final dNs = ri('droppedNoSpeech');
+          final dDup = ri('droppedDuplicates');
+          final gated = ri('gatedOut');
+          final found = written + ri('droppedCriterion') + dUnpl + dNs + dDup;
+          final drops = <String>[
+            if (dCrit > 0) '$dCrit kriter-dışı',
+            if (dUnpl > 0) '$dUnpl yerleşemeyen (slot dolu)',
+            if (dNs > 0) '$dNs sessiz',
+            if (dDup > 0) '$dDup zaten aktif/duplike',
+            if (gated > 0) '$gated tutarsız',
+          ];
           setState(() {
             _processing = false;
-            _resultSuccess = true;
-            _resultMsg = '✓ $kept klip içe aktarıldı.'
-                '${deleted > 0 ? ' ($deleted segment sözlük/filtre dışı silindi.)' : ''}'
-                ' Sağdan onaylayın.';
+            if (kept > 0) {
+              _resultSuccess = true;
+              _resultMsg = '✓ $kept klip onay bekleyene eklendi. Sağdan onaylayın.'
+                  '${drops.isNotEmpty ? '\n($found bulundu; ${drops.join(', ')} elendi.)' : ''}';
+            } else {
+              // Not an error — but make "empty" loud and explain it.
+              _resultSuccess = false;
+              _resultMsg = found == 0
+                  ? '⚠ Hiç segment bulunamadı (Mandarin/altyazı yok veya sözlük eşleşmesi yok).'
+                  : '⚠ 0 klip kaldı — $found segment bulundu ama hepsi elendi'
+                      '${drops.isEmpty ? '' : ': ${drops.join(', ')}'}.'
+                      ' Filtre/kriter çok dar: daha geniş HSK seç veya kriteri kaldırıp tekrar dene.';
+            }
             _liveVideos = vids;
           });
           widget.onVideosChanged();
