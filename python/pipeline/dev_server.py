@@ -53,7 +53,10 @@ def _ensure_pot_server() -> None:
               "bgutil-pot derleyin")
         return
     try:
-        flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+        flags = (
+            subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NO_WINDOW
+            if sys.platform == "win32" else 0
+        )
         subprocess.Popen(
             ["node", str(POT_SERVER_JS)],
             cwd=str(POT_SERVER_JS.parent),
