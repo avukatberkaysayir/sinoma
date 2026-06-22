@@ -7,6 +7,7 @@ import '../../../data/models/video_segment_model.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/common/word_detail_sheet.dart';
 import '../../widgets/video/direct_youtube_player.dart';
+import '../../widgets/video/youtube_attribution.dart';
 
 // Voscreen-style playlist player.
 // Reads from videoPlaylistProvider — call videoPlaylistProvider.notifier.loadFeed() before pushing /play.
@@ -224,16 +225,27 @@ class _PlayerColumnState extends ConsumerState<_PlayerColumn> {
         Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 720),
-            child: DirectYouTubePlayer(
-              key: ValueKey('${segment.videoId}-${segment.startTime}'),
-              videoId: segment.youtubeId ?? '',
-              startTime: segment.startTime,
-              endTime: segment.endTime,
-              hskLevel: segment.hskLevel,
-              replayCount: feed.replayCounter,
-              controller: _ytCtrl,
-              onSegmentEnded: () =>
-                  ref.read(videoPlaylistProvider.notifier).activateQuiz(),
+            child: Column(
+              children: [
+                DirectYouTubePlayer(
+                  key: ValueKey('${segment.videoId}-${segment.startTime}'),
+                  videoId: segment.youtubeId ?? '',
+                  startTime: segment.startTime,
+                  endTime: segment.endTime,
+                  replayCount: feed.replayCounter,
+                  controller: _ytCtrl,
+                  onSegmentEnded: () =>
+                      ref.read(videoPlaylistProvider.notifier).activateQuiz(),
+                  onEmbedError: () =>
+                      ref.read(videoPlaylistProvider.notifier).goNext(),
+                ),
+                // Required YouTube attribution — sits below the player, never
+                // overlapping it.
+                YouTubeAttribution(
+                  youtubeId: segment.youtubeId ?? '',
+                  startTime: segment.startTime,
+                ),
+              ],
             ),
           ),
         ),

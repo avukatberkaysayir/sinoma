@@ -14,6 +14,7 @@ import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../providers/video_provider.dart';
 import '../../widgets/video/direct_youtube_player.dart';
+import '../../widgets/video/youtube_attribution.dart';
 
 // The player's subtitle + answer options keep a familiar handwritten face
 // (site-wide ZCOOL XiaoWei stays everywhere else).
@@ -49,7 +50,6 @@ class InlinePlayerSection extends ConsumerStatefulWidget {
 class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   late int _index;
   bool _clipEnded = false;
-  bool _replaying = false; // clip is currently re-playing → hide the replay button
   bool? _subtitleChoice;
   String? _pickedAnswer; // option text the user picked — frozen, survives replay
   bool _optSwap = false; // stable left/right order for the two options
@@ -71,6 +71,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   // VoScreen-style mastery ticks for the CURRENT clip (practice tab only):
   // +1 per correct answer, -1 per wrong/timeout, 0..5, persisted per user.
   int _ticks = 0;
+
+  // Transient "+N / −N" score chip shown in the post-clip area (NEVER over the
+  // player — YouTube ToS forbids overlaying the embed).
+  int? _scoreFlash;
+  Timer? _scoreFlashTimer;
 
   @override
   void initState() {
@@ -131,12 +136,21 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   @override
   void dispose() {
     _countdownTimer?.cancel();
+    _scoreFlashTimer?.cancel();
     super.dispose();
+  }
+
+  // A brief score chip in the post-clip area; auto-clears after ~1.1s.
+  void _flashScore(int delta) {
+    _scoreFlashTimer?.cancel();
+    setState(() => _scoreFlash = delta);
+    _scoreFlashTimer = Timer(const Duration(milliseconds: 1100), () {
+      if (mounted) setState(() => _scoreFlash = null);
+    });
   }
 
   void _resetState() {
     _clipEnded = false;
-    _replaying = false;
     _subtitleChoice = null;
     _pickedAnswer = null;
     _optSwap = Random().nextBool();
@@ -180,10 +194,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
   VideoSegmentModel get _seg => widget.segments[_index];
 
   void _onSegmentEnded() {
-    // Clip stopped → show the replay button again (it's hidden while replaying).
     setState(() {
       _clipEnded = true;
-      _replaying = false;
     });
     // Start the choice countdown the first time the segment ends. Guarded so a
     // replay (which ends again) does not restart it, and not after a timeout.
@@ -209,7 +221,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         final delta = -_penaltyPoints(_seg);
         WebSfx.timeout();
         _addScore(delta, answered: false);
-        _playerCtrl.showScorePopup(delta);
+        _flashScore(delta);
         widget.onAnswered?.call(false); // timeout counts as a wrong answer (heart)
         _updateTicks(false);
         ref.read(videoRepositoryProvider).bumpAnswerStat(false);
@@ -267,7 +279,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     // options, picked answer) stays put — nothing below changes. The replay
     // button hides during playback and returns when the clip ends.
     setState(() {
-      _replaying = true;
       _replayCount++;
     });
   }
@@ -300,7 +311,7 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
     if (correct) _correctCount++;
     correct ? WebSfx.correct() : WebSfx.wrong();
     _addScore(delta);
-    _playerCtrl.showScorePopup(delta);
+    _flashScore(delta);
     widget.onAnswered?.call(correct);
     _updateTicks(correct);
     ref
@@ -374,46 +385,43 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // ── YouTube player ────────────────────────────────────────────────
-          Stack(
-            children: [
-              DirectYouTubePlayer(
-                key: ValueKey('${seg.videoId}-${seg.startTime}'),
-                videoId: seg.youtubeId ?? '',
-                startTime: seg.startTime,
-                endTime: seg.endTime,
-                hskLevel: seg.hskLevel,
-                replayCount: _replayCount,
-                controller: _playerCtrl,
-                onSegmentEnded: _onSegmentEnded,
-                onSoundChanged: (v) {
-                  if (mounted) setState(() => _soundOn = v);
-                },
-                onWatched: (s) => _videoRepo.bumpWatchSeconds(s),
-                countdown: _countdown,
-                showCountdown: _countdownActive,
-                showReplay: _clipEnded && !_replaying,
-                showNext: _subtitleChoice != null || _timedOut,
-                onReplayTap: _replay,
-                onNextTap: _goNext,
-              ),
-              Positioned(
-                top: 8,
-                left: 8,
-                child: _HskBadge(level: seg.hskLevel),
-              ),
-              Positioned(
-                bottom: 8,
-                left: 8,
-                child: Text(
+          // No overlays in front of the embed (YouTube ToS): the countdown,
+          // replay, next and score chip all live in the post-clip area below.
+          DirectYouTubePlayer(
+            key: ValueKey('${seg.videoId}-${seg.startTime}'),
+            videoId: seg.youtubeId ?? '',
+            startTime: seg.startTime,
+            endTime: seg.endTime,
+            replayCount: _replayCount,
+            controller: _playerCtrl,
+            onSegmentEnded: _onSegmentEnded,
+            onSoundChanged: (v) {
+              if (mounted) setState(() => _soundOn = v);
+            },
+            onWatched: (s) => _videoRepo.bumpWatchSeconds(s),
+            onEmbedError: _goNext,
+          ),
+
+          // ── Source row (HSK · time · YouTube attribution) ─────────────────
+          // Everything here sits BELOW the player; the embed is never covered.
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 0),
+            child: Row(
+              children: [
+                _HskBadge(level: seg.hskLevel),
+                const SizedBox(width: 8),
+                Text(
                   '${_fmtTime(seg.startTime)}–${_fmtTime(seg.endTime)}',
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontSize: 11,
-                    shadows: [Shadow(blurRadius: 4)],
-                  ),
+                  style: TextStyle(color: AppColors.text70, fontSize: 11),
                 ),
-              ),
-            ],
+                const Spacer(),
+                YouTubeAttribution(
+                  youtubeId: seg.youtubeId ?? '',
+                  startTime: seg.startTime,
+                  padding: EdgeInsets.zero,
+                ),
+              ],
+            ),
           ),
 
           // ── Controls bar ──────────────────────────────────────────────────
@@ -448,6 +456,22 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_clipEnded) ...[
+                      // Countdown + score chip — below the player, never over it.
+                      if (_countdownActive || _scoreFlash != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              if (_countdownActive)
+                                _CountdownBadge(seconds: _countdown),
+                              if (_countdownActive && _scoreFlash != null)
+                                const SizedBox(width: 12),
+                              if (_scoreFlash != null)
+                                _ScoreFlash(delta: _scoreFlash!),
+                            ],
+                          ),
+                        ),
                       const SizedBox(height: 14),
 
                       // Step 1: choice (Subtitles On | Subtitles Off) — only
@@ -504,6 +528,8 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                             ),
                           ),
                         ),
+                        // Next clip — replaces the old on-player arrow overlay.
+                        _NextButton(label: l10n.nextClip, onTap: _goNext),
                       ],
                     ],
                   ],
@@ -565,6 +591,88 @@ class _HskBadge extends StatelessWidget {
         'HSK $level',
         style: const TextStyle(
             color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+// Choice-window countdown — a circular seconds badge in the post-clip area.
+class _CountdownBadge extends StatelessWidget {
+  final int seconds;
+  const _CountdownBadge({required this.seconds});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 40,
+      height: 40,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.surfaceVariant,
+        border: Border.all(color: AppColors.primary, width: 2),
+      ),
+      child: Text(
+        '$seconds',
+        style: TextStyle(
+            color: AppColors.onSurface,
+            fontSize: 16,
+            fontWeight: FontWeight.w800),
+      ),
+    );
+  }
+}
+
+// Transient "+N / −N" score chip — pops in below the player.
+class _ScoreFlash extends StatelessWidget {
+  final int delta;
+  const _ScoreFlash({required this.delta});
+
+  @override
+  Widget build(BuildContext context) {
+    final positive = delta >= 0;
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0.4, end: 1),
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutBack,
+      builder: (_, s, child) => Transform.scale(scale: s, child: child),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        decoration: BoxDecoration(
+          color: positive ? AppColors.correctAnswer : AppColors.wrongAnswer,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          positive ? '+$delta' : '$delta',
+          style: const TextStyle(
+              color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+}
+
+// Advance button — replaces the old on-player "next" arrow overlay.
+class _NextButton extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+  const _NextButton({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+      child: SizedBox(
+        width: double.infinity,
+        child: FilledButton.icon(
+          onPressed: onTap,
+          icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+          label: Text(label),
+          style: FilledButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
       ),
     );
   }

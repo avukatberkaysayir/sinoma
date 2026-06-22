@@ -69,10 +69,10 @@ class _HybridVideoPlayerState extends ConsumerState<HybridVideoPlayer> {
           videoId: widget.segment.youtubeId ?? '',
           startTime: widget.segment.startTime,
           endTime: widget.segment.endTime,
-          hskLevel: widget.segment.hskLevel,
           replayCount: 0,
           controller: _ytCtrl,
           onSegmentEnded: onEnded,
+          onEmbedError: onEnded,
         ),
       VideoSourceType.selfHosted => SelfHostedPlayer(
           segment: widget.segment,
