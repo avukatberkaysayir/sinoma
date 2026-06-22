@@ -437,6 +437,11 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
             onQualityUp: () => _stepQuality(1),
             // Practice tab only — the Öğren phases show neither.
             ticks: widget.phaseMode ? null : _ticks,
+            // Countdown + score sit in the bar (right of the ticks) so they
+            // never push the subtitle/options down.
+            countdown: _countdown,
+            countdownActive: _countdownActive,
+            scoreFlash: _scoreFlash,
             onAddToPlaylist:
                 widget.phaseMode ? null : () => _openPlaylistDialog(l10n),
             playlistTooltip: l10n.addToPlaylist,
@@ -456,22 +461,6 @@ class _InlinePlayerSectionState extends ConsumerState<InlinePlayerSection> {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_clipEnded) ...[
-                      // Countdown + score chip — below the player, never over it.
-                      if (_countdownActive || _scoreFlash != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              if (_countdownActive)
-                                _CountdownBadge(seconds: _countdown),
-                              if (_countdownActive && _scoreFlash != null)
-                                const SizedBox(width: 12),
-                              if (_scoreFlash != null)
-                                _ScoreFlash(delta: _scoreFlash!),
-                            ],
-                          ),
-                        ),
                       const SizedBox(height: 14),
 
                       // Step 1: choice (Subtitles On | Subtitles Off) — only
@@ -604,8 +593,8 @@ class _CountdownBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 40,
-      height: 40,
+      width: 28,
+      height: 28,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
@@ -616,7 +605,7 @@ class _CountdownBadge extends StatelessWidget {
         '$seconds',
         style: TextStyle(
             color: AppColors.onSurface,
-            fontSize: 16,
+            fontSize: 13,
             fontWeight: FontWeight.w800),
       ),
     );
@@ -637,7 +626,7 @@ class _ScoreFlash extends StatelessWidget {
       curve: Curves.easeOutBack,
       builder: (_, s, child) => Transform.scale(scale: s, child: child),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
           color: positive ? AppColors.correctAnswer : AppColors.wrongAnswer,
           borderRadius: BorderRadius.circular(20),
@@ -645,7 +634,7 @@ class _ScoreFlash extends StatelessWidget {
         child: Text(
           positive ? '+$delta' : '$delta',
           style: const TextStyle(
-              color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800),
+              color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800),
         ),
       ),
     );
@@ -693,6 +682,11 @@ class _ControlsBar extends StatelessWidget {
   final VoidCallback onQualityUp;
   // Practice extras (null in phase mode): mastery ticks + playlist button.
   final int? ticks;
+  // Choice-window countdown + transient score chip — rendered in the bar (right
+  // of the ticks) so they never push the subtitle/options down.
+  final int countdown;
+  final bool countdownActive;
+  final int? scoreFlash;
   final VoidCallback? onAddToPlaylist;
   final String playlistTooltip;
   // PY (pinyin) toggle — shows pinyin under the Chinese subtitle chips.
@@ -710,6 +704,9 @@ class _ControlsBar extends StatelessWidget {
     required this.onQualityDown,
     required this.onQualityUp,
     this.ticks,
+    this.countdown = 0,
+    this.countdownActive = false,
+    this.scoreFlash,
     this.onAddToPlaylist,
     this.playlistTooltip = '',
     required this.showPinyin,
@@ -773,6 +770,16 @@ class _ControlsBar extends StatelessWidget {
           if (ticks != null) ...[
             const SizedBox(width: 14),
             _TickRow(count: ticks!),
+          ],
+          // Countdown sits immediately right of the ticks; score chip pops in
+          // beside it. Both fit the bar height, so nothing below shifts.
+          if (countdownActive) ...[
+            const SizedBox(width: 12),
+            _CountdownBadge(seconds: countdown),
+          ],
+          if (scoreFlash != null) ...[
+            const SizedBox(width: 10),
+            _ScoreFlash(delta: scoreFlash!),
           ],
           const Spacer(),
 
