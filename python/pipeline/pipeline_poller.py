@@ -25,12 +25,20 @@ def _headers(service_key: str) -> dict[str, str]:
 
 
 def _claim_pending(base_url: str, service_key: str) -> dict[str, Any] | None:
-    # Content jobs (ASR / Whisper / movie) before metadata jobs, so a backlog of
-    # video_meta jobs never makes a real segmentation job wait. Two passes: first
-    # any non-meta pending job, then (if none) a meta job.
+    # Priority passes so an interactive request never waits behind a long batch:
+    #   1) whisper_clip — a single-clip Whisper the admin is waiting on live
+    #   2) heavy batch  — youtube_asr / movie (whole-video segmentation)
+    #   3) anything left — video_meta and the rest
+    # (Within a pass, oldest first.) This only reorders PENDING jobs; a batch job
+    # already mid-run still holds the single worker until it finishes — the admin
+    # surfaces that as "busy, queued" rather than a dead worker.
     hdr = {"apikey": service_key, "Authorization": f"Bearer {service_key}"}
     job = None
-    for type_filter in ("&job_type=neq.video_meta", ""):
+    for type_filter in (
+        "&job_type=eq.whisper_clip",
+        "&job_type=not.in.(video_meta,whisper_clip)",
+        "",
+    ):
         resp = requests.get(
             f"{base_url}/rest/v1/pipeline_jobs"
             f"?status=eq.pending{type_filter}&order=created_at.asc&limit=1&select=*",
