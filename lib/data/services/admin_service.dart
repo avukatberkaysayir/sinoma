@@ -365,6 +365,18 @@ class AdminService {
     return Map<String, dynamic>.from(res);
   }
 
+  // True if the local worker is mid-job (any pipeline_jobs row 'processing').
+  // Lets the UI tell "worker busy with a long split" apart from "worker down"
+  // so a queued Whisper job isn't falsely reported as a dead worker.
+  Future<bool> anyJobProcessing() async {
+    final res = await _db
+        .from('pipeline_jobs')
+        .select('id')
+        .eq('status', 'processing')
+        .limit(1);
+    return (res as List).isNotEmpty;
+  }
+
   // Enqueue a Whisper job: the local worker transcribes the whole video once and
   // fills videos.whisper_text for every clip of that youtube_id, so the admin can
   // compare the auto-caption transcription with the Whisper draft and pick.

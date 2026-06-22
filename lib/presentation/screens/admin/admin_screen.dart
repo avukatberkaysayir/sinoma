@@ -2979,6 +2979,7 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
   int _genAllDone = 0; // languages translated so far in the batch
   bool _segmenting = false;
   bool _whisperRunning = false;
+  bool _whisperBusyNotified = false; // told the user once that the worker is busy
   List<String>? _confirmedWords;
   // Live overrides for the collapsed card header so confirming words / applying
   // Whisper updates the title + pinyin INSTANTLY (before Save/reload).
@@ -3427,7 +3428,10 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     final url = 'https://www.youtube.com/watch?v=$ytId';
     final start = (widget.data['start_time'] as num?)?.toDouble() ?? 0.0;
     final end = (widget.data['end_time'] as num?)?.toDouble() ?? 0.0;
-    setState(() => _whisperRunning = true);
+    setState(() {
+      _whisperRunning = true;
+      _whisperBusyNotified = false;
+    });
     try {
       final jobId = await widget.service.createWhisperJob(
         url,
@@ -3470,14 +3474,29 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
                 content: Text(
                     'Whisper hatası: ${job['error_text'] ?? 'bilinmiyor'}')));
           } else if (!sawProcessing && polls >= 8) {
-            // ~24s and no worker ever claimed the job.
-            stop();
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                duration: Duration(seconds: 6),
-                content: Text('Yerel Whisper işçisi çalışmıyor görünüyor. '
-                    'python/pipeline/dev_server.py\'yi başlatın, sonra tekrar '
-                    'deneyin.')));
+            // ~24s and our job hasn't been claimed. The worker processes one job
+            // at a time, so a long split (youtube_asr) can hold it for many
+            // minutes — that's "busy", NOT "down". Tell them apart via the queue:
+            // if another job is 'processing', the worker is alive — keep waiting.
+            final busy = await widget.service.anyJobProcessing();
+            if (busy) {
+              if (!_whisperBusyNotified && mounted) {
+                _whisperBusyNotified = true;
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                    duration: Duration(seconds: 5),
+                    content: Text('İşçi başka bir işle meşgul (parçalama?). '
+                        'Bu klip sıraya alındı — o iş bitince işlenecek.')));
+              }
+              // keep polling; the 10-min hard cap below still applies.
+            } else {
+              stop();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  duration: Duration(seconds: 6),
+                  content: Text('Yerel Whisper işçisi çalışmıyor görünüyor. '
+                      'python/pipeline/dev_server.py\'yi başlatın, sonra tekrar '
+                      'deneyin.')));
+            }
           } else if (polls >= 200) {
             // ~10 min hard cap (long clip / stuck worker).
             stop();
