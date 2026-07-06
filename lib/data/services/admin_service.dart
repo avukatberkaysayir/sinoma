@@ -843,41 +843,53 @@ class AdminService {
     }
   }
 
+  // Words that corrupt the PostgREST `in.()` filter — embedded whitespace or
+  // newlines (multi-sentence sentinel), quotes, backslashes — can leave the
+  // request hanging FOREVER (admin pending tab stuck spinning). No real
+  // dictionary headword contains them, so they are dropped, not escaped.
+  static final _badFilterChar = RegExp(r'[\s"\\,()]');
+  static List<String> _safeFilterWords(List<String> words) => words
+      .where((w) => w.trim().isNotEmpty && !w.contains(_badFilterChar))
+      .toSet()
+      .toList();
+
   // Dictionary pinyin for each of these words (for display when the edited
   // sentence differs from the original ASR pinyin). Missing words are omitted.
+  // Chunked + per-request timeout: the pending tab batches EVERY clip's words
+  // into one call, and a single oversized/hung request must never freeze the
+  // whole tab — a failed chunk is skipped (those words just keep ASR pinyin).
   Future<Map<String, String>> pinyinForWords(List<String> words) async {
-    // Drop the multi-sentence line-break sentinel + blanks — a literal newline
-    // in the PostgREST `in.()` filter makes the request hang (admin pending tab
-    // stuck spinning).
-    final clean =
-        words.where((w) => w != '\n' && w.trim().isNotEmpty).toSet().toList();
-    if (clean.isEmpty) return {};
-    try {
-      final data = await _db
-          .from('dictionary')
-          .select('simplified,pinyin')
-          .inFilter('simplified', clean);
-      return {
-        for (final m in List<Map<String, dynamic>>.from(data))
-          m['simplified'] as String: (m['pinyin'] as String? ?? ''),
-      };
-    } catch (_) {
-      return {};
+    final clean = _safeFilterWords(words);
+    final out = <String, String>{};
+    for (var i = 0; i < clean.length; i += 150) {
+      final chunk = clean.sublist(
+          i, i + 150 > clean.length ? clean.length : i + 150);
+      try {
+        final data = await _db
+            .from('dictionary')
+            .select('simplified,pinyin')
+            .inFilter('simplified', chunk)
+            .timeout(const Duration(seconds: 8));
+        for (final m in List<Map<String, dynamic>>.from(data)) {
+          out[m['simplified'] as String] = (m['pinyin'] as String? ?? '');
+        }
+      } catch (_) {/* skip chunk */}
     }
+    return out;
   }
 
   // Which of these are in an HSK list (hsk_level 1-6) → green chips.
   // Words absent or with no HSK level count as "not in the list" → red.
   Future<Set<String>> wordsInDictionary(List<String> words) async {
-    final clean =
-        words.where((w) => w != '\n' && w.trim().isNotEmpty).toSet().toList();
+    final clean = _safeFilterWords(words);
     if (clean.isEmpty) return {};
     try {
       final data = await _db
           .from('dictionary')
           .select('simplified')
           .gte('hsk_level', 1)
-          .inFilter('simplified', clean);
+          .inFilter('simplified', clean)
+          .timeout(const Duration(seconds: 8));
       return List<Map<String, dynamic>>.from(data)
           .map((e) => e['simplified'] as String)
           .toSet();
@@ -1276,11 +1288,8 @@ class AdminService {
     try {
       final uid = _db.auth.currentUser?.id;
       if (uid == null) return;
-      final clean = words
-          .map((w) => w.trim())
-          .where((w) => w != '\n' && _cjkRe.hasMatch(w))
-          .toSet()
-          .toList();
+      final clean = _safeFilterWords(
+          words.map((w) => w.trim()).where(_cjkRe.hasMatch).toList());
       if (clean.isEmpty) return;
       final known = await wordsInDictionary(clean);
       final missing = clean.where((w) => !known.contains(w)).toList();

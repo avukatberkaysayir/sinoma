@@ -2257,7 +2257,11 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
       _selected.clear();
     });
     try {
-      final list = await widget.service.listVideosByStatus(widget.status);
+      // Timeout: a hung request must land on the "Tekrar Dene" screen, never
+      // leave the tab spinning forever.
+      final list = await widget.service
+          .listVideosByStatus(widget.status)
+          .timeout(const Duration(seconds: 20));
       // Derive a pinyin that matches the confirmed target_words (the card title),
       // so an edited sentence no longer shows the stale ASR pinyin. One batched
       // dictionary lookup for the whole list.
