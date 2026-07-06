@@ -2,7 +2,7 @@
 # saved as "Diğer" (hsk_level = 7) — the Dart file is the canonical word list,
 # mirrored from the admin approval flow. deploy.ps1 runs this before every
 # build so each deploy ships the current list.
-import os, sys, requests
+import os, sys, time, requests
 
 sys.stdout.reconfigure(encoding='utf-8')
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -16,28 +16,42 @@ if not tok:
     print('[diger-sync] SUPABASE_ACCESS_TOKEN yok - atlandi')
     sys.exit(0)
 
-r = requests.post(
-    'https://api.supabase.com/v1/projects/pqyceostpukueydwuiut/database/query',
-    headers={'Authorization': f'Bearer {tok}'},
-    json={'query': "select simplified, pinyin, "
-                   "coalesce(definitions->>'pos','') pos, "
-                   "coalesce(definitions->>'en','') en, "
-                   "coalesce(definitions->>'tr','') tr, "
-                   "coalesce(definitions->>'ko','') ko, "
-                   "coalesce(definitions->>'ja','') ja, "
-                   "coalesce(definitions->>'id','') id, "
-                   "coalesce(definitions->>'vi','') vi, "
-                   "coalesce(definitions->>'th','') th, "
-                   "coalesce(definitions->>'ru','') ru, "
-                   "coalesce(definitions->>'es','') es, "
-                   "coalesce(definitions->>'pt','') pt, "
-                   "coalesce(definitions->>'fr','') fr, "
-                   "coalesce(definitions->>'ar','') ar "
-                   "from dictionary where hsk_level = 7 order by simplified;"},
-    timeout=30)
-rows = r.json()
-if not isinstance(rows, list):
-    print('[diger-sync] sorgu hatasi:', rows)
+QUERY = ("select simplified, pinyin, "
+         "coalesce(definitions->>'pos','') pos, "
+         "coalesce(definitions->>'en','') en, "
+         "coalesce(definitions->>'tr','') tr, "
+         "coalesce(definitions->>'ko','') ko, "
+         "coalesce(definitions->>'ja','') ja, "
+         "coalesce(definitions->>'id','') id, "
+         "coalesce(definitions->>'vi','') vi, "
+         "coalesce(definitions->>'th','') th, "
+         "coalesce(definitions->>'ru','') ru, "
+         "coalesce(definitions->>'es','') es, "
+         "coalesce(definitions->>'pt','') pt, "
+         "coalesce(definitions->>'fr','') fr, "
+         "coalesce(definitions->>'ar','') ar "
+         "from dictionary where hsk_level = 7 order by simplified;")
+
+# The Management API occasionally hiccups (empty/non-JSON body, 5xx) — retry a
+# few times, then skip gracefully so a transient blip never breaks the deploy.
+rows = None
+for attempt in range(3):
+    try:
+        r = requests.post(
+            'https://api.supabase.com/v1/projects/pqyceostpukueydwuiut/database/query',
+            headers={'Authorization': f'Bearer {tok}'},
+            json={'query': QUERY},
+            timeout=30)
+        rows = r.json()
+        if isinstance(rows, list):
+            break
+        print(f'[diger-sync] deneme {attempt + 1}: sorgu hatasi ({r.status_code}):', rows)
+    except (requests.RequestException, ValueError) as e:
+        print(f'[diger-sync] deneme {attempt + 1}: {type(e).__name__}: {e}')
+    rows = None
+    time.sleep(2 * (attempt + 1))
+if rows is None:
+    print('[diger-sync] API cevap vermedi - atlandi (liste bu deployda guncellenmez)')
     sys.exit(0)
 
 
