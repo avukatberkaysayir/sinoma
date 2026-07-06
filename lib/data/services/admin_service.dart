@@ -769,13 +769,18 @@ class AdminService {
   }
 
   // Which of these candidate strings exist in the dictionary (any HSK level).
+  // Segmentation feeds EVERY 2-4 char substring here, so punctuation-bearing
+  // candidates (e.g. "6岁," from a comma'd sentence) must be dropped before the
+  // in.() filter — they hang the request and no headword contains them anyway.
   Future<Set<String>> existingDictionaryWords(List<String> words) async {
-    if (words.isEmpty) return {};
+    final clean = _safeFilterWords(words);
+    if (clean.isEmpty) return {};
     try {
       final data = await _db
           .from('dictionary')
           .select('simplified')
-          .inFilter('simplified', words);
+          .inFilter('simplified', clean)
+          .timeout(const Duration(seconds: 8));
       return List<Map<String, dynamic>>.from(data)
           .map((e) => e['simplified'] as String)
           .toSet();
@@ -826,12 +831,16 @@ class AdminService {
   }
 
   // Proper nouns appearing verbatim in the text (best-effort; empty on error).
+  // Timeout: a hung/slow edge function (e.g. Gemini quota) must degrade to
+  // "no proper nouns", never leave the segment spinner running forever.
   Future<List<String>> properNounsIn(String text) async {
     try {
-      final res = await _db.functions.invoke(
-        'translate',
-        body: {'text': text, 'mode': 'proper-nouns'},
-      );
+      final res = await _db.functions
+          .invoke(
+            'translate',
+            body: {'text': text, 'mode': 'proper-nouns'},
+          )
+          .timeout(const Duration(seconds: 20));
       if (res.status >= 300) return [];
       final list =
           (res.data as Map<String, dynamic>)['nouns'] as List<dynamic>? ?? [];
