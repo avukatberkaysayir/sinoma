@@ -1291,9 +1291,14 @@ class AdminService {
 
   // Auto-suggest dictionary entries for clip words NOT in the dictionary (the
   // red chips) — fired when a pending clip is saved/approved or backed up.
+  // Each missing word is then auto-defined server-side (define-word: validity
+  // gate + EN-pivot glosses in every UI language + dictionary upsert). Words
+  // the gate rejects, and any Gemini failure, stay in Sözlük > Önerilen for
+  // the manual editor — automation never loses a word.
   static final _cjkRe = RegExp(r'[一-鿿]');
 
-  Future<void> suggestMissingWords(List<String> words) async {
+  Future<void> suggestMissingWords(List<String> words,
+      {String context = '', bool autoDefine = true}) async {
     try {
       final uid = _db.auth.currentUser?.id;
       if (uid == null) return;
@@ -1326,7 +1331,36 @@ class AdminService {
           },
         });
       }
+      // The suggestion rows above are the durable fallback; now try to define
+      // each word automatically. Sequential on purpose (gentle on the free
+      // Gemini quota); a save is never blocked — callers don't await this.
+      // autoDefine=false for display-time calls (red chips appearing in the
+      // editor), so Gemini only runs on deliberate save/approve/backup.
+      if (!autoDefine) return;
+      for (final w in missing) {
+        await defineWord(w, context: context);
+      }
     } catch (_) {/* suggestions are best-effort, never block a save */}
+  }
+
+  // Auto-define one word as a "Diğer" (hsk 7) dictionary entry via the
+  // define-word edge function. Returns the function's result; {'valid': false}
+  // means the validity gate rejected it (it stays in Önerilen).
+  Future<Map<String, dynamic>> defineWord(String word,
+      {String context = ''}) async {
+    try {
+      final res = await _db.functions.invoke(
+        'define-word',
+        body: {
+          'word': word,
+          if (context.isNotEmpty) 'context': context,
+        },
+      ).timeout(const Duration(seconds: 60));
+      if (res.status >= 300) return {'error': 'define-word ${res.status}'};
+      return Map<String, dynamic>.from(res.data as Map);
+    } catch (e) {
+      return {'error': e.toString()};
+    }
   }
 
   // Mirror lib/core/constants/diger_words.dart (the canonical "Diğer" list,

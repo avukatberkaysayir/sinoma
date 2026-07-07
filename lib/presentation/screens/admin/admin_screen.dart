@@ -904,6 +904,9 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
   List<Map<String, dynamic>> _suggestions = [];
   bool _loadingSugg = false;
   String? _suggError;
+  bool _autoFilling = false;
+  int _autoFillDone = 0;
+  int _autoFillTotal = 0;
 
   @override
   void initState() {
@@ -1036,6 +1039,47 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
     }
   }
 
+  // Run the whole Önerilen queue through define-word: valid words become
+  // "Diğer" dictionary entries in every UI language and leave the queue;
+  // rejected/failed ones stay for the manual editor.
+  Future<void> _autoFillAllSuggestions() async {
+    final items = List<Map<String, dynamic>>.from(_suggestions);
+    if (items.isEmpty || _autoFilling) return;
+    setState(() {
+      _autoFilling = true;
+      _autoFillDone = 0;
+      _autoFillTotal = items.length;
+    });
+    var saved = 0;
+    final rejected = <String>[];
+    var failed = 0;
+    for (final s in items) {
+      final w = s['content'] as String? ?? '';
+      final r = await widget.service.defineWord(w);
+      if (r['valid'] == true) {
+        saved++;
+      } else if (r['valid'] == false) {
+        rejected.add(w);
+      } else {
+        failed++;
+      }
+      if (!mounted) return;
+      setState(() => _autoFillDone++);
+    }
+    setState(() => _autoFilling = false);
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      duration: const Duration(seconds: 8),
+      content: Text([
+        '✓ $saved kelime "Diğer" olarak eklendi',
+        if (rejected.isNotEmpty)
+          '⚠ kelime değil (elle bak): ${rejected.join('、')}',
+        if (failed > 0) '⚠ $failed kelimede hata — kuyrukta kaldı',
+      ].join('   ·   ')),
+    ));
+    _loadSuggestions();
+    _load();
+  }
+
   Future<void> _deleteSuggestion(String id) async {
     try {
       await widget.service.deleteWordSuggestion(id);
@@ -1071,6 +1115,25 @@ class _DictionaryPanelState extends State<_DictionaryPanel>
               Text('${_suggestions.length} öneri',
                   style: TextStyle(
                       color: AppColors.onSurfaceMuted, fontSize: 13)),
+              const Spacer(),
+              FilledButton.icon(
+                onPressed: _autoFilling ? null : _autoFillAllSuggestions,
+                icon: _autoFilling
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.auto_awesome, size: 16),
+                label: Text(_autoFilling
+                    ? 'Dolduruluyor… $_autoFillDone/$_autoFillTotal'
+                    : 'Tümünü Gemini ile doldur'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                ),
+              ),
             ],
           ),
         ),
@@ -2320,6 +2383,16 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
     setState(() => _bulkLoading = true);
     try {
       await widget.service.approveVideos(_selected.toList());
+      // Feed the auto-define pipeline for every approved clip's words, same as
+      // a single-card save (fire-and-forget; approval never waits on Gemini).
+      for (final v in _videos.where((v) => _selected.contains(v['id']))) {
+        widget.service.suggestMissingWords(
+          ((v['target_words'] as List<dynamic>?) ?? const [])
+              .map((e) => e.toString())
+              .toList(),
+          context: (v['transcription'] as String? ?? '').trim(),
+        );
+      }
       if (mounted) _snack('✓ ${_selected.length} video onaylandı');
       widget.onRefresh();
     } catch (e) {
@@ -3569,9 +3642,11 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
       // Approve in the same step so an edited clip actually reaches the home
       // feed (which only shows is_active=true); saving alone leaves it pending.
       if (approve) await widget.service.approveVideos([id]);
-      // Red-chip words (not in the dictionary) drop into Sözlük > Önerilen
-      // automatically so they can be defined as "Diğer" entries.
-      widget.service.suggestMissingWords(_targetWords);
+      // Red-chip words (not in the dictionary) drop into Sözlük > Önerilen and
+      // are auto-defined as "Diğer" entries in every UI language; the sentence
+      // gives Gemini the context to pick the right sense.
+      widget.service.suggestMissingWords(_targetWords,
+          context: _transcriptionCtrl.text.trim());
       if (mounted) {
         // Invalidate the homepage feed so the next visit fetches fresh quiz data.
         ref.invalidate(videoFeedProvider);
@@ -3783,7 +3858,8 @@ class _VideoCardState extends ConsumerState<_VideoCard> {
     setState(() => _saving = true);
     try {
       await widget.service.moveVideosToBackup([widget.data['id'] as String]);
-      widget.service.suggestMissingWords(_targetWords);
+      widget.service.suggestMissingWords(_targetWords,
+          context: _transcriptionCtrl.text.trim());
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('✓ Yedeğe alındı')));
@@ -5086,7 +5162,8 @@ class _WordTagEditorState extends State<_WordTagEditor> {
     if (mounted) setState(() => _inDict = res);
     // Any red chip the admin can SEE should already sit in Önerilen — queue
     // missing words the moment they show up, not only when the clip is saved.
-    widget.service.suggestMissingWords(widget.words);
+    // autoDefine off: Gemini defining runs on save/approve, not on display.
+    widget.service.suggestMissingWords(widget.words, autoDefine: false);
   }
 
   @override
