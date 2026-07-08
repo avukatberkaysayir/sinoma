@@ -59,7 +59,12 @@ def key_filter(rgb):
     # AI-generator sparkle watermark in the bottom-right corner (the prompts
     # keep the character clear of the frame edges, so nothing real is lost).
     r, g, b = rgb
-    return (f"colorkey=0x{r:02X}{g:02X}{b:02X}:0.14:0.05,format=rgba,"
+    # When the AI ignored the chroma instruction and painted a DULL backdrop
+    # (L1/4.mp4: #48754D), 0.14 also swallows the dark-brown hands/feet —
+    # tighten to 0.10 for non-vivid backgrounds.
+    vivid = max(rgb) > 170 and (max(rgb) - min(rgb)) > 120
+    sim, blend = ("0.14", "0.05") if vivid else ("0.10", "0.03")
+    return (f"colorkey=0x{r:02X}{g:02X}{b:02X}:{sim}:{blend},format=rgba,"
             "drawbox=x=iw*0.76:y=ih*0.84:w=iw*0.24:h=ih*0.16:"
             "color=black@0:t=fill:replace=1")
 
