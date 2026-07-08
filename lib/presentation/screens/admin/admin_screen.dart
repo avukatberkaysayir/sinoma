@@ -8464,7 +8464,7 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
                 ],
                 Padding(
                   padding: const EdgeInsets.only(top: 6, bottom: 4),
-                  child: Text('Bobo animasyonu (ünitenin ortasındaki maskot · GIF/WebP)',
+                  child: Text('Orni animasyonu (ünitenin ortasındaki maskot · GIF/WebP)',
                       style: TextStyle(
                           color: AppColors.onSurfaceMuted,
                           fontSize: 12,

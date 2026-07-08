@@ -402,7 +402,7 @@ class PathAsset {
 
 class UnitAssets {
   final PathAsset? banner;
-  final PathAsset? mascot; // unit-centre Bobo animation (GIF/WebP), slot 0
+  final PathAsset? mascot; // unit-centre Orni animation (GIF/WebP), slot 0
   final Map<int, PathAsset> icons; // slot 0..3
   final Map<int, PathAsset> photos; // slot 0..3
   const UnitAssets(

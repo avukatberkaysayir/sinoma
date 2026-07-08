@@ -2945,10 +2945,10 @@ class _ProfileListsRightState extends ConsumerState<ProfileListsRight> {
   }
 }
 
-// ── Bobo hero (post-login dashboard) ──────────────────────────────────────────
+// ── Orni hero (post-login dashboard) ──────────────────────────────────────────
 // Our mascot has a name and a voice: a day-rotating greeting / chengyu.
 
-const List<(String zh, String tr, String en, String ko, String ja, String id, String vi, String th, String ru, String es, String pt, String fr, String ar)> _kBoboLines = [
+const List<(String zh, String tr, String en, String ko, String ja, String id, String vi, String th, String ru, String es, String pt, String fr, String ar)> _kOrniLines = [
   ('加油!', 'Bugün de birlikte çalışalım mı?', 'Shall we practise together today?', '오늘도 같이 공부해 볼까요?', '今日も一緒に勉強しましょうか？', 'Belajar bareng lagi hari ini, yuk?', 'Hôm nay cùng học nữa nhé?', 'วันนี้เรามาเรียนด้วยกันไหม?', 'Позанимаемся сегодня вместе?', '¿Practicamos juntos hoy también?', 'Vamos praticar juntos hoje também?', 'On s\'entraîne ensemble aujourd\'hui aussi ?', 'هل نتدرّب معًا اليوم أيضًا؟'),
   ('熟能生巧', 'Pratik mükemmelleştirir — bir klip daha?', 'Practice makes perfect — one more clip?', '연습이 실력을 만들어요 — 한 클립 더 어때요?', '習うより慣れろ — もう1本いかがですか？', 'Latihan membuat sempurna — satu klip lagi?', 'Có công mài sắt có ngày nên kim — thêm một clip nhé?', 'ฝึกฝนบ่อย ๆ ย่อมเชี่ยวชาญ — ดูอีกคลิปไหม?', 'Практика — путь к мастерству. Ещё один клип?', 'La práctica hace al maestro. ¿Otro clip?', 'A prática leva à perfeição — mais um clipe?', 'C\'est en forgeant qu\'on devient forgeron — encore un clip ?', 'بالممارسة يأتي الإتقان — مقطع آخر؟'),
   ('好久不见!', 'Seni görmek güzel! Kaldığın yerden devam edelim.', 'Good to see you! Let\'s pick up where you left off.', '다시 만나서 반가워요! 멈췄던 곳부터 이어가요.', 'お久しぶりです！続きから始めましょう。', 'Senang bertemu lagi! Lanjut dari tempat terakhirmu.', 'Rất vui được gặp lại! Tiếp tục từ chỗ bạn dừng nhé.', 'ดีใจที่ได้เจอกันอีก! มาต่อจากที่ค้างไว้กันเถอะ', 'Рад тебя видеть! Продолжим с того места, где остановились.', '¡Qué bueno verte! Sigamos donde lo dejaste.', 'Que bom te ver! Vamos continuar de onde você parou.', 'Content de te revoir ! Reprenons où tu t\'es arrêté.', 'سعيد برؤيتك! لنكمل من حيث توقّفت.'),
@@ -2958,14 +2958,14 @@ const List<(String zh, String tr, String en, String ko, String ja, String id, St
   ('万事开头难', 'Her işin başı zordur — başlamak yeter.', 'Every beginning is hard — just start.', '시작이 반이에요 — 일단 시작해 봐요.', '何事も始めが難しい — まず始めましょう。', 'Setiap awal itu sulit — mulai saja dulu.', 'Vạn sự khởi đầu nan — cứ bắt đầu thôi.', 'การเริ่มต้นทุกอย่างนั้นยาก — แค่เริ่มก็พอ', 'Любое начало трудно — просто начни.', 'Todo comienzo es difícil — solo empieza.', 'Todo começo é difícil — é só começar.', 'Tout début est difficile — il suffit de commencer.', 'كل بداية صعبة — فقط ابدأ.'),
 ];
 
-class _BoboHero extends StatelessWidget {
+class _OrniHero extends StatelessWidget {
   final bool tr;
-  const _BoboHero({required this.tr});
+  const _OrniHero({required this.tr});
 
   @override
   Widget build(BuildContext context) {
     final day = DateTime.now().difference(DateTime.utc(2026)).inDays;
-    final line = _kBoboLines[day % _kBoboLines.length];
+    final line = _kOrniLines[day % _kOrniLines.length];
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
       decoration: BoxDecoration(
@@ -3037,7 +3037,7 @@ class _BoboHero extends StatelessWidget {
                             height: 1.35));
                   }),
                   const SizedBox(height: 6),
-                  const Text('— Bobo 🦆',
+                  const Text('— Orni 🦆',
                       style:
                           TextStyle(color: Colors.white38, fontSize: 11)),
                 ],
@@ -3819,9 +3819,9 @@ class HomeDashboard extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Hero: Bobo the platypus greets with a day-rotating line
+              // Hero: Orni the platypus greets with a day-rotating line
               // (a chengyu or a nudge) in a speech bubble.
-              _BoboHero(tr: tr),
+              _OrniHero(tr: tr),
               const SizedBox(height: 28),
               Text(
                 AppL10n.of(context).welcomeName(name),
