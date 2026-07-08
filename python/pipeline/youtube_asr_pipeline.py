@@ -470,6 +470,8 @@ def run(
         dropped_ns = _drop_no_speech_pending(youtube_id)
         # Every import: drop clips that already exist as an ACTIVE video.
         dropped_dup = _drop_active_duplicates(youtube_id)
+        # Repeated lines / particle variants (我要怎么做呢 vs 我要怎么做).
+        dropped_dup += _drop_text_duplicates(youtube_id)
         # Every import: drop clips that couldn't be placed in ANY slot (redundant).
         dropped_unplaced = _drop_unplaced_pending(youtube_id)
     except Exception as exc:
@@ -713,6 +715,57 @@ def _drop_active_duplicates(youtube_id: str) -> int:
             params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
     if ids:
         print(f"  [DEDUP] {len(ids)} aktif-kopyası pending klip silindi ({youtube_id})")
+    return len(ids)
+
+
+# "Temelde aynı" cümleler: sadece noktalama ya da cümle-sonu edatı farklı olan
+# klipler (我要怎么做呢 vs 我要怎么做) ayrı klip olmamalı — Berkay 2026-07-08.
+_TRAILING_PARTICLES = "呢吧啊吗呀哦啦嘛哈嘞喽"
+
+
+def _norm_sentence(t: str) -> str:
+    s = re.sub(r"[^一-鿿]", "", t or "")
+    return s.rstrip(_TRAILING_PARTICLES)
+
+
+def _drop_text_duplicates(youtube_id: str) -> int:
+    """A speaker repeating a line (or ASR variants of it) yields near-identical
+    clips at different timestamps that time-overlap dedup can't see. Normalize
+    (CJK only, trailing particles stripped) and keep only the FIRST pending
+    occurrence; also drop a pending whose normalized sentence already exists
+    as an ACTIVE clip in ANY video — the feed shouldn't teach the same
+    sentence twice."""
+    ra = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"status": "eq.active", "select": "transcription"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    active_norm = {_norm_sentence(r.get("transcription", ""))
+                   for r in (ra.json() if ra.status_code < 300 else [])}
+    active_norm.discard("")
+    rp = requests.get(
+        f"{SUPABASE_URL}/rest/v1/videos",
+        params={"youtube_id": f"eq.{youtube_id}", "status": "eq.pending",
+                "select": "id,start_time,transcription",
+                "order": "start_time.asc"},
+        headers=_supabase_headers(), timeout=30,
+    )
+    seen: set[str] = set()
+    ids = []
+    for r in (rp.json() if rp.status_code < 300 else []):
+        n = _norm_sentence(r.get("transcription", ""))
+        if len(n) < 3:
+            continue
+        if n in seen or n in active_norm:
+            ids.append(r["id"])
+        else:
+            seen.add(n)
+    for cid in ids:
+        requests.delete(
+            f"{SUPABASE_URL}/rest/v1/videos",
+            params={"id": f"eq.{cid}"}, headers=_supabase_headers(), timeout=15)
+    if ids:
+        print(f"  [DEDUP] {len(ids)} tekrar-cümleli pending klip silindi ({youtube_id})")
     return len(ids)
 
 
