@@ -2337,8 +2337,8 @@ class RightInfoCard extends StatelessWidget {
 
 // ── Badges (rozetler) ─────────────────────────────────────────────────────────
 // Achievement ladder themed on the Three Kingdoms + Chinese mythology. Each
-// badge is a seal stamp: the figure's signature character inside a tier ring
-// (bronze → silver → gold → vermilion legend). Earned = inked; locked = faded.
+// badge is chibi art inside an elliptical tier ring
+// (ink → bronze → silver → gold). Earned = inked; locked = faded.
 
 class _BadgeDef {
   final String id; // l10n figure key
@@ -2348,10 +2348,10 @@ class _BadgeDef {
 }
 
 const _kBadgeTierColors = [
+  Color(0xFF3F4442), // ink (near-black, still visible on the dark panel)
   Color(0xFFB0795A), // bronze
   Color(0xFFB8C4CC), // silver
   Color(0xFFD4A33D), // gold
-  Color(0xFFE0442C), // vermilion legend
 ];
 
 // Sages (watch minutes) — the strategists.
@@ -2383,6 +2383,75 @@ const _kBadgesLevels = [
   _BadgeDef('nuwa', '娲', 6),
 ];
 
+class _BadgeStats {
+  final int watchMin;
+  final int correct;
+  final int unitsDone;
+  final int levelsDone;
+  const _BadgeStats(this.watchMin, this.correct, this.unitsDone, this.levelsDone);
+}
+
+_BadgeStats _badgeStatsOf(WidgetRef ref) {
+  final life = ref.watch(lifetimeStatsProvider).valueOrNull ?? const {};
+  final watchMin = ((life['watch_seconds'] ?? 0) / 60).floor();
+  final correct = life['correct'] ?? 0;
+
+  // Units/levels from path progress: a unit counts when every playable
+  // phase is done; a level counts when all its units with content are done.
+  final topics = ref.watch(curriculumProvider).valueOrNull ?? const [];
+  final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
+  var unitsDone = 0;
+  var levelsDone = 0;
+  for (final t in topics) {
+    var levelHadContent = false;
+    var levelAllDone = true;
+    for (final s in t.steps) {
+      final playable = s.phases.where((p) => p.hasVideos).toList();
+      if (playable.isEmpty) continue;
+      levelHadContent = true;
+      final done = playable.every((p) => progress.phase(p.key).done);
+      if (done) {
+        unitsDone++;
+      } else {
+        levelAllDone = false;
+      }
+    }
+    if (levelHadContent && levelAllDone) levelsDone++;
+  }
+  return _BadgeStats(watchMin, correct, unitsDone, levelsDone);
+}
+
+/// Highest earned badge of each ladder, with its tier index (0 ink … 3 gold).
+List<(_BadgeDef, int)> _topEarnedBadges(_BadgeStats s) {
+  final out = <(_BadgeDef, int)>[];
+  void pick(List<_BadgeDef> defs, int value) {
+    for (var i = defs.length - 1; i >= 0; i--) {
+      if (value >= defs[i].threshold) {
+        out.add((defs[i], i));
+        return;
+      }
+    }
+  }
+
+  pick(_kBadgesWatch, s.watchMin);
+  pick(_kBadgesCorrect, s.correct);
+  pick(_kBadgesUnits, s.unitsDone);
+  pick(_kBadgesLevels, s.levelsDone);
+  return out;
+}
+
+Widget _badgePortrait(_BadgeDef b, Color color) {
+  return Image.asset(
+    'assets/badges/${b.id}.webp',
+    fit: BoxFit.cover,
+    errorBuilder: (_, __, ___) => Center(
+      child: Text(b.zh,
+          style: TextStyle(
+              color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+    ),
+  );
+}
+
 class BadgesRight extends ConsumerWidget {
   final bool tr;
   const BadgesRight({super.key, required this.tr});
@@ -2390,49 +2459,16 @@ class BadgesRight extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppL10n.of(context);
-    final life = ref.watch(lifetimeStatsProvider).valueOrNull ?? const {};
-    final watchMin = ((life['watch_seconds'] ?? 0) / 60).floor();
-    final correct = life['correct'] ?? 0;
-
-    // Units/levels from path progress: a unit counts when every playable
-    // phase is done; a level counts when all its units with content are done.
-    final topics = ref.watch(curriculumProvider).valueOrNull ?? const [];
-    final progress = ref.watch(pathProgressProvider).valueOrNull ?? const {};
-    var unitsDone = 0;
-    var levelsDone = 0;
-    for (final t in topics) {
-      var levelHadContent = false;
-      var levelAllDone = true;
-      for (final s in t.steps) {
-        final playable = s.phases.where((p) => p.hasVideos).toList();
-        if (playable.isEmpty) continue;
-        levelHadContent = true;
-        final done = playable.every((p) => progress.phase(p.key).done);
-        if (done) {
-          unitsDone++;
-        } else {
-          levelAllDone = false;
-        }
-      }
-      if (levelHadContent && levelAllDone) levelsDone++;
-    }
+    final stats = _badgeStatsOf(ref);
+    final watchMin = stats.watchMin;
+    final correct = stats.correct;
+    final unitsDone = stats.unitsDone;
+    final levelsDone = stats.levelsDone;
 
     Widget seal(_BadgeDef b, int tier, int value, String cond) {
       final earned = value >= b.threshold;
       final color = _kBadgeTierColors[tier];
-      // Classic portrait of the figure (PD art from Wikimedia, bundled);
-      // the signature seal character is the fallback if art is missing.
-      Widget portrait = Image.asset(
-        'assets/badges/${b.id}.jpg',
-        fit: BoxFit.cover,
-        errorBuilder: (_, __, ___) => Center(
-          child: Text(b.zh,
-              style: TextStyle(
-                  color: color,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w800)),
-        ),
-      );
+      Widget portrait = _badgePortrait(b, color);
       if (!earned) {
         portrait = ColorFiltered(
           colorFilter: const ColorFilter.matrix(<double>[
@@ -2450,15 +2486,15 @@ class BadgesRight extends ConsumerWidget {
           opacity: earned ? 1 : 0.38,
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Container(
-              width: 52,
-              height: 52,
+              width: 54,
+              height: 66,
               clipBehavior: Clip.antiAlias,
-              decoration: BoxDecoration(
+              decoration: ShapeDecoration(
                 color: earned
                     ? color.withValues(alpha: 0.16)
                     : Colors.transparent,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: color, width: 2.5),
+                shape: OvalBorder(
+                    side: BorderSide(color: color, width: 2.5)),
               ),
               child: portrait,
             ),
@@ -2722,6 +2758,43 @@ class ProfileView extends ConsumerWidget {
                               ]),
                             ),
                           ),
+                          // Highest earned badge from each ladder
+                          // (sages / warriors / rulers / legends).
+                          Builder(builder: (context) {
+                            final top =
+                                _topEarnedBadges(_badgeStatsOf(ref));
+                            if (top.isEmpty) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 10),
+                              child: Row(children: [
+                                for (final (b, tier) in top)
+                                  Padding(
+                                    padding:
+                                        const EdgeInsets.only(right: 8),
+                                    child: Tooltip(
+                                      message: AppL10n.of(context)
+                                          .badgeFigure(b.id),
+                                      child: Container(
+                                        width: 36,
+                                        height: 44,
+                                        clipBehavior: Clip.antiAlias,
+                                        decoration: ShapeDecoration(
+                                          color: _kBadgeTierColors[tier]
+                                              .withValues(alpha: 0.16),
+                                          shape: OvalBorder(
+                                              side: BorderSide(
+                                                  color: _kBadgeTierColors[
+                                                      tier],
+                                                  width: 2)),
+                                        ),
+                                        child: _badgePortrait(
+                                            b, _kBadgeTierColors[tier]),
+                                      ),
+                                    ),
+                                  ),
+                              ]),
+                            );
+                          }),
                         ],
                       ),
                     ),
