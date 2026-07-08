@@ -1017,11 +1017,14 @@ class _RoutePainter extends CustomPainter {
   bool shouldRepaint(_RoutePainter old) => old.mirror != mirror;
 }
 
-// Full-height Chinese-motif backdrop behind the path — one motif and one tint
-// per HSK level: 1 祥云 clouds · 2 回纹 meander · 3 水波 waves · 4 梅花 plum
-// blossoms · 5 铜钱 coins · 6 远山 mountains. Drawn in the level's HSK colour
-// at low alpha (quiet, never competes with the nodes) on a staggered grid that
-// follows the scroll offset, so the pattern is one unbroken sheet.
+// Chinese-motif backdrop behind the path, bounded to the centred 600px unit
+// lane (matches the units' ConstrainedBox) so it never spills into the side
+// gutters. The lane first gets a full level-tinted ground, then a dense
+// staggered sheet of a classical motif per HSK level:
+// 1 如意祥云 ruyi clouds · 2 回纹 key-fret · 3 海水纹 wave scales ·
+// 4 梅花 plum blossoms · 5 铜钱 cash coins · 6 远山 layered mountains.
+// The grid lives in content space and follows the scroll offset, so the
+// pattern is one unbroken sheet top to bottom; nodes/buttons paint above it.
 class _MotifBackdropPainter extends CustomPainter {
   final int hsk;
   final double scroll;
@@ -1029,74 +1032,131 @@ class _MotifBackdropPainter extends CustomPainter {
   const _MotifBackdropPainter(
       {required this.hsk, required this.scroll, required this.dark});
 
+  static const _laneWidth = 600.0;
+
+  // Motif spacing — waves pack tight so the arcs interlock into the classic
+  // fish-scale sea pattern; the rest breathe a little more.
+  double get _tile => switch (hsk) {
+        1 => 88,
+        2 => 78,
+        3 => 46,
+        4 => 74,
+        5 => 66,
+        _ => 92,
+      };
+
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.forHskLevel(hsk)
-          .withValues(alpha: dark ? 0.11 : 0.09)
+    final laneW = min(_laneWidth, size.width);
+    final lane =
+        Rect.fromLTWH((size.width - laneW) / 2, 0, laneW, size.height);
+    final base = AppColors.forHskLevel(hsk);
+
+    // Level-tinted ground: the whole lane drops the plain cream/ink...
+    canvas.drawRect(
+        lane,
+        Paint()
+          ..color = Color.alphaBlend(
+              base.withValues(alpha: dark ? 0.15 : 0.12),
+              AppColors.surface));
+    // ...framed by two quiet rules so it reads as one long scroll sheet.
+    final edge = Paint()
+      ..color = base.withValues(alpha: dark ? 0.38 : 0.32)
+      ..strokeWidth = 1;
+    canvas.drawLine(lane.topLeft, lane.bottomLeft, edge);
+    canvas.drawLine(lane.topRight, lane.bottomRight, edge);
+
+    final ink = Paint()
+      ..color = base.withValues(alpha: dark ? 0.34 : 0.28)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4
+      ..strokeWidth = 1.5
       ..strokeCap = StrokeCap.round;
 
-    const tile = 110.0;
-    // Rows live in content space (k * tile) so scrolling slides the sheet
-    // instead of re-seeding it; odd rows shift half a tile for a woven look.
+    canvas.save();
+    canvas.clipRect(lane);
+    final tile = _tile;
     final k0 = (scroll / tile).floor() - 1;
     final k1 = ((scroll + size.height) / tile).ceil() + 1;
     for (var k = k0; k <= k1; k++) {
       final y = k * tile - scroll;
       final shift = k.isOdd ? tile / 2 : 0.0;
-      for (var x = shift - tile / 2; x < size.width + tile / 2; x += tile) {
-        _motif(canvas, paint, Offset(x, y));
+      for (var x = lane.left + shift;
+          x < lane.right + tile / 2;
+          x += tile) {
+        _motif(canvas, ink, Offset(x, y));
       }
     }
+    canvas.restore();
   }
 
   void _motif(Canvas c, Paint p, Offset o) {
     switch (hsk) {
-      case 1: // 祥云 auspicious cloud curl
-        final curl = Path()
-          ..addArc(Rect.fromCircle(center: o, radius: 13), pi * 0.2, pi * 1.3)
-          ..addArc(Rect.fromCircle(center: o.translate(5, 2), radius: 7),
-              pi * 0.3, pi * 1.3)
-          ..moveTo(o.dx + 6, o.dy + 11)
-          ..quadraticBezierTo(o.dx + 20, o.dy + 13, o.dx + 27, o.dy + 5);
-        c.drawPath(curl, p);
-      case 2: // 回纹 squared meander spiral
-        const s = 7.0;
-        final m = Path()
-          ..moveTo(o.dx - 2 * s, o.dy + 2 * s)
-          ..lineTo(o.dx - 2 * s, o.dy - 2 * s)
-          ..lineTo(o.dx + 2 * s, o.dy - 2 * s)
-          ..lineTo(o.dx + 2 * s, o.dy + 2 * s)
-          ..lineTo(o.dx - s, o.dy + 2 * s)
-          ..lineTo(o.dx - s, o.dy - s)
-          ..lineTo(o.dx + s, o.dy - s)
-          ..lineTo(o.dx + s, o.dy + s)
-          ..lineTo(o.dx, o.dy + s)
-          ..lineTo(o.dx, o.dy);
+      case 1: // 如意祥云 — ruyi cloud head: three lobes, inner curls, tail
+        final cloud = Path()
+          ..moveTo(o.dx - 18, o.dy + 5)
+          ..cubicTo(o.dx - 27, o.dy + 5, o.dx - 26, o.dy - 9, o.dx - 15,
+              o.dy - 8)
+          ..cubicTo(
+              o.dx - 13, o.dy - 17, o.dx + 1, o.dy - 18, o.dx + 4, o.dy - 9)
+          ..cubicTo(
+              o.dx + 15, o.dy - 13, o.dx + 22, o.dy - 3, o.dx + 13, o.dy + 5)
+          ..lineTo(o.dx - 18, o.dy + 5)
+          ..addArc(Rect.fromCircle(center: o.translate(-15, -2), radius: 4),
+              pi * 0.2, pi * 1.5)
+          ..addArc(Rect.fromCircle(center: o.translate(3, -8), radius: 4.5),
+              pi * 0.4, pi * 1.5)
+          ..moveTo(o.dx + 13, o.dy + 5)
+          ..quadraticBezierTo(o.dx + 26, o.dy + 8, o.dx + 32, o.dy + 1);
+        c.drawPath(cloud, p);
+      case 2: // 回纹 — key-fret spiral, three turns inward
+        final m = Path()..moveTo(o.dx - 15, o.dy + 15);
+        const pts = [
+          (-15.0, -15.0),
+          (15.0, -15.0),
+          (15.0, 15.0),
+          (-7.0, 15.0),
+          (-7.0, -7.0),
+          (7.0, -7.0),
+          (7.0, 7.0),
+          (-1.0, 7.0),
+          (-1.0, -1.0),
+          (3.0, -1.0),
+        ];
+        for (final (dx, dy) in pts) {
+          m.lineTo(o.dx + dx, o.dy + dy);
+        }
         c.drawPath(m, p);
-      case 3: // 水波 layered wave fans
-        for (var r = 7.0; r <= 19; r += 6) {
+      case 3: // 海水纹 — packed concentric fans → fish-scale sea
+        for (var r = 5.0; r <= 20; r += 5) {
           c.drawArc(Rect.fromCircle(center: o, radius: r), pi, pi, false, p);
         }
-      case 4: // 梅花 five-petal plum blossom
+      case 4: // 梅花 — five petals with stamens
         for (var i = 0; i < 5; i++) {
           final a = -pi / 2 + i * 2 * pi / 5;
-          c.drawCircle(o + Offset(cos(a), sin(a)) * 9, 5.5, p);
+          final dir = Offset(cos(a), sin(a));
+          c.drawCircle(o + dir * 9.5, 6, p);
+          c.drawLine(o + dir * 2, o + dir * 5, p);
         }
-        c.drawCircle(o, 1.8, p);
-      case 5: // 铜钱 coin — round with a square hole
-        c.drawCircle(o, 15, p);
-        c.drawRect(Rect.fromCenter(center: o, width: 11, height: 11), p);
-      default: // 远山 distant mountain strokes
-        final mt = Path()
-          ..moveTo(o.dx - 22, o.dy + 9)
-          ..lineTo(o.dx - 7, o.dy - 9)
-          ..lineTo(o.dx + 2, o.dy + 3)
-          ..lineTo(o.dx + 9, o.dy - 4)
-          ..lineTo(o.dx + 22, o.dy + 9);
-        c.drawPath(mt, p);
+        c.drawCircle(o, 1.6, p);
+      case 5: // 铜钱 — double-rimmed cash coin, square hole
+        c.drawCircle(o, 16, p);
+        c.drawCircle(o, 13, p);
+        c.drawRect(Rect.fromCenter(center: o, width: 10, height: 10), p);
+      default: // 远山 — layered ridge over a mist arc
+        final ridge = Path()
+          ..moveTo(o.dx - 26, o.dy + 8)
+          ..lineTo(o.dx - 10, o.dy - 10)
+          ..lineTo(o.dx + 1, o.dy + 2)
+          ..lineTo(o.dx + 12, o.dy - 6)
+          ..lineTo(o.dx + 26, o.dy + 8);
+        c.drawPath(ridge, p);
+        c.drawArc(
+            Rect.fromCenter(
+                center: o.translate(0, 12), width: 26, height: 10),
+            pi * 0.15,
+            pi * 0.7,
+            false,
+            p);
     }
   }
 
