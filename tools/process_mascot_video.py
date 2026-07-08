@@ -103,9 +103,18 @@ def alpha_mask(frame, bg, sim, blend):
     tight = (d < (TSIM + TBLEND)) & ~bgmask
     tramp = np.clip((d - TSIM) / TBLEND, 0.0, 1.0) * 255
     alpha[tight] = np.minimum(alpha[tight], tramp[tight].astype(np.uint8))
-    # Blank the AI-generator sparkle watermark (bottom-right corner).
+    # The AI-generator sparkle watermark: a small opaque island near the
+    # bottom-right corner, detached from the character. A fixed blanking box
+    # missed it when the landscape L1/5.mp4 shifted it inward, so instead ANY
+    # opaque component lying fully inside the bottom-right corner region is
+    # erased — the character (one huge component) can never satisfy that, and
+    # intentional effects (sweat drops, sparkles) hover near the character,
+    # not in the corner.
     h, w = d.shape
-    alpha[int(h * 0.84):, int(w * 0.76):] = 0
+    solid, _ = ndimage.label(alpha > 16, structure=EIGHT)
+    for i, sl in enumerate(ndimage.find_objects(solid), start=1):
+        if sl is not None and sl[0].start > h * 0.72 and sl[1].start > w * 0.72:
+            alpha[sl][solid[sl] == i] = 0
     return alpha
 
 
