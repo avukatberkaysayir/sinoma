@@ -1,5 +1,5 @@
 # Single source of truth for EVERY landmark icon across ALL path levels.
-# Assigns each of the 212 landmark slots (53 cities x 4) a UNIQUE icons8 color
+# Assigns each of the 576 landmark slots (144 cities x 4) a UNIQUE icons8 color
 # icon — no icon is EVER reused anywhere across any level. Each name below is a
 # hand-picked, verified icons8 color commonName, the closest literal match for
 # that landmark given icons8's catalogue. A hard uniqueness guard rejects any
@@ -563,6 +563,105 @@ ICONS = {
  ('chongzuo', 'langur'): 'gorilla',                # white-headed langur
  ('chongzuo', 'rockart'): 'cave-painting',         # Huashan rock art
  ('chongzuo', 'borderpass'): 'customs',            # Friendship Pass
+
+ # ---- L6 cities (catalogue verified via the icons8 search API; every name
+ # below resolves on the color CDN and stays globally unique) ----
+ ('zunyi', 'huiyi'): 'conference',                 # Zunyi Conference
+ ('zunyi', 'moutai'): 'whisky-still',              # Moutai distillery town
+ ('zunyi', 'loushan'): 'old-war-bunker',           # Loushan Pass battlefield
+ ('zunyi', 'chishui'): 'creek',                    # Chishui falls & streams
+ ('liupanshui', 'coolcity'): 'air-conditioner',    # 19°C summer "cool city"
+ ('liupanshui', 'coal'): 'charcoal',               # coal sea of the southwest
+ ('liupanshui', 'grassland'): 'national-park',     # Wumeng grasslands
+ ('liupanshui', 'kiwi'): 'kiwi',                   # red-heart kiwifruit
+ ('anshun', 'huangguoshu'): 'rainbow',             # Huangguoshu rainbow mist
+ ('anshun', 'dixi'): 'greek-helmet',               # Dixi warrior masks
+ ('anshun', 'batik'): 'paint-bucket',              # indigo wax-dye batik
+ ('anshun', 'tunpu'): 'shield',                    # Ming garrison villages
+ ('bijie', 'azalea'): 'bunch-flowers',             # Hundred-Li Azalea belt
+ ('bijie', 'zhijin'): 'bat',                       # Zhijin Cave
+ ('bijie', 'caohai'): 'dove',                      # Caohai black-necked cranes
+ ('bijie', 'potato'): 'potato',                    # potato capital
+ ('qujing', 'rapeseed'): 'bee',                    # Luoping canola sea & bees
+ ('qujing', 'ham'): 'cuts-of-pork',                # Xuanwei ham
+ ('qujing', 'jiulong'): 'year-of-dragon',          # Nine-Dragon waterfalls
+ ('qujing', 'sandforest'): 'hourglass',            # colourful sand forest
+ ('yuxi', 'fuxian'): '--pier',                     # Fuxian Lake
+ ('yuxi', 'nieer'): 'musical-notes',               # composer Nie Er
+ ('yuxi', 'chengjiang'): 'trilobite',              # Chengjiang Cambrian fossils
+ ('yuxi', 'kiln'): 'cruse',                        # Yuxi ancient kiln
+ ('dali', 'threepagodas'): 'chichen-itza',         # Three Pagodas
+ ('dali', 'erhai'): 'row-boat-skin-type-1',        # Erhai Lake boats
+ ('dali', 'cangshan'): 'light-snow--v2',           # snow-capped Cangshan
+ ('dali', 'wind'): 'wind',                         # wind-flower-snow-moon
+ ('lijiang', 'oldtown'): 'roof-tiles',             # tile-roofed old town
+ ('lijiang', 'snowmountain'): 'snow',              # Jade Dragon Snow Mountain
+ ('lijiang', 'dongba'): 'ankh',                    # Dongba pictographs
+ ('lijiang', 'tigerleaping'): 'leopard',           # Tiger Leaping Gorge
+ ('lincang', 'dianhong'): 'kettle',                # Dianhong black tea
+ ('lincang', 'wadrum'): 'tabal',                   # Wa wooden drum
+ ('lincang', 'teatrees'): 'birch',                 # ancient tea trees
+ ('lincang', 'lancang'): 'hydroelectric',          # Lancang-Mekong dams
+ ('puer', 'tea'): 'mate',                          # Pu'er tea
+ ('puer', 'coffee'): 'coffee',                     # China's coffee capital
+ ('puer', 'teahorse'): 'horseshoe',                # Tea Horse Road caravans
+ ('puer', 'peafowl'): 'peacock',                   # green peafowl forests
+ ('baoshan', 'volcano'): 'geothermal',             # Tengchong volcano field
+ ('baoshan', 'rehai'): 'steam',                    # Rehai "Hot Sea" springs
+ ('baoshan', 'heshun'): 'library-building',        # Heshun village library
+ ('baoshan', 'gaoligong'): 'butterfly',            # Gaoligong butterfly valley
+ ('deyang', 'sanxingdui'): 'alien',                # Sanxingdui bronze masks
+ ('deyang', 'jiannanchun'): 'rum',                 # Jiannanchun baijiu
+ ('deyang', 'nianhua'): 'new-year-calendar',       # Mianzhu New Year prints
+ ('deyang', 'turbine'): 'wind-turbine',            # heavy-machinery capital
+ ('mianyang', 'libai'): 'poem',                    # Li Bai's hometown
+ ('mianyang', 'sciencecity'): 'physics',           # Science City
+ ('mianyang', 'qiang'): 'moscow-kremlin',          # Qiang stone towers
+ ('mianyang', 'mifen'): 'rice-cooker',             # Mianyang rice noodles
+ ('nanchong', 'langzhong'): 'compass',             # feng-shui city Langzhong
+ ('nanchong', 'silk'): 'needle',                   # silk capital
+ ('nanchong', 'zhangfei'): 'roast-beef',           # Zhang Fei beef
+ ('nanchong', 'zhude'): 'medal',                   # Marshal Zhu De
+ ('yibin', 'wuliangye'): 'vodka',                  # Wuliangye baijiu
+ ('yibin', 'firstcity'): 'buoy',                   # first city on the Yangtze
+ ('yibin', 'bamboosea'): 'red-panda',              # Shunan Bamboo Sea
+ ('yibin', 'ranmian'): 'campfire',                 # burning noodles
+ ('luzhou', 'laojiao'): 'barrel',                  # Laojiao cellar pits
+ ('luzhou', 'port'): 'crane',                      # Yangtze river port
+ ('luzhou', 'longan'): 'apricot',                  # longan orchards
+ ('luzhou', 'umbrella'): 'umbrella',               # oil-paper umbrellas
+ ('leshan', 'giantbuddha'): 'statue-of-christ-the-redeemer',  # Giant Buddha
+ ('leshan', 'emei'): 'cathedral-of-christ-the-saviour',  # Emei Golden Summit
+ ('leshan', 'monkeys'): 'year-of-monkey',          # Emei macaques
+ ('leshan', 'qiaojiao'): 'porridge',               # qiaojiao beef soup
+ ('zigong', 'saltwell'): 'salt-shaker',            # kilometre-deep salt wells
+ ('zigong', 'lantern'): 'latern',                  # Zigong lantern festival
+ ('zigong', 'dinosaur'): 'stegosaurus',            # dinosaur museum
+ ('zigong', 'rabbit'): 'rabbit',                   # cold rabbit dish
+ ('panzhihua', 'steel'): 'steel-i-beam',           # vanadium-titanium steel
+ ('panzhihua', 'fruitvalley'): 'pomegranate',      # dry-hot valley fruit
+ ('panzhihua', 'sunshine'): 'sun',                 # winter sun city
+ ('panzhihua', 'jinsha'): 'rafting-skin-type-3',   # Jinsha River
+ ('dazhou', 'gas'): 'gas-burner',                  # natural gas capital
+ ('dazhou', 'ba'): 'saber-weapon',                 # Ba kingdom bronze swords
+ ('dazhou', 'dengying'): 'bacon',                  # lamp-shadow beef slices
+ ('dazhou', 'hanque'): 'column',                   # Han stone gate-towers
+ ('guangyuan', 'jianmen'): 'katana',               # Jianmen sword-gate pass
+ ('guangyuan', 'wuzetian'): 'brunette-princess',   # Wu Zetian's birthplace
+ ('guangyuan', 'plankroad'): 'ladder',             # cliffside plank roads
+ ('guangyuan', 'cypress'): 'pine-cone',            # Cuiyun cypress corridor
+ ('yaan', 'panda'): 'bear',                        # cradle of the giant panda
+ ('yaan', 'rain'): 'rain',                         # Rain City
+ ('yaan', 'mengding'): 'seeding',                  # first cultivated tea
+ ('yaan', 'yayu'): 'koi-fish',                     # Ya fish
+ ('xianyang', 'qincapital'): 'king',               # Qin imperial capital
+ ('xianyang', 'qianling'): 'headstone',            # Qianling Mausoleum
+ ('xianyang', 'zhengguo'): 'watering-can',         # Zhengguo irrigation canal
+ ('xianyang', 'guokui'): 'bread',                  # guokui flatbread
+ ('baoji', 'bronze'): 'bronze-bars',               # bronze ware capital
+ ('baoji', 'famen'): 'mandala',                    # Famen Temple relic
+ ('baoji', 'taibai'): 'filled-flag',               # Mount Taibai summit
+ ('baoji', 'saozi'): 'rice-vinegar',               # sour-spicy saozi noodles
 }
 
 
