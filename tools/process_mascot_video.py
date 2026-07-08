@@ -79,6 +79,13 @@ def tolerances(rgb):
     return (0.14, 0.05) if vivid else (0.10, 0.03)
 
 
+# Enclosed backdrop pockets (between the ship-wheel spokes, under the chin —
+# L1/4) never touch the frame border, so the connectivity rule keeps them.
+# They ARE near-exact backdrop colour though, so a much tighter band keys them
+# without risking Orni's loosely-similar watercolour body shading.
+TSIM, TBLEND = 0.05, 0.02
+
+
 def alpha_mask(frame, bg, sim, blend):
     # Distance to the backdrop colour, normalized 0..1.
     d = np.sqrt(((frame.astype(np.float32) - bg) ** 2).sum(axis=2)) / DIAG
@@ -92,18 +99,95 @@ def alpha_mask(frame, bg, sim, blend):
     # Soft edge: alpha ramps over [sim, sim+blend] inside the bg component.
     ramp = np.clip((d - sim) / blend, 0.0, 1.0) * 255
     alpha[bgmask] = ramp[bgmask].astype(np.uint8)
+    # Enclosed pockets: tight-band backdrop colour anywhere else.
+    tight = (d < (TSIM + TBLEND)) & ~bgmask
+    tramp = np.clip((d - TSIM) / TBLEND, 0.0, 1.0) * 255
+    alpha[tight] = np.minimum(alpha[tight], tramp[tight].astype(np.uint8))
     # Blank the AI-generator sparkle watermark (bottom-right corner).
     h, w = d.shape
     alpha[int(h * 0.84):, int(w * 0.76):] = 0
     return alpha
 
 
-def process(src, dst):
+def _hsv(f):
+    mx, mn = f.max(axis=2), f.min(axis=2)
+    c = mx - mn
+    hue = np.zeros_like(mx)
+    m = c > 1e-6
+    g, b, r = f[..., 1], f[..., 2], f[..., 0]
+    for i, (p, q) in enumerate([(g, b), (b, r), (r, g)]):
+        idx = m & (mx == f[..., i])
+        hue[idx] = (((p - q)[idx] / c[idx]) + 2 * i) % 6
+    hue *= 60.0
+    sat = np.where(mx > 1e-6, c / np.maximum(mx, 1e-6), 0.0)
+    return hue, sat, mx
+
+
+def _hsv_to_rgb(hue, sat, val):
+    c = val * sat
+    hp = (hue % 360.0) / 60.0
+    x = c * (1 - np.abs(hp % 2 - 1))
+    z = np.zeros_like(c)
+    hp3 = hp[..., None]
+    rgb = np.select(
+        [hp3 < 1, hp3 < 2, hp3 < 3, hp3 < 4, hp3 < 5, hp3 >= 5],
+        [np.stack([c, x, z], -1), np.stack([x, c, z], -1),
+         np.stack([z, c, x], -1), np.stack([z, x, c], -1),
+         np.stack([x, z, c], -1), np.stack([c, z, x], -1)])
+    return rgb + (val - c)[..., None]
+
+
+# Selective hue rotation (--recolor h1,h2,smin,vmin,dh): pixels whose hue sits
+# in [h1,h2] with saturation>=smin and value>=vmin get their hue shifted by dh
+# degrees. Feathered 1px so the shift fades at the selection edge instead of
+# snapping. Used to match the sailor Orni's red beak (H~13) to the standard
+# orange beak (H~28) without touching the brown wheel (S<=0.54) or the dark
+# hands (S~0.46).
+def shift_hue(frame, h1, h2, smin, vmin, dh):
+    f = frame.astype(np.float32) / 255.0
+    hue, sat, mx = _hsv(f)
+    sel = ((hue >= h1) & (hue <= h2) & (sat >= smin) & (mx >= vmin))
+    if not sel.any():
+        return frame
+    w = ndimage.gaussian_filter(sel.astype(np.float32), 1.0)
+    hue2 = hue + dh * np.clip(w, 0.0, 1.0)
+    out = _hsv_to_rgb(hue2, sat, mx) * 255.0
+    blend = np.clip(w, 0.0, 1.0)[..., None]
+    res = f * 255.0 * (1 - blend) + out * blend
+    return np.clip(res, 0, 255).astype(np.uint8)
+
+
+# Interior spill fix: backdrop light BLEEDS INTO the artwork (chin/neck on
+# L1/4 is painted green-tinted), which keying can't touch — those pixels are
+# opaque character. Pixels in the green hue band (bg 125 deg; body teal 173
+# stays OUT of the band) borrow hue+sat from the nearest clean opaque pixel
+# and keep their own value, so shadow shading survives, green tint does not.
+def despill_interior(rgb, a):
+    f = rgb.astype(np.float32) / 255.0
+    hue, sat, mx = _hsv(f)
+    spill = (hue > 105) & (hue < 165) & (sat > 0.12) & (a > 16)
+    if not spill.any():
+        return rgb
+    clean = (a > 200) & ((hue <= 100) | (hue >= 170)) & (sat > 0.05)
+    if not clean.any():
+        return rgb
+    iy, ix = ndimage.distance_transform_edt(
+        ~clean, return_distances=False, return_indices=True)
+    w = np.clip(ndimage.gaussian_filter(spill.astype(np.float32), 1.0), 0, 1)
+    fixed = _hsv_to_rgb(hue[iy, ix], sat[iy, ix], mx) * 255.0
+    res = rgb.astype(np.float32) * (1 - w[..., None]) + fixed * w[..., None]
+    return np.clip(res, 0, 255).astype(np.uint8)
+
+
+def process(src, dst, recolor=None):
     w, h, fps = probe(src)
     first = next(decode_frames(src, w, h))
     bg = corner_color(first, w, h)
     sim, blend = tolerances(bg)
     print(f"{w}x{h}@{fps:g}, bg RGB{bg}, key ±{sim}/{blend} border-connected")
+
+    def prep(frame):
+        return shift_hue(frame, *recolor) if recolor else frame
 
     # Pass 1: union bounding box of the character across all frames.
     x1, y1, x2, y2 = w, h, 0, 0
@@ -133,7 +217,18 @@ def process(src, dst):
         stdin=subprocess.PIPE)
     for frame in decode_frames(src, w, h):
         a = alpha_mask(frame, bg, sim, blend)
-        rgba = np.dstack([frame, a])[y1:y1 + ch, x1:x1 + cw]
+        rgb = despill_interior(prep(frame), a)
+        # Edge-bleed guard: transparent/soft pixels still carry backdrop green
+        # in RGB, and the straight-alpha downscale smears it into the visible
+        # outline (green fringe on the beige app bg). Replace every non-core
+        # pixel's colour with its nearest fully-opaque pixel's colour — the
+        # soft edge lives in alpha alone.
+        core = a >= 200
+        if core.any() and not core.all():
+            iy, ix = ndimage.distance_transform_edt(
+                ~core, return_distances=False, return_indices=True)
+            rgb = np.where(core[..., None], rgb, rgb[iy, ix])
+        rgba = np.dstack([rgb, a])[y1:y1 + ch, x1:x1 + cw]
         enc.stdin.write(np.ascontiguousarray(rgba).tobytes())
     enc.stdin.close()
     enc.wait()
@@ -163,7 +258,11 @@ def upload(dst, level, unit):
 def main():
     src = sys.argv[1]
     dst = os.path.splitext(src)[0] + ".webp"
-    process(src, dst)
+    recolor = None
+    if "--recolor" in sys.argv:  # h1,h2,smin,vmin,dh
+        parts = sys.argv[sys.argv.index("--recolor") + 1].split(",")
+        recolor = tuple(float(p) for p in parts)
+    process(src, dst, recolor=recolor)
     if "--upload" in sys.argv:
         i = sys.argv.index("--upload")
         upload(dst, int(sys.argv[i + 1]), int(sys.argv[i + 2]))
