@@ -2493,6 +2493,11 @@ class BadgesRight extends ConsumerWidget {
                 color: earned
                     ? color.withValues(alpha: 0.16)
                     : Colors.transparent,
+                shape: const OvalBorder(),
+              ),
+              // Ring painted over the portrait — a cover-fit image would
+              // otherwise hide the inner half of the stroke.
+              foregroundDecoration: ShapeDecoration(
                 shape: OvalBorder(
                     side: BorderSide(color: color, width: 2.5)),
               ),
@@ -2781,6 +2786,10 @@ class ProfileView extends ConsumerWidget {
                                         decoration: ShapeDecoration(
                                           color: _kBadgeTierColors[tier]
                                               .withValues(alpha: 0.16),
+                                          shape: const OvalBorder(),
+                                        ),
+                                        foregroundDecoration:
+                                            ShapeDecoration(
                                           shape: OvalBorder(
                                               side: BorderSide(
                                                   color: _kBadgeTierColors[
