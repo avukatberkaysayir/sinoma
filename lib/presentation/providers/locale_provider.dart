@@ -219,6 +219,7 @@ class AppL10n {
   String get navBazaar     => _t('Çarşı', 'Bazaar', '상점', 'ショップ', 'Toko', 'Cửa hàng', 'ร้านค้า', 'Базар', 'Bazar', 'Bazar', 'Bazar', 'البازار');
   String get navSettings   => _t('Ayarlar', 'Settings', '설정', '設定', 'Pengaturan', 'Cài đặt', 'การตั้งค่า', 'Настройки', 'Ajustes', 'Configurações', 'Paramètres', 'الإعدادات');
   String unitTitle(int n)  => _t('$n. Ünite', 'Unit $n', '유닛 $n', 'ユニット$n', 'Unit $n', 'Bài $n', 'บทที่ $n', 'Раздел $n', 'Unidad $n', 'Unidade $n', 'Unité $n', 'الوحدة $n');
+  String get loading       => _t('Yükleniyor', 'Loading', '로딩 중', '読み込み中', 'Memuat', 'Đang tải', 'กำลังโหลด', 'Загрузка', 'Cargando', 'Carregando', 'Chargement', 'جارٍ التحميل');
   String get startStamp    => _t('BAŞLA', 'START', '시작', 'スタート', 'MULAI', 'BẮT ĐẦU', 'เริ่ม', 'НАЧАТЬ', 'EMPEZAR', 'INICIAR', 'DÉMARRER', 'ابدأ');
 
   // ── Right sidebar ───────────────────────────────────────────────────────────

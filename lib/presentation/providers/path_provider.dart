@@ -414,6 +414,13 @@ class UnitAssets {
   PathAsset photo(int slot) => photos[slot] ?? const PathAsset();
 }
 
+// Flips to true the first time a unit's image batch (icons + mascot) is fully
+// precached — the path shows a centred loading indicator until the entry unit
+// of the selected level reports in. Never flips back: re-scrolling a level
+// must not resurrect the loader.
+final unitRevealedProvider =
+    StateProvider.family<bool, ({int level, int unit})>((ref, k) => false);
+
 final pathAssetsProvider =
     FutureProvider.family<UnitAssets, ({int level, int unit})>((ref, k) async {
   final rows =

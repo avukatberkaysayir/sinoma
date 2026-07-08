@@ -534,13 +534,17 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     });
 
     return curriculum.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: _duoGreen)),
+      loading: () => const Center(child: _PathLoading()),
       error: (e, _) =>
           Center(child: Text('$e', style: TextStyle(color: AppColors.text54))),
       data: (topics) {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
+        // Centred loader until the level's entry unit has precached its
+        // imagery (icons + mascot animation) — the reveal is one clean paint.
+        final entryRevealed =
+            ref.watch(unitRevealedProvider((level: topic.hsk, unit: 1)));
 
         // The single "current" phase across the topic.
         final flat = <PathPhase>[for (final s in topic.steps) ...s.phases];
@@ -559,18 +563,94 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
 
         // No sticky banner any more — each unit carries its own "X. Ünite"
         // title and the city info opens from the unit's side mascot.
-        return ListView.builder(
-          controller: _scroll,
-          padding: const EdgeInsets.only(bottom: 80),
-          itemExtent: _kUnitHeight,
-          itemCount: topic.steps.length,
-          itemBuilder: (_, i) => _UnitNodes(
-            step: topic.steps[i],
-            topic: topic,
-            progress: progress,
-            currentKey: current?.key,
-            tr: tr,
+        return Stack(children: [
+          ListView.builder(
+            controller: _scroll,
+            padding: const EdgeInsets.only(bottom: 80),
+            itemExtent: _kUnitHeight,
+            itemCount: topic.steps.length,
+            itemBuilder: (_, i) => _UnitNodes(
+              step: topic.steps[i],
+              topic: topic,
+              progress: progress,
+              currentKey: current?.key,
+              tr: tr,
+            ),
           ),
+          if (!entryRevealed)
+            const Positioned.fill(
+              child: IgnorePointer(child: Center(child: _PathLoading())),
+            ),
+        ]);
+      },
+    );
+  }
+}
+
+// Centred "loading" mark shown while a level's entry unit precaches its
+// imagery: a softly pulsing vermilion seal square over the localized word
+// with cycling ink dots. Removed the moment the unit reveals.
+class _PathLoading extends StatefulWidget {
+  const _PathLoading();
+  @override
+  State<_PathLoading> createState() => _PathLoadingState();
+}
+
+class _PathLoadingState extends State<_PathLoading>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1400))
+    ..repeat();
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final word = AppL10n.of(context).loading;
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (_, __) {
+        final t = _c.value;
+        final pulse = 0.55 + 0.45 * (0.5 - 0.5 * cos(2 * pi * t));
+        final dots = '·' * ((t * 3).floor() % 3 + 1);
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Opacity(
+              opacity: pulse,
+              child: Container(
+                width: 16,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE0442C),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(word,
+                    style: TextStyle(
+                        color: AppColors.text.withValues(alpha: pulse),
+                        fontSize: 17,
+                        fontWeight: FontWeight.w700)),
+                SizedBox(
+                  width: 18,
+                  child: Text(' $dots',
+                      style: TextStyle(
+                          color: AppColors.text.withValues(alpha: pulse),
+                          fontSize: 17,
+                          fontWeight: FontWeight.w900)),
+                ),
+              ],
+            ),
+          ],
         );
       },
     );
@@ -646,6 +726,11 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     ]).then((_) {
       if (mounted && _precacheKey == key) {
         setState(() => _imagesReady = true);
+        ref
+            .read(unitRevealedProvider(
+                    (level: step.hsk, unit: step.index + 1))
+                .notifier)
+            .state = true;
       }
     });
   }
