@@ -24,6 +24,7 @@ FFPROBE = os.path.join(FF_BIN, "ffprobe.exe")
 PROJECT = "pqyceostpukueydwuiut"
 MAX_SIDE = 256   # icon standard (icons8 landmark icons are 256px)
 PAD = 12         # transparent breathing room around the character (src px, pre-scale)
+SPEED = 1.5      # playback speed-up — the AI loops animate too languidly at 1x
 
 
 def probe(src):
@@ -96,10 +97,17 @@ def process(src, dst):
     x, y, cw, ch = union_bbox(src, keyf, w, h)
     print(f"character bbox: {cw}x{ch}+{x}+{y}")
     scale = (f"scale={MAX_SIDE}:-2" if cw >= ch else f"scale=-2:{MAX_SIDE}")
-    vf = f"{keyf},crop={cw}:{ch}:{x}:{y},{scale}"
+    # mpdecimate drops near-duplicate frames, setpts speeds playback up SPEED×
+    # and the fps cap brings the sped-up stream back to the source's 24fps —
+    # perceived smoothness is unchanged while a third of the frames (and
+    # bytes) disappear; max compression_level squeezes the rest harder. That
+    # keeps the mascot small enough to precache with the unit's icons.
+    vf = (f"{keyf},crop={cw}:{ch}:{x}:{y},{scale},"
+          f"mpdecimate,setpts=PTS/{SPEED},fps=24")
     subprocess.run(
         [FFMPEG, "-y", "-v", "error", "-i", src, "-vf", vf, "-an",
-         "-c:v", "libwebp_anim", "-loop", "0", "-q:v", "85", "-fps_mode", "passthrough",
+         "-c:v", "libwebp_anim", "-loop", "0", "-q:v", "85",
+         "-compression_level", "6", "-fps_mode", "passthrough",
          dst],
         check=True)
     kb = os.path.getsize(dst) // 1024

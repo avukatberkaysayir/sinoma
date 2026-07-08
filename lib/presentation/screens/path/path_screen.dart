@@ -629,13 +629,13 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
         provs.add(AssetImage(ni.asset!));
       }
     }
-    // The static mascot is part of the batch; an uploaded animation is not —
-    // it can be megabytes, so it reveals itself when its first frame is ready
-    // (see _mascot) instead of holding the whole unit hostage.
+    // The mascot joins the batch too — animations from the standard pipeline
+    // (mpdecimate + 1.5x + max webp compression) are small enough — so the
+    // whole unit, mascot included, reveals in one synchronized paint.
     final mUrl = assets.mascot?.url;
-    if (mUrl == null || mUrl.isEmpty) {
-      provs.add(const AssetImage('assets/mascot/mascot.png'));
-    }
+    provs.add((mUrl != null && mUrl.isNotEmpty)
+        ? NetworkImage(mUrl) as ImageProvider
+        : const AssetImage('assets/mascot/mascot.png'));
     final key = provs.map((p) => p.toString()).join('|');
     if (_precacheKey == key) return;
     _precacheKey = key;
