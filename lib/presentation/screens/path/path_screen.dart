@@ -602,6 +602,11 @@ class _UnitNodes extends ConsumerStatefulWidget {
 class _UnitNodesState extends ConsumerState<_UnitNodes>
     with SingleTickerProviderStateMixin {
   bool _infoOpen = false;
+  // Unit imagery (phase icons + static mascot) is precached as one batch and
+  // the unit only paints once ALL of it is decoded — otherwise the seal nodes
+  // land first and the icons pop in a beat later.
+  bool _imagesReady = false;
+  String? _precacheKey;
   late final AnimationController _idle = AnimationController(
       vsync: this, duration: const Duration(seconds: 5))
     ..repeat();
@@ -612,13 +617,52 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     super.dispose();
   }
 
+  void _precacheUnitImages(UnitAssets assets) {
+    final step = widget.step;
+    final provs = <ImageProvider>[];
+    for (var i = 0; i < 4; i++) {
+      final url = assets.icon(i).url;
+      final ni = _cityNodeIcon(step.hsk, step.index, i);
+      if (url != null && url.isNotEmpty) {
+        provs.add(NetworkImage(url));
+      } else if (ni.asset != null) {
+        provs.add(AssetImage(ni.asset!));
+      }
+    }
+    // The static mascot is part of the batch; an uploaded animation is not —
+    // it can be megabytes, so it reveals itself when its first frame is ready
+    // (see _mascot) instead of holding the whole unit hostage.
+    final mUrl = assets.mascot?.url;
+    if (mUrl == null || mUrl.isEmpty) {
+      provs.add(const AssetImage('assets/mascot/mascot.png'));
+    }
+    final key = provs.map((p) => p.toString()).join('|');
+    if (_precacheKey == key) return;
+    _precacheKey = key;
+    _imagesReady = false;
+    Future.wait([
+      for (final p in provs)
+        precacheImage(p, context, onError: (_, __) {}),
+    ]).then((_) {
+      if (mounted && _precacheKey == key) {
+        setState(() => _imagesReady = true);
+      }
+    });
+  }
+
   Widget _mascot(double size, PathAsset? override) {
     final scaled = size * (override?.scale ?? 1.0);
     final url = override?.url;
     // Admin-uploaded unit animation (GIF/WebP) carries its own motion — show it
     // as-is; the synthetic sway/blink is only for the static bundled mascot.
+    // Until the animation's first frame is decoded the slot stays EMPTY: no
+    // stale/static stand-in flashes on top of the 3rd-row circle.
     final Widget img = (url != null && url.isNotEmpty)
-        ? Image.network(url, width: scaled, height: scaled, fit: BoxFit.contain)
+        ? Image.network(url, width: scaled, height: scaled, fit: BoxFit.contain,
+            frameBuilder: (_, child, frame, wasSync) =>
+                (frame == null && !wasSync)
+                    ? SizedBox(width: scaled, height: scaled)
+                    : child)
         : AnimatedBuilder(
             animation: _idle,
             builder: (_, child) {
@@ -657,10 +701,22 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final mirror = step.index.isOdd; // Ünite 2, 4, … = mirrored layout
     final city = cityForUnit(step.hsk, step.index);
     final hasInfo = kCityLandmarks[city.slug] != null;
-    final mascotOverride = ref
-        .watch(pathAssetsProvider((level: step.hsk, unit: step.index + 1)))
-        .valueOrNull
-        ?.mascot;
+    // One synchronized reveal per unit: wait for the override rows, precache
+    // every icon image, and only then paint nodes + icons + mascot together.
+    final assetsAsync =
+        ref.watch(pathAssetsProvider((level: step.hsk, unit: step.index + 1)));
+    final assets =
+        assetsAsync.hasError ? const UnitAssets() : assetsAsync.valueOrNull;
+    if (assets != null) _precacheUnitImages(assets);
+    if (assets == null || !_imagesReady) {
+      // Fixed-height blank cell (itemExtent) — only the separator shows.
+      return Column(children: [
+        if (step.index > 0)
+          Container(height: 1.5, color: AppColors.text.withValues(alpha: 0.12)),
+        const Expanded(child: SizedBox()),
+      ]);
+    }
+    final mascotOverride = assets.mascot;
 
     // Visual rows top-to-bottom: phase1 (centre), phase2 (±112), MASCOT
     // (centre, tap → city info), phase3 (∓112), phase4 (centre).
