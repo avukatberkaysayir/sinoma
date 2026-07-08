@@ -564,6 +564,22 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         // No sticky banner any more — each unit carries its own "X. Ünite"
         // title and the city info opens from the unit's side mascot.
         return Stack(children: [
+          // Quiet Chinese-motif backdrop: one motif + tint per HSK level,
+          // shifted with the scroll offset so it runs unbroken top to bottom.
+          Positioned.fill(
+            child: IgnorePointer(
+              child: AnimatedBuilder(
+                animation: _scroll,
+                builder: (_, __) => CustomPaint(
+                  painter: _MotifBackdropPainter(
+                    hsk: topic.hsk,
+                    scroll: _scroll.hasClients ? _scroll.offset : 0.0,
+                    dark: AppColors.dark,
+                  ),
+                ),
+              ),
+            ),
+          ),
           ListView.builder(
             controller: _scroll,
             padding: const EdgeInsets.only(bottom: 80),
@@ -999,6 +1015,94 @@ class _RoutePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RoutePainter old) => old.mirror != mirror;
+}
+
+// Full-height Chinese-motif backdrop behind the path — one motif and one tint
+// per HSK level: 1 祥云 clouds · 2 回纹 meander · 3 水波 waves · 4 梅花 plum
+// blossoms · 5 铜钱 coins · 6 远山 mountains. Drawn in the level's HSK colour
+// at low alpha (quiet, never competes with the nodes) on a staggered grid that
+// follows the scroll offset, so the pattern is one unbroken sheet.
+class _MotifBackdropPainter extends CustomPainter {
+  final int hsk;
+  final double scroll;
+  final bool dark;
+  const _MotifBackdropPainter(
+      {required this.hsk, required this.scroll, required this.dark});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.forHskLevel(hsk)
+          .withValues(alpha: dark ? 0.11 : 0.09)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4
+      ..strokeCap = StrokeCap.round;
+
+    const tile = 110.0;
+    // Rows live in content space (k * tile) so scrolling slides the sheet
+    // instead of re-seeding it; odd rows shift half a tile for a woven look.
+    final k0 = (scroll / tile).floor() - 1;
+    final k1 = ((scroll + size.height) / tile).ceil() + 1;
+    for (var k = k0; k <= k1; k++) {
+      final y = k * tile - scroll;
+      final shift = k.isOdd ? tile / 2 : 0.0;
+      for (var x = shift - tile / 2; x < size.width + tile / 2; x += tile) {
+        _motif(canvas, paint, Offset(x, y));
+      }
+    }
+  }
+
+  void _motif(Canvas c, Paint p, Offset o) {
+    switch (hsk) {
+      case 1: // 祥云 auspicious cloud curl
+        final curl = Path()
+          ..addArc(Rect.fromCircle(center: o, radius: 13), pi * 0.2, pi * 1.3)
+          ..addArc(Rect.fromCircle(center: o.translate(5, 2), radius: 7),
+              pi * 0.3, pi * 1.3)
+          ..moveTo(o.dx + 6, o.dy + 11)
+          ..quadraticBezierTo(o.dx + 20, o.dy + 13, o.dx + 27, o.dy + 5);
+        c.drawPath(curl, p);
+      case 2: // 回纹 squared meander spiral
+        const s = 7.0;
+        final m = Path()
+          ..moveTo(o.dx - 2 * s, o.dy + 2 * s)
+          ..lineTo(o.dx - 2 * s, o.dy - 2 * s)
+          ..lineTo(o.dx + 2 * s, o.dy - 2 * s)
+          ..lineTo(o.dx + 2 * s, o.dy + 2 * s)
+          ..lineTo(o.dx - s, o.dy + 2 * s)
+          ..lineTo(o.dx - s, o.dy - s)
+          ..lineTo(o.dx + s, o.dy - s)
+          ..lineTo(o.dx + s, o.dy + s)
+          ..lineTo(o.dx, o.dy + s)
+          ..lineTo(o.dx, o.dy);
+        c.drawPath(m, p);
+      case 3: // 水波 layered wave fans
+        for (var r = 7.0; r <= 19; r += 6) {
+          c.drawArc(Rect.fromCircle(center: o, radius: r), pi, pi, false, p);
+        }
+      case 4: // 梅花 five-petal plum blossom
+        for (var i = 0; i < 5; i++) {
+          final a = -pi / 2 + i * 2 * pi / 5;
+          c.drawCircle(o + Offset(cos(a), sin(a)) * 9, 5.5, p);
+        }
+        c.drawCircle(o, 1.8, p);
+      case 5: // 铜钱 coin — round with a square hole
+        c.drawCircle(o, 15, p);
+        c.drawRect(Rect.fromCenter(center: o, width: 11, height: 11), p);
+      default: // 远山 distant mountain strokes
+        final mt = Path()
+          ..moveTo(o.dx - 22, o.dy + 9)
+          ..lineTo(o.dx - 7, o.dy - 9)
+          ..lineTo(o.dx + 2, o.dy + 3)
+          ..lineTo(o.dx + 9, o.dy - 4)
+          ..lineTo(o.dx + 22, o.dy + 9);
+        c.drawPath(mt, p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_MotifBackdropPainter old) =>
+      old.hsk != hsk || old.scroll != scroll || old.dark != dark;
 }
 
 // City info panel — opens over the unit (sized to it, never overflows):
