@@ -293,8 +293,32 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+# Exactly ONE worker instance: HTTPServer's allow_reuse_address=1 lets a
+# second process bind :9302 on Windows (SO_REUSEADDR) — two pollers then race
+# the same job and every clip lands twice (görüldü: aI6UkWDLKeE, 2026-07-08).
+# Exclusive bind + binding BEFORE the poller starts make the port a real
+# single-instance lock.
+class _ExclusiveServer(HTTPServer):
+    allow_reuse_address = False
+
+    def server_bind(self):
+        import socket
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(
+                socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        HTTPServer.server_bind(self)
+
+
 def main() -> None:
-    # Start the local PO-Token provider first so the worker's downloads have it.
+    # Port bind FIRST — it is the single-instance lock; a second copy dies
+    # here, before it can requeue/claim jobs or spawn a duplicate poller.
+    try:
+        server = _ExclusiveServer(("localhost", PORT), _Handler)
+    except OSError:
+        print(f"⚠️  :{PORT} kullanımda — başka bir dev_server çalışıyor, çıkılıyor")
+        return
+
+    # Start the local PO-Token provider so the worker's downloads have it.
     _ensure_pot_server()
 
     # Start Supabase job poller in background thread
@@ -308,7 +332,6 @@ def main() -> None:
     except Exception as e:
         print(f"⚠️  Poller başlatılamadı: {e}")
 
-    server = HTTPServer(("localhost", PORT), _Handler)
     print(f"🚀 Pipeline dev server  →  http://localhost:{PORT}")
     print(f"   POST /process-video        {{\"url\": \"...\"}}")
     print(f"   POST /process-youtube-asr  {{\"url\": \"...\", \"active\": false}}")

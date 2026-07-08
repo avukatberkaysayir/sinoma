@@ -51,15 +51,21 @@ def _claim_pending(base_url: str, service_key: str) -> dict[str, Any] | None:
     if job is None:
         return None
 
-    # Atomic claim — sadece hâlâ pending ise güncelle
+    # Atomic claim — sadece hâlâ pending ise güncelle. PostgREST 0 satır
+    # eşleşse de 204 döner; kazandığımızı GÖVDEDEN doğrula (return=
+    # representation), yoksa iki poller aynı işi işler → her klip çift.
     patch = requests.patch(
         f"{base_url}/rest/v1/pipeline_jobs",
         params={"id": f"eq.{job['id']}", "status": "eq.pending"},
         json={"status": "processing"},
-        headers=_headers(service_key),
+        headers={**_headers(service_key), "Prefer": "return=representation"},
         timeout=10,
     )
-    return job if patch.status_code < 300 else None
+    try:
+        claimed = patch.status_code < 300 and len(patch.json()) > 0
+    except ValueError:
+        claimed = False
+    return job if claimed else None
 
 
 def _update_progress(
