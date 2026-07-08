@@ -612,24 +612,41 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     super.dispose();
   }
 
-  Widget _mascot(double size) {
-    return AnimatedBuilder(
-      animation: _idle,
-      builder: (_, child) {
-        final t = _idle.value;
-        final blink = t > 0.94 ? 0.92 : 1.0;
-        final sway = 0.05 * sin(2 * pi * t);
-        return Transform.rotate(
-          angle: sway,
-          child: Transform(
-            alignment: Alignment.bottomCenter,
-            transform: Matrix4.diagonal3Values(1, blink, 1),
-            child: child,
-          ),
-        );
-      },
-      child: Image.asset('assets/mascot/mascot.png',
-          width: size, height: size, fit: BoxFit.contain),
+  Widget _mascot(double size, PathAsset? override) {
+    final scaled = size * (override?.scale ?? 1.0);
+    final url = override?.url;
+    // Admin-uploaded unit animation (GIF/WebP) carries its own motion — show it
+    // as-is; the synthetic sway/blink is only for the static bundled mascot.
+    final Widget img = (url != null && url.isNotEmpty)
+        ? Image.network(url, width: scaled, height: scaled, fit: BoxFit.contain)
+        : AnimatedBuilder(
+            animation: _idle,
+            builder: (_, child) {
+              final t = _idle.value;
+              final blink = t > 0.94 ? 0.92 : 1.0;
+              final sway = 0.05 * sin(2 * pi * t);
+              return Transform.rotate(
+                angle: sway,
+                child: Transform(
+                  alignment: Alignment.bottomCenter,
+                  transform: Matrix4.diagonal3Values(1, blink, 1),
+                  child: child,
+                ),
+              );
+            },
+            child: Image.asset('assets/mascot/mascot.png',
+                width: scaled, height: scaled, fit: BoxFit.contain),
+          );
+    // The slot keeps its fixed 120px footprint so the unit's row geometry and
+    // the caravan route stay put; the scale only grows/shrinks the visual.
+    return SizedBox(
+      width: size,
+      height: size,
+      child: OverflowBox(
+        maxWidth: scaled,
+        maxHeight: scaled,
+        child: img,
+      ),
     );
   }
 
@@ -640,6 +657,10 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final mirror = step.index.isOdd; // Ünite 2, 4, … = mirrored layout
     final city = cityForUnit(step.hsk, step.index);
     final hasInfo = kCityLandmarks[city.slug] != null;
+    final mascotOverride = ref
+        .watch(pathAssetsProvider((level: step.hsk, unit: step.index + 1)))
+        .valueOrNull
+        ?.mascot;
 
     // Visual rows top-to-bottom: phase1 (centre), phase2 (±112), MASCOT
     // (centre, tap → city info), phase3 (∓112), phase4 (centre).
@@ -669,7 +690,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
         padding: const EdgeInsets.only(bottom: 24),
         child: GestureDetector(
           onTap: hasInfo ? () => setState(() => _infoOpen = true) : null,
-          child: _mascot(120),
+          child: _mascot(120, mascotOverride),
         ),
       ),
       phaseRow(2),

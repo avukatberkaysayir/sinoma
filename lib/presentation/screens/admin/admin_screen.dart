@@ -8377,8 +8377,10 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
   }
 
   Future<void> _pick(String kind, int slot) async {
-    final x = await ImagePicker()
-        .pickImage(source: ImageSource.gallery, maxWidth: 1600);
+    // The mascot slot holds an ANIMATED image (GIF/WebP/APNG): resizing via
+    // maxWidth re-encodes to a single frame, so upload those bytes untouched.
+    final x = await ImagePicker().pickImage(
+        source: ImageSource.gallery, maxWidth: kind == 'mascot' ? null : 1600);
     if (x == null) return;
     setState(() => _busy = true);
     try {
@@ -8460,6 +8462,22 @@ class _LearnDesignTabState extends ConsumerState<_LearnDesignTab> {
                   ),
                   Divider(color: AppColors.surfaceVariant, height: 18),
                 ],
+                Padding(
+                  padding: const EdgeInsets.only(top: 6, bottom: 4),
+                  child: Text('Bobo animasyonu (ünitenin ortasındaki maskot · GIF/WebP)',
+                      style: TextStyle(
+                          color: AppColors.onSurfaceMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700)),
+                ),
+                _assetTile(
+                  kind: 'mascot',
+                  slot: 0,
+                  url: assets.mascot?.url,
+                  fallbackAsset: 'assets/mascot/mascot.png',
+                  scale: assets.mascot?.scale ?? 1.0,
+                ),
+                Divider(color: AppColors.surfaceVariant, height: 18),
               ],
             ),
           ),

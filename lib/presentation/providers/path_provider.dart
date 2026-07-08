@@ -402,10 +402,14 @@ class PathAsset {
 
 class UnitAssets {
   final PathAsset? banner;
+  final PathAsset? mascot; // unit-centre Bobo animation (GIF/WebP), slot 0
   final Map<int, PathAsset> icons; // slot 0..3
   final Map<int, PathAsset> photos; // slot 0..3
   const UnitAssets(
-      {this.banner, this.icons = const {}, this.photos = const {}});
+      {this.banner,
+      this.mascot,
+      this.icons = const {},
+      this.photos = const {}});
   PathAsset icon(int slot) => icons[slot] ?? const PathAsset();
   PathAsset photo(int slot) => photos[slot] ?? const PathAsset();
 }
@@ -415,6 +419,7 @@ final pathAssetsProvider =
   final rows =
       await ref.watch(videoRepositoryProvider).loadPathAssets(k.level, k.unit);
   PathAsset? banner;
+  PathAsset? mascot;
   final icons = <int, PathAsset>{};
   final photos = <int, PathAsset>{};
   for (final r in rows) {
@@ -436,13 +441,16 @@ final pathAssetsProvider =
     final slot = (r['slot'] as num?)?.toInt() ?? 0;
     if (kind == 'banner') {
       banner = a;
+    } else if (kind == 'mascot') {
+      mascot = a;
     } else if (kind == 'icon') {
       icons[slot] = a;
     } else if (kind == 'photo') {
       photos[slot] = a;
     }
   }
-  return UnitAssets(banner: banner, icons: icons, photos: photos);
+  return UnitAssets(
+      banner: banner, mascot: mascot, icons: icons, photos: photos);
 });
 
 // Grammar/word slots that already hold an active clip — flagged red in the filter.
