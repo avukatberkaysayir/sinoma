@@ -2326,16 +2326,31 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
       final list = await widget.service
           .listVideosByStatus(widget.status)
           .timeout(const Duration(seconds: 60));
-      // Derive a pinyin that matches the confirmed target_words (the card title),
-      // so an edited sentence no longer shows the stale ASR pinyin. One batched
-      // dictionary lookup for the whole list.
+      // Show the list IMMEDIATELY; pinyin derivation over thousands of unique
+      // words is many chunked dictionary requests and used to hold the spinner
+      // for minutes on a big pending pile.
+      if (mounted) setState(() { _videos = list; _loading = false; });
+      _loadFillStats(); // colour the cascade (red/yellow/green) — best-effort
+      _derivePinyin(list); // best-effort, patches the cards as it lands
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  // Derive a pinyin that matches the confirmed target_words (the card title),
+  // so an edited sentence no longer shows the stale ASR pinyin. One batched
+  // dictionary lookup for the whole list, AFTER the list is on screen.
+  Future<void> _derivePinyin(List<Map<String, dynamic>> list) async {
+    try {
       final allWords = <String>{};
       for (final v in list) {
         allWords.addAll(
             (v['target_words'] as List<dynamic>?)?.map((e) => e.toString()) ??
                 const []);
       }
+      if (allWords.isEmpty) return;
       final pmap = await widget.service.pinyinForWords(allWords.toList());
+      if (!mounted || !identical(_videos, list)) return; // list was reloaded
       for (final v in list) {
         final ws = (v['target_words'] as List<dynamic>?)
                 ?.map((e) => e.toString())
@@ -2349,11 +2364,8 @@ class _VideoStatusTabState extends ConsumerState<_VideoStatusTab> {
           if (p.isNotEmpty) v['pinyin_derived'] = p;
         }
       }
-      if (mounted) setState(() { _videos = list; _loading = false; });
-      _loadFillStats(); // colour the cascade (red/yellow/green) — best-effort
-    } catch (e) {
-      if (mounted) setState(() { _error = e.toString(); _loading = false; });
-    }
+      setState(() {});
+    } catch (_) {/* cards keep the ASR pinyin */}
   }
 
   void _toggleSelect(String id) {
