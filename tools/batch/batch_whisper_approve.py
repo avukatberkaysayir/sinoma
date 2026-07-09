@@ -15,6 +15,9 @@ FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
         "Content-Type": "application/json"}
 LANGS = ["tr", "ko", "ja", "id", "vi", "th", "ru", "es", "pt", "fr", "ar"]
 CJK = re.compile(r"^[一-鿿]+$")
+# Optional argv: hsk_min hsk_max (default 1-4, Berkay's standing priority).
+HSK_MIN = int(sys.argv[1]) if len(sys.argv) > 1 else 1
+HSK_MAX = int(sys.argv[2]) if len(sys.argv) > 2 else 4
 
 tok = None
 with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
@@ -154,12 +157,12 @@ returning v.id;
 if deduped:
     print(f"on-gecis: {len(deduped)} tekrar-cumleli pending klip silindi")
 
-rows = sql("""
+rows = sql(f"""
 select id, whisper_text, coalesce(quiz->>'question','') as question
 from videos
 where status='pending' and backup_kind is null and backup_level is null
   and coalesce(whisper_text,'') <> ''
-  and hsk_level between 1 and 4
+  and hsk_level between {HSK_MIN} and {HSK_MAX}
 order by hsk_level, created_at;
 """)
 print(f"{len(rows)} klip islenecek\n")
