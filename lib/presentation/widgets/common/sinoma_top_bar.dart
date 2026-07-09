@@ -132,15 +132,8 @@ class _LogoSection extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            shape: BoxShape.circle,
-          ),
-          child: const Icon(Icons.language, size: 20, color: AppColors.primary),
-        ),
+        Image.asset('assets/mascot/mascot.png',
+            width: 34, height: 34, fit: BoxFit.contain),
         const SizedBox(width: 10),
         Column(
           mainAxisAlignment: MainAxisAlignment.center,

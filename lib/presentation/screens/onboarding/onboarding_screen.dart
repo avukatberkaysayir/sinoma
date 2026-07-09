@@ -120,15 +120,8 @@ class _WelcomePage extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Spacer(flex: 2),
-            Container(
-              width: 100,
-              height: 100,
-              decoration: BoxDecoration(
-                color: _obAccent.withValues(alpha: 0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.language, size: 52, color: _obAccent),
-            ),
+            Image.asset('assets/mascot/mascot.png',
+                width: 110, height: 110, fit: BoxFit.contain),
             const SizedBox(height: 28),
             const Text(
               '普通话学院',

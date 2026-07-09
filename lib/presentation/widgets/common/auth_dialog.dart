@@ -154,16 +154,8 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
               padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
               child: Row(
                 children: [
-                  Container(
-                    width: 30,
-                    height: 30,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(Icons.language,
-                        size: 18, color: AppColors.primary),
-                  ),
+                  Image.asset('assets/mascot/mascot.png',
+                      width: 30, height: 30, fit: BoxFit.contain),
                   const SizedBox(width: 10),
                   Text(
                     'Sinoma',

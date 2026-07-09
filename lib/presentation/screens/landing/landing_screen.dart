@@ -398,7 +398,10 @@ class _Hero extends ConsumerWidget {
                 fontWeight: FontWeight.w600),
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
+        Image.asset('assets/mascot/mascot.png',
+            width: 132, height: 132, fit: BoxFit.contain),
+        const SizedBox(height: 20),
         Wrap(
           spacing: 14,
           runSpacing: 12,
