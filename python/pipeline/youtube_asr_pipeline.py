@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -90,7 +91,11 @@ def _extract_candidates(text: str) -> list[str]:
 
 
 def _query_dictionary(candidates: list[str]) -> list[dict[str, Any]]:
-    """Batch-query Supabase dictionary for up to 100 candidates at a time."""
+    """Batch-query Supabase dictionary for up to 100 candidates at a time.
+    Retries per batch: a transient REST blip (ConnectionError / 5xx) used to
+    propagate up and kill the WHOLE split job mid-video (EnyMsJwsy1k,
+    2026-07-09); a batch that still fails after retries is skipped — its
+    words just don't match, same as an unknown word."""
     if not candidates or not SUPABASE_SERVICE_KEY:
         return []
     rows: list[dict[str, Any]] = []
@@ -98,14 +103,22 @@ def _query_dictionary(candidates: list[str]) -> list[dict[str, Any]]:
     for i in range(0, len(candidates), batch_size):
         batch = candidates[i : i + batch_size]
         encoded = ",".join(batch)
-        resp = requests.get(
-            f"{SUPABASE_URL}/rest/v1/dictionary",
-            params={"simplified": f"in.({encoded})", "select": "id,simplified,hsk_level"},
-            headers=_supabase_headers(),
-            timeout=30,
-        )
-        if resp.status_code < 300:
-            rows.extend(resp.json())
+        for attempt in range(3):
+            try:
+                resp = requests.get(
+                    f"{SUPABASE_URL}/rest/v1/dictionary",
+                    params={"simplified": f"in.({encoded})",
+                            "select": "id,simplified,hsk_level"},
+                    headers=_supabase_headers(),
+                    timeout=30,
+                )
+                if resp.status_code < 300:
+                    rows.extend(resp.json())
+                    break
+            except requests.RequestException as exc:
+                if attempt == 2:
+                    print(f"  [DICT] batch atlandı ({exc})")
+            time.sleep(2 * (attempt + 1))
     return rows
 
 
