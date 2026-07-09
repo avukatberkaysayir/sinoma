@@ -563,10 +563,10 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
-        // Centred loader until the level's entry unit has precached its
-        // imagery (icons + mascot animation) — the reveal is one clean paint.
-        final entryRevealed =
-            ref.watch(unitRevealedProvider((level: topic.hsk, unit: 1)));
+        // Centred loader until EVERY unit of the level has precached its
+        // imagery (icons + mascot animation) — the reveal is one clean paint
+        // of the whole level, capped by the per-unit 8s precache timeout.
+        final entryRevealed = ref.watch(levelRevealedProvider(topic.hsk));
 
         // The single "current" phase across the topic.
         final flat = <PathPhase>[for (final s in topic.steps) ...s.phases];
@@ -750,7 +750,12 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     Future.wait([
       for (final p in provs)
         precacheImage(p, context, onError: (_, __) {}),
-    ]).then((_) {
+    ])
+        // Safety valve: a stalled download must never hold the level's
+        // one-frame reveal hostage — after 8s the unit reports in anyway
+        // and any straggler image pops when it lands.
+        .timeout(const Duration(seconds: 8), onTimeout: () => const [])
+        .then((_) {
       if (mounted && _precacheKey == key) {
         setState(() => _imagesReady = true);
         ref
@@ -820,7 +825,10 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final assets =
         assetsAsync.hasError ? const UnitAssets() : assetsAsync.valueOrNull;
     if (assets != null) _precacheUnitImages(assets);
-    if (assets == null || !_imagesReady) {
+    // The unit paints only when the WHOLE level is ready — one synchronized
+    // reveal for every unit, no unit popping in after its neighbours.
+    final levelReady = ref.watch(levelRevealedProvider(step.hsk));
+    if (assets == null || !_imagesReady || !levelReady) {
       // Fixed-height blank cell (itemExtent) — only the separator shows.
       return Column(children: [
         if (step.index > 0)

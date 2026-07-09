@@ -421,6 +421,28 @@ class UnitAssets {
 final unitRevealedProvider =
     StateProvider.family<bool, ({int level, int unit})>((ref, k) => false);
 
+// True once EVERY unit of the level has precached its batch — the whole
+// level paints in one frame instead of units popping in one by one as their
+// downloads finish (a freshly uploaded mascot used to make its unit appear
+// seconds after its neighbours).
+final levelRevealedProvider = Provider.family<bool, int>((ref, level) {
+  final topics = ref.watch(curriculumProvider).valueOrNull;
+  PathTopic? topic;
+  for (final t in topics ?? const <PathTopic>[]) {
+    if (t.hsk == level) {
+      topic = t;
+      break;
+    }
+  }
+  if (topic == null) return false;
+  for (var u = 1; u <= topic.steps.length; u++) {
+    if (!ref.watch(unitRevealedProvider((level: level, unit: u)))) {
+      return false;
+    }
+  }
+  return true;
+});
+
 final pathAssetsProvider =
     FutureProvider.family<UnitAssets, ({int level, int unit})>((ref, k) async {
   final rows =
