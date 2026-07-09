@@ -152,7 +152,29 @@ class PathScreen extends ConsumerWidget {
                 if (loc != '/learn') context.go('/learn');
               },
             ),
-            Expanded(child: center),
+            // The centre column of EVERY section sits on the learner-level
+            // stationery page (Level 1 for new users; levels up with the
+            // user, never with the browsed topic) — the plain cream centre
+            // is gone. Painted in the shell so it is on screen from the very
+            // first frame, before any section data loads.
+            Expanded(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  IgnorePointer(
+                    child: RepaintBoundary(
+                      child: CustomPaint(
+                        painter: _LevelPagePainter(
+                          hsk: ref.watch(currentHskLevelProvider),
+                          dark: AppColors.dark,
+                        ),
+                      ),
+                    ),
+                  ),
+                  center,
+                ],
+              ),
+            ),
             if (right != null && w >= 1100) right,
           ],
         ),
@@ -564,27 +586,15 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         // No sticky banner any more — each unit carries its own "X. Ünite"
         // title and the city info opens from the unit's side mascot.
         return Stack(children: [
-          // Scroll-page backdrop: fills the whole centre column (nav ↔ rail)
-          // with a level-tinted paper ground and edge ornaments in the style
-          // of classical Chinese stationery. Painted ONCE per level/size —
-          // never on scroll — and isolated in its own layer, so it costs the
-          // list nothing.
-          Positioned.fill(
-            child: IgnorePointer(
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: _LevelPagePainter(
-                    hsk: topic.hsk,
-                    dark: AppColors.dark,
-                  ),
-                ),
-              ),
-            ),
-          ),
+          // (The stationery backdrop lives in the shell now — one page for
+          // the whole site, keyed to the user's level.)
           ListView.builder(
             controller: _scroll,
             padding: const EdgeInsets.only(bottom: 80),
             itemExtent: _kUnitHeight,
+            // Build and precache EVERY unit up front instead of as the user
+            // scrolls into it — all units load together, no pop-in mid-list.
+            cacheExtent: _kUnitHeight * topic.steps.length,
             itemCount: topic.steps.length,
             itemBuilder: (_, i) => _UnitNodes(
               step: topic.steps[i],
