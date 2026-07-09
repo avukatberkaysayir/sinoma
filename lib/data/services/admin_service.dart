@@ -591,15 +591,26 @@ class AdminService {
     await _db.from('video_reports').delete().eq('id', id);
   }
 
+  // Paged: HSK 5-6 clips deliberately pile up in Onay Bekleyen (hundreds to
+  // thousands), so a single .limit() both truncated the list at 500 and would
+  // hit PostgREST's per-request row cap if simply raised. 1000-row pages up to
+  // 10k; the id tiebreaker keeps the page windows stable across requests.
   Future<List<Map<String, dynamic>>> listVideosByStatus(String status) async {
-    final data = await _db
-        .from('videos')
-        .select()
-        .eq('status', status)
-        .order('hsk_level', ascending: true)
-        .order('created_at', ascending: false)
-        .limit(500);
-    return List<Map<String, dynamic>>.from(data);
+    const pageSize = 1000, maxRows = 10000;
+    final out = <Map<String, dynamic>>[];
+    while (out.length < maxRows) {
+      final data = await _db
+          .from('videos')
+          .select()
+          .eq('status', status)
+          .order('hsk_level', ascending: true)
+          .order('created_at', ascending: false)
+          .order('id', ascending: true)
+          .range(out.length, out.length + pageSize - 1);
+      out.addAll(List<Map<String, dynamic>>.from(data));
+      if (data.length < pageSize) break;
+    }
+    return out;
   }
 
   Future<void> approveVideos(List<String> ids) async {
