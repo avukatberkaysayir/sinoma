@@ -168,13 +168,17 @@ def shift_hue(frame, h1, h2, smin, vmin, dh):
 
 # Interior spill fix: backdrop light BLEEDS INTO the artwork (chin/neck on
 # L1/4 is painted green-tinted), which keying can't touch — those pixels are
-# opaque character. Pixels in the green hue band (bg 125 deg; body teal 173
-# stays OUT of the band) borrow hue+sat from the nearest clean opaque pixel
-# and keep their own value, so shadow shading survives, green tint does not.
+# opaque character. Pixels in the green hue band (bg 125 deg) borrow hue+sat
+# from the nearest clean opaque pixel and keep their own value, so shadow
+# shading survives, green tint does not.
+# Band ends at 150, NOT 165: the pale mint belly hovers around hue 160-175
+# and frames where it wobbled under 165 borrowed hue from whatever clean
+# pixel sat nearest (the red pepper, the white specular) — the "ghost patch
+# on the belly" artifact on L1/5-7. Genuine bg spill sits at 110-140.
 def despill_interior(rgb, a):
     f = rgb.astype(np.float32) / 255.0
     hue, sat, mx = _hsv(f)
-    spill = (hue > 105) & (hue < 165) & (sat > 0.12) & (a > 16)
+    spill = (hue > 105) & (hue < 150) & (sat > 0.12) & (a > 16)
     if not spill.any():
         return rgb
     clean = (a > 200) & ((hue <= 100) | (hue >= 170)) & (sat > 0.05)
