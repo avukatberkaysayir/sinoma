@@ -175,10 +175,14 @@ def shift_hue(frame, h1, h2, smin, vmin, dh):
 # and frames where it wobbled under 165 borrowed hue from whatever clean
 # pixel sat nearest (the red pepper, the white specular) — the "ghost patch
 # on the belly" artifact on L1/5-7. Genuine bg spill sits at 110-140.
+# sat > 0.30, NOT 0.12: pale interior highlights (L1/7's chest dome, hue ~142
+# sat ~0.2) are artwork, not spill — at 0.12 they borrowed blue from the
+# apron straps and orange from the brush, painting rainbow garbage onto the
+# dome. Real backdrop spill is saturated.
 def despill_interior(rgb, a):
     f = rgb.astype(np.float32) / 255.0
     hue, sat, mx = _hsv(f)
-    spill = (hue > 105) & (hue < 150) & (sat > 0.12) & (a > 16)
+    spill = (hue > 105) & (hue < 150) & (sat > 0.30) & (a > 16)
     if not spill.any():
         return rgb
     clean = (a > 200) & ((hue <= 100) | (hue >= 170)) & (sat > 0.05)
