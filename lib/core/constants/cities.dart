@@ -12,25 +12,10 @@ class City {
   String get slug => pinyin.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
 }
 
-// Turkish display names. ONLY Pekin and Şanghay are real exonyms; every other
-// city is the pinyin re-spelled with Turkish letters where the pinyin sound
-// has no Turkish letter (w→v, x→ş, q→ç, zh→c, ch→ç, sh→ş, j→c). Cities whose
-// pinyin already reads naturally in Turkish are omitted (fallback = pinyin).
-const Map<String, String> kCityTrNames = {
-  'beijing': 'Pekin', 'shanghai': 'Şanghay',
-  'nanjing': 'Nancing', 'guangzhou': 'Guangcou', 'chongqing': 'Çungçing',
-  'chengdu': 'Çengdu', 'xian': 'Şian', 'tianjin': 'Tiencin',
-  'hangzhou': 'Hangcou', 'wuhan': 'Vuhan', 'shenzhen': 'Şencen',
-  'suzhou': 'Sucou', 'qingdao': 'Çingdao', 'urumqi': 'Urumçi',
-  'kashgar': 'Kaşgar', 'hongkong': 'Hong Kong', 'macau': 'Makao',
-  'changsha': 'Çangşa', 'zhengzhou': 'Cengcou', 'wuxi': 'Vuşi',
-  'nanchang': 'Nançang', 'yinchuan': 'Yinçuan', 'zhuhai': 'Cuhay',
-  'yantai': 'Yantay', 'weifang': 'Veyfang', 'dezhou': 'Decou',
-  'xuzhou': 'Şücou', 'zhenjiang': 'Cenciang', 'jiaxing': 'Ciaşing',
-  'lishui': 'Lişuey', 'anqing': 'Ançing', 'ganzhou': 'Gancou',
-  'putian': 'Putien', 'mudanjiang': 'Mudanciang', 'changzhou': 'Çangcou',
-  'shaoxing': 'Şaoşing', 'jiujiang': 'Ciuciang', 'quanzhou': 'Çüencou',
-};
+// Turkish shows the ORIGINAL pinyin for every city on every level — no
+// Turkish phonetic re-spellings (Nancing, Guangcou, Çungçing…) and no
+// exonyms (Pekin, Şanghay). Berkay'ın kuralı (2026-07-10): şehir adları
+// Türkçe okunuşa uyarlanmaz, pinyin olduğu gibi gösterilir.
 
 // Korean transcriptions (국립국어원 중국어 표기법) for every path city; the
 // long tail falls back to pinyin like the other languages.
@@ -209,11 +194,11 @@ const Map<String, String> kCityArNames = {
 };
 
 // Locale-aware display name — banners/captions show ONLY this (no hanzi).
-String cityDisplayName(City c, {required bool tr}) =>
-    tr ? (kCityTrNames[c.slug] ?? c.pinyin) : c.pinyin;
+// TR = pinyin, per the rule above; the parameter stays for call-site clarity.
+String cityDisplayName(City c, {required bool tr}) => c.pinyin;
 
 String cityNameFor(City c, String lang) => switch (lang) {
-      'tr' => kCityTrNames[c.slug] ?? c.pinyin,
+      'tr' => c.pinyin,
       'ko' => kCityKoNames[c.slug] ?? c.pinyin,
       'ja' => kCityJaNames[c.slug] ?? c.pinyin,
       'id' => kCityIdNames[c.slug] ?? c.pinyin,
