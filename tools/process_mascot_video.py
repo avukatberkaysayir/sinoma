@@ -275,14 +275,22 @@ GUARD = "sinoma-admin-asset-2026"
 
 def upload(dst, level, unit):
     data = open(dst, "rb").read()
+    # Equal on-screen character size across units: the character stands full
+    # canvas HEIGHT in every clip, but horizontal effects (Ü12's smoke ring)
+    # widen the canvas and contain-fit shrinks the figure. width/height is
+    # exactly the compensation factor — stored as the row's display scale.
+    from PIL import Image
+    cw, ch = Image.open(dst).size
+    scale = round(min(max(cw / ch, 1.0), 1.6), 2)
     req = urllib.request.Request(
         f"https://{PROJECT}.supabase.co/functions/v1/admin-asset"
-        f"?level={level}&unit={unit}&kind=mascot&slot=0&ext=webp",
+        f"?level={level}&unit={unit}&kind=mascot&slot=0&ext=webp"
+        f"&scale={scale}",
         data=data, method="POST",
         headers={"Content-Type": "image/webp", "x-backfill-guard": GUARD})
     with urllib.request.urlopen(req, timeout=300) as r:
         out = json.loads(r.read().decode())
-    print(f"uploaded + row upserted: {out['url']}")
+    print(f"uploaded + row upserted (scale {scale}): {out['url']}")
 
 
 def main():

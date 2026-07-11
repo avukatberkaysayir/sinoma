@@ -25,6 +25,10 @@ serve(async (req) => {
     const kind = q.get("kind") ?? "mascot";
     const slot = Number(q.get("slot") ?? "0");
     const ext = q.get("ext") ?? "webp";
+    // Optional display scale: wide-canvas mascots (horizontal FX widen the
+    // crop) render small at contain-fit — the uploader compensates here so
+    // every unit's character shows at the same size.
+    const scale = q.get("scale") ? Number(q.get("scale")) : null;
     const ctype = req.headers.get("content-type") ?? "application/octet-stream";
     if (!level || !unit) {
       return new Response(JSON.stringify({ error: "level/unit required" }), { status: 400 });
@@ -50,6 +54,7 @@ serve(async (req) => {
           Prefer: "resolution=merge-duplicates",
         },
         body: JSON.stringify({ level, unit, kind, slot, url,
+          ...(scale ? { scale } : {}),
           updated_at: new Date().toISOString() }),
       });
     if (!row.ok) {
