@@ -198,17 +198,28 @@ def despill_interior(rgb, a):
 
 def process(src, dst, recolor=None):
     w, h, fps = probe(src)
-    first = next(decode_frames(src, w, h))
-    bg = corner_color(first, w, h)
+    # Backdrop = MEDIAN corner colour across ALL frames, not frame 0's: the
+    # generator sometimes emits a stray intro/morph frame with a different
+    # background (L1/11 opened on a decorative sunburst) — keying the whole
+    # video against that wrecks every frame. Frames whose own corners sit far
+    # from the median backdrop are generator garbage and are dropped outright.
+    corners = np.array(
+        [corner_color(f, w, h) for f in decode_frames(src, w, h)], np.float32)
+    bg = tuple(int(v) for v in np.median(corners, axis=0))
+    keep = np.sqrt(((corners - bg) ** 2).sum(axis=1)) / DIAG < 0.08
     sim, blend = tolerances(bg)
-    print(f"{w}x{h}@{fps:g}, bg RGB{bg}, key ±{sim}/{blend} border-connected")
+    dropped = int((~keep).sum())
+    print(f"{w}x{h}@{fps:g}, bg RGB{bg}, key ±{sim}/{blend} border-connected"
+          + (f", {dropped} off-backdrop frame(s) dropped" if dropped else ""))
 
     def prep(frame):
         return shift_hue(frame, *recolor) if recolor else frame
 
     # Pass 1: union bounding box of the character across all frames.
     x1, y1, x2, y2 = w, h, 0, 0
-    for frame in decode_frames(src, w, h):
+    for i, frame in enumerate(decode_frames(src, w, h)):
+        if not keep[i]:
+            continue
         a = alpha_mask(frame, bg, sim, blend)
         ys, xs = np.nonzero(a > 16)
         if len(xs):
@@ -232,7 +243,9 @@ def process(src, dst, recolor=None):
          "-c:v", "libwebp_anim", "-loop", "0", "-q:v", "85",
          "-compression_level", "6", "-fps_mode", "passthrough", dst],
         stdin=subprocess.PIPE)
-    for frame in decode_frames(src, w, h):
+    for i, frame in enumerate(decode_frames(src, w, h)):
+        if not keep[i]:
+            continue
         a = alpha_mask(frame, bg, sim, blend)
         rgb = despill_interior(prep(frame), a)
         # Edge-bleed guard: transparent/soft pixels still carry backdrop green
