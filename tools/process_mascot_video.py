@@ -196,7 +196,23 @@ def despill_interior(rgb, a):
     return np.clip(res, 0, 255).astype(np.uint8)
 
 
-def process(src, dst, recolor=None):
+# --whiten: neutralize greenish effect pixels (steam drawn green by the
+# generator, L1/17) to pure luminance white-grey. Runs BEFORE despill so the
+# band never gets hue-borrow rainbow speckles. Opt-in: only for clips whose
+# character carries no genuine green (body teal sits at hue 165+).
+def whiten_greens(rgb, a):
+    f = rgb.astype(np.float32) / 255.0
+    hue, sat, mx = _hsv(f)
+    sel = (hue > 90) & (hue < 158) & (sat > 0.04) & (a > 16)
+    if not sel.any():
+        return rgb
+    w = np.clip(ndimage.gaussian_filter(sel.astype(np.float32), 1.0), 0, 1)
+    grey = (mx * 255.0)[..., None].repeat(3, axis=2)
+    res = rgb.astype(np.float32) * (1 - w[..., None]) + grey * w[..., None]
+    return np.clip(res, 0, 255).astype(np.uint8)
+
+
+def process(src, dst, recolor=None, whiten=False):
     w, h, fps = probe(src)
     # Backdrop = MEDIAN corner colour across ALL frames, not frame 0's: the
     # generator sometimes emits a stray intro/morph frame with a different
@@ -247,7 +263,10 @@ def process(src, dst, recolor=None):
         if not keep[i]:
             continue
         a = alpha_mask(frame, bg, sim, blend)
-        rgb = despill_interior(prep(frame), a)
+        rgb = prep(frame)
+        if whiten:
+            rgb = whiten_greens(rgb, a)
+        rgb = despill_interior(rgb, a)
         # Edge-bleed guard: transparent/soft pixels still carry backdrop green
         # in RGB, and the straight-alpha downscale smears it into the visible
         # outline (green fringe on the beige app bg). Replace every non-core
@@ -300,7 +319,7 @@ def main():
     if "--recolor" in sys.argv:  # h1,h2,smin,vmin,dh
         parts = sys.argv[sys.argv.index("--recolor") + 1].split(",")
         recolor = tuple(float(p) for p in parts)
-    process(src, dst, recolor=recolor)
+    process(src, dst, recolor=recolor, whiten="--whiten" in sys.argv)
     if "--upload" in sys.argv:
         i = sys.argv.index("--upload")
         upload(dst, int(sys.argv[i + 1]), int(sys.argv[i + 2]))
