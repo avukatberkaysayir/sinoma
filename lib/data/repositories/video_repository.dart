@@ -10,18 +10,37 @@ class VideoRepository {
 
   SupabaseClient get _db => Supabase.instance.client;
 
+  // PostgREST caps every request at 1000 rows and the library passed that —
+  // a single .limit() silently dropped the newest tail, so fresh clips never
+  // reached the feed/curriculum (görüldü 2026-07-12). Page until short page;
+  // the id tiebreaker keeps windows stable across requests.
+  static const _pageSize = 1000, _maxRows = 10000;
+
+  Future<List<Map<String, dynamic>>> _paged(
+      PostgrestTransformBuilder<List<Map<String, dynamic>>> Function() base)
+      async {
+    final rows = <Map<String, dynamic>>[];
+    while (rows.length < _maxRows) {
+      final page =
+          await base().range(rows.length, rows.length + _pageSize - 1);
+      rows.addAll(List<Map<String, dynamic>>.from(page));
+      if (page.length < _pageSize) break;
+    }
+    return rows;
+  }
+
   // Practice feed: every clip at or below the user's tested HSK level —
   // including backups (yedek), unlike the home/path which is active-only.
   Future<List<VideoSegmentModel>> loadSegmentsForLevel(int hskLevel) async {
     try {
-      final data = await _db
+      final data = await _paged(() => _db
           .from('videos')
           .select()
           .lte('hsk_level', hskLevel)
           .inFilter('status', ['active', 'backup'])
           .order('hsk_level')
           .order('created_at', ascending: false)
-          .limit(1000);
+          .order('id'));
 
       final segments = data.map(VideoSegmentModel.fromMap).toList();
       await _cache.cacheVideoFeed(hskLevel, segments);
@@ -35,13 +54,13 @@ class VideoRepository {
   // All active clips (every HSK level) — the learning path builds its curriculum
   // from this pool by slicing per HSK level + theme.
   Future<List<VideoSegmentModel>> loadAllActiveSegments() async {
-    final data = await _db
+    final data = await _paged(() => _db
         .from('videos')
         .select()
         .eq('is_active', true)
         .order('hsk_level')
         .order('created_at', ascending: false)
-        .limit(5000);
+        .order('id'));
     return data.map(VideoSegmentModel.fromMap).toList();
   }
 
