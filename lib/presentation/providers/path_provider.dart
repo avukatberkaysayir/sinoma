@@ -296,8 +296,11 @@ bool isPhaseUnlocked(
     PathTopic topic, PathPhase phase, Map<String, dynamic> progress,
     [int userHskLevel = 0]) {
   if (kUnlockAll) return true; // TEMP inspection override (all levels)
-  if (!phase.hasVideos) return false;
+  // The HSK placement level opens EVERYTHING at or below it — including
+  // still-empty phases (they just browse/snackbar, never a lock): an HSK 6
+  // user must see all of L1-L6 without grinding phases (Berkay, 2026-07-12).
   if (topic.hsk <= userHskLevel) return true;
+  if (!phase.hasVideos) return false;
   final flat = <PathPhase>[
     for (final s in topic.steps)
       for (final p in s.phases)
@@ -305,7 +308,14 @@ bool isPhaseUnlocked(
   ];
   final idx = flat.indexWhere((p) => p.key == phase.key);
   if (idx <= 0) return true;
-  return progress.phase(flat[idx - 1].key).done;
+  if (progress.phase(flat[idx - 1].key).done) return true;
+  // Progress protection: new clips keep landing EARLIER in the chain as empty
+  // slots fill, which used to re-lock phases the user had already passed.
+  // Anything before the user's furthest completed phase stays open.
+  for (var i = idx; i < flat.length; i++) {
+    if (progress.phase(flat[i].key).done) return true;
+  }
+  return false;
 }
 
 // ── Providers ─────────────────────────────────────────────────────────────────

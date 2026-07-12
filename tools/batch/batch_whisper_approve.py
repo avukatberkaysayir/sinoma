@@ -174,6 +174,15 @@ for idx, row in enumerate(rows, 1):
     wt = row["whisper_text"].strip()
     print(f"[{idx}/{len(rows)}] {vid} — {wt[:40]}")
     try:
+        # Latin-ad kapısı: cümledeki Latin özel adlar Çince karşılığına çekilir
+        # (Durian→榴莲); karşılığı yoksa Çince'ye uygun çevriyazım, o da olmazsa
+        # olduğu gibi kalır (Berkay'ın kuralı, 2026-07-12).
+        if re.search(r"[A-Za-z]{2,}", wt):
+            sz = fn("translate", {"text": wt, "mode": "sinicize"}, tries=2)
+            fixed = (sz or {}).get("text", "").strip()
+            if fixed and fixed != wt:
+                print(f"    latin-ad: {wt[:25]} -> {fixed[:25]}")
+                wt = fixed
         lines = [l.strip() for l in wt.split("\n") if l.strip()]
         words = []
         for line in lines:
@@ -289,3 +298,14 @@ with open("batch_report.json", "w", encoding="utf-8") as f:
 print(f"\nOnaylanan: {len(report['approved'])}  Slot dolu (beklemede): "
       f"{len(report['slot_conflict'])}  Quiz hatasi: {len(report['quiz_failed'])}  "
       f"Hata: {len(report['error'])}")
+
+# Kalıcı son-adımlar: yerleşimsiz aktifleri boş slotlara oturt + boş-slot
+# hedef raporunu tazele (her parçalama/yerleştirme turunda otomatik).
+import os, subprocess
+_here = os.path.dirname(os.path.abspath(__file__))
+for step in ("place_actives.py", "empty_slot_report.py"):
+    try:
+        subprocess.run([sys.executable, "-u", os.path.join(_here, step)],
+                       timeout=900)
+    except Exception as e:
+        print(f"son-adim {step} atlandi: {e}")

@@ -68,6 +68,54 @@ serve(async (req) => {
     const keys = geminiKeys();
     if (!keys.length) return json({ error: "GEMINI_API_KEY not set" }, 500);
 
+    // Sinicize mode: replace LATIN-script proper names inside a Chinese
+    // sentence with their Chinese forms — established equivalent first
+    // (Durian→榴莲, Oreo→奥利奥), else a conventional transliteration that
+    // fits Chinese grammar, else keep the original name. Everything else in
+    // the sentence must stay byte-identical.
+    if (body.mode === "sinicize") {
+      const szPrompt =
+        `This Chinese sentence contains Latin-script words: "${text}"\n` +
+        `Rewrite ONLY the Latin-script proper names into Chinese: use the ` +
+        `established Chinese name if one exists (Durian→榴莲, Oreo→奥利奥, ` +
+        `McDonald's→麦当劳); otherwise a natural Chinese transliteration as ` +
+        `used for foreign names; if the token is an acronym or has no ` +
+        `sensible Chinese form, keep it unchanged. Do NOT change any other ` +
+        `character. Return ONLY JSON {"text": "<sentence>"}`;
+      const szBody = JSON.stringify({
+        contents: [{ parts: [{ text: szPrompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          response_mime_type: "application/json",
+        },
+      });
+      let lastE = "";
+      for (const model of MODEL_FALLBACKS) {
+        for (const key of keys) {
+          const r = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+            { method: "POST", headers: { "Content-Type": "application/json" }, body: szBody },
+          );
+          if (r.ok) {
+            const data = await r.json();
+            const raw: string =
+              (data?.candidates?.[0]?.content?.parts?.[0]?.text ?? "").trim();
+            let out = text;
+            try {
+              const p = JSON.parse(raw);
+              if (typeof p?.text === "string" && p.text.trim()) out = p.text.trim();
+            } catch { /* keep original */ }
+            return json({ text: out });
+          }
+          lastE = `Gemini ${r.status} [${model}]`;
+          if (![429, 500, 502, 503].includes(r.status)) {
+            return json({ error: lastE }, 502);
+          }
+        }
+      }
+      return json({ error: lastE || "exhausted" }, 502);
+    }
+
     // Proper-noun mode: word segmentation helper — multi-character names
     // (people, places, brands, transliterations like 巴塞罗那) must stay ONE
     // word instead of falling apart into single characters.
