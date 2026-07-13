@@ -902,13 +902,20 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final url = override?.url;
     // Admin-uploaded unit animation (GIF/WebP) carries its own motion — show it
     // as-is; the synthetic sway/blink is only for the static bundled mascot.
-    // Until the animation's first frame is decoded the slot stays EMPTY: no
-    // stale/static stand-in flashes on top of the 3rd-row circle.
+    // While the animation downloads (multi-MB on a cold cache, often past the
+    // unit's 8s reveal timeout) the slot shows the static bundled Orni at
+    // reduced opacity — an empty 3rd node read as "broken".
     final Widget img = (url != null && url.isNotEmpty)
         ? Image.network(url, width: scaled, height: scaled, fit: BoxFit.contain,
             frameBuilder: (_, child, frame, wasSync) =>
                 (frame == null && !wasSync)
-                    ? SizedBox(width: scaled, height: scaled)
+                    ? Opacity(
+                        opacity: 0.45,
+                        child: Image.asset('assets/mascot/mascot.png',
+                            width: scaled,
+                            height: scaled,
+                            fit: BoxFit.contain),
+                      )
                     : child)
         : AnimatedBuilder(
             animation: _idle,

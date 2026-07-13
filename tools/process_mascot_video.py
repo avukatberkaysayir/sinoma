@@ -250,13 +250,16 @@ def process(src, dst, recolor=None, whiten=False):
     # brings the sped-up stream back to ~24fps (a third fewer frames, same
     # perceived smoothness); mpdecimate drops near-duplicates; max
     # compression_level squeezes the same q:v 85 pixels harder.
+    # 18fps / q78 (was 24/q85): the mascot displays at ~120px, where neither
+    # shows — but the file halves, and multi-MB downloads were outliving the
+    # unit's 8s reveal timeout (blank 3rd node on cold caches).
     scale = (f"scale={MAX_SIDE}:-2" if cw >= ch else f"scale=-2:{MAX_SIDE}")
     enc = subprocess.Popen(
         [FFMPEG, "-y", "-v", "error",
          "-f", "rawvideo", "-pix_fmt", "rgba", "-s", f"{cw}x{ch}",
          "-framerate", f"{fps:g}", "-i", "-",
-         "-vf", f"{scale},mpdecimate,setpts=PTS/{SPEED},fps=24",
-         "-c:v", "libwebp_anim", "-loop", "0", "-q:v", "85",
+         "-vf", f"{scale},mpdecimate,setpts=PTS/{SPEED},fps=18",
+         "-c:v", "libwebp_anim", "-loop", "0", "-q:v", "78",
          "-compression_level", "6", "-fps_mode", "passthrough", dst],
         stdin=subprocess.PIPE)
     for i, frame in enumerate(decode_frames(src, w, h)):
