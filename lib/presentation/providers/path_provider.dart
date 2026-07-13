@@ -431,30 +431,6 @@ class UnitAssets {
 final unitRevealedProvider =
     StateProvider.family<bool, ({int level, int unit})>((ref, k) => false);
 
-// True once the level's OPENING units (the first screen) have precached —
-// they reveal together in one frame. Gating on EVERY unit broke down at 20
-// units × ~2.5MB animated mascots: ~45MB of eager downloads saturated the
-// connection, slowed every tab and left mascots blank for minutes. Units
-// further down precache ahead of the scroll (list cacheExtent) and paint
-// the moment their own batch lands.
-final levelRevealedProvider = Provider.family<bool, int>((ref, level) {
-  final topics = ref.watch(curriculumProvider).valueOrNull;
-  PathTopic? topic;
-  for (final t in topics ?? const <PathTopic>[]) {
-    if (t.hsk == level) {
-      topic = t;
-      break;
-    }
-  }
-  if (topic == null) return false;
-  final gate = topic.steps.length < 2 ? topic.steps.length : 2;
-  for (var u = 1; u <= gate; u++) {
-    if (!ref.watch(unitRevealedProvider((level: level, unit: u)))) {
-      return false;
-    }
-  }
-  return true;
-});
 
 final pathAssetsProvider =
     FutureProvider.family<UnitAssets, ({int level, int unit})>((ref, k) async {

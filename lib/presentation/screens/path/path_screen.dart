@@ -534,11 +534,22 @@ class _CenterPath extends ConsumerStatefulWidget {
 
 class _CenterPathState extends ConsumerState<_CenterPath> {
   final _scroll = ScrollController();
+  // ONE unit on screen at a time — 20 units × ~2.5MB animated mascots made
+  // any multi-unit layout choke the connection. The top strip and the
+  // bottom-right button switch units; only the selected unit's batch loads.
+  int _unit = 0;
+  int _autoJumpedHsk = -1;
 
   @override
   void dispose() {
     _scroll.dispose();
     super.dispose();
+  }
+
+  void _selectUnit(int i) {
+    if (i == _unit) return;
+    setState(() => _unit = i);
+    if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   @override
@@ -549,10 +560,12 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     final userHsk = ref.watch(currentHskLevelProvider);
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
-    // Level is now chosen from the left nav: when it changes, jump back to the
-    // top of the new level.
+    // Level is now chosen from the left nav: when it changes, go back to the
+    // first unit of the new level (the auto-jump below may then move it to
+    // the learner's current unit).
     ref.listen(selectedTopicHskProvider, (_, __) {
-      if (_scroll.hasClients) _scroll.jumpTo(0);
+      _autoJumpedHsk = -1;
+      _selectUnit(0);
     });
 
     return curriculum.when(
@@ -563,10 +576,6 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         final progress = progressAsync.valueOrNull ?? const {};
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
-        // Centred loader until EVERY unit of the level has precached its
-        // imagery (icons + mascot animation) — the reveal is one clean paint
-        // of the whole level, capped by the per-unit 8s precache timeout.
-        final entryRevealed = ref.watch(levelRevealedProvider(topic.hsk));
 
         // The single "current" phase across the topic.
         final flat = <PathPhase>[for (final s in topic.steps) ...s.phases];
@@ -583,35 +592,153 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
           }
         }
 
-        // No sticky banner any more — each unit carries its own "X. Ünite"
-        // title and the city info opens from the unit's side mascot.
-        return Stack(children: [
-          // (The stationery backdrop lives in the shell now — one page for
-          // the whole site, keyed to the user's level.)
-          ListView.builder(
-            controller: _scroll,
-            padding: const EdgeInsets.only(bottom: 80),
-            itemExtent: _kUnitHeight,
-            // Precache THREE units ahead of the scroll — far enough that a
-            // unit's batch lands before it enters the viewport, without the
-            // 45MB download storm of building every unit up front (which
-            // saturated the connection and slowed the whole app).
-            cacheExtent: _kUnitHeight * 3,
-            itemCount: topic.steps.length,
-            itemBuilder: (_, i) => _UnitNodes(
-              step: topic.steps[i],
-              topic: topic,
-              progress: progress,
-              currentKey: current?.key,
-              tr: tr,
-            ),
+        // First visit of a level: open on the unit the learner left off in.
+        if (_autoJumpedHsk != topic.hsk) {
+          _autoJumpedHsk = topic.hsk;
+          if (current != null) {
+            final i = topic.steps
+                .indexWhere((s) => s.phases.any((p) => p.key == current!.key));
+            if (i > 0) _unit = i;
+          }
+        }
+        final unit = _unit.clamp(0, topic.steps.length - 1);
+        final revealed = ref.watch(
+            unitRevealedProvider((level: topic.hsk, unit: unit + 1)));
+
+        return Column(children: [
+          _UnitStrip(
+            count: topic.steps.length,
+            selected: unit,
+            onSelect: _selectUnit,
           ),
-          if (!entryRevealed)
-            const Positioned.fill(
-              child: IgnorePointer(child: Center(child: _PathLoading())),
-            ),
+          Expanded(
+            child: Stack(children: [
+              ListView(
+                controller: _scroll,
+                padding: const EdgeInsets.only(bottom: 80),
+                children: [
+                  SizedBox(
+                    height: _kUnitHeight,
+                    child: _UnitNodes(
+                      key: ValueKey('${topic.hsk}-$unit'),
+                      step: topic.steps[unit],
+                      topic: topic,
+                      progress: progress,
+                      currentKey: current?.key,
+                      tr: tr,
+                    ),
+                  ),
+                ],
+              ),
+              if (!revealed)
+                const Positioned.fill(
+                  child: IgnorePointer(child: Center(child: _PathLoading())),
+                ),
+              // Next-unit seal button, bottom-right.
+              if (unit < topic.steps.length - 1)
+                Positioned(
+                  right: 18,
+                  bottom: 18,
+                  child: Material(
+                    color: const Color(0xFFE0442C),
+                    shape: const CircleBorder(),
+                    elevation: 3,
+                    child: InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _selectUnit(unit + 1),
+                      child: const Padding(
+                        padding: EdgeInsets.all(14),
+                        child: Icon(Icons.arrow_forward_rounded,
+                            color: Colors.white, size: 26),
+                      ),
+                    ),
+                  ),
+                ),
+            ]),
+          ),
         ]);
       },
+    );
+  }
+}
+
+// Horizontal unit picker above the unit: numbered seal chips, the active
+// unit inked jade green; tap to jump straight to any unit.
+class _UnitStrip extends StatefulWidget {
+  final int count;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  const _UnitStrip(
+      {required this.count, required this.selected, required this.onSelect});
+
+  @override
+  State<_UnitStrip> createState() => _UnitStripState();
+}
+
+class _UnitStripState extends State<_UnitStrip> {
+  final _ctrl = ScrollController();
+  static const _chipW = 50.0; // 42 chip + 8 gap
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _centerSelected() {
+    if (!_ctrl.hasClients) return;
+    final viewport = _ctrl.position.viewportDimension;
+    final target = (widget.selected * _chipW - viewport / 2 + _chipW / 2)
+        .clamp(0.0, _ctrl.position.maxScrollExtent);
+    _ctrl.animateTo(target,
+        duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+  }
+
+  @override
+  void didUpdateWidget(_UnitStrip old) {
+    super.didUpdateWidget(old);
+    if (old.selected != widget.selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _centerSelected());
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    const jade = Color(0xFF3FB58E);
+    return SizedBox(
+      height: 58,
+      child: ListView.builder(
+        controller: _ctrl,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: widget.count,
+        itemBuilder: (_, i) {
+          final active = i == widget.selected;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(8),
+              onTap: () => widget.onSelect(i),
+              child: Container(
+                width: 42,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: active ? jade : Colors.transparent,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                      color: active ? jade : AppColors.border, width: 1.5),
+                ),
+                child: Text('${i + 1}',
+                    style: TextStyle(
+                        color: active ? Colors.white : AppColors.text70,
+                        fontSize: 15,
+                        fontWeight:
+                            active ? FontWeight.w800 : FontWeight.w600)),
+              ),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -697,6 +824,7 @@ class _UnitNodes extends ConsumerStatefulWidget {
   final String? currentKey;
   final bool tr;
   const _UnitNodes({
+    super.key,
     required this.step,
     required this.topic,
     required this.progress,
@@ -827,11 +955,10 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final assets =
         assetsAsync.hasError ? const UnitAssets() : assetsAsync.valueOrNull;
     if (assets != null) _precacheUnitImages(assets);
-    // The unit paints when its own batch is ready AND the level's opening
-    // screen has revealed — the first paint is one synchronized frame, and
-    // units below land pre-loaded thanks to the list's cacheExtent.
-    final levelReady = ref.watch(levelRevealedProvider(step.hsk));
-    if (assets == null || !_imagesReady || !levelReady) {
+    // Single-unit view: the unit paints the moment its OWN batch (icons +
+    // mascot) is decoded — one synchronized frame, nothing else competes
+    // for bandwidth.
+    if (assets == null || !_imagesReady) {
       // Fixed-height blank cell (itemExtent) — only the separator shows.
       return Column(children: [
         if (step.index > 0)
