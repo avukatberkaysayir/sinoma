@@ -266,7 +266,11 @@ def process(src, dst, recolor=None, whiten=False):
         rgb = prep(frame)
         if whiten:
             rgb = whiten_greens(rgb, a)
-        rgb = despill_interior(rgb, a)
+        # Interior despill targets the GREEN band — it only makes sense (and
+        # is only safe) when the backdrop itself is green. On a magenta
+        # backdrop (L1/18: green dino onesie) it would repaint the costume.
+        if bg[1] > bg[0] and bg[1] > bg[2]:
+            rgb = despill_interior(rgb, a)
         # Edge-bleed guard: transparent/soft pixels still carry backdrop green
         # in RGB, and the straight-alpha downscale smears it into the visible
         # outline (green fringe on the beige app bg). Replace every non-core
