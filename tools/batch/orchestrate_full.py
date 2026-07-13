@@ -19,7 +19,9 @@ with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
             tok = line.split("=", 1)[1].strip()
 
 
-def sql(query, tries=3):
+def sql(query, tries=6):
+    # 6 deneme + artan bekleme: Management API'nin dakikalarca süren kesintileri
+    # (RemoteDisconnected) saatlik zinciri bir kez öldürmüştü (2026-07-13).
     for attempt in range(tries):
         try:
             r = requests.post(
@@ -31,17 +33,23 @@ def sql(query, tries=3):
                 return data
         except (requests.RequestException, ValueError):
             pass
-        time.sleep(2 * (attempt + 1))
+        time.sleep(min(10 * (attempt + 1), 60))
     raise RuntimeError("sql failed")
 
 
 # 1) Split job (pending count is the progress signal; result arrives at end).
+# Bekleme döngüsü API kesintisinde ASLA ölmez — o turu atlar.
 print("bolme isi bekleniyor…", flush=True)
 last_n, last_change = -1, time.time()
 while True:
-    st = sql("select status from pipeline_jobs where job_type='youtube_asr' "
-             "order by created_at desc limit 1;")[0]["status"]
-    n = sql("select count(*) as n from videos where status='pending';")[0]["n"]
+    try:
+        st = sql("select status from pipeline_jobs where job_type='youtube_asr' "
+                 "order by created_at desc limit 1;")[0]["status"]
+        n = sql("select count(*) as n from videos where status='pending';")[0]["n"]
+    except RuntimeError:
+        print("  API kesintisi — 2 dk sonra tekrar", flush=True)
+        time.sleep(120)
+        continue
     if n != last_n:
         last_n, last_change = n, time.time()
         print(f"  pending klip: {n} (is: {st})", flush=True)
