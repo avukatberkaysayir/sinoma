@@ -592,9 +592,11 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
             controller: _scroll,
             padding: const EdgeInsets.only(bottom: 80),
             itemExtent: _kUnitHeight,
-            // Build and precache EVERY unit up front instead of as the user
-            // scrolls into it — all units load together, no pop-in mid-list.
-            cacheExtent: _kUnitHeight * topic.steps.length,
+            // Precache THREE units ahead of the scroll — far enough that a
+            // unit's batch lands before it enters the viewport, without the
+            // 45MB download storm of building every unit up front (which
+            // saturated the connection and slowed the whole app).
+            cacheExtent: _kUnitHeight * 3,
             itemCount: topic.steps.length,
             itemBuilder: (_, i) => _UnitNodes(
               step: topic.steps[i],
@@ -825,8 +827,9 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     final assets =
         assetsAsync.hasError ? const UnitAssets() : assetsAsync.valueOrNull;
     if (assets != null) _precacheUnitImages(assets);
-    // The unit paints only when the WHOLE level is ready — one synchronized
-    // reveal for every unit, no unit popping in after its neighbours.
+    // The unit paints when its own batch is ready AND the level's opening
+    // screen has revealed — the first paint is one synchronized frame, and
+    // units below land pre-loaded thanks to the list's cacheExtent.
     final levelReady = ref.watch(levelRevealedProvider(step.hsk));
     if (assets == null || !_imagesReady || !levelReady) {
       // Fixed-height blank cell (itemExtent) — only the separator shows.

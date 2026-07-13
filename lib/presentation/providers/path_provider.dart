@@ -431,10 +431,12 @@ class UnitAssets {
 final unitRevealedProvider =
     StateProvider.family<bool, ({int level, int unit})>((ref, k) => false);
 
-// True once EVERY unit of the level has precached its batch — the whole
-// level paints in one frame instead of units popping in one by one as their
-// downloads finish (a freshly uploaded mascot used to make its unit appear
-// seconds after its neighbours).
+// True once the level's OPENING units (the first screen) have precached —
+// they reveal together in one frame. Gating on EVERY unit broke down at 20
+// units × ~2.5MB animated mascots: ~45MB of eager downloads saturated the
+// connection, slowed every tab and left mascots blank for minutes. Units
+// further down precache ahead of the scroll (list cacheExtent) and paint
+// the moment their own batch lands.
 final levelRevealedProvider = Provider.family<bool, int>((ref, level) {
   final topics = ref.watch(curriculumProvider).valueOrNull;
   PathTopic? topic;
@@ -445,7 +447,8 @@ final levelRevealedProvider = Provider.family<bool, int>((ref, level) {
     }
   }
   if (topic == null) return false;
-  for (var u = 1; u <= topic.steps.length; u++) {
+  final gate = topic.steps.length < 2 ? topic.steps.length : 2;
+  for (var u = 1; u <= gate; u++) {
     if (!ref.watch(unitRevealedProvider((level: level, unit: u)))) {
       return false;
     }
