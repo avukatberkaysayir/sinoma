@@ -616,7 +616,10 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
               // No vertical scroll: the unit is composed at its fixed design
               // size and scaled DOWN as one piece when the window is short,
               // so the layout always matches the reference proportions.
+              // top offset: the whole block (title + nodes) sits ~2-3cm below
+              // the strip, per Berkay's layout note.
               Positioned.fill(
+                top: 90,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.topCenter,
@@ -638,10 +641,12 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                 const Positioned.fill(
                   child: IgnorePointer(child: Center(child: _PathLoading())),
                 ),
-              // Previous / next unit seal buttons in the bottom corners.
+              // Previous / next unit seal buttons — pulled inward from the
+              // corners, mirrored at the same inset so the pair reads
+              // symmetric under the path.
               if (unit > 0)
                 Positioned(
-                  left: 18,
+                  left: 140,
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_back_rounded,
@@ -650,7 +655,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                 ),
               if (unit < topic.steps.length - 1)
                 Positioned(
-                  right: 18,
+                  right: 140,
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_forward_rounded,
@@ -733,13 +738,24 @@ class _UnitStripState extends State<_UnitStrip> {
   @override
   Widget build(BuildContext context) {
     const jade = Color(0xFF3FB58E);
+    // A REAL horizontal scrollbar under the chips: always visible, draggable,
+    // so neighbouring units can be reached by sliding it left/right.
     return SizedBox(
-      height: 58,
-      child: ListView.builder(
+      height: 74,
+      child: RawScrollbar(
         controller: _ctrl,
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        itemCount: widget.count,
+        thumbVisibility: true,
+        trackVisibility: true,
+        interactive: true,
+        thickness: 6,
+        radius: const Radius.circular(3),
+        thumbColor: jade.withValues(alpha: 0.6),
+        trackColor: AppColors.border.withValues(alpha: 0.45),
+        child: ListView.builder(
+          controller: _ctrl,
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 8, 12, 24),
+          itemCount: widget.count,
         itemBuilder: (_, i) {
           final active = i == widget.selected;
           return Padding(
@@ -765,7 +781,8 @@ class _UnitStripState extends State<_UnitStrip> {
               ),
             ),
           );
-        },
+          },
+        ),
       ),
     );
   }
