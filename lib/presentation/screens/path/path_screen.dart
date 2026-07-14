@@ -1527,6 +1527,14 @@ class _UnitInfoPanel extends ConsumerWidget {
                       final desc = ovr.isNotEmpty
                           ? ovr
                           : landmarkDesc(city.slug, lm.icon, lang, lm);
+                      // Fixed photo frame, independent of the text column's
+                      // height — a shared W×H crop (BoxFit.cover) so every
+                      // landmark's photo reads as the same standard size no
+                      // matter how long its description is. Previously the
+                      // photo stretched to match the text via IntrinsicHeight,
+                      // so short-desc landmarks got squat crops and long-desc
+                      // ones got tall ones.
+                      const frameW = 112.0, frameH = 92.0;
                       return Container(
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
@@ -1534,43 +1542,45 @@ class _UnitInfoPanel extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: ConstrainedBox(
-                          constraints: const BoxConstraints(minHeight: 96),
-                          child: IntrinsicHeight(
-                            child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                            SizedBox(
-                              width: 110,
-                              child: Stack(
-                                  fit: StackFit.expand,
-                                  children: [
-                                    ColoredBox(color: AppColors.locked),
-                                    // Real photography (admin/Wikimedia URL)
-                                    // fills the cell edge-to-edge; the bundled
-                                    // flat-icon fallback keeps its padding.
-                                    if (photo.url != null &&
-                                        photo.url!.isNotEmpty)
-                                      _slotImage(photo.url,
-                                          cityPhotoAsset(city.slug, lm.photo),
-                                          fit: BoxFit.cover)
-                                    else
-                                      Padding(
-                                        padding: const EdgeInsets.all(8),
-                                        child: _slotImage(null,
-                                            cityPhotoAsset(
-                                                city.slug, lm.photo),
-                                            fit: BoxFit.contain),
-                                      ),
-                                  ]),
-                            ),
-                            Expanded(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: SizedBox(
+                                  width: frameW,
+                                  height: frameH,
+                                  child: Stack(
+                                      fit: StackFit.expand,
+                                      children: [
+                                        ColoredBox(color: AppColors.locked),
+                                        // Real photography (admin/Wikimedia
+                                        // URL) fills the frame edge-to-edge;
+                                        // the bundled flat-icon fallback
+                                        // keeps its padding.
+                                        if (photo.url != null &&
+                                            photo.url!.isNotEmpty)
+                                          _slotImage(
+                                              photo.url,
+                                              cityPhotoAsset(
+                                                  city.slug, lm.photo),
+                                              fit: BoxFit.cover)
+                                        else
+                                          Padding(
+                                            padding: const EdgeInsets.all(8),
+                                            child: _slotImage(null,
+                                                cityPhotoAsset(
+                                                    city.slug, lm.photo),
+                                                fit: BoxFit.contain),
+                                          ),
+                                      ]),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
                                 child: Column(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.center,
                                   crossAxisAlignment:
                                       CrossAxisAlignment.start,
                                   children: [
@@ -1590,9 +1600,7 @@ class _UnitInfoPanel extends ConsumerWidget {
                                   ],
                                 ),
                               ),
-                            ),
-                          ],
-                          ),
+                            ],
                           ),
                         ),
                       );
