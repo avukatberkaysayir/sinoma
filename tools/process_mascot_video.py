@@ -33,6 +33,10 @@ PROJECT = "pqyceostpukueydwuiut"
 MAX_SIDE = 256   # icon standard (icons8 landmark icons are 256px)
 PAD = 12         # transparent breathing room around the character (src px)
 SPEED = 1.5      # playback speed-up — the AI loops animate too languidly at 1x
+TRIM_SECONDS = 3.0  # cap the looping mascot to its first N played seconds — a
+                    # short idle cycle is all the 3rd node needs, and halving the
+                    # frames roughly halves the file so units reveal faster.
+                    # Raise later if a longer loop is wanted.
 DIAG = 441.673   # sqrt(3) * 255, full-scale RGB distance
 EIGHT = np.ones((3, 3), dtype=bool)  # 8-connectivity for the bg component
 
@@ -260,9 +264,13 @@ def process(src, dst, recolor=None, whiten=False):
          "-framerate", f"{fps:g}", "-i", "-",
          "-vf", f"{scale},mpdecimate,setpts=PTS/{SPEED},fps=18",
          "-c:v", "libwebp_anim", "-loop", "0", "-q:v", "78",
-         "-compression_level", "6", "-fps_mode", "passthrough", dst],
+         "-compression_level", "6", "-fps_mode", "passthrough",
+         "-t", f"{TRIM_SECONDS:g}", dst],  # cap played duration (post speed-up)
         stdin=subprocess.PIPE)
-    for i, frame in enumerate(decode_frames(src, w, h)):
+    # -t makes the encoder stop reading once it has N seconds; the remaining
+    # frames we push then hit a closed pipe — expected, so swallow it.
+    try:
+      for i, frame in enumerate(decode_frames(src, w, h)):
         if not keep[i]:
             continue
         a = alpha_mask(frame, bg, sim, blend)
@@ -286,7 +294,12 @@ def process(src, dst, recolor=None, whiten=False):
             rgb = np.where(core[..., None], rgb, rgb[iy, ix])
         rgba = np.dstack([rgb, a])[y1:y1 + ch, x1:x1 + cw]
         enc.stdin.write(np.ascontiguousarray(rgba).tobytes())
-    enc.stdin.close()
+    except BrokenPipeError:
+        pass  # encoder reached the -t cap and closed stdin early — expected
+    try:
+        enc.stdin.close()
+    except (BrokenPipeError, OSError):
+        pass
     enc.wait()
     if enc.returncode:
         raise SystemExit(f"encoder failed ({enc.returncode})")

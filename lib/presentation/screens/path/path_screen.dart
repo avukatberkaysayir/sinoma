@@ -952,8 +952,25 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                     (level: step.hsk, unit: step.index + 1))
                 .notifier)
             .state = true;
+        // Warm the city-panel photos AFTER the reveal, off the critical path:
+        // they're only needed when the mascot is tapped, so keeping them out of
+        // the blocking batch above lets the unit paint fast, while this makes
+        // the panel open with every photo already decoded.
+        _precachePhotos(assets);
       }
     });
+  }
+
+  // Fire-and-forget precache of the unit's 4 landmark photos — the city info
+  // panel (tap the 3rd-node mascot) otherwise fetched them on open, so they
+  // trickled in a beat late.
+  void _precachePhotos(UnitAssets assets) {
+    for (var i = 0; i < 4; i++) {
+      final url = assets.photo(i).url;
+      if (url != null && url.isNotEmpty) {
+        precacheImage(NetworkImage(url), context, onError: (_, __) {});
+      }
+    }
   }
 
   Widget _mascot(double size, PathAsset? override) {
