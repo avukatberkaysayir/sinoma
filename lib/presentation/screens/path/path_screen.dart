@@ -546,6 +546,20 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     setState(() => _unit = i);
   }
 
+  // Prev/Next seal buttons step RELATIVE to the live unit (not a value captured
+  // at build). A short debounce absorbs the web double-fire — one physical tap
+  // on an InkWell occasionally dispatches two taps a frame apart, which slipped
+  // past the same-frame guard above and advanced the unit twice.
+  DateTime _lastStep = DateTime.fromMillisecondsSinceEpoch(0);
+  void _stepUnit(int delta, int maxUnit) {
+    final now = DateTime.now();
+    if (now.difference(_lastStep).inMilliseconds < 350) return;
+    _lastStep = now;
+    final next = (_unit + delta).clamp(0, maxUnit);
+    if (next == _unit) return;
+    setState(() => _unit = next);
+  }
+
   @override
   Widget build(BuildContext context) {
     final curriculum = ref.watch(curriculumProvider);
@@ -650,7 +664,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_back_rounded,
-                    onTap: () => _selectUnit(unit - 1),
+                    onTap: () => _stepUnit(-1, topic.steps.length - 1),
                   ),
                 ),
               if (unit < topic.steps.length - 1)
@@ -659,7 +673,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_forward_rounded,
-                    onTap: () => _selectUnit(unit + 1),
+                    onTap: () => _stepUnit(1, topic.steps.length - 1),
                   ),
                 ),
             ]),
