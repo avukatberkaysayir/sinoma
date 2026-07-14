@@ -461,9 +461,11 @@ class _LevelNavItem extends StatelessWidget {
 
 // ── Center path (learn) ───────────────────────────────────────────────────────
 
-// Fixed height per unit section — taller than a typical viewport so the NEXT
-// unit's top line only appears after a scroll.
-const double _kUnitHeight = 900;
+// Fixed design size of one unit (title + 4 phase rows + mascot ≈ 672px).
+// The unit is laid out at 600×680 and FittedBox.scaleDown shrinks the whole
+// composition on short windows — the path NEVER scrolls vertically.
+const double _kUnitHeight = 680;
+const double _kUnitWidth = 600;
 
 // An admin-uploaded image (network URL) when present, else the bundled asset.
 // A missing bundled asset (e.g. a landmark set added before its art) degrades
@@ -533,23 +535,15 @@ class _CenterPath extends ConsumerStatefulWidget {
 }
 
 class _CenterPathState extends ConsumerState<_CenterPath> {
-  final _scroll = ScrollController();
-  // ONE unit on screen at a time — 20 units × ~2.5MB animated mascots made
+  // ONE unit on screen at a time — 24 units × ~1.5MB animated mascots made
   // any multi-unit layout choke the connection. The top strip and the
-  // bottom-right button switch units; only the selected unit's batch loads.
+  // corner seal buttons switch units; only the selected unit's batch loads.
   int _unit = 0;
   int _autoJumpedHsk = -1;
-
-  @override
-  void dispose() {
-    _scroll.dispose();
-    super.dispose();
-  }
 
   void _selectUnit(int i) {
     if (i == _unit) return;
     setState(() => _unit = i);
-    if (_scroll.hasClients) _scroll.jumpTo(0);
   }
 
   @override
@@ -606,18 +600,28 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
             unitRevealedProvider((level: topic.hsk, unit: unit + 1)));
 
         return Column(children: [
-          _UnitStrip(
-            count: topic.steps.length,
-            selected: unit,
-            onSelect: _selectUnit,
+          // The strip stays INSIDE the stationery frame (gold rule + fret art
+          // live in the outer ~45px of the column) and scrolls horizontally
+          // within that bound.
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 46),
+            child: _UnitStrip(
+              count: topic.steps.length,
+              selected: unit,
+              onSelect: _selectUnit,
+            ),
           ),
           Expanded(
             child: Stack(children: [
-              ListView(
-                controller: _scroll,
-                padding: const EdgeInsets.only(bottom: 80),
-                children: [
-                  SizedBox(
+              // No vertical scroll: the unit is composed at its fixed design
+              // size and scaled DOWN as one piece when the window is short,
+              // so the layout always matches the reference proportions.
+              Positioned.fill(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.topCenter,
+                  child: SizedBox(
+                    width: _kUnitWidth,
                     height: _kUnitHeight,
                     child: _UnitNodes(
                       key: ValueKey('${topic.hsk}-$unit'),
@@ -628,36 +632,60 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                       tr: tr,
                     ),
                   ),
-                ],
+                ),
               ),
               if (!revealed)
                 const Positioned.fill(
                   child: IgnorePointer(child: Center(child: _PathLoading())),
                 ),
-              // Next-unit seal button, bottom-right.
+              // Previous / next unit seal buttons in the bottom corners.
+              if (unit > 0)
+                Positioned(
+                  left: 18,
+                  bottom: 18,
+                  child: _UnitNavButton(
+                    icon: Icons.arrow_back_rounded,
+                    onTap: () => _selectUnit(unit - 1),
+                  ),
+                ),
               if (unit < topic.steps.length - 1)
                 Positioned(
                   right: 18,
                   bottom: 18,
-                  child: Material(
-                    color: const Color(0xFFE0442C),
-                    shape: const CircleBorder(),
-                    elevation: 3,
-                    child: InkWell(
-                      customBorder: const CircleBorder(),
-                      onTap: () => _selectUnit(unit + 1),
-                      child: const Padding(
-                        padding: EdgeInsets.all(14),
-                        child: Icon(Icons.arrow_forward_rounded,
-                            color: Colors.white, size: 26),
-                      ),
-                    ),
+                  child: _UnitNavButton(
+                    icon: Icons.arrow_forward_rounded,
+                    onTap: () => _selectUnit(unit + 1),
                   ),
                 ),
             ]),
           ),
         ]);
       },
+    );
+  }
+}
+
+// Round corner button that steps to the previous/next unit — site turquoise,
+// mirrored bottom-left (back) and bottom-right (forward).
+class _UnitNavButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _UnitNavButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _duoGreen,
+      shape: const CircleBorder(),
+      elevation: 3,
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Icon(icon, color: Colors.white, size: 26),
+        ),
+      ),
     );
   }
 }
@@ -966,12 +994,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     // mascot) is decoded — one synchronized frame, nothing else competes
     // for bandwidth.
     if (assets == null || !_imagesReady) {
-      // Fixed-height blank cell (itemExtent) — only the separator shows.
-      return Column(children: [
-        if (step.index > 0)
-          Container(height: 1.5, color: AppColors.text.withValues(alpha: 0.12)),
-        const Expanded(child: SizedBox()),
-      ]);
+      return const SizedBox.expand();
     }
     final mascotOverride = assets.mascot;
 
@@ -1012,11 +1035,6 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
 
     return Column(
       children: [
-        // Units after the first carry the separator line at their very top;
-        // at scroll 0 no line shows (unit 1 has none, unit 2's is a full
-        // viewport away) — it appears only once you scroll into it.
-        if (step.index > 0)
-          Container(height: 1.5, color: AppColors.text.withValues(alpha: 0.12)),
         Expanded(
           child: Center(
             child: ConstrainedBox(
@@ -1041,10 +1059,14 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          // Title sits right at the unit top, well clear of
-                          // the first circle: big display-size text.
+                          // Title = the unit's theme city (localized), not a
+                          // bare "N. Ünite" ordinal.
                           Text(
-                            AppL10n.of(context).unitTitle(step.index + 1),
+                            cityNameFor(
+                                city,
+                                Localizations.maybeLocaleOf(context)
+                                        ?.languageCode ??
+                                    (tr ? 'tr' : 'en')),
                             textAlign: TextAlign.center,
                             style: TextStyle(
                                 color: AppColors.text,
