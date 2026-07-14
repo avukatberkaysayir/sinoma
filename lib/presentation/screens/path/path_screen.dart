@@ -619,7 +619,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
               // top offset: the whole block (title + nodes) sits ~2-3cm below
               // the strip, per Berkay's layout note.
               Positioned.fill(
-                top: 90,
+                top: 52,
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.topCenter,
@@ -646,7 +646,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
               // symmetric under the path.
               if (unit > 0)
                 Positioned(
-                  left: 140,
+                  left: 102,
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_back_rounded,
@@ -655,7 +655,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
                 ),
               if (unit < topic.steps.length - 1)
                 Positioned(
-                  right: 140,
+                  right: 102,
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_forward_rounded,
