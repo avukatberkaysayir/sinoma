@@ -95,6 +95,27 @@ if queued:
             print(f"  STALL: 20 dk ilerleme yok, {n} eksikle devam", flush=True)
             break
 
+# 3b) Never start the batch while a split is still (re)processing: the split's
+# DB-wide dedup (_drop_text_duplicates) deletes pending clips out from under the
+# batch's SELECT — the row vanishes before its UPDATE and the clip is lost
+# (2026-07-15: a stalled split that the 25-min guard skipped past kept running,
+# and a watchdog requeue re-ran it during the batch → 8 clips deleted mid-run).
+# The stall guard above can fire while the split is merely plateaued in its
+# final dedup/coherence phase, so gate explicitly on job state here.
+for _ in range(35):
+    try:
+        busy = sql("select count(*) as n from pipeline_jobs where "
+                   "job_type='youtube_asr' and status in ('pending','processing');"
+                   )[0]["n"]
+    except RuntimeError:
+        time.sleep(60)
+        continue
+    if not busy:
+        break
+    print(f"  split hala aktif ({busy}) — batch bekliyor (dedup yarisini onlemek icin)",
+          flush=True)
+    time.sleep(60)
+
 # 4) Approve batch (includes auto-define of unknown words).
 print("\n— toplu akis basliyor —\n", flush=True)
 r = subprocess.run([sys.executable, "-u", "batch_whisper_approve.py"], cwd=SCRATCH)

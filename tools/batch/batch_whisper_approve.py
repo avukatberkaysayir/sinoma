@@ -201,7 +201,7 @@ for idx, row in enumerate(rows, 1):
             fr for fr in (first_reading(pmap.get(w, "")) for w in spoken) if fr)
         transcription = "\n".join(lines)
 
-        upd = sql(f"""
+        _upd = sql(f"""
 update videos set
   transcription = {lit(transcription)},
   pinyin = {lit(pinyin)},
@@ -211,7 +211,15 @@ update videos set
 where id = '{vid}'
 returning level, unit, phase, backup_level, backup_unit, backup_phase,
           backup_kind, backup_grammar, backup_word, hsk_level;
-""")[0]
+""")
+        if not _upd:
+            # The row vanished between the SELECT and here — a concurrent split's
+            # DB-wide dedup (_drop_text_duplicates) or an admin delete removed it.
+            # Skip cleanly instead of crashing on [0] (IndexError).
+            report["error"].append({"id": vid, "err": "klip kayboldu (eszamanli silme)"})
+            print("    klip kayboldu (eszamanli dedup) — atlandi")
+            continue
+        upd = _upd[0]
 
         # EN quiz, then all other languages pivoted from that EN pair.
         tq = "".join(words)
