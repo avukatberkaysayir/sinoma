@@ -1534,21 +1534,34 @@ class _UnitInfoPanel extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.border),
                         ),
-                        child: Row(
-                          children: [
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 96),
+                          child: IntrinsicHeight(
+                            child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
                             SizedBox(
                               width: 110,
-                              height: 96,
                               child: Stack(
                                   fit: StackFit.expand,
                                   children: [
                                     ColoredBox(color: AppColors.locked),
-                                    Padding(
-                                      padding: const EdgeInsets.all(8),
-                                      child: _slotImage(photo.url,
+                                    // Real photography (admin/Wikimedia URL)
+                                    // fills the cell edge-to-edge; the bundled
+                                    // flat-icon fallback keeps its padding.
+                                    if (photo.url != null &&
+                                        photo.url!.isNotEmpty)
+                                      _slotImage(photo.url,
                                           cityPhotoAsset(city.slug, lm.photo),
-                                          fit: BoxFit.contain),
-                                    ),
+                                          fit: BoxFit.cover)
+                                    else
+                                      Padding(
+                                        padding: const EdgeInsets.all(8),
+                                        child: _slotImage(null,
+                                            cityPhotoAsset(
+                                                city.slug, lm.photo),
+                                            fit: BoxFit.contain),
+                                      ),
                                   ]),
                             ),
                             Expanded(
@@ -1567,9 +1580,9 @@ class _UnitInfoPanel extends ConsumerWidget {
                                             fontSize: 14,
                                             fontWeight: FontWeight.w800)),
                                     const SizedBox(height: 4),
+                                    // Full description — the panel body
+                                    // scrolls, so nothing gets ellipsized.
                                     Text(desc,
-                                        maxLines: 3,
-                                        overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                             color: AppColors.text70,
                                             fontSize: 12,
@@ -1579,6 +1592,8 @@ class _UnitInfoPanel extends ConsumerWidget {
                               ),
                             ),
                           ],
+                          ),
+                          ),
                         ),
                       );
                     }),
