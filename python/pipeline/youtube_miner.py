@@ -220,10 +220,15 @@ _CLIENTS: list[list[str]] = [
     ["--extractor-args", "youtube:player_client=ios;fetch_pot=always"],
 ]
 
-# Cookies are a LAST resort only — for age-gated / sign-in-required videos. They
-# force web clients (SABR), so they rarely yield a download, but they're the only
-# path for authenticated content. Tried after every no-cookie strategy fails.
+# Cookies are the fallback for a bot-FLAGGED IP ("Sign in to confirm you're not
+# a bot" after heavy traffic) and for age-gated content. Tried after every
+# no-cookie strategy fails. The combined client goes FIRST here: contrary to the
+# old note that cookies make yt-dlp skip tv/android, the merged client still
+# exposes a non-SABR audio stream WITH cookies (verified 2026-07-15, flagged IP:
+# combined+cookies → format 251, while web_safari+cookies → SABR "format not
+# available"). web_safari/mweb stay as last-ditch fallbacks.
 _COOKIE_CLIENTS: list[list[str]] = [
+    ["--extractor-args", f"youtube:player_client={_COMBINED_CLIENTS};fetch_pot=always"],
     ["--extractor-args", "youtube:player_client=web_safari;fetch_pot=always"],
     ["--extractor-args", "youtube:player_client=mweb;fetch_pot=always"],
 ]
