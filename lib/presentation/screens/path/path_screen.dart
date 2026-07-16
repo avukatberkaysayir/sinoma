@@ -256,6 +256,7 @@ class _LeftNav extends StatelessWidget {
               child: Row(
                 children: [
                   Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                       width: 34, height: 34, fit: BoxFit.contain),
                   if (!compact) ...[
                     const SizedBox(width: 8),
@@ -540,6 +541,8 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
   // corner seal buttons switch units; only the selected unit's batch loads.
   int _unit = 0;
   int _autoJumpedHsk = -1;
+  // One-shot: on mount, jump to the level the learner left off in.
+  bool _restoredEntry = false;
 
   void _selectUnit(int i) {
     if (i == _unit) return;
@@ -560,6 +563,24 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     setState(() => _unit = next);
   }
 
+  // Which unit the level-change listener should land on. Set only by
+  // _crossLevel; a plain nav pick leaves it null and lands on unit 0.
+  int? _pendingUnit;
+
+  // Step past the edge of a level: forward from the LAST unit opens the next
+  // level's first unit, back from the FIRST opens the previous level's last —
+  // so L1…L6 reads as one continuous path instead of six dead ends.
+  void _crossLevel(int delta, List<PathTopic> topics) {
+    final now = DateTime.now();
+    if (now.difference(_lastStep).inMilliseconds < 350) return;
+    _lastStep = now;
+    final next = ref.read(selectedTopicHskProvider) + delta;
+    if (next < 1 || next > 6) return;
+    final t = topics.firstWhere((x) => x.hsk == next, orElse: () => topics.first);
+    _pendingUnit = delta > 0 ? 0 : t.steps.length - 1;
+    ref.read(selectedTopicHskProvider.notifier).state = next;
+  }
+
   @override
   Widget build(BuildContext context) {
     final curriculum = ref.watch(curriculumProvider);
@@ -568,12 +589,14 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     final userHsk = ref.watch(currentHskLevelProvider);
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
-    // Level is now chosen from the left nav: when it changes, go back to the
-    // first unit of the new level (the auto-jump below may then move it to
-    // the learner's current unit).
-    ref.listen(selectedTopicHskProvider, (_, __) {
-      _autoJumpedHsk = -1;
-      _selectUnit(0);
+    // Level is chosen from the left nav (→ first unit, auto-jump may then move
+    // it to the learner's current unit) or by crossing a level edge (→ the unit
+    // _crossLevel picked; suppress the auto-jump so it isn't overridden).
+    ref.listen(selectedTopicHskProvider, (_, next) {
+      final target = _pendingUnit;
+      _pendingUnit = null;
+      _autoJumpedHsk = target != null ? next : -1;
+      _selectUnit(target ?? 0);
     });
 
     return curriculum.when(
@@ -582,6 +605,23 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
           Center(child: Text('$e', style: TextStyle(color: AppColors.text54))),
       data: (topics) {
         final progress = progressAsync.valueOrNull ?? const {};
+
+        // Entering /learn lands on the level the learner actually left off in,
+        // not always L1 (the provider's default). Runs once per mount; the
+        // per-level auto-jump below then picks the unit inside it. Deferred to
+        // a post-frame callback — writing a provider during build throws.
+        if (!_restoredEntry) {
+          _restoredEntry = true;
+          final cur = currentPhaseFor(topics, progress, userHsk);
+          if (cur != null && cur.hsk != selectedHsk) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ref.read(selectedTopicHskProvider.notifier).state = cur.hsk;
+              }
+            });
+          }
+        }
+
         final topic = topics.firstWhere((t) => t.hsk == selectedHsk,
             orElse: () => topics.first);
 
@@ -658,22 +698,29 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
               // Previous / next unit seal buttons — pulled inward from the
               // corners, mirrored at the same inset so the pair reads
               // symmetric under the path.
-              if (unit > 0)
+              // At a level's edge the same seal button crosses into the
+              // neighbouring level (L1 Ü24 → L2 Ü1, L2 Ü1 → L1 Ü24), so only
+              // the very first (L1 Ü1) and very last unit lack a partner.
+              if (unit > 0 || topic.hsk > 1)
                 Positioned(
                   left: 102,
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_back_rounded,
-                    onTap: () => _stepUnit(-1, topic.steps.length - 1),
+                    onTap: () => unit == 0
+                        ? _crossLevel(-1, topics)
+                        : _stepUnit(-1, topic.steps.length - 1),
                   ),
                 ),
-              if (unit < topic.steps.length - 1)
+              if (unit < topic.steps.length - 1 || topic.hsk < 6)
                 Positioned(
                   right: 102,
                   bottom: 18,
                   child: _UnitNavButton(
                     icon: Icons.arrow_forward_rounded,
-                    onTap: () => _stepUnit(1, topic.steps.length - 1),
+                    onTap: () => unit == topic.steps.length - 1
+                        ? _crossLevel(1, topics)
+                        : _stepUnit(1, topic.steps.length - 1),
                   ),
                 ),
             ]),
@@ -983,11 +1030,13 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
     // reduced opacity — an empty 3rd node read as "broken".
     final Widget img = (url != null && url.isNotEmpty)
         ? Image.network(url, width: scaled, height: scaled, fit: BoxFit.contain,
+            filterQuality: FilterQuality.high,
             frameBuilder: (_, child, frame, wasSync) =>
                 (frame == null && !wasSync)
                     ? Opacity(
                         opacity: 0.45,
                         child: Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                             width: scaled,
                             height: scaled,
                             fit: BoxFit.contain),
@@ -1009,6 +1058,7 @@ class _UnitNodesState extends ConsumerState<_UnitNodes>
               );
             },
             child: Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                 width: scaled, height: scaled, fit: BoxFit.contain),
           );
     // The slot keeps its fixed 120px footprint so the unit's row geometry and
