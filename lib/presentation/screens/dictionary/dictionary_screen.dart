@@ -289,17 +289,26 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     }
   }
 
-  void _openWordDetail(String wordId) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => WordDetailSheet(
-        wordId: wordId,
-        transcription: '',
-        hskLevel: 0,
-      ),
-    );
+  // A search hit opens as a panel that drops out of the search field — not the
+  // bottom sheet the player uses. Tapping anywhere outside closes it and clears
+  // the query, so the field is ready for the next word. No AI block here: in
+  // Sözlük people want the meaning, and the AI tutor stays on the player where
+  // a word has a sentence for context.
+  DictionaryModel? _openWord;
+
+  void _closePanel() {
+    if (_openWord == null) return;
+    setState(() => _openWord = null);
+    _controller.clear();
+    ref
+        .read(_dictionarySearchProvider.notifier)
+        .search('', lang: ref.read(currentLanguageProvider));
+  }
+
+  // Deep link (?w=<id>) still has to resolve the word before it can be shown.
+  Future<void> _openWordDetail(String wordId) async {
+    final w = await ref.read(dictionaryRepositoryProvider).loadWord(wordId);
+    if (w != null && mounted) setState(() => _openWord = w);
   }
 
   @override
@@ -311,7 +320,12 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
     return Stack(
       children: [
         Scaffold(
-          body: Center(
+          // Taps that reach this far are outside the panel — the panel and the
+          // result rows win the arena before it. No-op while nothing is open.
+          body: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onTap: _closePanel,
+            child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 640),
               child: Column(
@@ -353,9 +367,22 @@ class _DictionaryScreenState extends ConsumerState<DictionaryScreen> {
                   },
                 ),
               ),
-              Expanded(child: _buildBody(searchState, lang)),
+              // The panel takes the place of the result list, right under the
+              // field, so it reads as a dropdown of the search box.
+              Expanded(
+                child: _openWord != null
+                    ? SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
+                        child: _WordPanel(
+                            word: _openWord!,
+                            lang: lang,
+                            onClose: _closePanel),
+                      )
+                    : _buildBody(searchState, lang),
+              ),
             ],
               ),
+            ),
             ),
           ),
         ),
@@ -1052,6 +1079,99 @@ class _SearchChip extends StatelessWidget {
                       color: AppColors.onSurface, fontSize: 13)),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// The dropdown a search hit opens into. Meaning and the list action only —
+// the AI tutor lives on the player, where a word has a sentence around it.
+class _WordPanel extends StatelessWidget {
+  final DictionaryModel word;
+  final String lang;
+  final VoidCallback onClose;
+
+  const _WordPanel(
+      {required this.word, required this.lang, required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = AppColors.forHskLevel(word.hskLevel);
+    return GestureDetector(
+      // Swallows taps so the page-level dismiss gesture never sees them.
+      onTap: () {},
+      child: Container(
+        decoration: BoxDecoration(
+          color: AppColors.surfaceVariant,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.35)),
+        ),
+        padding: const EdgeInsets.fromLTRB(16, 14, 8, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  word.simplified,
+                  style: TextStyle(
+                      color: accent,
+                      fontSize: 34,
+                      fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(height: 4),
+                      Text(word.pinyin,
+                          style: TextStyle(
+                              color: AppColors.onSurface, fontSize: 17)),
+                      if (word.definitions.pos.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            word.definitions.pos,
+                            style: TextStyle(
+                                color: AppColors.onSurfaceMuted, fontSize: 11),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                if (word.hskLevel > 0)
+                  Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.18),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: accent.withValues(alpha: 0.5)),
+                    ),
+                    child: Text('HSK ${word.hskLevel}',
+                        style: TextStyle(color: accent, fontSize: 11)),
+                  ),
+                _AddToListButton(word: word),
+                IconButton(
+                  icon: Icon(Icons.close,
+                      color: AppColors.onSurfaceMuted, size: 18),
+                  onPressed: onClose,
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: _WordTile._buildDefinitionText(
+                  TranslationHelper.getDefinition(word, lang)),
+            ),
+          ],
         ),
       ),
     );

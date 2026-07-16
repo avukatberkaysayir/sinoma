@@ -341,8 +341,8 @@ class _Hero extends ConsumerWidget {
             borderRadius: BorderRadius.circular(20),
           ),
           child: Text(
-              t('🎬 Video ile Mandarin', '🎬 Mandarin through video',
-                  '🎬 영상으로 배우는 중국어', '🎬 動画で学ぶ中国語', '🎬 Mandarin lewat video', '🎬 Học tiếng Trung qua video', '🎬 เรียนภาษาจีนผ่านวิดีโอ', '🎬 Китайский через видео', '🎬 Chino a través de vídeos', '🎬 Chinês através de vídeos', '🎬 Le chinois par la vidéo', '🎬 الصينية عبر الفيديو'),
+              t('🎬 Video ile Çince', '🎬 Chinese through video',
+                  '🎬 영상으로 배우는 중국어', '🎬 動画で学ぶ中国語', '🎬 Bahasa Tionghoa lewat video', '🎬 Học tiếng Trung qua video', '🎬 เรียนภาษาจีนผ่านวิดีโอ', '🎬 Китайский через видео', '🎬 Chino a través de vídeos', '🎬 Chinês através de vídeos', '🎬 Le chinois par la vidéo', '🎬 الصينية عبر الفيديو'),
               style: const TextStyle(
                   color: _lpGreen,
                   fontSize: 13,
@@ -350,9 +350,9 @@ class _Hero extends ConsumerWidget {
         ),
         const SizedBox(height: 20),
         Text(
-          t('Gerçek videolarla Mandarin öğren',
-              'Learn Mandarin with real videos',
-              '진짜 영상으로 중국어를 배우세요', '本物の動画で中国語を学ぼう', 'Belajar Mandarin dengan video nyata', 'Học tiếng Trung bằng video thật', 'เรียนภาษาจีนด้วยวิดีโอจริง', 'Учите китайский по настоящим видео', 'Aprende chino con vídeos reales', 'Aprenda chinês com vídeos reais', 'Apprends le chinois avec de vraies vidéos', 'تعلّم الصينية بفيديوهات حقيقية'),
+          t('Gerçek videolarla Çince öğren',
+              'Learn Chinese with real videos',
+              '진짜 영상으로 중국어를 배우세요', '本物の動画で中国語を学ぼう', 'Belajar bahasa Tionghoa dengan video nyata', 'Học tiếng Trung bằng video thật', 'เรียนภาษาจีนด้วยวิดีโอจริง', 'Учите китайский по настоящим видео', 'Aprende chino con vídeos reales', 'Aprenda chinês com vídeos reais', 'Apprends le chinois avec de vraies vidéos', 'تعلّم الصينية بفيديوهات حقيقية'),
           textAlign: TextAlign.center,
           style: TextStyle(
             color: AppColors.onSurface,

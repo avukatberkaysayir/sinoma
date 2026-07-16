@@ -5930,7 +5930,7 @@ class _YouTubeTabState extends ConsumerState<_YouTubeTab> {
               // Not an error — but make "empty" loud and explain it.
               _resultSuccess = false;
               _resultMsg = found == 0
-                  ? '⚠ Hiç segment bulunamadı (Mandarin/altyazı yok veya sözlük eşleşmesi yok).'
+                  ? '⚠ Hiç segment bulunamadı (Çince/altyazı yok veya sözlük eşleşmesi yok).'
                   : '⚠ 0 klip kaldı — $found segment bulundu ama hepsi elendi'
                       '${drops.isEmpty ? '' : ': ${drops.join(', ')}'}.'
                       ' Filtre/kriter çok dar: daha geniş HSK seç veya kriteri kaldırıp tekrar dene.';

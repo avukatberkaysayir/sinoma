@@ -164,10 +164,7 @@ class PathScreen extends ConsumerWidget {
                   IgnorePointer(
                     child: RepaintBoundary(
                       child: CustomPaint(
-                        painter: _LevelPagePainter(
-                          hsk: ref.watch(currentHskLevelProvider),
-                          dark: AppColors.dark,
-                        ),
+                        painter: _LevelPagePainter(dark: AppColors.dark),
                       ),
                     ),
                   ),
@@ -1303,14 +1300,17 @@ class _RoutePainter extends CustomPainter {
 // Painted once per level/size — it does NOT track the scroll — so the list
 // scrolls over a static framed page and the backdrop costs nothing per frame.
 class _LevelPagePainter extends CustomPainter {
-  final int hsk;
   final bool dark;
-  const _LevelPagePainter({required this.hsk, required this.dark});
+  const _LevelPagePainter({required this.dark});
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width, h = size.height;
-    final base = AppColors.forHskLevel(hsk);
+    // ONE stationery page for everyone, every level (Berkay 2026-07-17). It used
+    // to tint itself with the learner's HSK colour, which arrives a frame after
+    // the page does — so the green ground painted first and then flipped to the
+    // level's colour. Pinned to the green so it paints once, with everything else.
+    final base = AppColors.forHskLevel(1);
     const gold = Color(0xFFD4A33D);
     canvas.save();
     canvas.clipRect(Offset.zero & size); // edge art must not bleed outside
@@ -1331,7 +1331,6 @@ class _LevelPagePainter extends CustomPainter {
     final ink = stroke(base, dark ? 0.40 : 0.34);
     final soft = stroke(base, dark ? 0.26 : 0.20);
     final goldRule = stroke(gold, dark ? 0.50 : 0.45, 1.2);
-    final fill = Paint()..color = base.withValues(alpha: dark ? 0.22 : 0.18);
 
     // Frame: gold rule + running key-fret chain down both edges.
     for (final left in [true, false]) {
@@ -1343,65 +1342,15 @@ class _LevelPagePainter extends CustomPainter {
       }
     }
 
-    switch (hsk) {
-      case 1: // clouds drifting along the margins
-        _cloud(canvas, ink, Offset(86, h * 0.14), 1.3);
-        _cloud(canvas, soft, Offset(w - 92, h * 0.30), 1.0);
-        _cloud(canvas, soft, Offset(78, h * 0.56), 0.9);
-        _cloud(canvas, ink, Offset(w - 86, h * 0.74), 1.2);
-        _cloud(canvas, soft, Offset(110, h * 0.92), 1.0);
-      case 2: // knots hanging into the page from the top corners
-        _knot(canvas, ink, const Offset(92, 96));
-        _knot(canvas, soft, Offset(w - 92, 132));
-        _cloudRule(canvas, soft, Offset(w * 0.5, h * 0.55), 70);
-      case 3: // sea band along the bottom, cloud rules above
-        for (var row = 0; row < 3; row++) {
-          final y = h - 16 - row * 22.0;
-          final shift = row.isOdd ? 24.0 : 0.0;
-          for (var x = shift; x < w + 24; x += 48) {
-            for (var r = 8.0; r <= 22; r += 7) {
-              canvas.drawArc(Rect.fromCircle(center: Offset(x, y), radius: r),
-                  pi, pi, false, row == 0 ? ink : soft);
-            }
-          }
-        }
-        _cloudRule(canvas, soft, Offset(w * 0.30, h * 0.32), 60);
-        _cloudRule(canvas, soft, Offset(w * 0.72, h * 0.58), 60);
-      case 4: // plum branches reaching in from two corners
-        _plumBranch(canvas, ink, fill, const Offset(0, 70), 1.0, false);
-        _plumBranch(canvas, soft, fill, Offset(w, h - 130), 0.8, true);
-      case 5: // pierced medallions bleeding off both edges
-        _medallion(canvas, ink, soft, Offset(4, h * 0.38), 92);
-        _medallion(canvas, soft, soft, Offset(w - 4, h * 0.78), 64);
-      default: // ink mountain range along the bottom
-        final ridge = Path()..moveTo(-10, h - 26);
-        final peaks = [
-          (w * 0.10, h - 88.0),
-          (w * 0.22, h - 44.0),
-          (w * 0.38, h - 112.0),
-          (w * 0.52, h - 52.0),
-          (w * 0.66, h - 96.0),
-          (w * 0.82, h - 40.0),
-          (w * 0.94, h - 78.0),
-        ];
-        for (final (px, py) in peaks) {
-          ridge.lineTo(px, py);
-        }
-        ridge.lineTo(w + 10, h - 30);
-        canvas.drawPath(ridge, ink);
-        for (var i = 0; i < 3; i++) {
-          canvas.drawArc(
-              Rect.fromCenter(
-                  center: Offset(w * (0.25 + 0.25 * i), h - 18),
-                  width: 90,
-                  height: 18),
-              pi * 0.1,
-              pi * 0.8,
-              false,
-              soft);
-        }
-        _cloudRule(canvas, soft, Offset(w * 0.62, h * 0.24), 70);
-    }
+    // One fixed ornament set (如意祥云 drifting clouds) to match the fixed green
+    // ground — the per-level knots / waves / plum / medallions / mountains are
+    // gone with the per-level tint.
+    _cloud(canvas, ink, Offset(86, h * 0.14), 1.3);
+    _cloud(canvas, soft, Offset(w - 92, h * 0.30), 1.0);
+    _cloud(canvas, soft, Offset(78, h * 0.56), 0.9);
+    _cloud(canvas, ink, Offset(w - 86, h * 0.74), 1.2);
+    _cloud(canvas, soft, Offset(110, h * 0.92), 1.0);
+    _cloudRule(canvas, soft, Offset(w * 0.5, h * 0.55), 70);
     canvas.restore();
   }
 
@@ -1457,70 +1406,11 @@ class _LevelPagePainter extends CustomPainter {
     c.drawPath(path, p);
   }
 
-  // 中国结 — cord from the top, diamond knot, side loops, tassels.
-  void _knot(Canvas c, Paint p, Offset o) {
-    c.drawLine(Offset(o.dx, 0), Offset(o.dx, o.dy - 22), p);
-    c.save();
-    c.translate(o.dx, o.dy);
-    c.rotate(pi / 4);
-    for (final r in [15.0, 10.0, 5.0]) {
-      c.drawRect(Rect.fromCenter(center: Offset.zero, width: r * 2, height: r * 2), p);
-    }
-    c.restore();
-    c.drawCircle(o.translate(-25, 0), 5, p);
-    c.drawCircle(o.translate(25, 0), 5, p);
-    for (final dx in [-5.0, 0.0, 5.0]) {
-      c.drawLine(o.translate(dx * 0.4, 22), o.translate(dx, 52), p);
-    }
-  }
 
-  // 团花 pierced medallion bleeding off an edge: concentric rings, a petal
-  // wreath and a coin heart.
-  void _medallion(Canvas c, Paint p, Paint p2, Offset o, double r) {
-    c.drawCircle(o, r, p);
-    c.drawCircle(o, r * 0.86, p2);
-    for (var i = 0; i < 14; i++) {
-      final a = i * 2 * pi / 14;
-      final pc = o + Offset(cos(a), sin(a)) * r * 0.66;
-      c.drawCircle(pc, r * 0.13, p2);
-    }
-    c.drawCircle(o, r * 0.30, p);
-    c.drawRect(
-        Rect.fromCenter(center: o, width: r * 0.22, height: r * 0.22), p);
-  }
 
-  // 梅花 branch sweeping in from a corner with blossoms and buds.
-  void _plumBranch(
-      Canvas c, Paint p, Paint fill, Offset root, double k, bool mirror) {
-    final s = mirror ? -1.0 : 1.0;
-    final branch = Path()
-      ..moveTo(root.dx, root.dy)
-      ..quadraticBezierTo(root.dx + s * 90 * k, root.dy - 10 * k,
-          root.dx + s * 150 * k, root.dy + 34 * k)
-      ..quadraticBezierTo(root.dx + s * 205 * k, root.dy + 72 * k,
-          root.dx + s * 262 * k, root.dy + 60 * k)
-      ..moveTo(root.dx + s * 118 * k, root.dy + 16 * k)
-      ..quadraticBezierTo(root.dx + s * 150 * k, root.dy - 26 * k,
-          root.dx + s * 196 * k, root.dy - 34 * k);
-    c.drawPath(branch, p);
-    void blossom(Offset o, double r) {
-      for (var i = 0; i < 5; i++) {
-        final a = -pi / 2 + i * 2 * pi / 5;
-        c.drawCircle(o + Offset(cos(a), sin(a)) * r, r * 0.72, fill);
-      }
-      c.drawCircle(o, r * 0.28, p);
-    }
-
-    blossom(root.translate(s * 150 * k, 34 * k), 8 * k);
-    blossom(root.translate(s * 196 * k, -34 * k), 7 * k);
-    blossom(root.translate(s * 250 * k, 58 * k), 6 * k);
-    c.drawCircle(root.translate(s * 92 * k, -2 * k), 3 * k, fill);
-    c.drawCircle(root.translate(s * 226 * k, 66 * k), 2.6 * k, fill);
-  }
 
   @override
-  bool shouldRepaint(_LevelPagePainter old) =>
-      old.hsk != hsk || old.dark != dark;
+  bool shouldRepaint(_LevelPagePainter old) => old.dark != dark;
 }
 
 // City info panel — opens over the unit (sized to it, never overflows):

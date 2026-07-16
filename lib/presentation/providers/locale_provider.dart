@@ -214,11 +214,11 @@ class AppL10n {
   String get idiomOfWeek       => _t('HAFTANIN DEYİMİ', 'IDIOM OF THE WEEK', '이번 주 성어', '今週の成語', 'IDIOM PEKAN INI', 'THÀNH NGỮ TUẦN NÀY', 'สำนวนประจำสัปดาห์', 'ИДИОМА НЕДЕЛИ', 'MODISMO DE LA SEMANA', 'IDIOMA DA SEMANA', 'IDIOME DE LA SEMAINE', 'مثل الأسبوع');
   String get trendingNow       => _t('POPÜLER ARAMALAR', 'TRENDING NOW', '인기 검색어', '人気の検索', 'SEDANG POPULER', 'ĐANG THỊNH HÀNH', 'กำลังนิยม', 'ПОПУЛЯРНОЕ', 'TENDENCIA AHORA', 'EM ALTA AGORA', 'TENDANCES ACTUELLES', 'الأكثر رواجاً الآن');
   String get newlyAdded        => _t('YENİ EKLENENLER', 'NEWLY ADDED', '새로 추가된 단어', '新着の単語', 'BARU DITAMBAHKAN', 'MỚI THÊM', 'เพิ่งเพิ่มใหม่', 'НОВИНКИ', 'AÑADIDO RECIENTEMENTE', 'ADICIONADOS RECENTEMENTE', 'AJOUTS RÉCENTS', 'أضيفت حديثاً');
-  String get testYourChinese   => _t('Çinceni Test Et', 'Test Your Chinese', '중국어 실력 테스트', '中国語の実力テスト', 'Uji Bahasa Mandarinmu', 'Kiểm tra tiếng Trung của bạn', 'ทดสอบภาษาจีนของคุณ', 'Проверьте свой китайский', 'Pon a prueba tu chino', 'Teste seu chinês', 'Testez votre chinois', 'اختبر لغتك الصينية');
+  String get testYourChinese   => _t('Çinceni Test Et', 'Test Your Chinese', '중국어 실력 테스트', '中国語の実力テスト', 'Uji Bahasa Tionghoamu', 'Kiểm tra tiếng Trung của bạn', 'ทดสอบภาษาจีนของคุณ', 'Проверьте свой китайский', 'Pon a prueba tu chino', 'Teste seu chinês', 'Testez votre chinois', 'اختبر لغتك الصينية');
   String get testYourChineseSub => _t('20 soruluk HSK seviye testiyle kendini dene.',
       'Try the 20-question HSK placement test.', 'HSK 레벨 테스트(20문항)에 도전해 보세요.', '20問のHSKレベルテストに挑戦してみましょう。', 'Coba tes penempatan HSK 20 soal.', 'Thử bài kiểm tra xếp cấp HSK 20 câu.', 'ลองทำแบบทดสอบจัดระดับ HSK 20 ข้อ', 'Пройдите тест на определение уровня HSK из 20 вопросов.', 'Prueba el examen de nivel HSK de 20 preguntas.', 'Experimente o teste de nivelamento HSK de 20 perguntas.', 'Essayez le test de placement HSK de 20 questions.', 'جرب اختبار تحديد المستوى لـ HSK المكون من 20 سؤالاً.');
   String get dictSearchHint    => _t('Çince karakter veya kelime ara…',
-      'Search Chinese characters…', '한자나 단어를 검색하세요…', '漢字や単語を検索…', 'Cari karakter atau kata Mandarin…', 'Tìm chữ Hán hoặc từ…', 'ค้นหาตัวอักษรหรือคำภาษาจีน…', 'Поиск иероглифов…', 'Buscar caracteres chinos…', 'Buscar caracteres chineses…', 'Rechercher des caractères chinois…', 'البحث عن أحرف صينية…');
+      'Search Chinese characters…', '한자나 단어를 검색하세요…', '漢字や単語を検索…', 'Cari karakter atau kata Tionghoa…', 'Tìm chữ Hán hoặc từ…', 'ค้นหาตัวอักษรหรือคำภาษาจีน…', 'Поиск иероглифов…', 'Buscar caracteres chinos…', 'Buscar caracteres chineses…', 'Rechercher des caractères chinois…', 'البحث عن أحرف صينية…');
   String get noResultsFound    => _t('Sonuç bulunamadı', 'No results found', '검색 결과가 없어요', '結果が見つかりません', 'Tidak ada hasil', 'Không có kết quả', 'ไม่พบผลลัพธ์', 'Ничего не найдено', 'No se encontraron resultados', 'Nenhum resultado encontrado', 'Aucun résultat trouvé', 'لم يتم العثور على نتائج');
   String get suggestThisWord   => _t('Bu kelimeyi öner', 'Suggest this word', '이 단어 제안하기', 'この単語を提案', 'Usulkan kata ini', 'Đề xuất từ này', 'เสนอคำนี้', 'Предложить слово', 'Sugerir esta palabra', 'Sugerir esta palavra', 'Suggérer ce mot', 'اقتراح هذه الكلمة');
   String get suggestedLbl      => _t('Önerildi', 'Suggested', '제안 완료', '提案しました', 'Diusulkan', 'Đã đề xuất', 'เสนอแล้ว', 'Предложенные', 'Sugerido', 'Sugerido', 'Suggéré', 'مقترح');
@@ -602,13 +602,13 @@ class AppL10n {
 
   // ── Onboarding (welcome + placement result) ─────────────────────────────────
   String get onbTagline     => _t(
-      'Gerçek video klipler, yapay zekâ açıklamaları ve\neğlenceli oyunlarla Mandarin öğren.',
-      'Learn Mandarin through real video clips,\nAI explanations, and fun games.',
+      'Gerçek video klipler, yapay zekâ açıklamaları ve\neğlenceli oyunlarla Çince öğren.',
+      'Learn Chinese through real video clips,\nAI explanations, and fun games.',
       '실제 영상 클립과 AI 설명, 재미있는 게임으로\n중국어를 배워 보세요.',
       '本物の動画クリップとAI解説、\n楽しいゲームで中国語を学びましょう。',
-      'Belajar Mandarin lewat klip video nyata,\npenjelasan AI, dan permainan seru.',
+      'Belajar bahasa Tionghoa lewat klip video nyata,\npenjelasan AI, dan permainan seru.',
       'Học tiếng Trung qua video thật,\ngiải thích bằng AI và trò chơi vui nhộn.',
-      'เรียนภาษาจีนผ่านคลิปวิดีโอจริง\nคำอธิบายด้วย AI และเกมสนุก ๆ', 'Учите китайский с помощью реальных видеороликов, ИИ-объяснений и увлекательных игр.', 'Aprende mandarín con videoclips reales,\nexplicaciones con IA y juegos divertidos.', 'Aprenda mandarim com clipes de vídeo reais,\nexplicações de IA e jogos divertidos.', 'Apprenez le mandarin grâce à de vrais extraits vidéo,\ndes explications par IA et des jeux amusants.', 'تعلّم الماندرين من خلال مقاطع فيديو حقيقية، وشروحات الذكاء الاصطناعي، وألعاب ممتعة.');
+      'เรียนภาษาจีนผ่านคลิปวิดีโอจริง\nคำอธิบายด้วย AI และเกมสนุก ๆ', 'Учите китайский с помощью реальных видеороликов, ИИ-объяснений и увлекательных игр.', 'Aprende chino con videoclips reales,\nexplicaciones con IA y juegos divertidos.', 'Aprenda chinês com clipes de vídeo reais,\nexplicações de IA e jogos divertidos.', 'Apprenez le chinois grâce à de vrais extraits vidéo,\ndes explications par IA et des jeux amusants.', 'تعلّم الصينية من خلال مقاطع فيديو حقيقية، وشروحات الذكاء الاصطناعي، وألعاب ممتعة.');
   String get getStarted     => _t('Başlayalım', 'Get Started', '시작하기', 'はじめる', 'Mulai', 'Bắt đầu', 'เริ่มต้น', 'Начать', 'Empezar', 'Começar', 'Commencer', 'ابدأ الآن');
   String get yourLevelLbl   => _t('Seviyen', 'Your Level', '내 레벨', 'あなたのレベル', 'Levelmu', 'Cấp độ của bạn', 'ระดับของคุณ', 'Ваш уровень', 'Tu nivel', 'Seu nível', 'Votre niveau', 'مستواك');
   String get startLearning  => _t('Öğrenmeye Başla', 'Start Learning', '학습 시작하기', '学習を始める', 'Mulai Belajar', 'Bắt đầu học', 'เริ่มเรียน', 'Начать обучение', 'Empezar a aprender', 'Começar a aprender', 'Commencer à apprendre', 'ابدأ التعلم');
