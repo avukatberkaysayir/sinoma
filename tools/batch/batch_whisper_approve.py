@@ -284,21 +284,25 @@ where not exists (select 1 from posts where content = {lit(w)}
             elif d.get("saved"):
                 print(f"    sozluk: {w} -> Diger eklendi")
 
-        conflict = upd["level"] is None and upd["backup_level"] is not None
-        approve = "" if conflict else ", status='active', is_active=true"
+        # Activate ONLY when the clip actually landed in a slot (level set). A
+        # clip with no free slot is left pending — the trigger marks it backup
+        # if it maps to a slot, else it's bare pending. Never active-placeless
+        # (Berkay 2026-07-16: every active clip must sit in a slot).
+        placed = upd["level"] is not None
+        approve = ", status='active', is_active=true" if placed else ""
         sql(f"update videos set quiz = {lit(json.dumps(quiz, ensure_ascii=False))}::jsonb"
             f"{approve} where id = '{vid}';")
-        if conflict:
+        if not placed:
             crit = upd.get("backup_grammar") or upd.get("backup_word") or "?"
+            slot = (f"L{upd['backup_level']} U{upd['backup_unit']} B{upd['backup_phase']}"
+                    if upd["backup_level"] is not None else "slotsuz")
             report["slot_conflict"].append({
-                "id": vid, "sentence": transcription, "criterion": crit,
-                "slot": f"L{upd['backup_level']} U{upd['backup_unit']} B{upd['backup_phase']}"})
-            print(f"    slot dolu ({crit}) -> beklemede birakildi (quiz yazildi)")
+                "id": vid, "sentence": transcription, "criterion": crit, "slot": slot})
+            print(f"    yer yok ({crit}) -> beklemede (yedek: {slot})")
         else:
             report["approved"].append({
                 "id": vid, "sentence": transcription,
-                "slot": f"L{upd['level']} U{upd['unit']} B{upd['phase']}"
-                        if upd["level"] is not None else "yerlesimsiz"})
+                "slot": f"L{upd['level']} U{upd['unit']} B{upd['phase']}"})
             print("    onaylandi ✓")
         time.sleep(1.5)
     except Exception as e:
