@@ -199,6 +199,7 @@ class _Logo extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
             width: 36, height: 36, fit: BoxFit.contain),
         const SizedBox(width: 10),
         const Text('Sinoma',
@@ -400,6 +401,7 @@ class _Hero extends ConsumerWidget {
         ),
         const SizedBox(height: 24),
         Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
             width: 132, height: 132, fit: BoxFit.contain),
         const SizedBox(height: 20),
         Wrap(
@@ -529,6 +531,7 @@ class _PromoPoster extends StatelessWidget {
       color: const Color(0xFF0E1414),
       alignment: Alignment.center,
       child: Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
           width: 72, height: 72, fit: BoxFit.contain),
     );
   }

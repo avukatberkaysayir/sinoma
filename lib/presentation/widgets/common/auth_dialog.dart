@@ -155,6 +155,7 @@ class _AuthDialogState extends ConsumerState<AuthDialog>
               child: Row(
                 children: [
                   Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                       width: 30, height: 30, fit: BoxFit.contain),
                   const SizedBox(width: 10),
                   Text(

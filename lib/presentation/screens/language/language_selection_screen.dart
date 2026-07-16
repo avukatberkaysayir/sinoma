@@ -65,6 +65,7 @@ class _LanguageSelectionScreenState
                 children: [
                   const SizedBox(height: 28),
                   Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                       width: 84, height: 84, fit: BoxFit.contain),
                   const SizedBox(height: 8),
                   const Text('Sinoma',

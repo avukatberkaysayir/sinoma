@@ -133,6 +133,7 @@ class _LogoSection extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
             width: 34, height: 34, fit: BoxFit.contain),
         const SizedBox(width: 10),
         Column(

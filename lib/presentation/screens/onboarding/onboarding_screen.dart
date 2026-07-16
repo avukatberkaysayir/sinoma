@@ -121,6 +121,7 @@ class _WelcomePage extends StatelessWidget {
           children: [
             const Spacer(flex: 2),
             Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                 width: 110, height: 110, fit: BoxFit.contain),
             const SizedBox(height: 28),
             const Text(
@@ -293,6 +294,7 @@ class _SignInPageState extends State<_SignInPage> {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                           width: 64, height: 64, fit: BoxFit.contain),
                       const SizedBox(height: 12),
                       Text(

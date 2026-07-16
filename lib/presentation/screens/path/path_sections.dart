@@ -1592,6 +1592,7 @@ class QuestsCenter extends ConsumerWidget {
                         ),
                       ),
                       Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
                           width: 72, height: 72, fit: BoxFit.contain),
                     ],
                   ),
@@ -3062,6 +3063,7 @@ class _OrniHero extends StatelessWidget {
       child: Row(
         children: [
           Image.asset('assets/mascot/mascot.png',
+            filterQuality: FilterQuality.high,
               width: 110, height: 110, fit: BoxFit.contain),
           const SizedBox(width: 14),
           Expanded(
