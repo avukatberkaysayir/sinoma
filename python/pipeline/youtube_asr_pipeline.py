@@ -438,9 +438,16 @@ def run(
             print(f"  {len(entries)} cue → akışlı segmentleme…")
             for seg in stream_segments(entries):
                 _emit(seg)
-        else:
+        # Fall back to Whisper when there are NO subs, OR the subs produced no
+        # usable segment: some Chinese-learning channels ship broken/empty
+        # auto-captions while Whisper transcribes the same audio cleanly
+        # (729XWG2z-Ic: zh-Hans auto-caption → 0 segments, Whisper → 9 clean HSK-1
+        # lines). Previously a found-but-useless sub short-circuited straight to
+        # the "no Mandarin" error instead of trying the audio.
+        if seg_seen == 0:
             method = "whisper"
-            print("  Altyazı yok → ses indiriliyor (Whisper ASR)…")
+            print("  Altyazıdan segment çıkmadı → Whisper ASR'ye düşülüyor…"
+                  if sub_path else "  Altyazı yok → ses indiriliyor (Whisper ASR)…")
             audio_path = download_audio(url, tmp)
             size_kb = audio_path.stat().st_size // 1024
             # Keep the audio so the whisper_text fill below reuses it (no re-download).
