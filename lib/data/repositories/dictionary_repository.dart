@@ -348,4 +348,97 @@ class DictionaryRepository {
       },
     });
   }
+
+  // ── Word lists (Sözlük only) ────────────────────────────────────────────────
+  // The learner's own collections of dictionary words. Separate from
+  // `playlists`, which hold video clips. RLS keeps every query to own rows.
+
+  // Lists with their word counts ('count' int per row).
+  Future<List<Map<String, dynamic>>> loadWordLists() async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return const [];
+    final data = await _db
+        .from('word_lists')
+        .select('id, name, word_list_items(count)')
+        .eq('uid', uid)
+        .order('created_at');
+    return List<Map<String, dynamic>>.from(data).map((r) {
+      final items = r['word_list_items'];
+      final count = (items is List && items.isNotEmpty)
+          ? ((items.first as Map)['count'] as num?)?.toInt() ?? 0
+          : 0;
+      return {'id': r['id'], 'name': r['name'], 'count': count};
+    }).toList();
+  }
+
+  Future<String?> createWordList(String name) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null || name.trim().isEmpty) return null;
+    final row = await _db
+        .from('word_lists')
+        .insert({'uid': uid, 'name': name.trim()})
+        .select('id')
+        .single();
+    return row['id'] as String?;
+  }
+
+  Future<void> renameWordList(String listId, String name) async {
+    if (name.trim().isEmpty) return;
+    await _db.from('word_lists').update({'name': name.trim()}).eq('id', listId);
+  }
+
+  Future<void> deleteWordList(String listId) async {
+    await _db.from('word_lists').delete().eq('id', listId);
+  }
+
+  // Idempotent: re-adding a word the list already holds is a no-op.
+  Future<void> addWordToList(String listId, String wordId) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return;
+    await _db.from('word_list_items').upsert(
+      {'list_id': listId, 'word_id': wordId, 'uid': uid},
+      onConflict: 'list_id,word_id',
+    );
+  }
+
+  Future<void> removeWordFromList(String listId, String wordId) async {
+    await _db
+        .from('word_list_items')
+        .delete()
+        .eq('list_id', listId)
+        .eq('word_id', wordId);
+  }
+
+  // Full dictionary entries of one list, in the order they were added.
+  Future<List<DictionaryModel>> loadWordsOfList(String listId) async {
+    final data = await _db
+        .from('word_list_items')
+        .select('word_id, added_at, dictionary(*)')
+        .eq('list_id', listId)
+        .order('added_at');
+    final out = <DictionaryModel>[];
+    for (final r in List<Map<String, dynamic>>.from(data)) {
+      final d = r['dictionary'];
+      if (d is Map) {
+        out.add(DictionaryModel.fromMap(Map<String, dynamic>.from(d)));
+      }
+    }
+    return out;
+  }
+
+  // Which of the learner's lists already contain this word (for the tick marks
+  // in the "add to list" menu).
+  Future<Set<String>> listIdsContaining(String wordId) async {
+    final uid = _db.auth.currentUser?.id;
+    if (uid == null) return <String>{};
+    final data = await _db
+        .from('word_list_items')
+        .select('list_id')
+        .eq('uid', uid)
+        .eq('word_id', wordId);
+    return {
+      for (final r in List<Map<String, dynamic>>.from(data))
+        r['list_id'] as String
+    };
+  }
 }

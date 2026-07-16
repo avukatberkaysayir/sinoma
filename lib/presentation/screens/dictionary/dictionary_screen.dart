@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/translation_helper.dart';
 import '../../../data/models/dictionary_model.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/dictionary_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/user_provider.dart';
@@ -86,6 +87,133 @@ final _wordOfDayProvider =
     FutureProvider.autoDispose<DictionaryModel?>((ref) {
   return ref.watch(dictionaryRepositoryProvider).wordOfTheDay();
 });
+
+// ── Word lists (Sözlük only) ─────────────────────────────────────────────────
+// The learner's own word collections. Kept out of the video playlists: this is
+// a dictionary-side feature. Invalidate to refresh after any mutation.
+final wordListsProvider =
+    FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
+  return ref.watch(dictionaryRepositoryProvider).loadWordLists();
+});
+
+// Lists that already hold a given word — drives the ticks in the add menu.
+final _listsWithWordProvider = FutureProvider.autoDispose
+    .family<Set<String>, String>((ref, wordId) {
+  return ref.watch(dictionaryRepositoryProvider).listIdsContaining(wordId);
+});
+
+// "Add to list" affordance shown on every dictionary hit: pick an existing
+// list (ticked when it already holds the word — tapping again removes it) or
+// type a new one.
+class _AddToListButton extends ConsumerWidget {
+  final DictionaryModel word;
+  const _AddToListButton({required this.word});
+
+  Future<void> _newList(BuildContext context, WidgetRef ref) async {
+    final l10n = AppL10n.of(context);
+    final ctrl = TextEditingController();
+    final name = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: Text(l10n.newWordListHint,
+            style: TextStyle(color: AppColors.text, fontSize: 16)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 60,
+          style: TextStyle(color: AppColors.text),
+          decoration: InputDecoration(counterText: '', hintText: l10n.newWordListHint),
+          onSubmitted: (v) => Navigator.of(c).pop(v),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(c).pop(),
+              child: Text(l10n.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.of(c).pop(ctrl.text),
+              child: Text(l10n.addLbl)),
+        ],
+      ),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    final repo = ref.read(dictionaryRepositoryProvider);
+    final id = await repo.createWordList(name);
+    if (id != null) await repo.addWordToList(id, word.wordId);
+    ref.invalidate(wordListsProvider);
+    ref.invalidate(_listsWithWordProvider(word.wordId));
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    final signedIn = ref.watch(authStateProvider).valueOrNull != null;
+    final lists = ref.watch(wordListsProvider).valueOrNull ?? const [];
+    final inLists =
+        ref.watch(_listsWithWordProvider(word.wordId)).valueOrNull ?? const <String>{};
+    final saved = inLists.isNotEmpty;
+
+    return PopupMenuButton<String>(
+      tooltip: l10n.addToListTip,
+      icon: Icon(saved ? Icons.bookmark_added_rounded : Icons.bookmark_add_outlined,
+          size: 20,
+          color: saved ? const Color(0xFF2EC4B6) : AppColors.text54),
+      itemBuilder: (_) {
+        if (!signedIn) {
+          return [
+            PopupMenuItem<String>(
+                enabled: false,
+                child: Text(l10n.signInForLists,
+                    style: TextStyle(color: AppColors.text54, fontSize: 13))),
+          ];
+        }
+        return [
+          for (final l in lists)
+            PopupMenuItem<String>(
+              value: l['id'] as String,
+              child: Row(children: [
+                Icon(
+                    inLists.contains(l['id'])
+                        ? Icons.check_box_rounded
+                        : Icons.check_box_outline_blank_rounded,
+                    size: 18,
+                    color: inLists.contains(l['id'])
+                        ? const Color(0xFF2EC4B6)
+                        : AppColors.text38),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text('${l['name']}',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(color: AppColors.text, fontSize: 13))),
+              ]),
+            ),
+          if (lists.isNotEmpty) const PopupMenuDivider(),
+          PopupMenuItem<String>(
+            value: '__new__',
+            child: Row(children: [
+              const Icon(Icons.add_rounded, size: 18, color: Color(0xFF2EC4B6)),
+              const SizedBox(width: 8),
+              Text(l10n.newWordListHint,
+                  style: TextStyle(color: AppColors.text, fontSize: 13)),
+            ]),
+          ),
+        ];
+      },
+      onSelected: (v) async {
+        if (v == '__new__') return _newList(context, ref);
+        final repo = ref.read(dictionaryRepositoryProvider);
+        // Tapping a ticked list removes the word again — one control, both ways.
+        if (inLists.contains(v)) {
+          await repo.removeWordFromList(v, word.wordId);
+        } else {
+          await repo.addWordToList(v, word.wordId);
+        }
+        ref.invalidate(wordListsProvider);
+        ref.invalidate(_listsWithWordProvider(word.wordId));
+      },
+    );
+  }
+}
 
 final _trendingProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) {
@@ -400,6 +528,280 @@ class _DiscoverPanel extends ConsumerWidget {
 // Lives beside the centre column on /dictionary, top-down like the other
 // sections' right rails.
 
+// The learner's own word lists, dictionary-side only: create, rename, delete,
+// and open one to see (or drop) the words it holds.
+class _WordListsPanel extends ConsumerStatefulWidget {
+  const _WordListsPanel();
+  @override
+  ConsumerState<_WordListsPanel> createState() => _WordListsPanelState();
+}
+
+class _WordListsPanelState extends ConsumerState<_WordListsPanel> {
+  final _newCtrl = TextEditingController();
+  String? _openId; // expanded list
+
+  @override
+  void dispose() {
+    _newCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _create() async {
+    final name = _newCtrl.text.trim();
+    if (name.isEmpty) return;
+    _newCtrl.clear();
+    await ref.read(dictionaryRepositoryProvider).createWordList(name);
+    ref.invalidate(wordListsProvider);
+  }
+
+  Future<void> _rename(String id, String current) async {
+    final l10n = AppL10n.of(context);
+    final ctrl = TextEditingController(text: current);
+    final name = await showDialog<String>(
+      context: context,
+      builder: (c) => AlertDialog(
+        backgroundColor: AppColors.surfaceVariant,
+        title: Text(l10n.renameListTip,
+            style: TextStyle(color: AppColors.text, fontSize: 16)),
+        content: TextField(
+          controller: ctrl,
+          autofocus: true,
+          maxLength: 60,
+          style: TextStyle(color: AppColors.text),
+          decoration: const InputDecoration(counterText: ''),
+          onSubmitted: (v) => Navigator.of(c).pop(v),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(c).pop(), child: Text(l10n.cancel)),
+          FilledButton(
+              onPressed: () => Navigator.of(c).pop(ctrl.text),
+              child: Text(l10n.addLbl)),
+        ],
+      ),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    await ref.read(dictionaryRepositoryProvider).renameWordList(id, name);
+    ref.invalidate(wordListsProvider);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppL10n.of(context);
+    final signedIn = ref.watch(authStateProvider).valueOrNull != null;
+    final lists = ref.watch(wordListsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(l10n.wordListsTitle,
+              style: TextStyle(
+                  color: AppColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800)),
+        ),
+        if (!signedIn)
+          Text(l10n.signInForLists,
+              style: TextStyle(color: AppColors.text54, fontSize: 12))
+        else ...[
+          Row(children: [
+            Expanded(
+              child: TextField(
+                controller: _newCtrl,
+                maxLength: 60,
+                style: TextStyle(color: AppColors.text, fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: l10n.newWordListHint,
+                  hintStyle: TextStyle(color: AppColors.text38, fontSize: 12),
+                  counterText: '',
+                  filled: true,
+                  fillColor: AppColors.surfaceVariant,
+                  isDense: true,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide.none),
+                ),
+                onSubmitted: (_) => _create(),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton(
+              onPressed: _create,
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  minimumSize: const Size(0, 40)),
+              child: Text(l10n.addLbl, style: const TextStyle(fontSize: 13)),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          lists.when(
+            loading: () => const _CardLoading(),
+            error: (e, _) => Text('$e',
+                style: TextStyle(color: AppColors.text54, fontSize: 12)),
+            data: (rows) => rows.isEmpty
+                ? Text(l10n.noWordListsYet,
+                    style: TextStyle(color: AppColors.text54, fontSize: 12))
+                : Column(
+                    children: [
+                      for (final r in rows)
+                        _WordListRow(
+                          id: r['id'] as String,
+                          name: '${r['name']}',
+                          count: (r['count'] as int?) ?? 0,
+                          expanded: _openId == r['id'],
+                          onToggle: () => setState(() =>
+                              _openId = _openId == r['id'] ? null : r['id'] as String),
+                          onRename: () => _rename(r['id'] as String, '${r['name']}'),
+                          onDelete: () async {
+                            await ref
+                                .read(dictionaryRepositoryProvider)
+                                .deleteWordList(r['id'] as String);
+                            if (_openId == r['id']) _openId = null;
+                            ref.invalidate(wordListsProvider);
+                          },
+                        ),
+                    ],
+                  ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+// One list: header row (name · count · rename · delete) and, when expanded,
+// its words — tapping a word opens it, the x drops it from the list.
+class _WordListRow extends ConsumerWidget {
+  final String id;
+  final String name;
+  final int count;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final VoidCallback onRename;
+  final Future<void> Function() onDelete;
+  const _WordListRow({
+    required this.id,
+    required this.name,
+    required this.count,
+    required this.expanded,
+    required this.onToggle,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppL10n.of(context);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 6),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceVariant,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: BorderRadius.circular(10),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(10, 6, 4, 6),
+              child: Row(children: [
+                Icon(expanded ? Icons.expand_less : Icons.expand_more,
+                    size: 18, color: AppColors.text54),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('$name  ·  $count',
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                          color: AppColors.text,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600)),
+                ),
+                IconButton(
+                  tooltip: l10n.renameListTip,
+                  icon: Icon(Icons.edit_outlined,
+                      size: 16, color: AppColors.text54),
+                  onPressed: onRename,
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  tooltip: l10n.deleteListTip,
+                  icon: const Icon(Icons.delete_outline,
+                      size: 16, color: Color(0xFFE0442C)),
+                  onPressed: onDelete,
+                  visualDensity: VisualDensity.compact,
+                ),
+              ]),
+            ),
+          ),
+          if (expanded)
+            FutureBuilder<List<DictionaryModel>>(
+              future:
+                  ref.read(dictionaryRepositoryProvider).loadWordsOfList(id),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const Padding(
+                      padding: EdgeInsets.all(8), child: _CardLoading());
+                }
+                final words = snap.data!;
+                if (words.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
+                    child: Text(l10n.emptyWordList,
+                        style:
+                            TextStyle(color: AppColors.text54, fontSize: 12)),
+                  );
+                }
+                return Column(
+                  children: [
+                    for (final w in words)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(12, 0, 4, 6),
+                        child: Row(children: [
+                          Expanded(
+                            child: InkWell(
+                              onTap: () => showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                backgroundColor: Colors.transparent,
+                                builder: (_) => WordDetailSheet(
+                                    wordId: w.wordId,
+                                    transcription: '',
+                                    hskLevel: w.hskLevel),
+                              ),
+                              child: Text('${w.simplified}  ${w.pinyin}',
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      color: AppColors.text70, fontSize: 12)),
+                            ),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.close_rounded,
+                                size: 14, color: AppColors.text38),
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () async {
+                              await ref
+                                  .read(dictionaryRepositoryProvider)
+                                  .removeWordFromList(id, w.wordId);
+                              ref.invalidate(wordListsProvider);
+                            },
+                          ),
+                        ]),
+                      ),
+                  ],
+                );
+              },
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 class DictionaryRightRail extends ConsumerWidget {
   const DictionaryRightRail({super.key});
 
@@ -435,6 +837,8 @@ class DictionaryRightRail extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            const _WordListsPanel(),
+            const SizedBox(height: 16),
             _DiscoverCard(
               title: l10n.wordOfDay,
               accent: AppColors.primary,
@@ -705,8 +1109,13 @@ class _WordTile extends StatelessWidget {
         ],
       ),
       subtitle: _buildDefinitionText(TranslationHelper.getDefinition(word, lang)),
-      trailing: word.hskLevel > 0
-          ? Container(
+      // HSK badge + the list bookmark: collecting a word must not cost a tap
+      // into the detail sheet, so the action sits on the row itself.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (word.hskLevel > 0)
+            Container(
               padding:
                   const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
@@ -726,8 +1135,10 @@ class _WordTile extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-            )
-          : null,
+            ),
+          _AddToListButton(word: word),
+        ],
+      ),
       onTap: () => onTap(word.wordId),
     );
   }

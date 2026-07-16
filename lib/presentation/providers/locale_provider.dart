@@ -1,11 +1,63 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _kLocaleKey = 'app_locale';
 
 // UI languages the app actually ships.
 const kSupportedUiLanguages = ['tr', 'en', 'ko', 'ja', 'id', 'vi', 'th', 'ru', 'es', 'pt', 'fr', 'ar'];
+
+// ── First-visit language ─────────────────────────────────────────────────────
+// Before anyone signs in or picks a language, open the site in the language of
+// the country they are browsing from; anything not listed falls back to English.
+// An explicit pick is saved (setLocale) and always wins over this.
+const Map<String, String> kCountryLanguage = {
+  // Arabic — Arab League
+  'SA': 'ar', 'AE': 'ar', 'EG': 'ar', 'DZ': 'ar', 'MA': 'ar', 'TN': 'ar',
+  'LY': 'ar', 'SD': 'ar', 'IQ': 'ar', 'JO': 'ar', 'KW': 'ar', 'QA': 'ar',
+  'BH': 'ar', 'OM': 'ar', 'YE': 'ar', 'SY': 'ar', 'LB': 'ar', 'PS': 'ar',
+  'MR': 'ar', 'SO': 'ar', 'DJ': 'ar', 'KM': 'ar',
+  // Turkish
+  'TR': 'tr', 'AZ': 'tr',
+  // Russian — Russia, Belarus, Ukraine, Central Asia
+  'RU': 'ru', 'BY': 'ru', 'UA': 'ru', 'KZ': 'ru', 'KG': 'ru', 'TJ': 'ru',
+  'TM': 'ru', 'UZ': 'ru',
+  // East / South-East Asia
+  'KR': 'ko', 'JP': 'ja', 'TH': 'th', 'VN': 'vi', 'ID': 'id',
+  // Portuguese — Portugal, Brazil, Cape Verde, Macau + lusophone Africa
+  'PT': 'pt', 'BR': 'pt', 'CV': 'pt', 'MO': 'pt', 'AO': 'pt', 'MZ': 'pt',
+  'GW': 'pt', 'ST': 'pt', 'TL': 'pt',
+  // Spanish — Spain + Latin & Central America
+  'ES': 'es', 'MX': 'es', 'GT': 'es', 'HN': 'es', 'SV': 'es', 'NI': 'es',
+  'CR': 'es', 'PA': 'es', 'CU': 'es', 'DO': 'es', 'PR': 'es', 'CO': 'es',
+  'VE': 'es', 'EC': 'es', 'PE': 'es', 'BO': 'es', 'CL': 'es', 'AR': 'es',
+  'UY': 'es', 'PY': 'es', 'GQ': 'es',
+  // French — France + francophone Africa (the Maghreb stays Arabic above)
+  'FR': 'fr', 'BJ': 'fr', 'BF': 'fr', 'BI': 'fr', 'CM': 'fr', 'CF': 'fr',
+  'TD': 'fr', 'CG': 'fr', 'CD': 'fr', 'CI': 'fr', 'GA': 'fr', 'GN': 'fr',
+  'ML': 'fr', 'NE': 'fr', 'RW': 'fr', 'SN': 'fr', 'TG': 'fr', 'MG': 'fr',
+};
+
+// Free, key-less IP geolocation. Any failure (offline, blocked, rate-limited)
+// simply yields English — never blocks startup for more than the timeout.
+Future<String> languageFromGeo() async {
+  try {
+    final r = await http
+        .get(Uri.parse('https://ipwho.is/?fields=country_code'))
+        .timeout(const Duration(seconds: 3));
+    if (r.statusCode == 200) {
+      final cc = (jsonDecode(r.body)['country_code'] as String?)?.toUpperCase();
+      final lang = kCountryLanguage[cc];
+      if (lang != null && kSupportedUiLanguages.contains(lang)) return lang;
+    }
+  } catch (_) {
+    // fall through to English
+  }
+  return 'en';
+}
 
 final localeProvider = StateNotifierProvider<LocaleNotifier, Locale>((ref) {
   return LocaleNotifier();
@@ -474,6 +526,14 @@ class AppL10n {
   String get noFriendsHint  => _t('Henüz arkadaşın yok — Puan Tabloları > Arkadaş Ara.',
       'No friends yet — Leaderboards > Find Friends.', '아직 친구가 없어요 — 랭킹 > 친구 찾기.', 'まだフレンドがいません — ランキング > フレンドを探す。', 'Belum ada teman — Papan Peringkat > Cari Teman.', 'Chưa có bạn — Bảng xếp hạng > Tìm bạn.', 'ยังไม่มีเพื่อน — กระดานอันดับ > หาเพื่อน', 'Друзей пока нет — Таблицы лидеров > Найти друзей.', 'Aún no tienes amigos. Marcadores > Buscar amigos.', 'Nenhum amigo ainda — Placares > Encontrar Amigos.', 'Aucun ami pour l\'instant — Classements > Trouver des amis.', 'لا يوجد أصدقاء بعد — لوحات الصدارة > العثور على أصدقاء.');
   String get deleteListTip  => _t('Listeyi sil', 'Delete list', '재생목록 삭제', 'リストを削除', 'Hapus daftar', 'Xóa danh sách', 'ลบรายการ', 'Удалить список', 'Eliminar lista', 'Excluir lista', 'Supprimer la liste', 'حذف القائمة');
+  // Sözlük-only word lists (separate from the video playlists above).
+  String get wordListsTitle => _t('Kelime Listelerim', 'My Word Lists', '내 단어장', '単語リスト', 'Daftar Kata Saya', 'Danh sách từ của tôi', 'รายการคำของฉัน', 'Мои списки слов', 'Mis listas de palabras', 'Minhas listas de palavras', 'Mes listes de mots', 'قوائم كلماتي');
+  String get newWordListHint => _t('Yeni kelime listesi…', 'New word list…', '새 단어장 이름…', '新しい単語リスト名…', 'Daftar kata baru…', 'Danh sách từ mới…', 'รายการคำใหม่…', 'Новый список слов…', 'Nueva lista de palabras…', 'Nova lista de palavras…', 'Nouvelle liste de mots…', 'قائمة كلمات جديدة...');
+  String get addToListTip   => _t('Listeye ekle', 'Add to list', '단어장에 추가', 'リストに追加', 'Tambah ke daftar', 'Thêm vào danh sách', 'เพิ่มลงรายการ', 'Добавить в список', 'Añadir a la lista', 'Adicionar à lista', 'Ajouter à la liste', 'أضف إلى القائمة');
+  String get renameListTip  => _t('Yeniden adlandır', 'Rename', '이름 변경', '名前を変更', 'Ganti nama', 'Đổi tên', 'เปลี่ยนชื่อ', 'Переименовать', 'Cambiar nombre', 'Renomear', 'Renommer', 'إعادة تسمية');
+  String get noWordListsYet => _t('Henüz kelime listen yok', 'No word lists yet', '아직 단어장이 없어요', 'まだ単語リストがありません', 'Belum ada daftar kata', 'Chưa có danh sách từ', 'ยังไม่มีรายการคำ', 'Списков слов пока нет', 'Aún no tienes listas', 'Nenhuma lista ainda', 'Aucune liste pour l\'instant', 'لا توجد قوائم كلمات بعد');
+  String get emptyWordList  => _t('Bu liste boş', 'This list is empty', '이 단어장은 비어 있어요', 'このリストは空です', 'Daftar ini kosong', 'Danh sách này trống', 'รายการนี้ว่างเปล่า', 'Этот список пуст', 'Esta lista está vacía', 'Esta lista está vazia', 'Cette liste est vide', 'هذه القائمة فارغة');
+  String get signInForLists => _t('Liste oluşturmak için giriş yap', 'Sign in to create lists', '단어장을 만들려면 로그인하세요', 'リストを作るにはログインしてください', 'Masuk untuk membuat daftar', 'Đăng nhập để tạo danh sách', 'เข้าสู่ระบบเพื่อสร้างรายการ', 'Войдите, чтобы создавать списки', 'Inicia sesión para crear listas', 'Entre para criar listas', 'Connectez-vous pour créer des listes', 'سجّل الدخول لإنشاء القوائم');
   String get pointsLbl      => _t('puan', 'points', '점', '点', 'poin', 'điểm', 'คะแนน', 'баллов', 'puntos', 'pontos', 'points', 'نقاط');
   String get studentFallback => _t('Öğrenci', 'Student', '학습자', '学習者', 'Pelajar', 'Học viên', 'ผู้เรียน', 'Студент', 'Estudiante', 'Estudante', 'Étudiant', 'طالب');
   String get editTip        => _t('Düzenle', 'Edit', '편집', '編集', 'Ubah', 'Sửa', 'แก้ไข', 'Изменить', 'Editar', 'Editar', 'Modifier', 'تعديل');

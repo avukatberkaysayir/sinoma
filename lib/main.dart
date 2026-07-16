@@ -39,7 +39,12 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final savedCode = prefs.getString('app_locale');
-  final initialLocale = savedCode != null ? Locale(savedCode) : const Locale('tr');
+  // A language the visitor picked (or restored with their account) always wins.
+  // Otherwise open in the language of the country they're browsing from —
+  // English when we don't ship theirs. Only first-time visitors pay the lookup.
+  final initialLocale = savedCode != null && kSupportedUiLanguages.contains(savedCode)
+      ? Locale(savedCode)
+      : Locale(await languageFromGeo());
 
   runApp(
     ProviderScope(

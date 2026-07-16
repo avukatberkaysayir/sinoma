@@ -1,11 +1,11 @@
-# One-off: fresh per-clip Whisper on 100 pending, non-backup HSK-5 clips, then
+# Fresh per-clip Whisper on N pending, non-backup clips of ONE HSK level, then
 # the full HSK 1-4 treatment (apply Whisper → re-derive slot → Diğer words →
-# EN+11-lang quiz → activate; slot conflicts stay pending with their backup
-# mark). Berkay 2026-07-15: "taze whisper kullan".
+# EN+11-lang quiz → activate; clips with no free slot stay pending with their
+# backup mark). Berkay 2026-07-15: "taze whisper kullan".
 #
-#   python tools/batch/run_hsk5_100.py [count]     # default 100
+#   python tools/batch/run_hsk_batch.py <level> [count]   # e.g. 6 100
 #
-# The 100 are the OLDEST HSK-5 pending non-backup clips (deterministic
+# The N are the OLDEST pending non-backup clips at that level (deterministic
 # created_at order) so this whisper selection and the batch's `limit` pick the
 # exact same rows. Only run with the worker idle and NO split in flight.
 import os, subprocess, sys, time, requests
@@ -13,7 +13,8 @@ import os, subprocess, sys, time, requests
 sys.stdout.reconfigure(encoding="utf-8")
 PROJECT = "pqyceostpukueydwuiut"
 HERE = os.path.dirname(os.path.abspath(__file__))
-COUNT = int(sys.argv[1]) if len(sys.argv) > 1 else 100
+LEVEL = int(sys.argv[1]) if len(sys.argv) > 1 else 5
+COUNT = int(sys.argv[2]) if len(sys.argv) > 2 else 100
 
 tok = None
 with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
@@ -49,7 +50,7 @@ for _ in range(35):
     print(f"  split aktif ({busy}) — bekliyor…", flush=True)
     time.sleep(60)
 
-# 1) Queue FRESH whisper for the oldest COUNT HSK-5 pending non-backup clips.
+# 1) Queue FRESH whisper for the oldest COUNT pending non-backup clips at LEVEL.
 #    (They already carry split-ASR whisper_text; transcribe_clip overwrites it
 #    with a sharper per-clip pass.)
 queued = sql(f"""
@@ -62,16 +63,16 @@ from (
   select id, youtube_id, start_time, end_time
   from videos
   where status='pending' and backup_kind is null and backup_level is null
-    and hsk_level = 5
+    and hsk_level = {LEVEL}
   order by created_at
   limit {COUNT}
 ) t
 returning id;
 """)
 job_ids = [r["id"] for r in queued]
-print(f"{len(job_ids)} taze whisper isi kuyruga yazildi", flush=True)
+print(f"L{LEVEL}: {len(job_ids)} taze whisper isi kuyruga yazildi", flush=True)
 if not job_ids:
-    print("islenecek HSK-5 klip yok — cikiliyor")
+    print(f"islenecek HSK-{LEVEL} klip yok — cikiliyor")
     sys.exit(0)
 
 # 2) Wait until every queued whisper job is done/error (stall guard 25 dk).
@@ -92,8 +93,8 @@ while True:
         break
     time.sleep(30)
 
-# 3) Full batch on exactly these HSK-5 clips (same oldest-COUNT ordering).
-print("\n— HSK-5 toplu akis basliyor —\n", flush=True)
+# 3) Full batch on exactly these clips (same level + oldest-COUNT ordering).
+print(f"\n— HSK-{LEVEL} toplu akis basliyor —\n", flush=True)
 r = subprocess.run([sys.executable, "-u", "batch_whisper_approve.py",
-                    "5", "5", str(COUNT)], cwd=HERE)
+                    str(LEVEL), str(LEVEL), str(COUNT)], cwd=HERE)
 sys.exit(r.returncode)
