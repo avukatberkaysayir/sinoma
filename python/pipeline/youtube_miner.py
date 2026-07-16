@@ -127,6 +127,13 @@ _HALLU_RE = re.compile("|".join(re.escape(p) for p in _HALLUCINATION_PHRASES))
 _LOOP_SHORT_RE = re.compile(r"(.{2,7}?)\1{3,}")
 _LOOP_LONG_RE = re.compile(r"(.{8,80}?)\1{2,}")
 
+# A loop can also just TRAIL a real sentence ("…应与再审" + 请×20), which the ≥50%
+# coverage rule below cannot see. The live corpus draws the line by itself: runs of
+# one repeated hanzi occur at 3× (27 clips) and 4× (5 clips) — all real emphasis
+# (慢慢慢慢) — then nothing at all until a single 20× hallucination. 6 sits in that
+# empty gap. Hanzi only: digits legitimately run long inside numbers (10000).
+_STUTTER_RE = re.compile(r"([一-鿿])\1{5,}")
+
 
 def is_repetition_loop(text: str) -> bool:
     """True when one chunk repeats back-to-back and eats ≥50% of the cue — a decode
@@ -135,6 +142,8 @@ def is_repetition_loop(text: str) -> bool:
     t = (text or "").strip()
     if len(t) < 8:
         return False
+    if _STUTTER_RE.search(t):
+        return True
     for rx in (_LOOP_SHORT_RE, _LOOP_LONG_RE):
         for m in rx.finditer(t):
             if (m.end() - m.start()) >= 0.5 * len(t):
