@@ -4,7 +4,11 @@
 # languages pivoted from the approved EN), and approve the clip.
 # Clips whose re-derived slot is occupied (would-be backup) are LEFT PENDING
 # and reported, mirroring the app's "Yedeğe Al" warning.
-import json, re, sys, time, requests
+import json, re, sys, time, requests, pathlib
+
+# One definition of "this is a decode loop", shared with the ASR pipeline.
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2] / "python" / "pipeline"))
+from youtube_miner import is_repetition_loop
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -177,6 +181,13 @@ for idx, row in enumerate(rows, 1):
     vid = row["id"]
     wt = row["whisper_text"].strip()
     print(f"[{idx}/{len(rows)}] {vid} — {wt[:40]}")
+    # A decode loop ("我喜欢读书。"×12) must never reach a slot: title, pinyin,
+    # criterion and quiz would all be derived from text nobody says in the video.
+    # 42 such clips went live before this gate existed (2026-07-17).
+    if is_repetition_loop(wt):
+        report["error"].append({"id": vid, "err": "whisper tekrar dongusu — atlandi"})
+        print("    tekrar dongusu tespit edildi — beklemede birakildi")
+        continue
     try:
         # Latin-ad kapısı: cümledeki Latin özel adlar Çince karşılığına çekilir
         # (Durian→榴莲); karşılığı yoksa Çince'ye uygun çevriyazım, o da olmazsa

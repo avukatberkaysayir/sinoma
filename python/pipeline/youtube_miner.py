@@ -92,11 +92,15 @@ WHISPER_CLIP_KWARGS: dict[str, Any] = dict(
     no_speech_threshold=0.85,
     vad_filter=False,
     initial_prompt="以下是普通话的对话。",
-    # Single temperature → fully deterministic beam decode. The default
-    # (0.0…1.0 fallback ladder) RESAMPLES on low-confidence windows, so the
-    # auto-fill at import and a later manual re-run could return DIFFERENT
-    # sentences for the same clip. One temperature = same audio, same text.
-    temperature=0.0,
+    # MUST stay a ladder, not a scalar. compression_ratio_threshold is what spots a
+    # degenerate repeat loop ("我喜欢读书。"×12), but Whisper can only REPAIR one by
+    # re-decoding the window at the next temperature — with temperature=0.0 there is
+    # no rung to fall back to, so the loop was detected and then kept verbatim. That
+    # scalar (chosen for determinism) is what put 42 looping clips live (2026-07-17).
+    # Determinism survives anyway: clean audio still decodes at 0.0 and stops there;
+    # only a window that trips a guard resamples, and those were garbage regardless.
+    temperature=(0.0, 0.2, 0.4, 0.6, 0.8, 1.0),
+    compression_ratio_threshold=2.4,
 )
 
 # Phrases Whisper invents over music / silence / channel outros — they are NOT
@@ -113,6 +117,31 @@ _HALLUCINATION_PHRASES = (
 _HALLU_RE = re.compile("|".join(re.escape(p) for p in _HALLUCINATION_PHRASES))
 
 
+# A loop that begins AFTER a real clause ("你喜欢读什么书?" + "我喜欢读书。"×12) is the
+# common shape, so the whole-text rule below cannot see it. Thresholds are tuned
+# against all 1341 live active clips: they flag 42/42 loops with 0 false positives.
+# The unit-length split is the load-bearing part — Mandarin reduplicates for
+# emphasis (来来来 / 好好好 / 对对对 / 谢谢谢谢) and digits repeat inside numbers
+# ("2000"), so a SHORT unit needs 4+ repeats before it counts, while an 8+ char
+# unit repeating 3× is not something a speaker does.
+_LOOP_SHORT_RE = re.compile(r"(.{2,7}?)\1{3,}")
+_LOOP_LONG_RE = re.compile(r"(.{8,80}?)\1{2,}")
+
+
+def is_repetition_loop(text: str) -> bool:
+    """True when one chunk repeats back-to-back and eats ≥50% of the cue — a decode
+    loop, not speech. Never repairs by collapsing: 来来来 → 来 and 2000 → 20 would
+    corrupt real lines (measured on the live corpus)."""
+    t = (text or "").strip()
+    if len(t) < 8:
+        return False
+    for rx in (_LOOP_SHORT_RE, _LOOP_LONG_RE):
+        for m in rx.finditer(t):
+            if (m.end() - m.start()) >= 0.5 * len(t):
+                return True
+    return False
+
+
 def is_repetition_hallucination(text: str) -> bool:
     """True when the hanzi of a cue are one short unit repeated ≥3× ("火火火火",
     "火大火大火大", "啊啊啊啊") — what Whisper emits over music/noise. Precise: a
@@ -124,7 +153,7 @@ def is_repetition_hallucination(text: str) -> bool:
     for u in (1, 2, 3):
         if n % u == 0 and n // u >= 3 and t == t[:u] * (n // u):
             return True
-    return False
+    return is_repetition_loop(text)
 
 
 def is_whisper_hallucination(text: str) -> bool:
@@ -582,6 +611,11 @@ def iter_whisper_cues(audio_path: Path, on_meta=None):
             continue
         # Outro/boilerplate hallucinated over music or silence (no real dialogue).
         if is_whisper_hallucination(text):
+            dropped += 1
+            continue
+        # Decode loop ("我喜欢读书。"×12) — the compression_ratio gate above catches
+        # most, this covers a loop that starts after a real clause.
+        if is_repetition_loop(text):
             dropped += 1
             continue
         # Cap implausibly long cues (Whisper bridging a gap) by a char-rate est.
