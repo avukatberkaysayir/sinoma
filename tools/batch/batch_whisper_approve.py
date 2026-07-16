@@ -15,9 +15,12 @@ FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
         "Content-Type": "application/json"}
 LANGS = ["tr", "ko", "ja", "id", "vi", "th", "ru", "es", "pt", "fr", "ar"]
 CJK = re.compile(r"^[一-鿿]+$")
-# Optional argv: hsk_min hsk_max (default 1-4, Berkay's standing priority).
+# Optional argv: hsk_min hsk_max [limit] (default 1-4, no limit — Berkay's
+# standing priority). limit caps how many clips this run processes (e.g. a
+# 100-clip HSK-5 trial batch); omitted → every eligible clip.
 HSK_MIN = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 HSK_MAX = int(sys.argv[2]) if len(sys.argv) > 2 else 4
+LIMIT = int(sys.argv[3]) if len(sys.argv) > 3 else None
 
 tok = None
 with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
@@ -163,7 +166,8 @@ from videos
 where status='pending' and backup_kind is null and backup_level is null
   and coalesce(whisper_text,'') <> ''
   and hsk_level between {HSK_MIN} and {HSK_MAX}
-order by hsk_level, created_at;
+order by hsk_level, created_at
+{f'limit {LIMIT}' if LIMIT else ''};
 """)
 print(f"{len(rows)} klip islenecek\n")
 
