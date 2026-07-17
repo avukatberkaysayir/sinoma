@@ -12,6 +12,15 @@ FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
 LANGS = ["tr", "ko", "ja", "id", "vi", "th", "ru", "es", "pt", "fr", "ar"]
 SKIP_IDS = set(sys.argv[1:])  # ids still owned by the main batch
 
+# ONLY_IDS=<json id file> restricts the run to those clips. Without it the
+# selection below sweeps every pending clip missing a quiz — 2600 rows, most of
+# them HSK 5-6 that must stay raw in Onay Bekleyen (Berkay's rule) — and burns
+# Gemini quota on all of them.
+import json as _json
+import os as _os
+_only = _os.environ.get("ONLY_IDS")
+ONLY_IDS = set(_json.load(open(_only, encoding="utf-8"))) if _only else None
+
 tok = None
 with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
     for line in f:
@@ -70,11 +79,13 @@ select id, status, transcription, pinyin,
 from videos
 where coalesce(whisper_text,'') <> ''
   and not (quiz ? 'en')
-  and status in ('backup','pending')
+  and status in ('backup','pending','active')
 order by created_at;
 """)
 rows = [r for r in rows if r["id"] not in SKIP_IDS]
-print(f"{len(rows)} klip onarilacak\n")
+if ONLY_IDS is not None:
+    rows = [r for r in rows if r["id"] in ONLY_IDS]
+print(f"{len(rows)} klip onarilacak\n", flush=True)
 ok = fail = 0
 for i, row in enumerate(rows, 1):
     vid = row["id"]
