@@ -26,6 +26,13 @@ HSK_MIN = int(sys.argv[1]) if len(sys.argv) > 1 else 1
 HSK_MAX = int(sys.argv[2]) if len(sys.argv) > 2 else 4
 LIMIT = int(sys.argv[3]) if len(sys.argv) > 3 else None
 
+# ONLY_IDS=<json file of clip ids> restricts the run to exactly those clips, for
+# repairing a known set without sweeping the whole pending pool at that level
+# (HSK 5-6 must stay raw in Onay Bekleyen unless explicitly batched).
+import os
+_only = os.environ.get("ONLY_IDS")
+ONLY_IDS = json.load(open(_only, encoding="utf-8")) if _only else None
+
 tok = None
 with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
     for line in f:
@@ -135,16 +142,18 @@ def quiz_pair(d):
     return {"correctAnswer": c, "wrongAnswer": w} if c and w else None
 
 
+_scope = ("and id in (" + ",".join(lit(i) for i in ONLY_IDS) + ")") if ONLY_IDS else ""
+
 # Ön geçiş — "temelde aynı" cümle eleme (noktalama + cümle-sonu edatı farkını
 # yok say): video içinde tekrar eden replikler ve zaten AKTİF olan bir cümlenin
 # pending kopyaları silinir. Pipeline'daki _drop_text_duplicates'in SQL eşi;
 # eski worker koduyla bölünmüş koşular için güvenlik ağı.
-deduped = sql("""
+deduped = sql(f"""
 with norm as (
   select id, youtube_id, start_time,
          rtrim(regexp_replace(transcription, '[^一-鿿]', '', 'g'),
                '呢吧啊吗呀哦啦嘛哈嘞喽') as n
-  from videos where status='pending'
+  from videos where status='pending' {_scope}
 ),
 ranked as (
   select id, n, youtube_id,
@@ -170,6 +179,7 @@ from videos
 where status='pending' and backup_kind is null and backup_level is null
   and coalesce(whisper_text,'') <> ''
   and hsk_level between {HSK_MIN} and {HSK_MAX}
+  {_scope}
 order by hsk_level, created_at
 {f'limit {LIMIT}' if LIMIT else ''};
 """)
