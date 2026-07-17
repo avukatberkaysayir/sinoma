@@ -2833,8 +2833,11 @@ class ProfileView extends ConsumerWidget {
                           ref.read(pathProgressProvider).valueOrNull ?? const {};
                       final phase = topics == null
                           ? null
-                          : currentPhaseFor(topics, progress,
-                              ref.read(currentHskLevelProvider));
+                          : currentPhaseFor(
+                              topics,
+                              progress,
+                              ref.read(currentHskLevelProvider),
+                              ref.read(isAdminProvider));
                       if (phase != null) {
                         ref
                             .read(selectedTopicHskProvider.notifier)

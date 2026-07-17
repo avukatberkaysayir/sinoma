@@ -271,7 +271,7 @@ extension PathProgressMap on Map<String, dynamic> {
 // (HSK 5 test → L6 Ünite 1 Bölüm 1). Null when nothing remains (e.g. HSK 6).
 PathPhase? currentPhaseFor(
     List<PathTopic> topics, Map<String, dynamic> progress,
-    [int userHskLevel = 0]) {
+    [int userHskLevel = 0, bool isAdmin = false]) {
   for (final t in topics) {
     // The tested level is where you START, not a level you skip. hsk_level
     // defaults to 1 for everyone, so `<=` read a brand-new member as "passed
@@ -282,7 +282,7 @@ PathPhase? currentPhaseFor(
     for (final s in t.steps) {
       for (final p in s.phases) {
         if (!progress.phase(p.key).done &&
-            isPhaseUnlocked(t, p, progress, userHskLevel)) {
+            isPhaseUnlocked(t, p, progress, userHskLevel, topics, isAdmin)) {
           return p;
         }
       }
@@ -291,26 +291,45 @@ PathPhase? currentPhaseFor(
   return null;
 }
 
-// A phase is unlocked if it's the first PLAYABLE phase in the topic or the
-// previous playable phase is done. Empty (content-less) phases are not part of
-// the chain — they render locked and never block content that comes after them.
-// The HSK placement test opens whole levels: every phase whose topic is at or
-// below the user's tested level is playable immediately (no points granted —
-// only completing a phase yourself writes progress/score).
+// Playable phases of one level, in path order. Empty (content-less) phases are
+// not part of the chain — they render locked and never block what follows.
+List<PathPhase> _playable(PathTopic topic) => <PathPhase>[
+      for (final s in topic.steps)
+        for (final p in s.phases)
+          if (p.hasVideos) p
+    ];
+
+// A phase is unlocked if it is the entry point or the previous playable phase is
+// done. The HSK test picks the ENTRY POINT, it does not hand out levels: no test
+// → only L1 Ünite 1 Bölüm 1; tested HSK 4 → only L4 Ünite 1 Bölüm 1. Everything
+// after that opens by finishing phases (Berkay, 2026-07-17 — this replaces the
+// 2026-07-12 "test opens all levels at or below" rule).
+//
+// Levels below the tested one stay open: the test already proved them, and
+// locking content a learner has demonstrated would be backwards.
+//
+// isAdmin opens everything — Berkay edits the whole path and has to see it all.
 bool isPhaseUnlocked(
     PathTopic topic, PathPhase phase, Map<String, dynamic> progress,
-    [int userHskLevel = 0]) {
+    [int userHskLevel = 0, List<PathTopic>? allTopics, bool isAdmin = false]) {
   if (kUnlockAll) return true; // TEMP inspection override (all levels)
-  // The HSK placement level opens EVERYTHING at or below it — including
-  // still-empty phases (they just browse/snackbar, never a lock): an HSK 6
-  // user must see all of L1-L6 without grinding phases (Berkay, 2026-07-12).
-  if (topic.hsk <= userHskLevel) return true;
+  if (isAdmin) return true;
+  final start = userHskLevel < 1 ? 1 : userHskLevel;
+  if (topic.hsk < start) return true;
   if (!phase.hasVideos) return false;
-  final flat = <PathPhase>[
-    for (final s in topic.steps)
-      for (final p in s.phases)
-        if (p.hasVideos) p
-  ];
+  // The chain runs ACROSS levels, not inside each one. Per-level chains left
+  // every level's first phase open, so a new member saw L2 Ünite 1 Bölüm 1
+  // unlocked next to L1 Ünite 1 Bölüm 1.
+  if (topic.hsk > start && allTopics != null) {
+    for (var lv = start; lv < topic.hsk; lv++) {
+      final earlier = allTopics.where((t) => t.hsk == lv);
+      if (earlier.isEmpty) continue;
+      if (_playable(earlier.first).any((p) => !progress.phase(p.key).done)) {
+        return false;
+      }
+    }
+  }
+  final flat = _playable(topic);
   final idx = flat.indexWhere((p) => p.key == phase.key);
   if (idx <= 0) return true;
   if (progress.phase(flat[idx - 1].key).done) return true;

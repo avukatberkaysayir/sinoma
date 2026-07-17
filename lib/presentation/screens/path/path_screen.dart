@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/cities.dart';
 import '../../../core/constants/landmarks/landmark_packs.dart';
+import '../../providers/auth_provider.dart';
 import '../../providers/locale_provider.dart';
 import '../../providers/path_provider.dart';
 import '../../providers/theme_provider.dart';
@@ -89,8 +90,8 @@ class PathScreen extends ConsumerWidget {
               ref.read(pathProgressProvider).valueOrNull ?? const {};
           final phase = topics == null
               ? null
-              : currentPhaseFor(
-                  topics, progress, ref.read(currentHskLevelProvider));
+              : currentPhaseFor(topics, progress,
+                  ref.read(currentHskLevelProvider), ref.read(isAdminProvider));
           if (phase != null) {
             ref.read(selectedTopicHskProvider.notifier).state = phase.hsk;
           }
@@ -584,6 +585,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
     final progressAsync = ref.watch(pathProgressProvider);
     final selectedHsk = ref.watch(selectedTopicHskProvider);
     final userHsk = ref.watch(currentHskLevelProvider);
+    final isAdmin = ref.watch(isAdminProvider);
     final tr = ref.watch(localeProvider).languageCode == 'tr';
 
     // Level is chosen from the left nav (→ first unit, auto-jump may then move
@@ -609,7 +611,7 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         // a post-frame callback — writing a provider during build throws.
         if (!_restoredEntry) {
           _restoredEntry = true;
-          final cur = currentPhaseFor(topics, progress, userHsk);
+          final cur = currentPhaseFor(topics, progress, userHsk, isAdmin);
           if (cur != null && cur.hsk != selectedHsk) {
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (mounted) {
@@ -630,7 +632,8 @@ class _CenterPathState extends ConsumerState<_CenterPath> {
         if (topic.hsk > userHsk) {
           for (final p in flat) {
             if (!progress.phase(p.key).done &&
-                isPhaseUnlocked(topic, p, progress, userHsk)) {
+                isPhaseUnlocked(
+                    topic, p, progress, userHsk, topics, isAdmin)) {
               current = p;
               break;
             }
@@ -1608,7 +1611,12 @@ class _PhaseNode extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final pp = progress.phase(phase.key);
     final unlocked = isPhaseUnlocked(
-        topic, phase, progress, ref.watch(currentHskLevelProvider));
+        topic,
+        phase,
+        progress,
+        ref.watch(currentHskLevelProvider),
+        ref.watch(curriculumProvider).valueOrNull,
+        ref.watch(isAdminProvider));
     final done = pp.done;
 
     // Cities with a real landmark icon drop the circle and show the icon alone
