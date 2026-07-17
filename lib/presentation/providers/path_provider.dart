@@ -273,7 +273,12 @@ PathPhase? currentPhaseFor(
     List<PathTopic> topics, Map<String, dynamic> progress,
     [int userHskLevel = 0]) {
   for (final t in topics) {
-    if (t.hsk <= userHskLevel) continue;
+    // The tested level is where you START, not a level you skip. hsk_level
+    // defaults to 1 for everyone, so `<=` read a brand-new member as "passed
+    // HSK 1" and dropped them on L2 Ünite 1. `<` starts a member with no test
+    // at L1 Ünite 1 and an HSK 2 member at L2 Ünite 1. Unlocking is separate —
+    // isPhaseUnlocked still opens every level at or below the tested one.
+    if (t.hsk < userHskLevel) continue;
     for (final s in t.steps) {
       for (final p in s.phases) {
         if (!progress.phase(p.key).done &&
