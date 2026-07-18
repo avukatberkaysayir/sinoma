@@ -25,7 +25,30 @@ try:
 except ImportError:  # pragma: no cover - pypinyin ships with the pipeline
     _PY_OK = False
 
+try:
+    import jieba
+    jieba.initialize()
+    _FREQ = jieba.dt.FREQ
+except Exception:  # pragma: no cover
+    _FREQ = {}
+
 _HAN = re.compile(r"[一-鿿]")
+
+# A real word the OCR change would DESTROY vetoes the change: 逐渐 (freq 7853)
+# must never become 逐奸 (freq 0) just because jiàn==jiān. Tuned to the measured
+# split — genuine fixes sit at 0-on-the-Whisper-side (割杀无论→格杀勿论 is 0→40),
+# so any common Whisper word above this is the ASR being right and the OCR wrong.
+_WORD_VETO_FREQ = 200
+
+
+def _best_word_freq(text: str, lo: int, hi: int) -> int:
+    """Highest jieba frequency of any 2-4 char word that covers [lo, hi)."""
+    best = 0
+    n = len(text)
+    for L in (2, 3, 4):
+        for s in range(max(0, hi - L), min(lo, n - L) + 1):
+            best = max(best, _FREQ.get(text[s:s + L], 0))
+    return best
 
 
 def _han_only(s: str) -> str:
@@ -68,12 +91,27 @@ def homophone_fix(whisper: str, ocr: str) -> tuple[str, list[tuple[str, str]]]:
         # each Whisper char has the same sound as the OCR char facing it.
         if tag != "replace" or (i2 - i1) != (j2 - j1):
             continue
+        block: list[tuple[int, int]] = []
         for k in range(i2 - i1):
             wi, oj = i1 + k, j1 + k
             if not w_py[wi] or w_py[wi] != o_py[oj]:
                 continue  # different sound → not a homophone, leave it
             if w_h[wi] == o_h[oj]:
                 continue  # same char already
+            block.append((wi, oj))
+        if not block:
+            continue
+        # Word veto: if the OCR change would break a common Whisper word, the ASR
+        # was right and the OCR misread. Compare the strongest word covering the
+        # block on each side; veto when the Whisper side is common and the OCR
+        # side is weaker.
+        lo, hi = block[0][0], block[-1][0] + 1
+        w_freq = _best_word_freq(w_h, lo, hi)
+        o_side = w_h[:lo] + "".join(o_h[oj] for _, oj in block) + w_h[hi:]
+        o_freq = _best_word_freq(o_side, lo, hi)
+        if w_freq >= _WORD_VETO_FREQ and w_freq > o_freq:
+            continue  # keep Whisper — 逐渐 must not become 逐奸
+        for wi, oj in block:
             out[han_pos[wi]] = o_h[oj]
             subs.append((w_h[wi], o_h[oj]))
 
