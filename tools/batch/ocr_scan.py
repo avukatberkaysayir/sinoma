@@ -98,13 +98,26 @@ def read_clip(vid, a, b):
 
 vids = sql("""select youtube_id, count(*) as n from videos
              where is_active group by 1 order by 2 desc;""")
-print(f"{len(vids)} video, aktif klipler taranacak (LIMIT/video={LIMIT or 'hepsi'})\n",
-      flush=True)
 
-proposals = []
+out = HERE.parents[1] / "tools" / "batch" / "ocr_proposals.json"
+done_path = HERE.parents[1] / "tools" / "batch" / "ocr_scan_done.json"
+# Resume: a crash (or a closed session — this runs hours) must not restart from
+# zero. Reload prior proposals and the set of finished videos, skip those.
+proposals = json.load(open(out, encoding="utf-8")) if out.exists() else []
+done_vids = set(json.load(open(done_path, encoding="utf-8"))) if done_path.exists() else set()
 seen_sub = collections.Counter()
+for p in proposals:
+    for a, b in p["subs"]:
+        seen_sub[f"{a}->{b}"] += 1
+
+print(f"{len(vids)} video ({len(done_vids)} bitmis, atlanacak), "
+      f"birikmis oneri {len(proposals)} (LIMIT/video={LIMIT or 'hepsi'})\n", flush=True)
+
 for vi, v in enumerate(vids, 1):
     vid = v["youtube_id"]
+    if vid in done_vids:
+        print(f"[{vi}/{len(vids)}] {vid}: bitmis, atlandi", flush=True)
+        continue
     q = f"""select id, start_time, end_time, transcription, hsk_level
             from videos where youtube_id='{vid}' and is_active
             order by start_time {f'limit {LIMIT}' if LIMIT else ''};"""
@@ -124,8 +137,11 @@ for vi, v in enumerate(vids, 1):
                               "before": c["transcription"], "after": new,
                               "ocr": o, "subs": subs})
     print(f"[{vi}/{len(vids)}] {vid} ({v['n']} aktif): {fixes} duzeltme", flush=True)
+    # Checkpoint after every video so a crash loses at most one video's work.
+    done_vids.add(vid)
+    json.dump(proposals, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+    json.dump(sorted(done_vids), open(done_path, "w", encoding="utf-8"))
 
-out = HERE.parents[1] / "tools" / "batch" / "ocr_proposals.json"
 json.dump(proposals, open(out, "w", encoding="utf-8"), ensure_ascii=False, indent=1)
 print(f"\n=== TARAMA BITTI ===")
 print(f"duzeltilecek aktif klip: {len(proposals)}")
