@@ -49,8 +49,8 @@ props = json.load(open(HERE / "ocr_proposals.json", encoding="utf-8"))
 # double-apply, no clobbering newer text.
 ids = [p["id"] for p in props]
 cur = {r["id"]: r for r in sql(
-    "select id, transcription, is_active from videos where id in (" +
-    ",".join(lit(i) for i in ids) + ");")}
+    "select id, transcription, is_active, (quiz ? 'en') as done "
+    "from videos where id in (" + ",".join(lit(i) for i in ids) + ");")}
 
 todo = []
 for p in props:
@@ -58,12 +58,12 @@ for p in props:
     if not c:
         continue
     t = c["transcription"] or ""
-    # before → not yet applied. after → a prior run wrote the text but the batch
-    # didn't finish it (crash/blip); re-run it. Anything else → something else
-    # rewrote this clip, leave it alone.
-    if t not in (p["before"], p["after"]):
-        continue
-    todo.append(p)
+    if t == p["before"]:
+        todo.append(p)                       # not applied yet
+    elif t == p["after"] and not (c["is_active"] or c["done"]):
+        todo.append(p)                       # written but the batch didn't finish
+    # else: already finished (after + active/quiz), or something else rewrote it
+    #       → leave alone. This is what stops a re-run redoing done clips.
 
 print(f"{len(props)} oneri, uygulanacak {len(todo)} "
       f"(atlanan {len(props) - len(todo)}: metin degismis/klip yok)\n")

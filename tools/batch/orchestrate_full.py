@@ -119,4 +119,19 @@ for _ in range(35):
 # 4) Approve batch (includes auto-define of unknown words).
 print("\n— toplu akis basliyor —\n", flush=True)
 r = subprocess.run([sys.executable, "-u", "batch_whisper_approve.py"], cwd=SCRATCH)
+
+# 5) Burned-in-subtitle homophone fix for the clips this run just activated.
+# ocr_scan resumes from its checkpoint (ocr_scan_done.json), so it downloads and
+# OCRs only videos it hasn't seen — i.e. this run's — then ocr_apply corrects any
+# clip whose Whisper text disagrees with the on-screen caption and re-derives it.
+# A failure here must not fail the integration: the clips are already live and
+# correct enough; the fix is an enhancement. So the batch's exit code is what we
+# return, and OCR problems are logged, not fatal.
+print("\n— OCR altyazi homofon duzeltmesi —\n", flush=True)
+try:
+    subprocess.run([sys.executable, "-u", "ocr_scan.py"], cwd=SCRATCH, timeout=7200)
+    subprocess.run([sys.executable, "-u", "ocr_apply.py"], cwd=SCRATCH, timeout=7200)
+except Exception as e:
+    print(f"  OCR adimi atlandi (hatasiz devam): {e}", flush=True)
+
 sys.exit(r.returncode)
