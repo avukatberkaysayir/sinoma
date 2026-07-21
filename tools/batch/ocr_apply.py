@@ -21,9 +21,11 @@ tok = [l.split("=", 1)[1].strip().strip('"') for l in env.splitlines()
        if l.startswith("SUPABASE_ACCESS_TOKEN")][0]
 
 
-def sql(q, tries=4):
+def sql(q, tries=8):
+    # A multi-minute network blip must not abandon a half-applied run. Longer,
+    # backing-off retries ride out the Management API's occasional outages.
     import time
-    for _ in range(tries):
+    for n in range(tries):
         try:
             d = requests.post(
                 "https://api.supabase.com/v1/projects/pqyceostpukueydwuiut/database/query",
@@ -33,7 +35,7 @@ def sql(q, tries=4):
                 return d
         except Exception:
             pass
-        time.sleep(10)
+        time.sleep(min(15 * (n + 1), 90))
     raise SystemExit("SQL failed")
 
 
@@ -55,8 +57,12 @@ for p in props:
     c = cur.get(p["id"])
     if not c:
         continue
-    if (c["transcription"] or "") != p["before"]:
-        continue  # already changed by something else → skip
+    t = c["transcription"] or ""
+    # before → not yet applied. after → a prior run wrote the text but the batch
+    # didn't finish it (crash/blip); re-run it. Anything else → something else
+    # rewrote this clip, leave it alone.
+    if t not in (p["before"], p["after"]):
+        continue
     todo.append(p)
 
 print(f"{len(props)} oneri, uygulanacak {len(todo)} "
@@ -75,13 +81,15 @@ if not todo:
 # 1) Write corrected text, clear everything derived, mark pending. Sequential so
 # each row is independent (the batch re-derives from whisper_text).
 for p in todo:
+    # Only the slot fields are cleared (all nullable). pinyin/target_words/quiz
+    # are NOT NULL and the batch overwrites them from the corrected whisper_text
+    # anyway, so touching them here just trips the not-null constraint.
     sql(f"""update videos set
       whisper_text = {lit(p['after'])},
       transcription = {lit(p['after'])},
       is_active = false, status = 'pending',
       level = null, unit = null, phase = null,
       slot_word = null, slot_grammar = null,
-      pinyin = null, target_words = null, quiz = null,
       backup_kind = null, backup_level = null, backup_unit = null,
       backup_phase = null, backup_word = null, backup_grammar = null
     where id = {lit(p['id'])};""")
