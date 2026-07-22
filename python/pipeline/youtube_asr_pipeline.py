@@ -284,6 +284,22 @@ def insert_segments(rows: list[dict[str, Any]]) -> None:
     raise RuntimeError(last or "Supabase insert failed")
 
 
+def _is_blocked(youtube_id: str) -> bool:
+    """True when the video is on the permanent blocklist (English burned-in
+    subtitles). Such a video must never be split or evaluated again."""
+    if not youtube_id or youtube_id == "unknown":
+        return False
+    try:
+        r = requests.get(
+            f"{SUPABASE_URL}/rest/v1/blocked_videos",
+            params={"youtube_id": f"eq.{youtube_id}", "select": "youtube_id"},
+            headers=_supabase_headers(), timeout=30,
+        )
+        return bool(r.json())
+    except Exception:
+        return False
+
+
 def _delete_pending_for(youtube_id: str) -> None:
     """Clear this video's previous PENDING segments before a (re)run so a retried
     job never piles up duplicates. Active/approved clips are kept."""
@@ -346,6 +362,15 @@ def run(
     url = normalize_youtube_url(url)
     youtube_id = extract_youtube_id(url)
     print(f"\n▶ YouTube ASR pipeline: {url} ({youtube_id})")
+
+    # Blocklisted (English burned-in subtitles) → never split or evaluate. Clear
+    # any stray clips and return empty so the job completes as a no-op.
+    if _is_blocked(youtube_id):
+        print(f"⛔ {youtube_id} kara listede (İngilizce altyazı) — parçalama atlandı")
+        _delete_pending_for(youtube_id)
+        return {"segmentsWritten": 0, "method": "blocked", "gatedOut": 0,
+                "droppedNoSpeech": 0, "droppedDuplicates": 0,
+                "droppedUnplaced": 0, "droppedCriterion": 0}
 
     # Idempotent (re)run: drop any leftover PENDING segments of this video first,
     # so a retried/re-queued job never produces duplicate clips.

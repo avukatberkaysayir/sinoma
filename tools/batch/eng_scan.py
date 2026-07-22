@@ -63,12 +63,15 @@ vids = sql(f"""select youtube_id,
 print(f"{len(vids)} video taranacak{' (pipeline modu)' if ONE else ''}\n", flush=True)
 
 
-def soft_delete(vid):
-    r = sql(f"""update videos set is_active=false, status='deleted',
-      level=null, unit=null, phase=null, slot_word=null, slot_grammar=null,
-      backup_kind=null, backup_level=null, backup_unit=null,
-      backup_phase=null, backup_word=null, backup_grammar=null
-      where youtube_id='{vid}' and status <> 'deleted' returning id;""")
+def eliminate(vid):
+    """Blocklist the video, drop its orphan jobs, then hard-delete every clip.
+    Blocklist first so the id survives the delete; the pipeline then refuses to
+    ever split it again."""
+    sql(f"""insert into blocked_videos (youtube_id, reason)
+        values ('{vid}', 'english_subtitle') on conflict (youtube_id) do nothing;""")
+    sql(f"""delete from pipeline_jobs where payload->>'row_id' in
+        (select id::text from videos where youtube_id='{vid}');""")
+    r = sql(f"delete from videos where youtube_id='{vid}' returning id;")
     return len(r)
 
 cached = collections.defaultdict(list)
@@ -132,10 +135,12 @@ for i, v in enumerate(vids, 1):
           f"{v['toplam']} klip{tag}", flush=True)
     if ex:
         print(f"      ornek: {ex[0]}", flush=True)
-    # Pipeline mode acts immediately: an English-subtitled new video is deleted.
+    # Pipeline mode acts immediately: an English-subtitled new video is wiped and
+    # blocklisted so it is never ingested again.
     if ONE and flag:
-        d = soft_delete(vid)
-        print(f"      -> Ingilizce altyazi: {d} klip soft-delete edildi", flush=True)
+        d = eliminate(vid)
+        print(f"      -> İngilizce altyazı: {d} klip silindi + kara listeye alındı",
+              flush=True)
 
 json.dump(out, open(HERE / "eng_videos.json", "w", encoding="utf-8"),
           ensure_ascii=False, indent=1)
