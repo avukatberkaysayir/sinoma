@@ -1,13 +1,17 @@
 # -*- coding: utf-8 -*-
-"""Find videos that carry ENGLISH burned-in subtitles (dry-run, deletes nothing).
+"""Delete clips whose burned-in subtitle is ENGLISH — decided PER CLIP.
 
-An English subtitle is a video-wide trait, so this decides per video, not per
-clip: sample frames (reusing the OCR cache where present, downloading a few where
-not), OCR the lower band, and count frames whose caption is English prose (via
-is_english_line, which rejects pinyin). A video over the threshold has its whole
-clip set — active AND pending — reported for deletion.
+A caption can be English in one part of a video and Chinese in another, so the
+unit is the clip, not the video (Berkay, 2026-07-22). Each active/pending clip is
+OCR'd over its own [start,end]; if the caption is English prose (is_english_line,
+which rejects pinyin) the clip is hard-deleted. Chinese/absent captions are kept.
 
-Writes eng_videos.json: {youtube_id: {frames, english, ratio, examples, clips}}.
+Shares the ocr_scan frame cache (D:\\tmp\\ocr_scan), so a clip already downloaded
+for the homophone pass isn't fetched again. Checkpoints per clip so a restart
+resumes. No video-level blocklist — a video is never deleted wholesale.
+
+  python tools/batch/eng_scan.py            # all active+pending clips
+  python tools/batch/eng_scan.py <id>       # only that video's clips (pipeline)
 """
 import subprocess, sys, pathlib, os, json, collections
 sys.stdout.reconfigure(encoding="utf-8")
@@ -18,12 +22,8 @@ from ocr_subtitle import is_english_line
 import requests, cv2
 from rapidocr_onnxruntime import RapidOCR
 
-RATIO = 0.30          # >=30% of sampled frames English → English-subtitled video
-# Pipeline mode: `eng_scan.py <youtube_id>` scans ONLY that video and, if it is
-# English-subtitled, soft-deletes its whole clip set (active + pending). This is
-# what runs after a new integration so an English-subtitled video is eliminated
-# on the way in. No arg → scan everything and just report (the backfill mode).
 ONE = sys.argv[1] if len(sys.argv) > 1 else None
+MIN_CONF = 0.80
 env = pathlib.Path(HERE.parents[1] / ".deploy.env").read_text(encoding="utf-8")
 tok = [l.split("=", 1)[1].strip().strip('"') for l in env.splitlines()
        if l.startswith("SUPABASE_ACCESS_TOKEN")][0]
@@ -45,109 +45,86 @@ def sql(q, tries=6):
     raise SystemExit("SQL failed")
 
 
-CACHE = pathlib.Path(r"D:\tmp\ocr_scan")
-WORK = pathlib.Path(r"D:\tmp\eng_scan"); WORK.mkdir(parents=True, exist_ok=True)
+def lit(s):
+    return "'" + str(s).replace("'", "''") + "'"
+
+
+CACHE = pathlib.Path(r"D:\tmp\ocr_scan")   # shared with ocr_scan
+CACHE.mkdir(parents=True, exist_ok=True)
 COOK = HERE.parents[1] / "python" / "yt_cookies.txt"
 FF = _ffmpeg_exe()
 ocr = RapidOCR()
-
-# Every video with any clip (active or pending) + its clip counts. In pipeline
-# mode, just the one video. 'deleted' clips are excluded so a re-run is a no-op.
-where = f"where status <> 'deleted'" + (f" and youtube_id = '{ONE}'" if ONE else "")
-vids = sql(f"""select youtube_id,
-  count(*) as toplam,
-  count(*) filter (where is_active) as aktif,
-  count(*) filter (where not is_active) as bekleyen,
-  min(start_time) as ilk, max(end_time) as son
-  from videos {where} group by 1 order by 2 desc;""")
-print(f"{len(vids)} video taranacak{' (pipeline modu)' if ONE else ''}\n", flush=True)
+DONE = HERE / "eng_done_clips.json"
+done = set(json.load(open(DONE, encoding="utf-8"))) if DONE.exists() else set()
 
 
-def eliminate(vid):
-    """Blocklist the video, drop its orphan jobs, then hard-delete every clip.
-    Blocklist first so the id survives the delete; the pipeline then refuses to
-    ever split it again."""
-    sql(f"""insert into blocked_videos (youtube_id, reason)
-        values ('{vid}', 'english_subtitle') on conflict (youtube_id) do nothing;""")
-    sql(f"""delete from pipeline_jobs where payload->>'row_id' in
-        (select id::text from videos where youtube_id='{vid}');""")
-    r = sql(f"delete from videos where youtube_id='{vid}' returning id;")
-    return len(r)
-
-cached = collections.defaultdict(list)
-for f in CACHE.glob("*.png"):
-    cached[f.stem.split("_")[0]].append(f)
-
-
-def eng_ratio(vid, span):
-    """Return (frames_checked, english_frames, examples) for a video."""
-    frames = list(cached.get(vid, []))[:24]
-    if len(frames) < 6 and span and span > 30:
-        # Not enough cached frames — grab a few short segments to sample.
-        for t in (span * 0.3, span * 0.5, span * 0.7):
-            mp4 = WORK / f"{vid}_{t:.0f}.mp4"
-            if not mp4.exists():
-                args = ["--no-check-certificates", "--no-playlist", "--quiet",
-                        "--no-warnings", "--force-ipv4", "--js-runtimes", "node",
-                        "--ffmpeg-location", FF, "--extractor-args",
-                        "youtube:player_client=tv,android,mweb,ios,web_safari;fetch_pot=always",
-                        "-f", "bv[height<=480]/bv*[height<=720]/b",
-                        "--download-sections", f"*{t}-{t+1}", "--force-keyframes-at-cuts",
-                        "-o", str(mp4), f"https://www.youtube.com/watch?v={vid}"]
-                if COOK.is_file():
-                    args = ["--cookies", str(COOK)] + args
-                subprocess.run([sys.executable, "-m", "yt_dlp"] + args,
-                               capture_output=True, text=True, timeout=200)
-            if mp4.exists():
-                png = WORK / f"{vid}_{t:.0f}.png"
-                subprocess.run([FF, "-y", "-ss", "0.4", "-i", str(mp4),
-                                "-vframes", "1", str(png)], capture_output=True, timeout=60)
-                if png.exists():
-                    frames.append(png)
-    eng = 0
-    ex = []
-    for f in frames:
-        img = cv2.imread(str(f))
+def caption_is_english(vid, a, b):
+    """OCR the clip's lower band over a few frames; True if a MAJORITY of the
+    frames that carry text read English (not pinyin)."""
+    mp4 = CACHE / f"{vid}_{a:.0f}.mp4"
+    if not mp4.exists():
+        args = ["--no-check-certificates", "--no-playlist", "--quiet", "--no-warnings",
+                "--force-ipv4", "--js-runtimes", "node", "--ffmpeg-location", FF,
+                "--extractor-args",
+                "youtube:player_client=tv,android,mweb,ios,web_safari;fetch_pot=always",
+                "-f", "bv[height<=480]/bv*[height<=720]/b",
+                "--download-sections", f"*{a}-{b}", "--force-keyframes-at-cuts",
+                "-o", str(mp4), f"https://www.youtube.com/watch?v={vid}"]
+        if COOK.is_file():
+            args = ["--cookies", str(COOK)] + args
+        r = subprocess.run([sys.executable, "-m", "yt_dlp"] + args,
+                           capture_output=True, text=True, timeout=300)
+        if r.returncode != 0 or not mp4.exists():
+            return None
+    eng = txt = 0
+    dur = max(b - a, 0.1)
+    for t in (0.2, 0.4, 0.6, 0.8):
+        png = CACHE / f"{vid}_{a:.0f}_{t}.png"
+        if not png.exists():
+            subprocess.run([FF, "-y", "-ss", str(dur * t), "-i", str(mp4),
+                            "-vframes", "1", str(png)], capture_output=True, timeout=60)
+        if not png.exists():
+            continue
+        img = cv2.imread(str(png))
         if img is None:
             continue
         h = img.shape[0]
         res, _ = ocr(img[int(h * 0.55):h, :])
-        for _, txt, _ in res or []:
-            if is_english_line(txt):
+        line = " ".join(x for _, x, c in (res or []) if float(c) >= MIN_CONF)
+        if line.strip():
+            txt += 1
+            if is_english_line(line):
                 eng += 1
-                if len(ex) < 3:
-                    ex.append(txt.strip()[:50])
-                break
-    return len(frames), eng, ex
+    if txt == 0:
+        return False              # no caption read → not English
+    return eng >= max(2, txt * 0.5)
 
 
-out = {}
-for i, v in enumerate(vids, 1):
-    vid = v["youtube_id"]
-    n, eng, ex = eng_ratio(vid, float(v["son"] or 0))
-    ratio = eng / n if n else 0
-    flag = ratio >= RATIO and n >= 4
-    out[vid] = {"frames": n, "english": eng, "ratio": round(ratio, 2),
-                "toplam": v["toplam"], "aktif": v["aktif"], "bekleyen": v["bekleyen"],
-                "examples": ex, "flag": flag}
-    tag = "  <== INGILIZCE ALTYAZI" if flag else ""
-    print(f"[{i}/{len(vids)}] {vid}: {eng}/{n} kare Ing (%{ratio*100:.0f}), "
-          f"{v['toplam']} klip{tag}", flush=True)
-    if ex:
-        print(f"      ornek: {ex[0]}", flush=True)
-    # Pipeline mode acts immediately: an English-subtitled new video is wiped and
-    # blocklisted so it is never ingested again.
-    if ONE and flag:
-        d = eliminate(vid)
-        print(f"      -> İngilizce altyazı: {d} klip silindi + kara listeye alındı",
-              flush=True)
+where = "where status <> 'deleted'" + (f" and youtube_id = '{ONE}'" if ONE else "")
+clips = sql(f"""select id, youtube_id, start_time, end_time, is_active
+             from videos {where} order by youtube_id, start_time;""")
+clips = [c for c in clips if c["id"] not in done]
+print(f"{len(clips)} klip taranacak (klip-bazı){' [pipeline]' if ONE else ''}\n", flush=True)
 
-json.dump(out, open(HERE / "eng_videos.json", "w", encoding="utf-8"),
-          ensure_ascii=False, indent=1)
-flagged = {k: v for k, v in out.items() if v["flag"]}
-tot = sum(v["toplam"] for v in flagged.values())
+deleted = kept = 0
+by_vid = collections.Counter()
+for i, c in enumerate(clips, 1):
+    vid = c["youtube_id"]
+    eng = caption_is_english(vid, float(c["start_time"]), float(c["end_time"]))
+    done.add(c["id"])
+    if eng:
+        sql(f"delete from pipeline_jobs where payload->>'row_id' = {lit(c['id'])};")
+        sql(f"delete from videos where id = {lit(c['id'])};")
+        deleted += 1
+        by_vid[vid] += 1
+    else:
+        kept += 1
+    if i % 25 == 0:
+        json.dump(sorted(done), open(DONE, "w"))
+        print(f"  [{i}/{len(clips)}] silinen {deleted}, tutulan {kept}", flush=True)
+
+json.dump(sorted(done), open(DONE, "w"))
 print(f"\n=== TARAMA BITTI ===")
-print(f"Ingilizce altyazili video: {len(flagged)}")
-print(f"silinecek klip (aktif+bekleyen): {tot}")
-for k, v in flagged.items():
-    print(f"   {k}: {v['toplam']} klip ({v['aktif']} aktif, {v['bekleyen']} bekleyen)")
+print(f"İngilizce altyazılı klip silindi: {deleted}")
+print(f"tutulan (Çince/altyazısız): {kept}")
+print("video başına silinen:", dict(by_vid.most_common()))

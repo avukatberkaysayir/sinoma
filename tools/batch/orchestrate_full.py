@@ -131,15 +131,15 @@ try:
 except Exception:
     pass
 
-# 5) English burned-in subtitles → eliminate the video. An English caption gives
-# the answer away, so an English-subtitled video is soft-deleted (active+pending)
-# on the way in. Runs before the homophone fix: no point correcting a video that
-# is about to be deleted.
+# 5) English burned-in subtitles → delete those clips, PER CLIP. A caption can be
+# English in one part of a video and Chinese in another, so each clip is judged on
+# its own [start,end]; only the English ones go. Runs before the homophone fix so
+# a clip about to be deleted isn't corrected first.
 if new_vid:
-    print("\n— Ingilizce gomulu altyazi filtresi —\n", flush=True)
+    print("\n— Ingilizce gomulu altyazi filtresi (klip-bazi) —\n", flush=True)
     try:
         subprocess.run([sys.executable, "-u", "eng_scan.py", new_vid],
-                       cwd=SCRATCH, timeout=3600)
+                       cwd=SCRATCH, timeout=7200)
     except Exception as e:
         print(f"  Ingilizce filtresi atlandi: {e}", flush=True)
 
