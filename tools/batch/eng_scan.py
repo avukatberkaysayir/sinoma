@@ -72,8 +72,14 @@ def caption_is_english(vid, a, b):
                 "-o", str(mp4), f"https://www.youtube.com/watch?v={vid}"]
         if COOK.is_file():
             args = ["--cookies", str(COOK)] + args
-        r = subprocess.run([sys.executable, "-m", "yt_dlp"] + args,
-                           capture_output=True, text=True, timeout=300)
+        # A single slow/hung download must not kill the whole multi-thousand-clip
+        # run — swallow the timeout/error and skip this clip (treated as no
+        # caption, so kept; a later pass can revisit it).
+        try:
+            r = subprocess.run([sys.executable, "-m", "yt_dlp"] + args,
+                               capture_output=True, text=True, timeout=180)
+        except Exception:
+            return None
         if r.returncode != 0 or not mp4.exists():
             return None
     eng = txt = 0
@@ -81,8 +87,11 @@ def caption_is_english(vid, a, b):
     for t in (0.2, 0.4, 0.6, 0.8):
         png = CACHE / f"{vid}_{a:.0f}_{t}.png"
         if not png.exists():
-            subprocess.run([FF, "-y", "-ss", str(dur * t), "-i", str(mp4),
-                            "-vframes", "1", str(png)], capture_output=True, timeout=60)
+            try:
+                subprocess.run([FF, "-y", "-ss", str(dur * t), "-i", str(mp4),
+                                "-vframes", "1", str(png)], capture_output=True, timeout=60)
+            except Exception:
+                pass
         if not png.exists():
             continue
         img = cv2.imread(str(png))
