@@ -120,7 +120,30 @@ for _ in range(35):
 print("\n— toplu akis basliyor —\n", flush=True)
 r = subprocess.run([sys.executable, "-u", "batch_whisper_approve.py"], cwd=SCRATCH)
 
-# 5) Burned-in-subtitle homophone fix for the clips this run just activated.
+# Which video did this run integrate? (for the per-video OCR steps below)
+new_vid = None
+try:
+    import re
+    row = sql("select payload->>'url' as url from pipeline_jobs "
+              "where job_type='youtube_asr' order by created_at desc limit 1;")
+    m = re.search(r"v=([\w-]+)", row[0]["url"]) if row else None
+    new_vid = m.group(1) if m else None
+except Exception:
+    pass
+
+# 5) English burned-in subtitles → eliminate the video. An English caption gives
+# the answer away, so an English-subtitled video is soft-deleted (active+pending)
+# on the way in. Runs before the homophone fix: no point correcting a video that
+# is about to be deleted.
+if new_vid:
+    print("\n— Ingilizce gomulu altyazi filtresi —\n", flush=True)
+    try:
+        subprocess.run([sys.executable, "-u", "eng_scan.py", new_vid],
+                       cwd=SCRATCH, timeout=3600)
+    except Exception as e:
+        print(f"  Ingilizce filtresi atlandi: {e}", flush=True)
+
+# 6) Burned-in-subtitle homophone fix for the clips this run just activated.
 # ocr_scan resumes from its checkpoint (ocr_scan_done.json), so it downloads and
 # OCRs only videos it hasn't seen — i.e. this run's — then ocr_apply corrects any
 # clip whose Whisper text disagrees with the on-screen caption and re-derives it.

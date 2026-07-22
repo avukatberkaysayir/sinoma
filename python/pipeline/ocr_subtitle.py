@@ -55,6 +55,35 @@ def _han_only(s: str) -> str:
     return "".join(_HAN.findall(s or ""))
 
 
+# Valid toneless pinyin syllables, built once from common hanzi. Used to tell an
+# English burned-in subtitle ("You'll have one more") from a pinyin one ("zhe dun
+# fan") — both are Latin+spaces, but a pinyin line is mostly these syllables and
+# an English line is mostly not. English captions get deleted (they give the
+# answer away); pinyin ones are left alone (they aid learning).
+_PINYIN_SYL = set()
+try:
+    for _cp in range(0x4E00, 0x9FA6):
+        _s = lazy_pinyin(chr(_cp))
+        if _s and _s[0].isalpha():
+            _PINYIN_SYL.add(_s[0])
+    _PINYIN_SYL |= {"r", "er", "o", "ei", "ou", "ao", "an", "en", "ang", "eng"}
+except Exception:  # pragma: no cover
+    _PINYIN_SYL = set()
+
+_LATIN_WORD = re.compile(r"[A-Za-z']{2,}")
+
+
+def is_english_line(text: str) -> bool:
+    """True when a caption line is English prose, not pinyin or a logo. Needs 2+
+    Latin words, a majority of which are NOT pinyin syllables."""
+    words = [w.lower().replace("'", "") for w in _LATIN_WORD.findall(text or "")]
+    words = [w for w in words if len(w) >= 2]
+    if len(words) < 2:
+        return False
+    non_py = sum(1 for w in words if w not in _PINYIN_SYL)
+    return non_py >= max(2, len(words) * 0.5)
+
+
 def _toneless(chars: str) -> list[str]:
     # One pinyin syllable per hanzi, no tone marks. lazy_pinyin already drops
     # tones; strip any stray digits just in case a backend returns them.
