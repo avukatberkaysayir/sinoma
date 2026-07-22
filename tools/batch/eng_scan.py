@@ -100,9 +100,13 @@ def caption_is_english(vid, a, b):
     return eng >= max(2, txt * 0.5)
 
 
+# ENG_ACTIVE_ONLY=1 → active clips first (they're what the learner sees, and are
+# already in the OCR cache so no download). Pending comes as a later pass.
 where = "where status <> 'deleted'" + (f" and youtube_id = '{ONE}'" if ONE else "")
+if os.environ.get("ENG_ACTIVE_ONLY"):
+    where += " and is_active"
 clips = sql(f"""select id, youtube_id, start_time, end_time, is_active
-             from videos {where} order by youtube_id, start_time;""")
+             from videos {where} order by is_active desc, youtube_id, start_time;""")
 clips = [c for c in clips if c["id"] not in done]
 print(f"{len(clips)} klip taranacak (klip-bazı){' [pipeline]' if ONE else ''}\n", flush=True)
 
