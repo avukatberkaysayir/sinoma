@@ -550,13 +550,22 @@ class AdminService {
 
   // ── Supabase CRUD ───────────────────────────────────────────────────────────
 
+  // Paged like listVideosByStatus — a single .limit(200) truncated the list, and
+  // raising it would hit PostgREST's 1000-row per-request cap. 1000-row pages.
   Future<List<Map<String, dynamic>>> listVideos() async {
-    final data = await _db
-        .from('videos')
-        .select()
-        .order('hsk_level')
-        .limit(200);
-    return List<Map<String, dynamic>>.from(data);
+    const pageSize = 1000, maxRows = 10000;
+    final out = <Map<String, dynamic>>[];
+    while (out.length < maxRows) {
+      final data = await _db
+          .from('videos')
+          .select()
+          .order('hsk_level')
+          .order('id', ascending: true)
+          .range(out.length, out.length + pageSize - 1);
+      out.addAll(List<Map<String, dynamic>>.from(data));
+      if (data.length < pageSize) break;
+    }
+    return out;
   }
 
   // Backup ("Yedek") store: active/pending clips that couldn't become an active
@@ -631,14 +640,23 @@ class AdminService {
     await _db.from('videos').delete().inFilter('id', ids);
   }
 
+  // Paged: a long video splits into 800+ clips (once ~811), and .limit(200) cut
+  // the list off there. Page at 1000 rows so every clip of the video shows.
   Future<List<Map<String, dynamic>>> listVideosByYoutubeId(String ytId) async {
-    final data = await _db
-        .from('videos')
-        .select()
-        .eq('youtube_id', ytId)
-        .order('start_time', ascending: true)
-        .limit(200);
-    return List<Map<String, dynamic>>.from(data);
+    const pageSize = 1000, maxRows = 10000;
+    final out = <Map<String, dynamic>>[];
+    while (out.length < maxRows) {
+      final data = await _db
+          .from('videos')
+          .select()
+          .eq('youtube_id', ytId)
+          .order('start_time', ascending: true)
+          .order('id', ascending: true)
+          .range(out.length, out.length + pageSize - 1);
+      out.addAll(List<Map<String, dynamic>>.from(data));
+      if (data.length < pageSize) break;
+    }
+    return out;
   }
 
   // Move clips into the backup ("Yedek") store (kept out of the active feed).

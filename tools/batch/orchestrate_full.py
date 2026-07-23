@@ -65,16 +65,38 @@ while True:
 # (_drop_text_duplicates) deletes pending clips out from under us. Gate on job
 # state (2026-07-15: a stalled split the guard skipped past kept running and a
 # watchdog requeue re-ran it, deleting 8 clips mid-run).
-for _ in range(35):
+#
+# Orphan watchdog: a split can finish producing clips yet leave its job stuck at
+# 'processing' (seen on a 4-hour video, 2026-07-23) — no ffmpeg alive, last clip
+# an hour ago, job never marked done. Then this gate would wait its whole budget
+# for nothing. So if the pending count hasn't moved for 15 min, treat the job as
+# orphaned, mark it done and go on — the split really is finished.
+stuck_since = None
+last_pending = None
+for _ in range(90):
     try:
         busy = sql("select count(*) as n from pipeline_jobs where "
                    "job_type='youtube_asr' and status in ('pending','processing');"
                    )[0]["n"]
+        pend = sql("select count(*) as n from videos where status='pending';")[0]["n"]
     except RuntimeError:
         time.sleep(60)
         continue
     if not busy:
         break
+    if pend == last_pending:
+        if stuck_since is None:
+            stuck_since = time.time()
+        elif time.time() - stuck_since > 900:   # 15 min with no new clip
+            closed = sql("update pipeline_jobs set status='done' where "
+                         "job_type='youtube_asr' and status='processing' and "
+                         "created_at < now() - interval '20 minutes' returning id;")
+            print(f"  oksuz bolme isi kapatildi ({len(closed)}) — 15 dk klip yok, "
+                  "parcalama bitmis sayiliyor", flush=True)
+            break
+    else:
+        stuck_since = None
+        last_pending = pend
     print(f"  split hala aktif ({busy}) — bekleniyor (dedup yarisini onlemek icin)",
           flush=True)
     time.sleep(60)
