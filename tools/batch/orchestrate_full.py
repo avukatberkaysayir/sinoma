@@ -61,6 +61,48 @@ while True:
         break
     time.sleep(60)
 
+# 1b) Never proceed while the split is still (re)processing: its DB-wide dedup
+# (_drop_text_duplicates) deletes pending clips out from under us. Gate on job
+# state (2026-07-15: a stalled split the guard skipped past kept running and a
+# watchdog requeue re-ran it, deleting 8 clips mid-run).
+for _ in range(35):
+    try:
+        busy = sql("select count(*) as n from pipeline_jobs where "
+                   "job_type='youtube_asr' and status in ('pending','processing');"
+                   )[0]["n"]
+    except RuntimeError:
+        time.sleep(60)
+        continue
+    if not busy:
+        break
+    print(f"  split hala aktif ({busy}) — bekleniyor (dedup yarisini onlemek icin)",
+          flush=True)
+    time.sleep(60)
+
+# Which video did this run integrate?
+new_vid = None
+try:
+    import re
+    row = sql("select payload->>'url' as url from pipeline_jobs "
+              "where job_type='youtube_asr' order by created_at desc limit 1;")
+    m = re.search(r"v=([\w-]+)", row[0]["url"]) if row else None
+    new_vid = m.group(1) if m else None
+except Exception:
+    pass
+
+# 1c) English burned-in subtitles → delete those clips FIRST, per clip, before any
+# Whisper/quiz work is spent on them (Berkay 2026-07-23: scan then integrate). A
+# caption can be English in one stretch and Chinese in another, so each clip is
+# judged on its own [start,end]; only the English ones go, at every HSK level.
+if new_vid:
+    print("\n— Ingilizce gomulu altyazi filtresi (klip-bazi, entegrasyondan ONCE) —\n",
+          flush=True)
+    try:
+        subprocess.run([sys.executable, "-u", "eng_scan.py", new_vid],
+                       cwd=SCRATCH, timeout=7200)
+    except Exception as e:
+        print(f"  Ingilizce filtresi atlandi: {e}", flush=True)
+
 # 2) Whisper jobs for clips missing whisper_text — HSK 1-4 only (Berkay'ın
 # önceliği); HSK 5-6 klipler beklemede dokunulmadan kalır, istenirse sonra.
 queued = sql("""
@@ -95,53 +137,9 @@ if queued:
             print(f"  STALL: 20 dk ilerleme yok, {n} eksikle devam", flush=True)
             break
 
-# 3b) Never start the batch while a split is still (re)processing: the split's
-# DB-wide dedup (_drop_text_duplicates) deletes pending clips out from under the
-# batch's SELECT — the row vanishes before its UPDATE and the clip is lost
-# (2026-07-15: a stalled split that the 25-min guard skipped past kept running,
-# and a watchdog requeue re-ran it during the batch → 8 clips deleted mid-run).
-# The stall guard above can fire while the split is merely plateaued in its
-# final dedup/coherence phase, so gate explicitly on job state here.
-for _ in range(35):
-    try:
-        busy = sql("select count(*) as n from pipeline_jobs where "
-                   "job_type='youtube_asr' and status in ('pending','processing');"
-                   )[0]["n"]
-    except RuntimeError:
-        time.sleep(60)
-        continue
-    if not busy:
-        break
-    print(f"  split hala aktif ({busy}) — batch bekliyor (dedup yarisini onlemek icin)",
-          flush=True)
-    time.sleep(60)
-
 # 4) Approve batch (includes auto-define of unknown words).
 print("\n— toplu akis basliyor —\n", flush=True)
 r = subprocess.run([sys.executable, "-u", "batch_whisper_approve.py"], cwd=SCRATCH)
-
-# Which video did this run integrate? (for the per-video OCR steps below)
-new_vid = None
-try:
-    import re
-    row = sql("select payload->>'url' as url from pipeline_jobs "
-              "where job_type='youtube_asr' order by created_at desc limit 1;")
-    m = re.search(r"v=([\w-]+)", row[0]["url"]) if row else None
-    new_vid = m.group(1) if m else None
-except Exception:
-    pass
-
-# 5) English burned-in subtitles → delete those clips, PER CLIP. A caption can be
-# English in one part of a video and Chinese in another, so each clip is judged on
-# its own [start,end]; only the English ones go. Runs before the homophone fix so
-# a clip about to be deleted isn't corrected first.
-if new_vid:
-    print("\n— Ingilizce gomulu altyazi filtresi (klip-bazi) —\n", flush=True)
-    try:
-        subprocess.run([sys.executable, "-u", "eng_scan.py", new_vid],
-                       cwd=SCRATCH, timeout=7200)
-    except Exception as e:
-        print(f"  Ingilizce filtresi atlandi: {e}", flush=True)
 
 # 6) Burned-in-subtitle homophone fix for the clips this run just activated.
 # ocr_scan resumes from its checkpoint (ocr_scan_done.json), so it downloads and
