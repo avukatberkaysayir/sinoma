@@ -111,9 +111,16 @@ def caption_is_english(vid, a, b):
 
 # ENG_ACTIVE_ONLY=1 → active clips first (they're what the learner sees, and are
 # already in the OCR cache so no download). Pending comes as a later pass.
+# ENG_HSK_MAX=N → only HSK 1..N. In pipeline mode this limits the scan to the
+# clips this run will integrate (HSK 1-4); HSK 5-6 stays raw in Onay Bekleyen and
+# gets scanned when it is later integrated — essential on a 4-hour video where
+# scanning every clip would be thousands of downloads.
 where = "where status <> 'deleted'" + (f" and youtube_id = '{ONE}'" if ONE else "")
 if os.environ.get("ENG_ACTIVE_ONLY"):
     where += " and is_active"
+_hmax = os.environ.get("ENG_HSK_MAX")
+if _hmax:
+    where += f" and hsk_level between 1 and {int(_hmax)}"
 clips = sql(f"""select id, youtube_id, start_time, end_time, is_active
              from videos {where} order by is_active desc, youtube_id, start_time;""")
 clips = [c for c in clips if c["id"] not in done]

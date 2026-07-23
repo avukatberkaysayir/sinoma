@@ -95,11 +95,15 @@ except Exception:
 # caption can be English in one stretch and Chinese in another, so each clip is
 # judged on its own [start,end]; only the English ones go, at every HSK level.
 if new_vid:
-    print("\n— Ingilizce gomulu altyazi filtresi (klip-bazi, entegrasyondan ONCE) —\n",
+    print("\n— Ingilizce gomulu altyazi filtresi (klip-bazi, HSK 1-4, entegrasyondan ONCE) —\n",
           flush=True)
     try:
+        # HSK 1-4 only — the clips this run integrates. HSK 5-6 stays raw and is
+        # scanned when it is later integrated, so a 4-hour video isn't thousands
+        # of extra downloads here.
         subprocess.run([sys.executable, "-u", "eng_scan.py", new_vid],
-                       cwd=SCRATCH, timeout=7200)
+                       cwd=SCRATCH, timeout=10800,
+                       env={**os.environ, "ENG_HSK_MAX": "4"})
     except Exception as e:
         print(f"  Ingilizce filtresi atlandi: {e}", flush=True)
 
