@@ -121,6 +121,14 @@ if os.environ.get("ENG_ACTIVE_ONLY"):
 _hmax = os.environ.get("ENG_HSK_MAX")
 if _hmax:
     where += f" and hsk_level between 1 and {int(_hmax)}"
+# ENG_ONLY_IDS=<json id file> → scan exactly those clips (a fixed batch, e.g. 50
+# HSK 5 clips picked once so the English filter and the later integration act on
+# the same rows).
+_only = os.environ.get("ENG_ONLY_IDS")
+if _only:
+    _ids = json.load(open(_only, encoding="utf-8"))
+    where += " and id in (" + ",".join("'" + str(i).replace("'", "''") + "'"
+                                        for i in _ids) + ")"
 clips = sql(f"""select id, youtube_id, start_time, end_time, is_active
              from videos {where} order by is_active desc, youtube_id, start_time;""")
 clips = [c for c in clips if c["id"] not in done]
