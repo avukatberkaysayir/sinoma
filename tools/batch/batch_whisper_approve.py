@@ -305,18 +305,26 @@ where not exists (select 1 from posts where content = {lit(w)}
             elif d.get("saved"):
                 print(f"    sozluk: {w} -> Diger eklendi")
 
-        # Activate ONLY when the clip actually landed in a slot (level set). A
-        # clip with no free slot is left pending — the trigger marks it backup
-        # if it maps to a slot, else it's bare pending. Never active-placeless
-        # (Berkay 2026-07-16: every active clip must sit in a slot).
+        # Three outcomes: landed in a slot → activate; no free slot but a free
+        # BACKUP slot → pending backup (023 keeps it to one per slot); no slot and
+        # no free backup slot → DELETE, never a bare-pending leftover (Berkay
+        # 2026-07-27: "bir slot doluysa yedeği de varsa gelen dosyayı direk sil").
         placed = upd["level"] is not None
+        has_backup = upd["backup_level"] is not None
+        if not placed and not has_backup:
+            sql(f"delete from pipeline_jobs where payload->>'row_id' = '{vid}';")
+            sql(f"delete from videos where id = '{vid}';")
+            report["slot_conflict"].append({
+                "id": vid, "sentence": transcription, "criterion": "?", "slot": "silindi"})
+            print("    yer yok + yedek slotu dolu -> SILINDI")
+            time.sleep(0.5)
+            continue
         approve = ", status='active', is_active=true" if placed else ""
         sql(f"update videos set quiz = {lit(json.dumps(quiz, ensure_ascii=False))}::jsonb"
             f"{approve} where id = '{vid}';")
         if not placed:
             crit = upd.get("backup_grammar") or upd.get("backup_word") or "?"
-            slot = (f"L{upd['backup_level']} U{upd['backup_unit']} B{upd['backup_phase']}"
-                    if upd["backup_level"] is not None else "slotsuz")
+            slot = (f"L{upd['backup_level']} U{upd['backup_unit']} B{upd['backup_phase']}")
             report["slot_conflict"].append({
                 "id": vid, "sentence": transcription, "criterion": crit, "slot": slot})
             print(f"    yer yok ({crit}) -> beklemede (yedek: {slot})")
