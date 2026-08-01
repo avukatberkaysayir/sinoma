@@ -4,7 +4,7 @@
 // storage directly. Guarded by a shared header token like ko-batch.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
-const GUARD = "sinoma-admin-asset-2026";
+const GUARD = Deno.env.get("INTERNAL_FN_SECRET") ?? "";
 const URL_BASE = Deno.env.get("SUPABASE_URL")!;
 const KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // New-format secret keys (sb_secret_…) are not JWTs: passing them as a Bearer
@@ -15,7 +15,7 @@ const AUTH: Record<string, string> = KEY.startsWith("sb_")
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok");
-  if (req.headers.get("x-backfill-guard") !== GUARD) {
+  if (req.headers.get("x-internal-secret") !== GUARD) {
     return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
   }
   try {

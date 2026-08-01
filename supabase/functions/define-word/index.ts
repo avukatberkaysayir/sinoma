@@ -99,6 +99,11 @@ async function pinyinFromChars(word: string): Promise<string> {
 // the manual Önerilen editor remains a complete fallback.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  // Pipeline-only: the client never calls this. Reject anyone without the shared
+  // internal secret so anon callers can't burn Gemini quota (2026-08-01 audit).
+  if (req.headers.get("x-internal-secret") !== Deno.env.get("INTERNAL_FN_SECRET")) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const word = (body.word ?? "").toString().trim();

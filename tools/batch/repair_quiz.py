@@ -1,14 +1,18 @@
 ﻿# Repair pass: regenerate the 12-language quiz for clips whose Whisper apply
 # succeeded but whose quiz generation failed mid-batch. Status is left as-is.
-import json, sys, time, requests
+import json, sys, time, requests, pathlib
 
 sys.stdout.reconfigure(encoding="utf-8")
 
 PROJECT = "pqyceostpukueydwuiut"
 ANON = "sb_publishable_L_qwvXbTI8URLvDHWUqApg_bgVlf9s1"
 FN_BASE = f"https://{PROJECT}.supabase.co/functions/v1"
+_IFS = ""
+for _l in pathlib.Path(r"d:\Masaustu\github\Kandao\.deploy.env").read_text(encoding="utf-8").splitlines():
+    if _l.startswith("INTERNAL_FN_SECRET"):
+        _IFS = _l.split("=", 1)[1].strip().strip('"')
 FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
-        "Content-Type": "application/json"}
+        "Content-Type": "application/json", "x-internal-secret": _IFS}
 LANGS = ["tr", "ko", "ja", "id", "vi", "th", "ru", "es", "pt", "fr", "ar"]
 SKIP_IDS = set(sys.argv[1:])  # ids still owned by the main batch
 

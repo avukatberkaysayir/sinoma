@@ -15,8 +15,14 @@ sys.stdout.reconfigure(encoding="utf-8")
 PROJECT = "pqyceostpukueydwuiut"
 ANON = "sb_publishable_L_qwvXbTI8URLvDHWUqApg_bgVlf9s1"
 FN_BASE = f"https://{PROJECT}.supabase.co/functions/v1"
+# Internal edge functions (define-word/generate-quiz/…) are pipeline-only and now
+# require this shared secret; the client never calls them, so anon callers 403.
+_IFS = ""
+for _l in pathlib.Path(r"d:\Masaustu\github\Kandao\.deploy.env").read_text(encoding="utf-8").splitlines():
+    if _l.startswith("INTERNAL_FN_SECRET"):
+        _IFS = _l.split("=", 1)[1].strip().strip('"')
 FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
-        "Content-Type": "application/json"}
+        "Content-Type": "application/json", "x-internal-secret": _IFS}
 LANGS = ["tr", "ko", "ja", "id", "vi", "th", "ru", "es", "pt", "fr", "ar"]
 CJK = re.compile(r"^[一-鿿]+$")
 # Optional argv: hsk_min hsk_max [limit] (default 1-4, no limit — Berkay's

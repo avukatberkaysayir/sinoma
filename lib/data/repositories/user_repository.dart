@@ -305,7 +305,9 @@ class UserRepository {
   }
 
   Future<void> updateHskLevel(String uid, int newLevel) async {
-    await _db.from('users').update({'hsk_level': newLevel}).eq('id', uid);
+    // hsk_level is trigger-locked (migration 027); the RPC validates 1..6 and
+    // writes the caller's own row.
+    await _db.rpc('set_hsk_level', params: {'p_level': newLevel});
   }
 
   Future<void> updateDisplayName(String uid, String newName) async {

@@ -1,7 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/constants/hsk1_words.dart';
@@ -14,62 +13,6 @@ import '../../core/constants/diger_words.dart';
 
 class AdminService {
   SupabaseClient get _db => Supabase.instance.client;
-
-  static const _pipelineBase = 'http://localhost:9302';
-
-  // ── Pipeline server (local dev tool) ───────────────────────────────────────
-
-  Future<bool> isPipelineServerRunning() async {
-    try {
-      final res = await http
-          .get(Uri.parse('$_pipelineBase/health'))
-          .timeout(const Duration(seconds: 2));
-      return res.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<bool> isFfmpegAvailable() async {
-    try {
-      final res = await http
-          .get(Uri.parse('$_pipelineBase/ffmpeg-check'))
-          .timeout(const Duration(seconds: 3));
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      return body['available'] as bool? ?? false;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  Future<Map<String, dynamic>> processMovieFile(
-    String videoPath, {
-    String? subPath,
-    int maxClips = 0,
-    int offset = 0,
-    bool active = false,
-  }) async {
-    final res = await http
-        .post(
-          Uri.parse('$_pipelineBase/process-movie'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'video_path': videoPath,
-            if (subPath != null && subPath.isNotEmpty) 'sub_path': subPath,
-            'max_clips': maxClips,
-            'offset': offset,
-            'active': active,
-          }),
-        )
-        .timeout(const Duration(minutes: 35));
-
-    final body = jsonDecode(res.body) as Map<String, dynamic>;
-    if (res.statusCode >= 300) {
-      throw Exception(
-          body['error'] ?? 'Movie processing failed (${res.statusCode})');
-    }
-    return body;
-  }
 
   Future<String> createYoutubeAsrJob(
     String url, {
@@ -708,33 +651,6 @@ class AdminService {
         .select()
         .maybeSingle();
     return row;
-  }
-
-  Future<Map<String, dynamic>> processMovieFileBytes(
-    Uint8List bytes, {
-    required String fileName,
-    int maxClips = 50,
-    bool active = false,
-  }) async {
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$_pipelineBase/process-movie-upload'),
-    );
-    request.files.add(http.MultipartFile.fromBytes(
-      'file',
-      bytes,
-      filename: fileName,
-    ));
-    request.fields['max_clips'] = '$maxClips';
-    request.fields['active'] = '$active';
-
-    final streamed = await request.send().timeout(const Duration(minutes: 35));
-    final response = await http.Response.fromStream(streamed);
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode >= 300) {
-      throw Exception(body['error'] ?? 'Movie processing failed (${response.statusCode})');
-    }
-    return body;
   }
 
   /// After an auto-import, deletes pending segments for [youtubeId] that either

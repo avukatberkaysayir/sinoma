@@ -37,6 +37,7 @@ _load_dotenv()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "https://pqyceostpukueydwuiut.supabase.co")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+INTERNAL_FN_SECRET = os.environ.get("INTERNAL_FN_SECRET", "")
 
 # Anti-hallucination layer E: Gemini coherence gate. ON by default; set
 # SINOMA_COHERENCE_GATE=0 to skip. Fail-open everywhere so it can only ever
@@ -56,7 +57,7 @@ def gate_coherence(texts: list[str]) -> list[bool]:
         resp = requests.post(
             f"{SUPABASE_URL}/functions/v1/gate-coherence",
             json={"texts": texts},
-            headers=_supabase_headers(),
+            headers={**_supabase_headers(), "x-internal-secret": INTERNAL_FN_SECRET},
             timeout=40,
         )
         if resp.status_code >= 300:

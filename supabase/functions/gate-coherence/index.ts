@@ -42,12 +42,23 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  // Pipeline-only: the client never calls this. Reject anyone without the shared
+  // internal secret so anon callers can't burn Gemini quota (2026-08-01 audit).
+  if (req.headers.get("x-internal-secret") !== Deno.env.get("INTERNAL_FN_SECRET")) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const texts: string[] = Array.isArray(body.texts)
       ? body.texts.map((t: unknown) => (t ?? "").toString())
       : [];
     if (texts.length === 0) return json({ keep: [] });
+    // Cost guard: cap batch size and per-segment length so an oversized body
+    // can't run up Gemini token cost.
+    if (texts.length > 200) return json({ error: "too many segments" }, 400);
+    for (const t of texts) {
+      if (t.length > 800) return json({ error: "segment too long" }, 400);
+    }
 
     const keys = geminiKeys();
     // Fail-open: if no key is set, keep everything (A–D already filtered).

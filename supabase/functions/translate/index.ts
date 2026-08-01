@@ -57,6 +57,11 @@ const LANG_NAMES: Record<string, string> = {
 // multi-language calls (body.langs) return {translations: {tr: ..., ko: ...}}.
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+  // Pipeline-only: the client never calls this. Reject anyone without the shared
+  // internal secret so anon callers can't burn Gemini quota (2026-08-01 audit).
+  if (req.headers.get("x-internal-secret") !== Deno.env.get("INTERNAL_FN_SECRET")) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const text = (body.text ?? "").toString().trim();
@@ -64,6 +69,8 @@ serve(async (req) => {
       ? body.langs.map((l: unknown) => String(l))
       : [(body.lang ?? "tr").toString()];
     if (!text) return json({ translation: "", translations: {} });
+    // Cost guard: translate operates on one sentence, not a document.
+    if (text.length > 1200) return json({ error: "text too long" }, 400);
 
     const keys = geminiKeys();
     if (!keys.length) return json({ error: "GEMINI_API_KEY not set" }, 500);

@@ -4,7 +4,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
 const MODEL = Deno.env.get("GEMINI_MODEL") ?? "gemini-2.5-flash-lite";
-const GUARD = "sinoma-ko-backfill-2026";
+const GUARD = Deno.env.get("INTERNAL_FN_SECRET") ?? "";
 
 function geminiKeys(): string[] {
   const list: string[] = [];
@@ -24,7 +24,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok");
-  if (req.headers.get("x-backfill-guard") !== GUARD) {
+  if (req.headers.get("x-internal-secret") !== GUARD) {
     return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
   }
   try {

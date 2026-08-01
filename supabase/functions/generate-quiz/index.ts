@@ -703,6 +703,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+  // Pipeline-only: the client never calls this. Reject anyone without the shared
+  // internal secret so anon callers can't burn Gemini quota (2026-08-01 audit).
+  if (req.headers.get("x-internal-secret") !== Deno.env.get("INTERNAL_FN_SECRET")) {
+    return new Response(JSON.stringify({ error: "forbidden" }), { status: 403, headers: corsHeaders });
+  }
   try {
     const body = await req.json().catch(() => ({}));
     const transcription = (body.transcription ?? "").toString().trim();
@@ -711,6 +716,9 @@ serve(async (req) => {
     const sourceEn = (body.sourceEn ?? "").toString().trim();
     const sourceEnWrong = (body.sourceEnWrong ?? "").toString().trim();
     if (!transcription) return json({ error: "transcription required" }, 400);
+    // Cost guard: a real clip transcript is a sentence, not an essay. Cap the
+    // prompt so a malformed/oversized input can't run up Gemini token cost.
+    if (transcription.length > 800) return json({ error: "transcription too long" }, 400);
 
     const langName =
       lang === "en" ? "English"

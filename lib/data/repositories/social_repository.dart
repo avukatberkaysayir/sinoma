@@ -103,7 +103,7 @@ class SocialRepository {
       await _db.from('users').update({'following': myFollowing}).eq('id', _uid);
     }
     final theirData = await _db
-        .from('users')
+        .from('public_profiles')
         .select('followers')
         .eq('id', targetUid)
         .single();
@@ -129,7 +129,7 @@ class SocialRepository {
     await _db.from('users').update({'following': myFollowing}).eq('id', _uid);
 
     final theirData = await _db
-        .from('users')
+        .from('public_profiles')
         .select('followers')
         .eq('id', targetUid)
         .single();
@@ -146,7 +146,7 @@ class SocialRepository {
   Future<List<UserModel>> searchUsers(String query) async {
     if (query.trim().isEmpty) return [];
     final data = await _db
-        .from('users')
+        .from('public_profiles')
         .select()
         .ilike('display_name', '${query.trim()}%')
         .limit(20);
@@ -160,7 +160,7 @@ class SocialRepository {
 
   Future<List<UserModel>> loadLeaderboard(
       {int? hskLevel, int limit = 20}) async {
-    var query = _db.from('users').select();
+    var query = _db.from('public_profiles').select();
     if (hskLevel != null) query = query.eq('hsk_level', hskLevel);
     final data = await query.limit(limit * 2);
     final users = data.map(UserModel.fromMap).toList()
