@@ -216,6 +216,36 @@ def whiten_greens(rgb, a):
     return np.clip(res, 0, 255).astype(np.uint8)
 
 
+def strip_white_rim(rgb, a):
+    """Remove the die-cut 'sticker' white halo the generator sometimes draws
+    OUTSIDE the character's black outline. Near-white opaque pixels that are
+    connected to the transparent background (i.e. lie beyond the black outline)
+    are peeled off; interior whites (eye sparkles, white costume) are enclosed
+    by the character and never touch transparency, so they are kept."""
+    f = rgb.astype(np.float32) / 255.0
+    _hue, sat, val = _hsv(f)
+    whiteish = (val > 0.80) & (sat < 0.22) & (a > 90)
+    if not whiteish.any():
+        return a
+    transparent = a < 40
+    if not transparent.any():
+        return a
+    # A whiteish blob is part of the outer rim if it touches the transparent
+    # region. Grow transparency through connected whiteish pixels only.
+    lbl, n = ndimage.label(whiteish, structure=EIGHT)
+    if n == 0:
+        return a
+    touch = ndimage.binary_dilation(transparent, structure=EIGHT) & whiteish
+    rim_labels = np.unique(lbl[touch])
+    rim_labels = rim_labels[rim_labels != 0]
+    if rim_labels.size == 0:
+        return a
+    rim = np.isin(lbl, rim_labels)
+    a = a.copy()
+    a[rim] = 0
+    return a
+
+
 def process(src, dst, recolor=None, whiten=False):
     w, h, fps = probe(src)
     # Backdrop = MEDIAN corner colour across ALL frames, not frame 0's: the
@@ -241,6 +271,9 @@ def process(src, dst, recolor=None, whiten=False):
         if not keep[i]:
             continue
         a = alpha_mask(frame, bg, sim, blend)
+        # Strip the white sticker rim BEFORE measuring the bbox, or a leftover
+        # rim fragment inflates the crop and leaves the character off-centre.
+        a = strip_white_rim(prep(frame), a)
         ys, xs = np.nonzero(a > 16)
         if len(xs):
             x1, y1 = min(x1, xs.min()), min(y1, ys.min())
@@ -275,6 +308,9 @@ def process(src, dst, recolor=None, whiten=False):
             continue
         a = alpha_mask(frame, bg, sim, blend)
         rgb = prep(frame)
+        # Peel the die-cut white 'sticker' halo the generator sometimes draws
+        # around the character (outside its black outline); no-op when absent.
+        a = strip_white_rim(rgb, a)
         if whiten:
             rgb = whiten_greens(rgb, a)
         # Interior despill targets the GREEN band — it only makes sense (and
@@ -294,8 +330,9 @@ def process(src, dst, recolor=None, whiten=False):
             rgb = np.where(core[..., None], rgb, rgb[iy, ix])
         rgba = np.dstack([rgb, a])[y1:y1 + ch, x1:x1 + cw]
         enc.stdin.write(np.ascontiguousarray(rgba).tobytes())
-    except BrokenPipeError:
+    except (BrokenPipeError, OSError):
         pass  # encoder reached the -t cap and closed stdin early — expected
+        # (Windows raises OSError errno 22 on a closed pipe, not BrokenPipeError)
     try:
         enc.stdin.close()
     except (BrokenPipeError, OSError):
@@ -309,7 +346,17 @@ def process(src, dst, recolor=None, whiten=False):
         print("WARN: near the 8MB bucket limit — consider lowering -q:v")
 
 
-GUARD = "sinoma-admin-asset-2026"
+def _internal_secret():
+    """admin-asset is guarded by INTERNAL_FN_SECRET (header x-internal-secret)
+    since commit 6f12314. Read it from the gitignored .deploy.env at the repo
+    root, or fall back to the env var."""
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    envf = os.path.join(root, ".deploy.env")
+    if os.path.exists(envf):
+        for line in open(envf, encoding="utf-8"):
+            if line.strip().startswith("INTERNAL_FN_SECRET"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    return os.environ.get("INTERNAL_FN_SECRET", "")
 
 
 def upload(dst, level, unit):
@@ -326,7 +373,8 @@ def upload(dst, level, unit):
         f"?level={level}&unit={unit}&kind=mascot&slot=0&ext=webp"
         f"&scale={scale}",
         data=data, method="POST",
-        headers={"Content-Type": "image/webp", "x-backfill-guard": GUARD})
+        headers={"Content-Type": "image/webp",
+                 "x-internal-secret": _internal_secret()})
     with urllib.request.urlopen(req, timeout=300) as r:
         out = json.loads(r.read().decode())
     print(f"uploaded + row upserted (scale {scale}): {out['url']}")

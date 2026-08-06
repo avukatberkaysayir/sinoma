@@ -1,4 +1,4 @@
-﻿# Repair pass: regenerate the 12-language quiz for clips whose Whisper apply
+# Repair pass: regenerate the 12-language quiz for clips whose Whisper apply
 # succeeded but whose quiz generation failed mid-batch. Status is left as-is.
 import json, sys, time, requests, pathlib
 
@@ -8,7 +8,7 @@ PROJECT = "pqyceostpukueydwuiut"
 ANON = "sb_publishable_L_qwvXbTI8URLvDHWUqApg_bgVlf9s1"
 FN_BASE = f"https://{PROJECT}.supabase.co/functions/v1"
 _IFS = ""
-for _l in pathlib.Path(r"d:\Masaustu\github\Kandao\.deploy.env").read_text(encoding="utf-8").splitlines():
+for _l in pathlib.Path(r"D:\github\Sinoma\.deploy.env").read_text(encoding="utf-8").splitlines():
     if _l.startswith("INTERNAL_FN_SECRET"):
         _IFS = _l.split("=", 1)[1].strip().strip('"')
 FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
@@ -26,7 +26,7 @@ _only = _os.environ.get("ONLY_IDS")
 ONLY_IDS = set(_json.load(open(_only, encoding="utf-8"))) if _only else None
 
 tok = None
-with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
+with open(r"D:\github\Sinoma\.deploy.env", encoding="utf-8") as f:
     for line in f:
         if line.startswith("SUPABASE_ACCESS_TOKEN="):
             tok = line.split("=", 1)[1].strip()

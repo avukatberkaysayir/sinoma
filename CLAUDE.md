@@ -2,6 +2,8 @@
 
 Yanıtlar kısa. Active-voice isimler. Yorum yok (WHY apaçık değilse). Detay → `docs/reference.md`, geçmiş → MEMORY.md.
 
+**UI işinden önce `DESIGN.md`'yi oku** (palet/tipografi/bileşen kuralları); tasarım yönünü oradan uygula, uydurma.
+
 ## Bozma-yasak kurallar
 - **Deploy elle:** `git push origin master:main` (pre-push → deploy.ps1 → Vercel). GH Actions kapalı. Edge fn: `npx supabase functions deploy <fn> --project-ref pqyceostpukueydwuiut`.
 - **aiCredits / service_role:** asla Flutter client'tan yazma — sadece edge/cloud fn.

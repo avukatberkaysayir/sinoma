@@ -375,7 +375,7 @@ ICONS = {
  ('huainan', 'oldtown'): 'brandenburg-gate',       # Shou County old town gate
  ('huainan', 'classic'): 'book',                   # the Huainanzi
  ('jingdezhen', 'porcelain'): 'potters-wheel',     # porcelain capital
- ('jingdezhen', 'kiln'): 'pottery-workshop',       # ancient kiln
+ ('jingdezhen', 'kiln'): 'fireplace',               # ancient kiln (was pottery-workshop; too similar to porcelain's potters-wheel)
  ('jingdezhen', 'bluewhite'): 'cookie-jar',        # blue & white porcelain
  ('jingdezhen', 'painting'): 'easel',              # porcelain painting
  ('jian', 'jinggang'): 'forest',                   # Jinggang Mountains

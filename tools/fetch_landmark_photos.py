@@ -24,7 +24,17 @@ ROOT = Path(__file__).resolve().parents[1]
 CITIES_DART = ROOT / 'lib' / 'core' / 'constants' / 'cities.dart'
 LOG = ROOT / 'tools' / 'landmark_photos_log.jsonl'
 EDGE = 'https://pqyceostpukueydwuiut.supabase.co/functions/v1/admin-asset'
-GUARD = 'sinoma-admin-asset-2026'
+# admin-asset is guarded by INTERNAL_FN_SECRET (header x-internal-secret) since
+# commit 6f12314; read it from the gitignored .deploy.env or the env var.
+def _internal_secret():
+    envf = ROOT / '.deploy.env'
+    if envf.exists():
+        for line in envf.read_text(encoding='utf-8').splitlines():
+            if line.strip().startswith('INTERNAL_FN_SECRET'):
+                return line.split('=', 1)[1].strip().strip('"').strip("'")
+    import os as _os
+    return _os.environ.get('INTERNAL_FN_SECRET', '')
+GUARD = _internal_secret()
 UA = 'SinomaLandmarkFetcher/1.0 (educational app; murat.erhan.38@gmail.com)'
 API = 'https://commons.wikimedia.org/w/api.php'
 
@@ -273,7 +283,7 @@ def upload(data, level, unit, slot):
     })
     req = urllib.request.Request(
         f'{EDGE}?{qs}', data=data, method='POST',
-        headers={'x-backfill-guard': GUARD, 'Content-Type': 'image/jpeg'})
+        headers={'x-internal-secret': GUARD, 'Content-Type': 'image/jpeg'})
     with urllib.request.urlopen(req, timeout=60) as r:
         return json.load(r)['url']
 
