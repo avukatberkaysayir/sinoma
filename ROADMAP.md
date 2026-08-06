@@ -49,7 +49,7 @@
 - ✅ Altyazı öncelikli, Whisper fallback
 - ✅ Batch insert (10'luk) + anlık ilerleme güncellemesi
 - ✅ `_probe_accessible()` — IP bloğu vs gerçek erişilemezlik ayırt eder
-- ✅ Windows Task Scheduler — `KandaoPipelineServer` oturum açılınca başlar
+- ✅ Windows Task Scheduler — `SinomaPipelineServer` oturum açılınca başlar
 - ✅ Admin panel: YouTube import sekmesi (elapsed timer, canlı video listesi, HSK filtresi)
 
 ### ADIM 17: Python Pipeline V2 — Self-hosted ⬜

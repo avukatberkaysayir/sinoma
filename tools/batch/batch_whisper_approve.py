@@ -18,7 +18,7 @@ FN_BASE = f"https://{PROJECT}.supabase.co/functions/v1"
 # Internal edge functions (define-word/generate-quiz/…) are pipeline-only and now
 # require this shared secret; the client never calls them, so anon callers 403.
 _IFS = ""
-for _l in pathlib.Path(r"d:\Masaustu\github\Kandao\.deploy.env").read_text(encoding="utf-8").splitlines():
+for _l in pathlib.Path(r"D:\github\Sinoma\.deploy.env").read_text(encoding="utf-8").splitlines():
     if _l.startswith("INTERNAL_FN_SECRET"):
         _IFS = _l.split("=", 1)[1].strip().strip('"')
 FN_H = {"Authorization": f"Bearer {ANON}", "apikey": ANON,
@@ -40,7 +40,7 @@ _only = os.environ.get("ONLY_IDS")
 ONLY_IDS = json.load(open(_only, encoding="utf-8")) if _only else None
 
 tok = None
-with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
+with open(r"D:\github\Sinoma\.deploy.env", encoding="utf-8") as f:
     for line in f:
         if line.startswith("SUPABASE_ACCESS_TOKEN="):
             tok = line.split("=", 1)[1].strip()

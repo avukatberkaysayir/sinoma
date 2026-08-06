@@ -27,7 +27,7 @@ TRIM_MS = int(float(sys.argv[1]) * 1000) if len(sys.argv) > 1 else 3000
 QUALITY = 82  # ~matches the pipeline's q78 source; frame-count cut is the win
 
 tok = None
-with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
+with open(r"D:\github\Sinoma\.deploy.env", encoding="utf-8") as f:
     for line in f:
         if line.startswith("SUPABASE_ACCESS_TOKEN="):
             tok = line.split("=", 1)[1].strip()

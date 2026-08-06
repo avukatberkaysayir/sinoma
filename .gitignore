@@ -88,5 +88,13 @@ pipeline.log
 .deploy.env
 
 # YouTube auth cookies for yt-dlp (NEVER commit — login session)
-python/yt_cookies.txt
-yt_cookies.txt
+# The glob also covers the .bak.<timestamp> copies yt-dlp leaves behind.
+python/yt_cookies.txt*
+yt_cookies.txt*
+
+# Mascot production sources (Character Animator / Photoshop, ~470 MB) — local only
+studio/
+
+# Stray report a batch script writes when it runs from the repo root;
+# the real one lives at tools/batch/batch_report.json
+/batch_report.json

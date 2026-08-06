@@ -2,7 +2,7 @@
 """Add Turkish translations to remaining HSK6 entries (2001-end: 消耗 → 做主)."""
 import re
 
-DART_FILE = r'd:\Masaustu\github\Kandao\lib\core\constants\hsk6_words.dart'
+DART_FILE = r'D:\github\Sinoma\lib\core\constants\hsk6_words.dart'
 
 TR = {
     '消耗': 'tüketmek; harcamak',

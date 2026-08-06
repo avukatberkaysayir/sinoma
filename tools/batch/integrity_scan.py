@@ -10,7 +10,7 @@ OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.abspath(__file__)))), "docs", "butunluk_raporu.md")
 
 tok = None
-with open(r"d:\Masaustu\github\Kandao\.deploy.env", encoding="utf-8") as f:
+with open(r"D:\github\Sinoma\.deploy.env", encoding="utf-8") as f:
     for line in f:
         if line.startswith("SUPABASE_ACCESS_TOKEN="):
             tok = line.split("=", 1)[1].strip()

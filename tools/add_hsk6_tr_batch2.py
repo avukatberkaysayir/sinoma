@@ -2,7 +2,7 @@
 """Add Turkish translations to HSK6 entries 1001-2000 (竞选 → 消防)."""
 import re
 
-DART_FILE = r'd:\Masaustu\github\Kandao\lib\core\constants\hsk6_words.dart'
+DART_FILE = r'D:\github\Sinoma\lib\core\constants\hsk6_words.dart'
 
 TR = {
     '竞选': 'seçim kampanyası yürütmek',

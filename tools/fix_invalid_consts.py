@@ -6,7 +6,7 @@ import subprocess
 import sys
 from collections import defaultdict
 
-ROOT = r"d:\Masaustu\github\Kandao"
+ROOT = r"D:\github\Sinoma"
 
 def analyze():
     out = subprocess.run(

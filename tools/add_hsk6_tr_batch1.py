@@ -2,7 +2,7 @@
 """Add Turkish translations to first 1000 HSK6 entries."""
 import re
 
-DART_FILE = r'd:\Masaustu\github\Kandao\lib\core\constants\hsk6_words.dart'
+DART_FILE = r'D:\github\Sinoma\lib\core\constants\hsk6_words.dart'
 
 TR = {
     # A
